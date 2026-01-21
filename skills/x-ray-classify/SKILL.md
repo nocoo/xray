@@ -46,7 +46,17 @@ Assign relevant tags from:
 - `Security` - Vulnerabilities, security tools
 - `Research` - Academic papers, new techniques
 
-### 4. Relevance Score (`relevance_score: number`)
+### 4. Tags (`tags: string[]`)
+
+Add 3-5 specific topic tags in hashtag format:
+- **#LLM** / **#GPT** / **#Claude** / **#DeepSeek** - Specific model mentions
+- **#Agent** / **#MCP** / **#ToolUse** / **#FunctionCalling** - Agent-related
+- **#RAG** / **#FineTuning** / **#Prompt** / **#Embedding** - LLM techniques
+- **#OpenSource** / **#Research** / **#Release** - Content type
+- **#Tutorial** / **#Benchmark** / **#Dataset** - Learning resources
+- **#Video** / **#Podcast** / **#Paper** / **#Blog** - Media format
+
+### 5. Relevance Score (`relevance_score: number`)
 
 0-100 scale:
 - **90-100**: Core AI/LLM/Agent content, major announcements
@@ -83,6 +93,7 @@ Write to `data/classified.json`:
         "is_tech_related": true,
         "is_hot_topic": true,
         "category": ["AI/LLM", "Research"],
+        "tags": ["#LLM", "#GPT-5", "#Release", "#Paper"],
         "relevance_score": 95,
         "reason": "Announces new LLM training technique with significant performance improvements"
       }
@@ -108,6 +119,7 @@ Write to `data/classified.json`:
 - is_tech_related: true
 - is_hot_topic: true
 - category: ["AI/LLM", "Agent"]
+- tags: ["#GPT", "#LLM", "#Agent", "#ToolUse", "#Release"]
 - relevance_score: 98
 - reason: "Major LLM release with agent capabilities"
 
@@ -116,6 +128,7 @@ Write to `data/classified.json`:
 - is_tech_related: true
 - is_hot_topic: false
 - category: ["DevTools"]
+- tags: ["#React", "#Frontend", "#Tutorial"]
 - relevance_score: 55
 - reason: "General frontend development, not AI-focused"
 
@@ -124,5 +137,6 @@ Write to `data/classified.json`:
 - is_tech_related: false
 - is_hot_topic: false
 - category: []
+- tags: []
 - relevance_score: 0
 - reason: "Personal update, not tech related"

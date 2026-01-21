@@ -87,6 +87,7 @@ export interface TweetClassification {
   is_tech_related: boolean;
   is_hot_topic: boolean;
   category: string[];
+  tags: string[]; // e.g. ["#LLM", "#Agent", "#RAG", "#OpenSource"]
   relevance_score: number; // 0-100
   reason: string;
 }
