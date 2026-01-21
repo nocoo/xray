@@ -1,0 +1,18 @@
+{
+  "name": "x-ray",
+  "version": "0.1.0",
+  "description": "Twitter tech content monitoring system",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "fetch": "bun run scripts/fetch-tweets.ts",
+    "report": "bun run scripts/generate-report.ts",
+    "render": "bun run scripts/render-report.ts",
+    "serve": "bun run scripts/render-report.ts --serve",
+    "watchlist": "bun run scripts/manage-watchlist.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  }
+}

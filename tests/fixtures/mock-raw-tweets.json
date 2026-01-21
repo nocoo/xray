@@ -1,0 +1,71 @@
+{
+  "fetched_at": "2026-01-21T15:30:00.000Z",
+  "time_range": {
+    "from": "2026-01-20T15:30:00.000Z",
+    "to": "2026-01-21T15:30:00.000Z"
+  },
+  "tweets": [
+    {
+      "id": "1881234567890",
+      "text": "Just released a new paper on LLM inference optimization. Check it out: https://arxiv.org/abs/2501.12345",
+      "author": {
+        "id": "123456",
+        "username": "karpathy",
+        "name": "Andrej Karpathy",
+        "profile_image_url": "https://pbs.twimg.com/profile_images/123/photo.jpg"
+      },
+      "created_at": "2026-01-21T10:00:00.000Z",
+      "url": "https://x.com/karpathy/status/1881234567890",
+      "metrics": {
+        "retweet_count": 500,
+        "like_count": 2000,
+        "reply_count": 100,
+        "quote_count": 50
+      },
+      "is_retweet": false,
+      "is_quote": false,
+      "lang": "en"
+    },
+    {
+      "id": "1881234567891",
+      "text": "Great dinner with friends last night! 🍕",
+      "author": {
+        "id": "123456",
+        "username": "karpathy",
+        "name": "Andrej Karpathy",
+        "profile_image_url": "https://pbs.twimg.com/profile_images/123/photo.jpg"
+      },
+      "created_at": "2026-01-21T09:00:00.000Z",
+      "url": "https://x.com/karpathy/status/1881234567891",
+      "metrics": {
+        "retweet_count": 10,
+        "like_count": 100,
+        "reply_count": 5
+      },
+      "is_retweet": false,
+      "is_quote": false,
+      "lang": "en"
+    },
+    {
+      "id": "1881234567892",
+      "text": "Announcing Claude 4 with native MCP support and 10x faster inference. This changes everything for AI agents.",
+      "author": {
+        "id": "789012",
+        "username": "AnthropicAI",
+        "name": "Anthropic",
+        "profile_image_url": "https://pbs.twimg.com/profile_images/456/photo.jpg"
+      },
+      "created_at": "2026-01-21T08:00:00.000Z",
+      "url": "https://x.com/AnthropicAI/status/1881234567892",
+      "metrics": {
+        "retweet_count": 5000,
+        "like_count": 20000,
+        "reply_count": 1000,
+        "quote_count": 500
+      },
+      "is_retweet": false,
+      "is_quote": false,
+      "lang": "en"
+    }
+  ]
+}

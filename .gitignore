@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Database files
+*.db
+data/*.db
+data/*-x-ray.db
+
+# Data files (contain API keys and tweet data)
+data/
+!package.json
+!tsconfig.json
+config/
+*.local.json
+
+# IDE and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Claude settings
+.claude/settings.local.json
+.claude/CLAUDE.md
+
+# Test outputs
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
