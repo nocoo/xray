@@ -1,4 +1,4 @@
-import type { Tweet, RawTweetsFile } from "./types";
+import type { Tweet, RawTweetsFile, TweetThread, TweetMetrics } from "./types";
 
 // =============================================================================
 // Tweet Summary Types
@@ -301,4 +301,130 @@ export function calculateStats(tweets: Tweet[]): TweetStats {
     .slice(0, 10);
 
   return stats;
+}
+
+// =============================================================================
+// Thread Detection and Merging
+// =============================================================================
+
+export function buildThreads(tweets: Tweet[]): TweetThread[] {
+  const tweetMap = new Map<string, Tweet>();
+  const childToParent = new Map<string, string>();
+  const parentToChildren = new Map<string, Tweet[]>();
+
+  for (const tweet of tweets) {
+    tweetMap.set(tweet.id, tweet);
+  }
+
+  for (const tweet of tweets) {
+    if (tweet.reply_to_id && tweetMap.has(tweet.reply_to_id)) {
+      const parent = tweetMap.get(tweet.reply_to_id)!;
+      if (parent.author.username === tweet.author.username) {
+        childToParent.set(tweet.id, tweet.reply_to_id);
+        if (!parentToChildren.has(tweet.reply_to_id)) {
+          parentToChildren.set(tweet.reply_to_id, []);
+        }
+        parentToChildren.get(tweet.reply_to_id)!.push(tweet);
+      }
+    }
+  }
+
+  const processedIds = new Set<string>();
+  const threads: TweetThread[] = [];
+
+  function findRoot(tweetId: string): string {
+    let current = tweetId;
+    while (childToParent.has(current)) {
+      current = childToParent.get(current)!;
+    }
+    return current;
+  }
+
+  function collectReplies(rootId: string): Tweet[] {
+    const replies: Tweet[] = [];
+    const queue = [...(parentToChildren.get(rootId) || [])];
+
+    queue.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    while (queue.length > 0) {
+      const tweet = queue.shift()!;
+      replies.push(tweet);
+      const children = parentToChildren.get(tweet.id) || [];
+      children.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      queue.unshift(...children);
+    }
+
+    return replies;
+  }
+
+  function aggregateMetrics(tweets: Tweet[]): TweetMetrics {
+    return tweets.reduce(
+      (acc, t) => ({
+        retweet_count: acc.retweet_count + t.metrics.retweet_count,
+        like_count: acc.like_count + t.metrics.like_count,
+        reply_count: acc.reply_count + t.metrics.reply_count,
+        quote_count: acc.quote_count + t.metrics.quote_count,
+        view_count: acc.view_count + t.metrics.view_count,
+        bookmark_count: acc.bookmark_count + t.metrics.bookmark_count,
+      }),
+      { retweet_count: 0, like_count: 0, reply_count: 0, quote_count: 0, view_count: 0, bookmark_count: 0 }
+    );
+  }
+
+  for (const tweet of tweets) {
+    if (processedIds.has(tweet.id)) continue;
+
+    const rootId = findRoot(tweet.id);
+    if (processedIds.has(rootId)) continue;
+
+    const root = tweetMap.get(rootId)!;
+    const replies = collectReplies(rootId);
+
+    processedIds.add(rootId);
+    for (const reply of replies) {
+      processedIds.add(reply.id);
+    }
+
+    const allTweets = [root, ...replies];
+    const combinedText = allTweets.map((t) => t.text).join("\n\n---\n\n");
+
+    threads.push({
+      id: rootId,
+      root,
+      replies,
+      reply_count: replies.length,
+      combined_text: combinedText,
+      total_metrics: aggregateMetrics(allTweets),
+    });
+  }
+
+  threads.sort((a, b) => new Date(b.root.created_at).getTime() - new Date(a.root.created_at).getTime());
+
+  return threads;
+}
+
+export interface ThreadSummary {
+  id: string;
+  author: string;
+  reply_count: number;
+  is_thread: boolean;
+  root_text: string;
+  combined_text: string;
+  total_views: number;
+  total_likes: number;
+  url: string;
+}
+
+export function summarizeThreads(threads: TweetThread[]): ThreadSummary[] {
+  return threads.map((t) => ({
+    id: t.id,
+    author: t.root.author.username,
+    reply_count: t.reply_count,
+    is_thread: t.reply_count > 0,
+    root_text: t.root.text.slice(0, 100) + (t.root.text.length > 100 ? "..." : ""),
+    combined_text: t.combined_text,
+    total_views: t.total_metrics.view_count,
+    total_likes: t.total_metrics.like_count,
+    url: t.root.url,
+  }));
 }

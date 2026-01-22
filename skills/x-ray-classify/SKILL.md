@@ -1,142 +1,107 @@
 ---
 name: x-ray-classify
-description: Classifies tweets from raw_tweets.json by analyzing content for tech relevance and hot topics (AI/LLM/Agent focus). Uses AI understanding to categorize each tweet and outputs to classified.json.
+description: 从原始推文中挑选 20 条最有价值的信息，按价值排序输出
 ---
 
-# X-Ray Classification Skill
+# X-Ray 信息筛选
 
-This skill reads raw tweets and classifies each one based on content analysis. This is an AI-powered task that requires understanding the semantic meaning of each tweet.
+## 任务
 
-## Workflow
+从 `data/raw_tweets.json` 中挑选出 **20 条最值得关注的推文/Thread**，按价值从高到低排序。
 
-1. **Read raw tweets**: Load `data/raw_tweets.json`
-2. **Classify each tweet**: Analyze content for tech relevance
-3. **Write results**: Save to `data/classified.json`
+## Thread 处理
 
-## Classification Criteria
+同一作者对自己推文的连续回复应视为一个整体（Thread）：
 
-For each tweet, determine:
+```
+主推文 "搞了一个牛皮 Skills！..."
+  └── 回复 "安装及项目地址：github.com/..."
+        └── 回复 "之前推荐用 Claude Code+yt-dlp..."
+              └── 回复 "成本很低"
+```
 
-### 1. Is Tech Related? (`is_tech_related: boolean`)
+**识别方法**：
+- 检查 `reply_to_id` 字段，找到父推文
+- 如果父推文和当前推文是同一作者，则属于同一 Thread
+- 递归向上找到 root（没有 reply_to_id 或 reply_to_id 不在本批数据中）
 
-The tweet discusses or mentions:
-- Programming languages (Python, Rust, TypeScript, Go, etc.)
-- Frameworks and libraries (React, PyTorch, LangChain, etc.)
-- Developer tools (Git, Docker, Kubernetes, VSCode, etc.)
-- Software engineering concepts (architecture, testing, deployment)
-- Tech companies and products (in technical context)
-- Open source projects
-- Technical research or papers
+**Thread 权重加成**：
+- 多条回复的 Thread 说明作者对这个话题有更多要说的，信息量更大
+- Thread 应该**优先排在前面**
+- 选择时只需要输出 Thread 的 root tweet_id
 
-### 2. Is Hot Topic? (`is_hot_topic: boolean`)
+## 选择标准
 
-Focus areas (as configured in `config/config.json`):
-- **AI/LLM**: Large Language Models, GPT, Claude, Gemini, transformers
-- **Agent**: AI Agents, autonomous systems, tool use, function calling, MCP
-- **Related**: RAG, fine-tuning, prompt engineering, embeddings, inference
+用你的判断力挑选，考虑：
 
-### 3. Category (`category: string[]`)
+1. **信息价值** — 有实质内容，不是水贴
+2. **独特性** — 有新观点、新信息、新资源
+3. **时效性** — 正在发生的事、新发布的东西
+4. **Thread 加成** — 连续回复说明话题更深入
 
-Assign relevant tags from:
-- `AI/LLM` - Language models, neural networks
-- `Agent` - AI agents, autonomous systems
-- `Open Source` - OSS projects, releases
-- `DevTools` - Developer tools, IDEs
-- `Infrastructure` - Cloud, containers, deployment
-- `Security` - Vulnerabilities, security tools
-- `Research` - Academic papers, new techniques
+值得选的类型：
+- 热点事件（产品发布、重大新闻、行业动态）
+- 有深度的洞察或观点
+- 实用资源（工具、教程、开源项目）
+- 有趣的讨论或争议
 
-### 4. Tags (`tags: string[]`)
+不限于技术内容，只要有价值就行。
 
-Add 3-5 specific topic tags in hashtag format:
-- **#LLM** / **#GPT** / **#Claude** / **#DeepSeek** - Specific model mentions
-- **#Agent** / **#MCP** / **#ToolUse** / **#FunctionCalling** - Agent-related
-- **#RAG** / **#FineTuning** / **#Prompt** / **#Embedding** - LLM techniques
-- **#OpenSource** / **#Research** / **#Release** - Content type
-- **#Tutorial** / **#Benchmark** / **#Dataset** - Learning resources
-- **#Video** / **#Podcast** / **#Paper** / **#Blog** - Media format
+## 排除
 
-### 5. Relevance Score (`relevance_score: number`)
+- 纯转发无评论
+- 广告/推销
+- 无信息量的日常闲聊
+- 重复内容（选最有代表性的一条）
+- 已经被合并到 Thread 中的子回复（只选 root）
 
-0-100 scale:
-- **90-100**: Core AI/LLM/Agent content, major announcements
-- **70-89**: Related tech content, useful for practitioners
-- **50-69**: General tech, tangentially related
-- **30-49**: Weak tech connection
-- **0-29**: Not tech related
+## 执行步骤
 
-### 5. Reason (`reason: string`)
+1. 读取 `data/raw_tweets.json`
+2. **识别 Thread**：找出同一作者对自己的连续回复，合并为 Thread
+3. 理解所有推文/Thread 内容
+4. 挑选 20 条最有价值的（Thread 优先，如果不足 20 条只选有价值的）
+5. 按价值从高到低排序
+6. 为每条写一句中文理由（说明为什么值得看）
+7. 写入 `data/classified.json`
 
-Brief explanation (1-2 sentences) of why this classification was given.
-
-## Filter Out
-
-Automatically give low scores to:
-- Pure retweets without commentary
-- Promotional/advertisement content
-- Personal life updates (unless tech-related)
-- Political discussions (unless tech policy)
-- Memes without technical substance
-
-## Output Format
-
-Write to `data/classified.json`:
+## 输出格式
 
 ```json
 {
-  "classified_at": "2026-01-21T15:35:00.000Z",
+  "classified_at": "2026-01-22T12:00:00.000Z",
   "source_file": "data/raw_tweets.json",
+  "total_count": 45,
+  "thread_count": 32,
   "results": [
     {
-      "tweet_id": "1881234567890",
-      "classification": {
-        "is_tech_related": true,
-        "is_hot_topic": true,
-        "category": ["AI/LLM", "Research"],
-        "tags": ["#LLM", "#GPT-5", "#Release", "#Paper"],
-        "relevance_score": 95,
-        "reason": "Announces new LLM training technique with significant performance improvements"
-      }
+      "tweet_id": "2014197979239031224",
+      "reason": "歸藏分享 Claude Code Skills 自动剪辑 YouTube 视频（4 条连续回复，完整介绍项目）"
+    },
+    {
+      "tweet_id": "2014187259252388256",
+      "reason": "yetone 分享 Vibe Coding 对程序员群体的影响洞察"
     }
   ]
 }
 ```
 
-## Execution Steps
+## 注意
 
-1. Read `data/raw_tweets.json` using the Read tool
-2. For each tweet in the `tweets` array:
-   - Read the `text` field
-   - Consider the `author` context
-   - Apply classification criteria
-3. Build the results array
-4. Write the complete JSON to `data/classified.json` using the Write tool
+- 理由必须用**中文**，即使原推文是英文
+- 理由要简洁有力，一句话点明价值所在
+- 如果是 Thread，可以在理由中注明"（N 条连续回复）"
+- 不需要输出任何分类标签或评分
+- 只输出 tweet_id（Thread 的 root ID）和 reason，不要添加其他字段
 
-## Example Classifications
+## 完成通知
 
-**High relevance (90+):**
-> "Just released GPT-5 with 10x inference speed improvements and native tool use"
-- is_tech_related: true
-- is_hot_topic: true
-- category: ["AI/LLM", "Agent"]
-- tags: ["#GPT", "#LLM", "#Agent", "#ToolUse", "#Release"]
-- relevance_score: 98
-- reason: "Major LLM release with agent capabilities"
+分类完成后，**必须**调用 `task-notifier` skill 通知用户：
 
-**Medium relevance (50-70):**
-> "Spent the weekend refactoring our codebase to use the new React 19 features"
-- is_tech_related: true
-- is_hot_topic: false
-- category: ["DevTools"]
-- tags: ["#React", "#Frontend", "#Tutorial"]
-- relevance_score: 55
-- reason: "General frontend development, not AI-focused"
+```bash
+# 成功时
+python3 /Users/nocoo/workspace/personal/skill-task-notifier/scripts/notify.py "X-Ray 分类完成：从 {total_count} 条推文中筛选了 {selected_count} 条" success
 
-**Low relevance (<30):**
-> "Great dinner with friends last night!"
-- is_tech_related: false
-- is_hot_topic: false
-- category: []
-- tags: []
-- relevance_score: 0
-- reason: "Personal update, not tech related"
+# 失败时
+python3 /Users/nocoo/workspace/personal/skill-task-notifier/scripts/notify.py "X-Ray 分类失败：{error_message}" error
+```

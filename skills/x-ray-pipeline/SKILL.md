@@ -79,3 +79,17 @@ After generating the report, summarize for the user:
 4. Top categories
 5. Highlight 3-5 most relevant tweets with links
 6. Provide path to HTML report for viewing
+
+## Notification
+
+After pipeline completes (success or failure), **MUST** call the `task-notifier` skill to notify the user:
+
+```bash
+# On success
+python3 /Users/nocoo/workspace/personal/skill-task-notifier/scripts/notify.py "X-Ray pipeline completed: {selected_count} tweets selected" success
+
+# On failure
+python3 /Users/nocoo/workspace/personal/skill-task-notifier/scripts/notify.py "X-Ray pipeline failed: {error_message}" error
+```
+
+This ensures the user receives push notifications (Bark), system notifications, and sound alerts when the pipeline finishes.

@@ -31,10 +31,7 @@ export interface TemplateData {
   time_range: string;
   generated_at: string;
   total_fetched: number;
-  tech_related: number;
-  hot_topics: number;
-  filtered_count: number;
-  categories: { name: string; count: number }[];
+  selected_count: number;
   tweets: ProcessedTweet[];
 }
 
@@ -57,9 +54,17 @@ export interface ProcessedQuotedTweet {
   media: ProcessedMedia[];
 }
 
-export interface ProcessedTweet extends ReportTweet {
+export interface ProcessedThreadReply {
+  text: string;
   text_html: string;
-  score_class: string;
+  has_photos: boolean;
+  photos: ProcessedMedia[];
+  has_video: boolean;
+  video?: ProcessedMedia;
+}
+
+export interface ProcessedTweet extends Omit<ReportTweet, 'thread_replies' | 'is_thread'> {
+  text_html: string;
   created_at_formatted: string;
   author: ReportTweet["author"] & { initial: string };
   has_media: boolean;
@@ -70,6 +75,8 @@ export interface ProcessedTweet extends ReportTweet {
   video?: ProcessedMedia;
   has_quoted: boolean;
   quoted?: ProcessedQuotedTweet;
+  is_thread: boolean;
+  thread_replies: ProcessedThreadReply[];
 }
 
 /**
@@ -170,34 +177,19 @@ export function processReportData(report: ReportFile): TemplateData {
 
   const timeRange = `${formatDate(fromDate)} - ${formatDate(toDate)}`;
 
-  const categories = Object.entries(report.summary.categories)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count);
-
-  const tweets = report.filtered_tweets.map((tweet) => processTweet(tweet));
+  const tweets = report.tweets.map((tweet) => processTweet(tweet));
 
   return {
     date,
     time_range: timeRange,
     generated_at: formatDateTime(new Date(report.generated_at)),
     total_fetched: report.summary.total_fetched,
-    tech_related: report.summary.tech_related,
-    hot_topics: report.summary.hot_topics,
-    filtered_count: report.filtered_tweets.length,
-    categories,
+    selected_count: report.summary.selected_count,
     tweets,
   };
 }
 
 function processTweet(tweet: ReportTweet): ProcessedTweet {
-  const score = tweet.classification.relevance_score;
-  let scoreClass = "score-low";
-  if (score >= 80) {
-    scoreClass = "score-high";
-  } else if (score >= 50) {
-    scoreClass = "score-medium";
-  }
-
   const mediaList: ProcessedMedia[] = (tweet.media ?? []).map((m) => ({
     type: m.type,
     url: m.url,
@@ -229,10 +221,27 @@ function processTweet(tweet: ReportTweet): ProcessedTweet {
     };
   }
 
+  const threadReplies: ProcessedThreadReply[] = (tweet.thread_replies ?? []).map((reply) => {
+    const replyMediaList: ProcessedMedia[] = (reply.media ?? []).map((m) => ({
+      type: m.type,
+      url: m.url,
+      thumbnail_url: m.thumbnail_url,
+    }));
+    const replyPhotos = replyMediaList.filter((m) => m.type === "PHOTO");
+    const replyVideo = replyMediaList.find((m) => m.type === "VIDEO" || m.type === "GIF");
+    return {
+      text: reply.text,
+      text_html: linkifyText(reply.text),
+      has_photos: replyPhotos.length > 0,
+      photos: replyPhotos,
+      has_video: !!replyVideo,
+      video: replyVideo,
+    };
+  });
+
   return {
     ...tweet,
     text_html: linkifyText(tweet.text),
-    score_class: scoreClass,
     created_at_formatted: formatDateTime(new Date(tweet.created_at)),
     author: {
       ...tweet.author,
@@ -246,6 +255,8 @@ function processTweet(tweet: ReportTweet): ProcessedTweet {
     video,
     has_quoted: !!quoted,
     quoted,
+    is_thread: tweet.is_thread ?? false,
+    thread_replies: threadReplies,
   };
 }
 

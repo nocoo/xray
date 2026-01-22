@@ -140,7 +140,7 @@ export function tweetCount(): number {
   return result.count;
 }
 
-export function processedMark(tweetId: string, classificationResult: "tech" | "non_tech" | "skipped"): void {
+export function processedMark(tweetId: string, classificationResult: "selected" | "skipped"): void {
   const db = getDB();
   db.query(
     `INSERT OR REPLACE INTO processed_tweets (tweet_id, processed_at, classification_result) VALUES (?, ?, ?)`
@@ -149,7 +149,7 @@ export function processedMark(tweetId: string, classificationResult: "tech" | "n
 
 export function processedMarkMany(
   tweetIds: string[],
-  classificationResult: "tech" | "non_tech" | "skipped"
+  classificationResult: "selected" | "skipped"
 ): void {
   const db = getDB();
   const txn = db.transaction(() => {

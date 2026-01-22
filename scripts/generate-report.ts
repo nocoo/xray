@@ -12,8 +12,8 @@ import type {
   ClassifiedFile,
   ReportFile,
   ReportTweet,
-  TweetClassification,
   CommandResult,
+  Tweet,
 } from "./lib/types";
 import {
   loadRawTweets,
@@ -24,11 +24,8 @@ import {
   CLASSIFIED_PATH,
   nowISO,
 } from "./lib/utils";
-import {
-  processedMarkMany,
-  classificationUpsert,
-  tweetGet,
-} from "./lib/tweet-db";
+import { buildThreads } from "./lib/tweet-utils";
+import { processedMarkMany } from "./lib/tweet-db";
 import { resolve } from "path";
 
 const OUTPUT_DIR = resolve(process.cwd(), "data", "output");
@@ -37,14 +34,7 @@ const OUTPUT_DIR = resolve(process.cwd(), "data", "output");
 // Core Functions (exported for testing)
 // =============================================================================
 
-export interface ReportOptions {
-  includeAll?: boolean; // Include all tweets, not just filtered
-  minRelevanceScore?: number; // Minimum score to include (default: 0)
-}
-
-export async function generateReport(
-  options: ReportOptions = {}
-): Promise<CommandResult<ReportFile>> {
+export async function generateReport(): Promise<CommandResult<ReportFile>> {
   if (!(await fileExists(RAW_TWEETS_PATH))) {
     return {
       success: false,
@@ -64,95 +54,56 @@ export async function generateReport(
   const rawTweets = await loadRawTweets();
   const classified = await loadClassified();
 
-  const classificationMap = new Map<string, TweetClassification>();
+  const reasonMap = new Map<string, string>();
   for (const result of classified.results) {
-    classificationMap.set(result.tweet_id, result.classification);
+    reasonMap.set(result.tweet_id, result.reason);
   }
 
-  const mergedTweets: ReportTweet[] = [];
-  const minScore = options.minRelevanceScore ?? 0;
+  const tweetMap = new Map(rawTweets.tweets.map((t) => [t.id, t]));
 
-  for (const tweet of rawTweets.tweets) {
-    const classification = classificationMap.get(tweet.id);
+  // Build threads to find replies for each root tweet
+  const threads = buildThreads(rawTweets.tweets);
+  const threadMap = new Map(threads.map((t) => [t.id, t]));
 
-    if (!classification) {
-      console.warn(`No classification found for tweet ${tweet.id}`);
+  const reportTweets: ReportTweet[] = [];
+  for (const result of classified.results) {
+    const tweet = tweetMap.get(result.tweet_id);
+    if (!tweet) {
+      console.warn(`Tweet not found in raw_tweets: ${result.tweet_id}`);
       continue;
     }
 
-    if (!options.includeAll) {
-      if (!classification.is_tech_related || !classification.is_hot_topic) {
-        continue;
-      }
-      if (classification.relevance_score < minScore) {
-        continue;
-      }
-    }
+    // Check if this tweet is part of a thread
+    const thread = threadMap.get(result.tweet_id);
+    const hasReplies = thread && thread.reply_count > 0;
 
-    mergedTweets.push({
+    reportTweets.push({
       ...tweet,
-      classification,
+      reason: result.reason,
+      is_thread: hasReplies,
+      thread_replies: hasReplies ? thread.replies : undefined,
     });
   }
-
-  mergedTweets.sort((a, b) => {
-    return b.classification.relevance_score - a.classification.relevance_score;
-  });
-
-  const summary = calculateSummary(rawTweets, classified);
 
   const report: ReportFile = {
     generated_at: nowISO(),
     time_range: rawTweets.time_range,
-    summary,
-    filtered_tweets: mergedTweets,
+    summary: {
+      total_fetched: rawTweets.tweets.length,
+      selected_count: reportTweets.length,
+    },
+    tweets: reportTweets,
   };
 
   const outputPath = await saveReport(report, OUTPUT_DIR);
 
-  const processedIds: string[] = [];
-  for (const result of classified.results) {
-    processedMarkMany([result.tweet_id], "tech");
-    classificationUpsert(result.tweet_id, result.classification);
-    processedIds.push(result.tweet_id);
-  }
+  const processedIds = classified.results.map((r) => r.tweet_id);
+  processedMarkMany(processedIds, "selected");
 
   return {
     success: true,
-    message: `Generated report with ${mergedTweets.length} filtered tweet(s). Saved to ${outputPath}. Marked ${processedIds.length} tweet(s) as processed.`,
+    message: `Generated report with ${reportTweets.length} selected tweet(s). Saved to ${outputPath}. Marked ${processedIds.length} tweet(s) as processed.`,
     data: report,
-  };
-}
-
-export function calculateSummary(
-  rawTweets: RawTweetsFile,
-  classified: ClassifiedFile
-): ReportFile["summary"] {
-  let techRelated = 0;
-  let hotTopics = 0;
-  const categories: Record<string, number> = {};
-
-  for (const result of classified.results) {
-    const { classification } = result;
-
-    if (classification.is_tech_related) {
-      techRelated++;
-    }
-
-    if (classification.is_hot_topic) {
-      hotTopics++;
-    }
-
-    for (const category of classification.category) {
-      categories[category] = (categories[category] || 0) + 1;
-    }
-  }
-
-  return {
-    total_fetched: rawTweets.tweets.length,
-    tech_related: techRelated,
-    hot_topics: hotTopics,
-    categories,
   };
 }
 
@@ -160,33 +111,12 @@ export function calculateSummary(
 // CLI Handler
 // =============================================================================
 
-function parseArgs(args: string[]): ReportOptions {
-  const options: ReportOptions = {};
-
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--all") {
-      options.includeAll = true;
-    }
-    if (args[i] === "--min-score" && args[i + 1]) {
-      options.minRelevanceScore = parseInt(args[i + 1], 10);
-      i++;
-    }
-  }
-
-  return options;
-}
-
 async function main() {
-  const args = process.argv.slice(2);
-  const options = parseArgs(args);
-
-  const result = await generateReport(options);
-
+  const result = await generateReport();
   console.log(JSON.stringify(result, null, 2));
   process.exit(result.success ? 0 : 1);
 }
 
-// Run if executed directly
 if (import.meta.main) {
   main().catch((err) => {
     console.error("Error:", err.message);

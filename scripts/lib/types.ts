@@ -104,24 +104,30 @@ export interface RawTweetsFile {
 // Classification Types (Skill output -> Script input)
 // =============================================================================
 
-export interface TweetClassification {
-  is_tech_related: boolean;
-  is_hot_topic: boolean;
-  category: string[];
-  tags: string[]; // e.g. ["#LLM", "#Agent", "#RAG", "#OpenSource"]
-  relevance_score: number; // 0-100
-  reason: string;
-}
-
 export interface ClassifiedTweetResult {
   tweet_id: string;
-  classification: TweetClassification;
+  reason: string; // Chinese explanation of why this tweet is worth reading
+}
+
+// =============================================================================
+// Thread Types (for grouping related tweets)
+// =============================================================================
+
+export interface TweetThread {
+  id: string; // Root tweet ID
+  root: Tweet; // The main/first tweet
+  replies: Tweet[]; // Author's self-replies in order
+  reply_count: number; // Number of replies in thread
+  combined_text: string; // All text combined for context
+  total_metrics: TweetMetrics; // Aggregated metrics
 }
 
 export interface ClassifiedFile {
   classified_at: string; // ISO 8601
   source_file: string;
-  results: ClassifiedTweetResult[];
+  total_count: number; // Total tweets in source file
+  thread_count?: number; // Number of threads after merging
+  results: ClassifiedTweetResult[]; // Top 20 tweets/threads, ordered by value
 }
 
 // =============================================================================
@@ -129,7 +135,9 @@ export interface ClassifiedFile {
 // =============================================================================
 
 export interface ReportTweet extends Tweet {
-  classification: TweetClassification;
+  reason: string; // Why this tweet is worth reading
+  thread_replies?: Tweet[]; // Self-replies in this thread
+  is_thread?: boolean; // Whether this is a multi-tweet thread
 }
 
 export interface ReportFile {
@@ -140,11 +148,9 @@ export interface ReportFile {
   };
   summary: {
     total_fetched: number;
-    tech_related: number;
-    hot_topics: number;
-    categories: Record<string, number>;
+    selected_count: number;
   };
-  filtered_tweets: ReportTweet[];
+  tweets: ReportTweet[];
 }
 
 // =============================================================================
@@ -217,7 +223,7 @@ export interface TweAPIResponse {
 export interface ProcessedTweet {
   tweet_id: string;
   processed_at: string; // ISO 8601
-  classification_result?: "tech" | "non_tech" | "skipped";
+  classification_result?: "selected" | "skipped";
 }
 
 export interface ProcessedFile {

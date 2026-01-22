@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,10 +14,6 @@
       --accent: #1d9bf0;
       --accent-hover: #1a8cd8;
       --border: #2f2f2f;
-      --tag-bg: #1d3a4f;
-      --score-high: #00ba7c;
-      --score-medium: #ffd93d;
-      --score-low: #f4212e;
     }
 
     * {
@@ -59,16 +55,16 @@
     }
 
     .summary {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 16px;
+      display: flex;
+      justify-content: center;
+      gap: 24px;
       margin-bottom: 32px;
     }
 
     .summary-card {
       background: var(--bg-card);
       border-radius: 12px;
-      padding: 20px;
+      padding: 20px 32px;
       text-align: center;
     }
 
@@ -82,32 +78,6 @@
       font-size: 13px;
       color: var(--text-secondary);
       margin-top: 4px;
-    }
-
-    .categories {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 32px;
-      justify-content: center;
-    }
-
-    .category-tag {
-      background: var(--tag-bg);
-      color: var(--accent);
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 500;
-    }
-
-    .category-tag .count {
-      background: var(--accent);
-      color: var(--bg-primary);
-      border-radius: 10px;
-      padding: 2px 8px;
-      margin-left: 6px;
-      font-size: 12px;
     }
 
     .tweets-section h2 {
@@ -135,6 +105,13 @@
       align-items: center;
       gap: 12px;
       margin-bottom: 12px;
+    }
+
+    .tweet-rank {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      min-width: 24px;
     }
 
     .avatar {
@@ -171,28 +148,6 @@
       font-size: 14px;
     }
 
-    .relevance-score {
-      font-size: 14px;
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 8px;
-    }
-
-    .score-high {
-      background: rgba(0, 186, 124, 0.15);
-      color: var(--score-high);
-    }
-
-    .score-medium {
-      background: rgba(255, 217, 61, 0.15);
-      color: var(--score-medium);
-    }
-
-    .score-low {
-      background: rgba(244, 33, 46, 0.15);
-      color: var(--score-low);
-    }
-
     .tweet-text {
       font-size: 15px;
       margin-bottom: 12px;
@@ -209,32 +164,14 @@
       text-decoration: underline;
     }
 
-    .tweet-classification {
+    .tweet-reason {
       background: var(--bg-card);
       border-radius: 8px;
       padding: 12px;
       margin-bottom: 12px;
-    }
-
-    .classification-reason {
-      font-size: 13px;
-      color: var(--text-secondary);
-      font-style: italic;
-    }
-
-    .classification-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 8px;
-    }
-
-    .classification-tags .tag {
-      background: var(--tag-bg);
+      font-size: 14px;
       color: var(--accent);
-      padding: 3px 10px;
-      border-radius: 12px;
-      font-size: 12px;
+      border-left: 3px solid var(--accent);
     }
 
     .tweet-footer {
@@ -432,6 +369,81 @@
       object-fit: cover;
     }
 
+    /* Thread Styles */
+    .thread-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--accent);
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: 8px;
+    }
+
+    .thread-replies {
+      margin-top: 12px;
+      border-left: 2px solid var(--accent);
+      padding-left: 16px;
+    }
+
+    .thread-reply {
+      padding: 12px;
+      margin-bottom: 8px;
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .thread-reply:last-child {
+      margin-bottom: 0;
+    }
+
+    .thread-reply-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .thread-reply-text {
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .thread-reply-text a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .thread-connector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      margin: 8px 0;
+    }
+
+    .thread-connector::before {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .thread-connector::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
     footer {
       text-align: center;
       padding: 32px 0;
@@ -449,16 +461,12 @@
 
     @media (max-width: 600px) {
       .summary {
-        grid-template-columns: repeat(2, 1fr);
+        flex-direction: column;
+        align-items: center;
       }
 
       .tweet-header {
         flex-wrap: wrap;
-      }
-
-      .relevance-score {
-        order: 3;
-        margin-top: 8px;
       }
     }
   </style>
@@ -466,8 +474,8 @@
 <body>
   <div class="container">
     <header>
-      <h1>🔍 X-Ray Report</h1>
-      <p class="subtitle">Tech Tweet Digest • {{date}} • {{time_range}}</p>
+      <h1>X-Ray Report</h1>
+      <p class="subtitle">{{date}} • {{time_range}}</p>
     </header>
 
     <section class="summary">
@@ -476,27 +484,13 @@
         <div class="label">Total Tweets</div>
       </div>
       <div class="summary-card">
-        <div class="number">{{tech_related}}</div>
-        <div class="label">Tech Related</div>
+        <div class="number">{{selected_count}}</div>
+        <div class="label">Selected</div>
       </div>
-      <div class="summary-card">
-        <div class="number">{{hot_topics}}</div>
-        <div class="label">Hot Topics</div>
-      </div>
-      <div class="summary-card">
-        <div class="number">{{filtered_count}}</div>
-        <div class="label">Filtered</div>
-      </div>
-    </section>
-
-    <section class="categories">
-      {{#categories}}
-      <span class="category-tag">{{name}}<span class="count">{{count}}</span></span>
-      {{/categories}}
     </section>
 
     <section class="tweets-section">
-      <h2>📌 Highlighted Tweets</h2>
+      <h2>Top {{selected_count}} Tweets</h2>
 
       {{#tweets}}
       <article class="tweet-card">
@@ -513,7 +507,6 @@
             <div class="author-name">{{author.name}}</div>
             <div class="author-username">@{{author.username}}</div>
           </div>
-          <div class="relevance-score {{score_class}}">{{classification.relevance_score}}</div>
         </div>
 
         <div class="tweet-text">{{{text_html}}}</div>
@@ -577,19 +570,30 @@
         </div>
         {{/has_quoted}}
 
-        <div class="tweet-classification">
-          <div class="classification-reason">{{classification.reason}}</div>
-          <div class="classification-tags">
-            {{#classification.category}}
-            <span class="tag">{{.}}</span>
-            {{/classification.category}}
+        <div class="tweet-reason">{{reason}}</div>
+
+        {{#is_thread}}
+        <div class="thread-replies">
+          <div class="thread-connector">🧵 Thread Replies</div>
+          {{#thread_replies}}
+          <div class="thread-reply">
+            <div class="thread-reply-text">{{{text_html}}}</div>
+            {{#has_photos}}
+            <div class="quoted-media">
+              {{#photos}}
+              <img src="{{url}}" alt="Thread reply image" loading="lazy">
+              {{/photos}}
+            </div>
+            {{/has_photos}}
+            {{#has_video}}
+            <div class="quoted-media">
+              <img src="{{video.thumbnail_url}}" alt="Video thumbnail" loading="lazy">
+            </div>
+            {{/has_video}}
           </div>
-          <div class="classification-tags">
-            {{#classification.tags}}
-            <span class="tag">{{.}}</span>
-            {{/classification.tags}}
-          </div>
+          {{/thread_replies}}
         </div>
+        {{/is_thread}}
 
         <div class="tweet-footer">
           <div class="tweet-metrics">
@@ -615,7 +619,7 @@
 
       {{^tweets}}
       <div class="empty-state">
-        <p>No tweets match the filter criteria.</p>
+        <p>No tweets selected.</p>
       </div>
       {{/tweets}}
     </section>
@@ -626,7 +630,6 @@
   </div>
 
   <script>
-    // Optional: Add interactivity here
     document.querySelectorAll('.tweet-card').forEach(card => {
       card.addEventListener('click', (e) => {
         if (e.target.tagName !== 'A') {
