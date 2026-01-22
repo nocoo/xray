@@ -8,6 +8,8 @@ export interface TweetRow {
   author_username: string;
   author_name: string;
   author_profile_image: string | null;
+  author_followers_count: number;
+  author_is_verified: number;
   created_at: string;
   url: string;
   retweet_count: number;
@@ -15,9 +17,12 @@ export interface TweetRow {
   reply_count: number;
   quote_count: number;
   view_count: number;
+  bookmark_count: number;
   is_retweet: number;
   is_quote: number;
+  is_reply: number;
   lang: string | null;
+  reply_to_id: string | null;
   fetched_at: string;
 }
 
@@ -42,9 +47,10 @@ export function tweetInsert(tweet: Tweet): void {
   db.query(
     `INSERT OR REPLACE INTO tweets (
       id, text, author_id, author_username, author_name, author_profile_image,
+      author_followers_count, author_is_verified,
       created_at, url, retweet_count, like_count, reply_count, quote_count,
-      view_count, is_retweet, is_quote, lang, fetched_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      view_count, bookmark_count, is_retweet, is_quote, is_reply, lang, reply_to_id, fetched_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     tweet.id,
     tweet.text,
@@ -52,16 +58,21 @@ export function tweetInsert(tweet: Tweet): void {
     tweet.author.username,
     tweet.author.name,
     tweet.author.profile_image_url || null,
+    tweet.author.followers_count || 0,
+    tweet.author.is_verified ? 1 : 0,
     tweet.created_at,
     tweet.url,
     tweet.metrics.retweet_count,
     tweet.metrics.like_count,
     tweet.metrics.reply_count,
-    tweet.metrics.quote_count || 0,
-    tweet.metrics.view_count || 0,
+    tweet.metrics.quote_count,
+    tweet.metrics.view_count,
+    tweet.metrics.bookmark_count,
     tweet.is_retweet ? 1 : 0,
     tweet.is_quote ? 1 : 0,
+    tweet.is_reply ? 1 : 0,
     tweet.lang || null,
+    tweet.reply_to_id || null,
     new Date().toISOString()
   );
 }
@@ -102,6 +113,8 @@ export function tweetToModel(row: TweetRow): Tweet {
       username: row.author_username,
       name: row.author_name,
       profile_image_url: row.author_profile_image || undefined,
+      followers_count: row.author_followers_count,
+      is_verified: row.author_is_verified === 1,
     },
     created_at: row.created_at,
     url: row.url,
@@ -111,10 +124,13 @@ export function tweetToModel(row: TweetRow): Tweet {
       reply_count: row.reply_count,
       quote_count: row.quote_count,
       view_count: row.view_count,
+      bookmark_count: row.bookmark_count,
     },
     is_retweet: row.is_retweet === 1,
     is_quote: row.is_quote === 1,
+    is_reply: row.is_reply === 1,
     lang: row.lang || undefined,
+    reply_to_id: row.reply_to_id || undefined,
   };
 }
 

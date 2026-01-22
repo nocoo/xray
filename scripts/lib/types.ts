@@ -32,7 +32,7 @@ export interface Watchlist {
 }
 
 // =============================================================================
-// Tweet Types (from API)
+// Tweet Types (Internal Model)
 // =============================================================================
 
 export interface TweetAuthor {
@@ -40,14 +40,30 @@ export interface TweetAuthor {
   username: string;
   name: string;
   profile_image_url?: string;
+  followers_count?: number;
+  is_verified?: boolean;
 }
 
 export interface TweetMetrics {
   retweet_count: number;
   like_count: number;
   reply_count: number;
-  quote_count?: number;
-  view_count?: number;
+  quote_count: number;
+  view_count: number;
+  bookmark_count: number;
+}
+
+export interface TweetMedia {
+  id: string;
+  type: "PHOTO" | "VIDEO" | "GIF";
+  url: string;
+  thumbnail_url?: string;
+}
+
+export interface TweetEntities {
+  hashtags: string[];
+  mentioned_users: string[];
+  urls: string[];
 }
 
 export interface Tweet {
@@ -59,7 +75,12 @@ export interface Tweet {
   metrics: TweetMetrics;
   is_retweet: boolean;
   is_quote: boolean;
+  is_reply: boolean;
   lang?: string;
+  media?: TweetMedia[];
+  entities?: TweetEntities;
+  quoted_tweet?: Tweet;
+  reply_to_id?: string;
 }
 
 // =============================================================================
@@ -127,65 +148,65 @@ export interface ReportFile {
 }
 
 // =============================================================================
-// API Response Types (from api.twitterapi.io)
+// TweAPI Response Types (from api.tweapi.io)
 // =============================================================================
 
-export interface TwitterAPIAuthor {
-  type: string;
-  userName: string;
-  url: string;
+export interface TweAPIAuthor {
   id: string;
-  name: string;
-  isVerified: boolean;
-  isBlueVerified: boolean;
-  profilePicture: string;
-  coverPicture?: string;
+  userName: string;
+  fullName: string;
   description?: string;
   location?: string;
-  followers: number;
-  following: number;
+  profileImage: string;
+  profileBanner?: string;
+  followersCount: number;
+  followingsCount: number;
+  statusesCount: number;
+  likeCount: number;
+  isVerified: boolean;
   createdAt: string;
+  pinnedTweet?: string;
 }
 
-export interface TwitterAPITweet {
-  type: string;
+export interface TweAPIMedia {
+  id: string;
+  type: "PHOTO" | "VIDEO" | "GIF";
+  url: string;
+  thumbnailUrl?: string;
+}
+
+export interface TweAPIEntities {
+  hashtags: string[];
+  mentionedUsers: string[];
+  urls: string[];
+}
+
+export interface TweAPITweet {
   id: string;
   url: string;
-  text: string;
-  source: string;
+  fullText: string;
+  createdAt: string; // ISO 8601
+  lang: string;
+  bookmarkCount: number;
+  likeCount: number;
   retweetCount: number;
   replyCount: number;
-  likeCount: number;
   quoteCount: number;
   viewCount: number;
-  bookmarkCount: number;
-  createdAt: string;
-  lang: string;
-  isReply: boolean;
-  inReplyToId: string | null;
   conversationId: string;
-  inReplyToUserId: string | null;
-  inReplyToUsername: string | null;
-  author: TwitterAPIAuthor;
-  quoted_tweet: TwitterAPITweet | null;
-  retweeted_tweet: TwitterAPITweet | null;
-  entities?: {
-    urls?: Array<{
-      display_url: string;
-      expanded_url: string;
-      url: string;
-    }>;
-  };
+  tweetBy: TweAPIAuthor;
+  entities: TweAPIEntities;
+  media?: TweAPIMedia[];
+  quoted?: TweAPITweet;
+  replyTo?: string;
 }
 
-export interface TwitterAPIResponse {
-  status: string;
+export interface TweAPIResponse {
   code: number;
   msg: string;
-  data?: {
-    pin_tweet: TwitterAPITweet | null;
-    tweets: TwitterAPITweet[];
-    next_cursor?: string;
+  data: {
+    list: TweAPITweet[];
+    next?: string;
   };
 }
 

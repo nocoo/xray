@@ -1,7 +1,7 @@
-import type { Config, TwitterAPIResponse, TwitterAPITweet, Tweet, TweetAuthor } from "./types";
+import type { Config, TweAPIResponse, TweAPITweet, Tweet, TweetAuthor, TweetMetrics, TweetMedia, TweetEntities } from "./types";
 
 // =============================================================================
-// API Client
+// API Client for api.tweapi.io
 // =============================================================================
 
 export class TwitterAPIClient {
@@ -13,89 +13,98 @@ export class TwitterAPIClient {
     this.baseUrl = config.api.base_url;
   }
 
-  /**
-   * Fetch tweets for a user by their username
-   */
-  async fetchUserTweets(username: string, pageSize: number = 50): Promise<Tweet[]> {
-    const url = new URL(`${this.baseUrl}/twitter/user/last_tweets`);
-    url.searchParams.set("userName", username);
-    url.searchParams.set("pageSize", String(pageSize));
+  async fetchUserTweets(username: string): Promise<Tweet[]> {
+    const url = `${this.baseUrl}/v1/twitter/user/userRecent20Tweets`;
 
-    const response = await fetch(url.toString(), {
-      method: "GET",
+    const response = await fetch(url, {
+      method: "POST",
       headers: {
-        "X-API-Key": this.apiKey,
+        "x-api-key": this.apiKey,
+        "content-type": "application/json",
       },
+      body: JSON.stringify({
+        url: `https://x.com/${username}`,
+      }),
     });
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status} ${response.statusText}`);
     }
 
-    const data = (await response.json()) as TwitterAPIResponse;
+    const data = (await response.json()) as TweAPIResponse;
 
-    if (data.status !== "success") {
-      throw new Error(`API error: ${data.msg}`);
+    if (data.code !== 201 || data.msg !== "ok") {
+      throw new Error(`API error: ${data.msg} (code: ${data.code})`);
     }
 
-    if (!data.data?.tweets) {
+    if (!data.data?.list) {
       return [];
     }
 
-    return data.data.tweets.map((tweet) => this.normalizeTweet(tweet));
+    return data.data.list.map((tweet) => this.normalizeTweet(tweet));
   }
 
-  /**
-   * Normalize API response to our Tweet type
-   */
-  private normalizeTweet(apiTweet: TwitterAPITweet): Tweet {
+  private normalizeTweet(apiTweet: TweAPITweet): Tweet {
     const author: TweetAuthor = {
-      id: apiTweet.author.id,
-      username: apiTweet.author.userName,
-      name: apiTweet.author.name,
-      profile_image_url: apiTweet.author.profilePicture,
+      id: apiTweet.tweetBy.id,
+      username: apiTweet.tweetBy.userName,
+      name: apiTweet.tweetBy.fullName,
+      profile_image_url: apiTweet.tweetBy.profileImage,
+      followers_count: apiTweet.tweetBy.followersCount,
+      is_verified: apiTweet.tweetBy.isVerified,
     };
+
+    const metrics: TweetMetrics = {
+      retweet_count: apiTweet.retweetCount || 0,
+      like_count: apiTweet.likeCount || 0,
+      reply_count: apiTweet.replyCount || 0,
+      quote_count: apiTweet.quoteCount || 0,
+      view_count: apiTweet.viewCount || 0,
+      bookmark_count: apiTweet.bookmarkCount || 0,
+    };
+
+    const entities: TweetEntities = {
+      hashtags: apiTweet.entities?.hashtags || [],
+      mentioned_users: apiTweet.entities?.mentionedUsers || [],
+      urls: apiTweet.entities?.urls || [],
+    };
+
+    let media: TweetMedia[] | undefined;
+    if (apiTweet.media && apiTweet.media.length > 0) {
+      media = apiTweet.media.map((m) => ({
+        id: m.id,
+        type: m.type,
+        url: m.url,
+        thumbnail_url: m.thumbnailUrl,
+      }));
+    }
+
+    let quotedTweet: Tweet | undefined;
+    if (apiTweet.quoted) {
+      quotedTweet = this.normalizeTweet(apiTweet.quoted);
+    }
 
     return {
       id: apiTweet.id,
-      text: apiTweet.text,
+      text: apiTweet.fullText,
       author,
-      created_at: this.parseTwitterDate(apiTweet.createdAt),
+      created_at: apiTweet.createdAt,
       url: apiTweet.url,
-      metrics: {
-        retweet_count: apiTweet.retweetCount || 0,
-        like_count: apiTweet.likeCount || 0,
-        reply_count: apiTweet.replyCount || 0,
-        quote_count: apiTweet.quoteCount,
-        view_count: apiTweet.viewCount,
-      },
-      is_retweet: !!apiTweet.retweeted_tweet,
-      is_quote: !!apiTweet.quoted_tweet,
+      metrics,
+      is_retweet: false,
+      is_quote: !!apiTweet.quoted,
+      is_reply: !!apiTweet.replyTo,
       lang: apiTweet.lang,
+      media,
+      entities,
+      quoted_tweet: quotedTweet,
+      reply_to_id: apiTweet.replyTo,
     };
-  }
-
-  /**
-   * Parse Twitter's date format to ISO 8601
-   * Twitter format: "Wed Oct 10 20:19:24 +0000 2018"
-   */
-  private parseTwitterDate(dateStr: string): string {
-    // If already ISO format, return as is
-    if (dateStr.includes("T")) {
-      return dateStr;
-    }
-
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) {
-      // Fallback to current time if parsing fails
-      return new Date().toISOString();
-    }
-    return date.toISOString();
   }
 }
 
 // =============================================================================
-// Factory function for testing
+// Factory function
 // =============================================================================
 
 export function createAPIClient(config: Config): TwitterAPIClient {

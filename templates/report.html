@@ -280,6 +280,158 @@
       text-decoration: underline;
     }
 
+    /* Media Styles */
+    .tweet-media {
+      margin: 12px 0;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .media-grid {
+      display: grid;
+      gap: 2px;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .media-grid.single {
+      grid-template-columns: 1fr;
+    }
+
+    .media-grid.double {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .media-grid.triple {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+
+    .media-grid.triple .media-item:first-child {
+      grid-row: span 2;
+    }
+
+    .media-grid.quad {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+
+    .media-item {
+      position: relative;
+      background: var(--bg-card);
+      aspect-ratio: 16/9;
+      overflow: hidden;
+    }
+
+    .media-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .media-item img:hover {
+      opacity: 0.9;
+    }
+
+    .video-indicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      background: rgba(29, 155, 240, 0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .video-indicator svg {
+      width: 28px;
+      height: 28px;
+      fill: white;
+      margin-left: 4px;
+    }
+
+    /* Quoted Tweet Styles */
+    .quoted-tweet {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px;
+      margin: 12px 0;
+      background: var(--bg-card);
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .quoted-tweet:hover {
+      border-color: var(--accent);
+    }
+
+    .quoted-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .quoted-avatar {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--bg-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .quoted-avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .quoted-author-name {
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .quoted-author-username {
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .quoted-text {
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .quoted-text a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .quoted-media {
+      margin-top: 8px;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .quoted-media img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+    }
+
     footer {
       text-align: center;
       padding: 32px 0;
@@ -364,7 +516,66 @@
           <div class="relevance-score {{score_class}}">{{classification.relevance_score}}</div>
         </div>
 
-        <div class="tweet-text">{{text_html}}</div>
+        <div class="tweet-text">{{{text_html}}}</div>
+
+        {{#has_photos}}
+        <div class="tweet-media">
+          <div class="media-grid {{#photos.1}}{{#photos.2}}{{#photos.3}}quad{{/photos.3}}{{^photos.3}}triple{{/photos.3}}{{/photos.2}}{{^photos.2}}double{{/photos.2}}{{/photos.1}}{{^photos.1}}single{{/photos.1}}">
+            {{#photos}}
+            <div class="media-item">
+              <a href="{{url}}" target="_blank" rel="noopener">
+                <img src="{{url}}" alt="Tweet image" loading="lazy">
+              </a>
+            </div>
+            {{/photos}}
+          </div>
+        </div>
+        {{/has_photos}}
+
+        {{#has_video}}
+        <div class="tweet-media">
+          <div class="media-item" style="aspect-ratio: 16/9;">
+            <a href="{{video.url}}" target="_blank" rel="noopener">
+              {{#video.thumbnail_url}}
+              <img src="{{video.thumbnail_url}}" alt="Video thumbnail" loading="lazy">
+              {{/video.thumbnail_url}}
+              {{^video.thumbnail_url}}
+              <div style="width: 100%; height: 100%; background: var(--bg-card);"></div>
+              {{/video.thumbnail_url}}
+            </a>
+            <div class="video-indicator">
+              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+          </div>
+        </div>
+        {{/has_video}}
+
+        {{#has_quoted}}
+        <div class="quoted-tweet" onclick="window.open('{{quoted.url}}', '_blank')">
+          <div class="quoted-header">
+            <div class="quoted-avatar">
+              {{#quoted.author_profile_image_url}}
+              <img src="{{quoted.author_profile_image_url}}" alt="{{quoted.author_name}}">
+              {{/quoted.author_profile_image_url}}
+              {{^quoted.author_profile_image_url}}
+              {{quoted.author_initial}}
+              {{/quoted.author_profile_image_url}}
+            </div>
+            <span class="quoted-author-name">{{quoted.author_name}}</span>
+            <span class="quoted-author-username">@{{quoted.author_username}}</span>
+          </div>
+          <div class="quoted-text">{{{quoted.text_html}}}</div>
+          {{#quoted.has_media}}
+          <div class="quoted-media">
+            {{#quoted.media}}
+            {{#type}}
+            <img src="{{#thumbnail_url}}{{thumbnail_url}}{{/thumbnail_url}}{{^thumbnail_url}}{{url}}{{/thumbnail_url}}" alt="Quoted media" loading="lazy">
+            {{/type}}
+            {{/quoted.media}}
+          </div>
+          {{/quoted.has_media}}
+        </div>
+        {{/has_quoted}}
 
         <div class="tweet-classification">
           <div class="classification-reason">{{classification.reason}}</div>

@@ -38,11 +38,38 @@ export interface TemplateData {
   tweets: ProcessedTweet[];
 }
 
+export interface ProcessedMedia {
+  type: "PHOTO" | "VIDEO" | "GIF";
+  url: string;
+  thumbnail_url?: string;
+}
+
+export interface ProcessedQuotedTweet {
+  id: string;
+  url: string;
+  author_name: string;
+  author_username: string;
+  author_profile_image_url?: string;
+  author_initial: string;
+  text: string;
+  text_html: string;
+  has_media: boolean;
+  media: ProcessedMedia[];
+}
+
 export interface ProcessedTweet extends ReportTweet {
   text_html: string;
   score_class: string;
   created_at_formatted: string;
   author: ReportTweet["author"] & { initial: string };
+  has_media: boolean;
+  media_list: ProcessedMedia[];
+  has_photos: boolean;
+  photos: ProcessedMedia[];
+  has_video: boolean;
+  video?: ProcessedMedia;
+  has_quoted: boolean;
+  quoted?: ProcessedQuotedTweet;
 }
 
 /**
@@ -90,7 +117,16 @@ export function renderTemplate(template: string, data: Record<string, unknown>):
     }
   );
 
-  // Handle simple variable replacements
+  // Handle raw HTML variable replacements (triple mustache - no escaping)
+  result = result.replace(/\{\{\{(\w+(?:\.\w+)*)\}\}\}/g, (_, key) => {
+    const value = getNestedValue(data, key);
+    if (value === undefined || value === null) {
+      return "";
+    }
+    return String(value);
+  });
+
+  // Handle simple variable replacements (double mustache - escaped)
   result = result.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (_, key) => {
     const value = getNestedValue(data, key);
     if (value === undefined || value === null) {
@@ -162,6 +198,37 @@ function processTweet(tweet: ReportTweet): ProcessedTweet {
     scoreClass = "score-medium";
   }
 
+  const mediaList: ProcessedMedia[] = (tweet.media ?? []).map((m) => ({
+    type: m.type,
+    url: m.url,
+    thumbnail_url: m.thumbnail_url,
+  }));
+
+  const photos = mediaList.filter((m) => m.type === "PHOTO");
+  const video = mediaList.find((m) => m.type === "VIDEO" || m.type === "GIF");
+
+  let quoted: ProcessedQuotedTweet | undefined;
+  if (tweet.quoted_tweet) {
+    const qt = tweet.quoted_tweet;
+    const qtMediaList: ProcessedMedia[] = (qt.media ?? []).map((m) => ({
+      type: m.type,
+      url: m.url,
+      thumbnail_url: m.thumbnail_url,
+    }));
+    quoted = {
+      id: qt.id,
+      url: qt.url,
+      author_name: qt.author.name,
+      author_username: qt.author.username,
+      author_profile_image_url: qt.author.profile_image_url,
+      author_initial: qt.author.name.charAt(0).toUpperCase(),
+      text: qt.text,
+      text_html: linkifyText(qt.text),
+      has_media: qtMediaList.length > 0,
+      media: qtMediaList,
+    };
+  }
+
   return {
     ...tweet,
     text_html: linkifyText(tweet.text),
@@ -171,6 +238,14 @@ function processTweet(tweet: ReportTweet): ProcessedTweet {
       ...tweet.author,
       initial: tweet.author.name.charAt(0).toUpperCase(),
     },
+    has_media: mediaList.length > 0,
+    media_list: mediaList,
+    has_photos: photos.length > 0,
+    photos,
+    has_video: !!video,
+    video,
+    has_quoted: !!quoted,
+    quoted,
   };
 }
 

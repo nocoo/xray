@@ -66,6 +66,8 @@ function initDB(): void {
       author_username TEXT NOT NULL,
       author_name TEXT NOT NULL,
       author_profile_image TEXT,
+      author_followers_count INTEGER DEFAULT 0,
+      author_is_verified INTEGER DEFAULT 0,
       created_at TEXT NOT NULL,
       url TEXT NOT NULL,
       retweet_count INTEGER DEFAULT 0,
@@ -73,9 +75,12 @@ function initDB(): void {
       reply_count INTEGER DEFAULT 0,
       quote_count INTEGER DEFAULT 0,
       view_count INTEGER DEFAULT 0,
+      bookmark_count INTEGER DEFAULT 0,
       is_retweet INTEGER DEFAULT 0,
       is_quote INTEGER DEFAULT 0,
+      is_reply INTEGER DEFAULT 0,
       lang TEXT,
+      reply_to_id TEXT,
       fetched_at TEXT NOT NULL
     )
   `);
