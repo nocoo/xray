@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>X-Ray Report - 2026-01-23</title>
+  <style>
+    :root {
+      --bg-primary: #0f0f0f;
+      --bg-secondary: #1a1a1a;
+      --bg-card: #242424;
+      --text-primary: #e7e7e7;
+      --text-secondary: #888;
+      --accent: #1d9bf0;
+      --accent-hover: #1a8cd8;
+      --border: #2f2f2f;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 24px 16px;
+    }
+
+    header {
+      text-align: center;
+      padding: 32px 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    header .subtitle {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .summary {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .summary-card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 20px 32px;
+      text-align: center;
+    }
+
+    .summary-card .number {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .summary-card .label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .tweets-section h2 {
+      font-size: 20px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tweet-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+      transition: border-color 0.2s;
+    }
+
+    .tweet-card:hover {
+      border-color: var(--accent);
+    }
+
+    .tweet-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .tweet-rank {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      min-width: 24px;
+    }
+
+    .avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .author-info {
+      flex: 1;
+    }
+
+    .author-name {
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .author-username {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .tweet-text {
+      font-size: 15px;
+      margin-bottom: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .tweet-text a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .tweet-text a:hover {
+      text-decoration: underline;
+    }
+
+    .tweet-reason {
+      background: var(--bg-card);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: var(--accent);
+      border-left: 3px solid var(--accent);
+    }
+
+    .tweet-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .tweet-metrics {
+      display: flex;
+      gap: 16px;
+    }
+
+    .metric {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .metric svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .tweet-time {
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .tweet-link {
+      display: inline-block;
+      margin-top: 8px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    .tweet-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Media Styles */
+    .tweet-media {
+      margin: 12px 0;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .media-grid {
+      display: grid;
+      gap: 2px;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .media-grid.single {
+      grid-template-columns: 1fr;
+    }
+
+    .media-grid.double {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .media-grid.triple {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+
+    .media-grid.triple .media-item:first-child {
+      grid-row: span 2;
+    }
+
+    .media-grid.quad {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+
+    .media-item {
+      position: relative;
+      background: var(--bg-card);
+      aspect-ratio: 16/9;
+      overflow: hidden;
+    }
+
+    .media-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .media-item img:hover {
+      opacity: 0.9;
+    }
+
+    .video-indicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      background: rgba(29, 155, 240, 0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .video-indicator svg {
+      width: 28px;
+      height: 28px;
+      fill: white;
+      margin-left: 4px;
+    }
+
+    /* Quoted Tweet Styles */
+    .quoted-tweet {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px;
+      margin: 12px 0;
+      background: var(--bg-card);
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .quoted-tweet:hover {
+      border-color: var(--accent);
+    }
+
+    .quoted-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .quoted-avatar {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--bg-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .quoted-avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .quoted-author-name {
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .quoted-author-username {
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .quoted-text {
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .quoted-text a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .quoted-media {
+      margin-top: 8px;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .quoted-media img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+    }
+
+    /* Thread Styles */
+    .thread-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--accent);
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: 8px;
+    }
+
+    .thread-replies {
+      margin-top: 12px;
+      border-left: 2px solid var(--accent);
+      padding-left: 16px;
+    }
+
+    .thread-reply {
+      padding: 12px;
+      margin-bottom: 8px;
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .thread-reply:last-child {
+      margin-bottom: 0;
+    }
+
+    .thread-reply-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .thread-reply-text {
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .thread-reply-text a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .thread-connector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      margin: 8px 0;
+    }
+
+    .thread-connector::before {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .thread-connector::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    footer {
+      text-align: center;
+      padding: 32px 0;
+      color: var(--text-secondary);
+      font-size: 13px;
+      border-top: 1px solid var(--border);
+      margin-top: 32px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px;
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 600px) {
+      .summary {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .tweet-header {
+        flex-wrap: wrap;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>X-Ray Report</h1>
+      <p class="subtitle">2026-01-23 • Jan 23, 2026 - Jan 23, 2026</p>
+    </header>
+
+    <section class="summary">
+      <div class="summary-card">
+        <div class="number">8</div>
+        <div class="label">Total Tweets</div>
+      </div>
+      <div class="summary-card">
+        <div class="number">1</div>
+        <div class="label">Selected</div>
+      </div>
+    </section>
+
+    <section class="tweets-section">
+      <h2>Top 1 Tweets</h2>
+
+      
+      <article class="tweet-card">
+        <div class="tweet-header">
+          <div class="avatar">
+            
+            <img src="https://pbs.twimg.com/profile_images/2002791660171018243/yo1MQ05P_normal.png" alt="123olp">
+            
+            
+          </div>
+          <div class="author-info">
+            <div class="author-name">123olp</div>
+            <div class="author-username">@123olp</div>
+          </div>
+        </div>
+
+        <div class="tweet-text">BTC AI分析报告
+
+BTCUSDT AI分析报告 (周期: 4h)
+
+数据输入：{"symbol": "BTCUSDT", "interval": "4h", "generated_at": "2026-01-22T22:29:20.046283+00:00", ...}
+
+### 📋 综合评估与核心观点
+
+当前市场摘要：  
+BTCUSDT目前处于中期下行趋势中的弱势修复阶段。4小时价格89403.2位于布林带中轨90218.155下方，成交量显著萎缩（量比0.0317），持仓量微降至99588.775 BTC。订单簿流动性处于“紧张”等级（评分30.21），买盘承接意愿随价格回落而走弱，整体表现为典型的缩量整理。
+
+核心观点：  
+市场处于趋势下跌后的低位盘整期，主要趋势方向向下。4小时与日线级别SuperTrend指标均处于看跌区间（阻力分别在92116.22876271792和96678.1100163723）。当前15分钟与1小时级别虽有微弱多头修复，但动能严重不足，需警惕二次探底风险。
+
+主力资金态度：  
+资金流向显示主动卖压占据主导，1日主动买卖比仅为0.000871393014860422。大户持仓多空比维持在2.1135高位，显示大户在下跌中持续补仓，但主动成交CVD变化率为-1.1417707090714104，反映出主力目前以被动挂单承接为主，缺乏主动推盘进攻意图。
+
+---
+
+### 🎯 交易计划
+
+核心观点：  
+整体维持看跌偏见，策略框架以“反弹高空”为主，辅以极小仓位的底部支撑区间超短线博弈。开仓思路关注4小时阻力位的压制表现，严守趋势带止损。
+
+| 策略类型 | 谨慎左侧做多 | 右侧突破做多 | 右侧跌破做空 |
+| :--- | :--- | :--- | :--- |
+| 入场价位 | 87205.5 - 88465.6 | 价格 > 93379.0 | 价格 < 87205.5 |
+| 止损价位 | 86632.65346891657 | 91347.75 | 89403.2 |
+| 目标价位 1 | 89739.0 | 95375.2 | 85062.7 |
+| 目标价位 2 | 91670.43947873995 | 97932.1 | 80600.0 |
+| 风险收益比 | 1.85 | 2.12 | 2.34 |
+
+---
+
+### 📍 关键价位 (支撑与阻力)
+
+| 阻力位 (Resistance) |  | 支撑位 (Support) |  |
+| :--- | :--- | :--- | :--- |
+| R1 (强) | 93379.0 | S1 (强) | 87205.5 |
+| R2 (中) | 91116.24 | S2 (中) | 85062.7 |
+| R3 (弱) | 89819.9 | S3 (弱) | 88465.6 |
+
+---
+
+### 🧭 交易方向、置信度与核心逻辑
+
+主要方向建议：  
+看跌 (🔴🔽 BEARISH)，基于 **右侧交易逻辑**。
+
+次要方向建议：  
+在S1支撑位（87205.5）附近观察缩量止跌信号，可进行极小仓位的左侧抢跑多单博弈反抽。
+
+置信度：65%  
+（判定依据：周线与日线级别强共振看跌，4小时趋势带压制明确，唯有短周期出现超卖底背离修复需求。）
+
+多周期权重分配策略：  
+- 主要分析周期（4h）：占比 50%，作为趋势定性依据；  
+- 1h/1d周期：占比 30%，用于过滤噪音与确认波段拐点；  
+- 15m/5m周期：占比 20%，用于寻找精确入场点位。
+
+核心逻辑：  
+1. 看涨理由 (🟢🔼)：  
+   - 4小时RSI（42.84）出现底背离迹象，短线存在超跌修复预期。  
+   - 15分钟指标显示MACD进入多头区域，短期有向89937.35365405031阻力位靠拢的动力。
+
+2. 看跌理由 (🔴🔽)：  
+   - 4小时SuperTrend处于92116.22876271792，价格运行在其下方，趋势压力显著。  
+   - 周线级别主动买卖比仅为0.3254255685341093，长期资金流出压力沉重。  
+   - 主力CVD持续负增长，且量能斐波狙击扫描器在1分钟级别发出卖出信号。
+
+3. 多周期共振分析：  
+   - 4h、1d、1w 周期呈现 **强共振🔴看跌** 信号，趋势带均位于当前价格上方。  
+   - 5m与15m周期显示中等强度🟢看涨修复，这种跨周期方向不一致通常预示着回撤后的阴跌或诱多。
+
+4. 最终结论：  
+   主要趋势被空头统治，短期的上涨仅为修正性反弹。由于量能严重缺失，反弹难以有效突破R1强阻力。在高位布局空单具有更高的赔率。
+
+---
+
+### ⚖️ 动态风险评估与仓位管理
+
+风险等级：中高  
+主要风险来源：当前流动性分分为30.21，属于“紧张”状态，较小的资金冲击可能引发剧烈的插针行情；同时大户多空比极高，若发生大规模爆仓将导致踩踏。
+
+建议仓位比例：  
+- 左侧交易（S1博弈）：单次初始仓位 5%–10%  
+- 右侧确认（跌破87205.5或反弹受阻）：建议仓位 20%–30%
+
+---
+
+### 多周期共振评估
+
+- 趋势与强度一致性：`[强共振🔴]`  
+- 动量与超买超卖一致性：`[分歧🔴]`  
+- 成交量与资金流一致性：`[分歧🔴]`  
+- 关键水平位共振：`[中等支撑/阻力⚪]`
+
+---
+
+### 📈 多周期详细分析
+
+#### 📈 各周期趋势状态详解
+
+5分钟周期：  
+- 趋势方向: 🔴🔽 下降  
+- 关键指标: SuperTrend阻力位89542.4，MACD虽有金叉但受阻于零轴下方。  
+- 支撑阻力: 89095.5 - 89634.7  
+- 成交量特征: 缩量，反映出超短线多头反攻乏力。
+
+15分钟周期：  
+- 趋势方向: 🟢🔼 上升  
+- 关键指标: SuperTrend翻转为多头，支持位88756.31012157766，短期处于反弹修复通道。  
+- 支撑阻力: 89032.9 - 89908.5  
+- 成交量特征: 正常，资金存在小规模博弈。
+
+1小时周期：  
+- 趋势方向: 🟢🔼 上升  
+- 关键指标: 趋势扫描器显示多头持续28根K线，但EMA处于空头排列，价格仍受制于1h SuperTrend阻力90345.21891440322。  
+- 支撑阻力: 88465.6 - 90309.5  
+- 成交量特征: 缩量，属于典型的弱势反弹。
+
+4小时周期 (主要分析)：  
+- 趋势方向: 🔴🔽 下降  
+- 关键指标: MACD柱状图虽在回升，但DIF/DEA仍为负值（-986.729062）；布林带带宽收窄至5.6737%，预示即将出现变盘。  
+- 支撑阻力: 87205.5 - 93379.0  
+- 成交量特征: 极度缩量（量比0.0317），表明市场观望情绪极浓。  
+- 形态分析: 检测到“上吊线”与“头肩顶”复合形态，价格处于三角形整理末端。
+
+1日周期：  
+- 趋势方向: 🔴🔽 下降  
+- 关键指标: SuperTrend 96678.1压制明确，CCI处于-94.44001493375376，尚未进入超卖极值区。  
+- 支撑阻力: 87205.5 - 97932.1  
+- 成交量特征: 正常，维持中期空头格局。
+
+1周周期：  
+- 趋势方向: 🔴🔽 下降  
+- 关键指标: 趋势方向为空，强度-3.1129，长期动量偏向空头。  
+- 支撑阻力: 80600.0 - 126208.5  
+- 成交量特征: 缩量，长期资金参与活跃度下降。
+
+#### 🎯 跨周期信号汇总
+
+看涨信号统计：  
+- 强信号周期: 无  
+- 弱信号周期: 15m, 1h (仅为短线修复)
+
+看跌信号统计：  
+- 强信号周期: 4h, 1d, 1w  
+- 弱信号周期: 5m
+
+中性/震荡信号：  
+- 1m 周期处于震荡整理。
+
+背离预警：  
+- 价格与指标背离: 4小时级别RSI底背离确认，支持短线向90218点位反弹。  
+- 跨周期趋势背离: 短周期(15m/1h)看涨与长周期(4h/1d/1w)看跌形成背离，通常会导致反弹遇阻后的加速下跌。
+
+---
+
+### 📡 关键监控指标与风险预警
+
+看多监控点：  
+1. 1小时级别价格有效站稳90345.21891440322（SuperTrend翻转）。  
+2. 4小时CVD由负值快速转正并伴随成交量放大。  
+3. 价格在87205.5附近形成明显的双底结构。
+
+看空监控点：  
+1. 价格反弹至布林带中轨90218.155附近出现长影线或吞没形态。  
+2. OI（持仓量）随反弹反而大幅下降（主力离场）。  
+3. 5分钟级别跌破89141.25944170183支撑。
+
+风险预警与应急处理方案：
+
+预警1（看多策略失效）：  
+若价格有效跌破87205.5，意味着底部支撑彻底崩溃，资金将出现恐慌性净流出。  
+应急方案：  
+立即清空所有多头仓位，反手在87000附近挂突破空单，重新评估80600支撑效力。
+
+预警2（上涨/下跌遇阻）：  
+价格在91116.24点位受阻，且15分钟MACD出现顶背离。  
+应急方案：  
+减持50%仓位，将剩余仓位止损移动至保本价，锁定阶段性反弹利润。
+
+---
+
+### 🔬 深度数据分析
+
+> 解读：  
+> 关键价位S1（87205.5）是近期多个周期的摆动低点重合区，具有极高的心理支撑效用。阻力位R1（93379.0）与4小时成交密集区（VPVR高成交节点）重合，是空头防守的中坚阵地。当前价格处于价值区内，反映出多空双方在89000-90000区间进行存量博弈。
+
+---
+
+### 💹 主力资金行为与价格动能
+
+- 成交量变化：  
+  1日成交量: 103410.768，与前一周期对比: 🔴🔽 -50.3%（基于208082.615降幅推算）  
+- 价格动能：  
+  4小时动能减弱，价格斜率为负，ATR百分比降至1.2442%，显示波动率正在收敛，变盘窗口临近。  
+- 资金流向 (CVD)：  
+  4小时CVD变化率-1.1417707090714104，资金流向表现为负增长，主力资金目前以流出和对冲风险为主。
+
+> 解读：  
+> 市场目前处于典型的“缩量阴跌”节奏中。主力资金并无意在此价位发动大规模上攻，现有的价格反弹更多是空头回补和部分短线散户的试探行为，缺乏持续性。
+
+---
+
+### 📈 趋势与市场阶段判断
+
+- 当前趋势：  
+  主要周期趋势：🔴🔽 下降  
+- 趋势强度：  
+  减弱，但空头结构未破坏。  
+- 24小时涨幅：  
+  变化率为0.0036639623135305546，反映价格在支撑位上方的震荡企稳。
+
+> 解读：  
+> 市场当前处于“趋势延续中的调整阶段”。由于未能有效回收日线级别关键位，整体结构仍被定义为熊市反弹，后续大概率延续下行去测试更深层的流动性区域。
+
+---
+
+### 💬 市场情绪分析
+
+当前市场情绪评估为 **谨慎悲观**。虽然大户多空比（2.1135）显示大户试图抄底，但全市场主动买卖比（0.00087）极其低迷，反映出散户与taker方极度恐慌。期现基差收窄，资金费率趋向平稳，显示市场处于情绪真空期，正在等待新的消息面或大额订单指引。
+
+---
+
+### 🚰 流动性深度分析
+
+- 流动性评估：  
+  脆弱。4小时流动性得分30.21，意味着市场深度不足，难以承载大额市价单而不产生显著滑点。
+
+- 买卖压力不平衡分析：  
+  4小时主动买卖比0.10368872660213888，空头主动抛售意愿远高于多头买入意愿。
+
+- 流动性趋势监控：  
+  Amihud流动性得分57.68，处于降温状态，市场流动性供应正在萎缩。
+
+- 订单分析：  
+  VPVR价值区下沿位于86738.452083，该区域存在较多挂单承接，而上方92000-93000区间挂单稀疏，显示出“上有阻力、下有承接”的分布特征。
+
+> 流动性综合解读：  
+> 极低的流动性环境下，短线冲击成本较高。主力可能利用这种脆弱性进行“扫损”操作。对于交易员而言，建议避免使用大额市价单，应以限价单在关键水平位R1或S1附近分批布局，并防范由于流动性枯竭导致的异常波动风险。
+
+分析时间: 2026-01-23 06:30:31</div>
+
+        
+
+        
+
+        
+
+        <div class="tweet-reason">123olp [Tech/AI]: AI 驱动的 BTC 技术分析报告，展示了 AI 在金融量化分析领域的实际应用，包含多周期分析、趋势判断、资金流向等复杂指标的自动化解读。</div>
+
+        
+
+        <div class="tweet-footer">
+          <div class="tweet-metrics">
+            <span class="metric">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z"></path></svg>
+              0
+            </span>
+            <span class="metric">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.697 5.5c-1.222-.06-2.679.51-3.89 2.16l-.805 1.09-.806-1.09C9.984 6.01 8.526 5.44 7.304 5.5c-1.243.07-2.349.78-2.91 1.91-.552 1.12-.633 2.78.479 4.82 1.074 1.97 3.257 4.27 7.129 6.61 3.87-2.34 6.052-4.64 7.126-6.61 1.111-2.04 1.03-3.7.477-4.82-.561-1.13-1.666-1.84-2.908-1.91zm4.187 7.69c-1.351 2.48-4.001 5.12-8.379 7.67l-.503.3-.504-.3c-4.379-2.55-7.029-5.19-8.382-7.67-1.36-2.5-1.41-4.86-.514-6.67.887-1.79 2.647-2.91 4.601-3.01 1.651-.09 3.368.56 4.798 2.01 1.429-1.45 3.146-2.1 4.796-2.01 1.954.1 3.714 1.22 4.601 3.01.896 1.81.846 4.17-.514 6.67z"></path></svg>
+              1
+            </span>
+            <span class="metric">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1.751 10c0-4.42 3.584-8 8.005-8h4.366c4.49 0 8.129 3.64 8.129 8.13 0 2.96-1.607 5.68-4.196 7.11l-8.054 4.46v-3.69h-.067c-4.49.1-8.183-3.51-8.183-8.01zm8.005-6c-3.317 0-6.005 2.69-6.005 6 0 3.37 2.77 6.08 6.138 6.01l.351-.01h1.761v2.3l5.087-2.81c1.951-1.08 3.163-3.13 3.163-5.36 0-3.39-2.744-6.13-6.129-6.13H9.756z"></path></svg>
+              0
+            </span>
+          </div>
+          <span class="tweet-time">Jan 23, 2026, 6:33 AM</span>
+        </div>
+
+        <a href="https://x.com/123olp/status/2014466422794289603" target="_blank" rel="noopener" class="tweet-link">View on X →</a>
+      </article>
+      
+
+      
+    </section>
+
+    <footer>
+      <p>Generated by X-Ray • Jan 23, 2026, 6:51 AM</p>
+    </footer>
+  </div>
+
+  <script>
+    document.querySelectorAll('.tweet-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'A') {
+          const link = card.querySelector('.tweet-link');
+          if (link) {
+            window.open(link.href, '_blank');
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>
