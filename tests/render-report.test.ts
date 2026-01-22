@@ -76,14 +76,9 @@ describe("render-report", () => {
       },
       summary: {
         total_fetched: 10,
-        tech_related: 5,
-        hot_topics: 3,
-        categories: {
-          "AI/LLM": 3,
-          "Agent": 2,
-        },
+        selected_count: 1,
       },
-      filtered_tweets: [
+      tweets: [
         {
           id: "123",
           text: "Check out https://example.com and @user #hashtag",
@@ -98,16 +93,14 @@ describe("render-report", () => {
             retweet_count: 10,
             like_count: 50,
             reply_count: 5,
+            quote_count: 0,
+            view_count: 100,
+            bookmark_count: 0,
           },
           is_retweet: false,
           is_quote: false,
-          classification: {
-            is_tech_related: true,
-            is_hot_topic: true,
-            category: ["AI/LLM"],
-            relevance_score: 90,
-            reason: "AI-related content",
-          },
+          is_reply: false,
+          reason: "AI-related content",
         },
       ],
     };
@@ -120,15 +113,7 @@ describe("render-report", () => {
     test("calculates summary stats", () => {
       const data = processReportData(mockReport);
       expect(data.total_fetched).toBe(10);
-      expect(data.tech_related).toBe(5);
-      expect(data.hot_topics).toBe(3);
-      expect(data.filtered_count).toBe(1);
-    });
-
-    test("sorts categories by count", () => {
-      const data = processReportData(mockReport);
-      expect(data.categories[0]).toEqual({ name: "AI/LLM", count: 3 });
-      expect(data.categories[1]).toEqual({ name: "Agent", count: 2 });
+      expect(data.selected_count).toBe(1);
     });
 
     test("processes tweet text with links", () => {
@@ -136,43 +121,6 @@ describe("render-report", () => {
       expect(data.tweets[0].text_html).toContain('<a href="https://example.com"');
       expect(data.tweets[0].text_html).toContain('<a href="https://x.com/user"');
       expect(data.tweets[0].text_html).toContain('<a href="https://x.com/hashtag/hashtag"');
-    });
-
-    test("assigns correct score class", () => {
-      const data = processReportData(mockReport);
-      expect(data.tweets[0].score_class).toBe("score-high");
-
-      // Test medium score
-      const mediumReport = {
-        ...mockReport,
-        filtered_tweets: [
-          {
-            ...mockReport.filtered_tweets[0],
-            classification: {
-              ...mockReport.filtered_tweets[0].classification,
-              relevance_score: 60,
-            },
-          },
-        ],
-      };
-      const mediumData = processReportData(mediumReport);
-      expect(mediumData.tweets[0].score_class).toBe("score-medium");
-
-      // Test low score
-      const lowReport = {
-        ...mockReport,
-        filtered_tweets: [
-          {
-            ...mockReport.filtered_tweets[0],
-            classification: {
-              ...mockReport.filtered_tweets[0].classification,
-              relevance_score: 30,
-            },
-          },
-        ],
-      };
-      const lowData = processReportData(lowReport);
-      expect(lowData.tweets[0].score_class).toBe("score-low");
     });
 
     test("adds author initial", () => {
@@ -204,11 +152,9 @@ describe("render-report", () => {
         },
         summary: {
           total_fetched: 3,
-          tech_related: 2,
-          hot_topics: 2,
-          categories: { "AI/LLM": 2 },
+          selected_count: 1,
         },
-        filtered_tweets: [
+        tweets: [
           {
             id: "123",
             text: "Test tweet about AI",
@@ -219,16 +165,18 @@ describe("render-report", () => {
             },
             created_at: "2026-01-21T10:00:00.000Z",
             url: "https://x.com/testuser/status/123",
-            metrics: { retweet_count: 10, like_count: 50, reply_count: 5 },
+            metrics: {
+              retweet_count: 10,
+              like_count: 50,
+              reply_count: 5,
+              quote_count: 0,
+              view_count: 100,
+              bookmark_count: 0,
+            },
             is_retweet: false,
             is_quote: false,
-            classification: {
-              is_tech_related: true,
-              is_hot_topic: true,
-              category: ["AI/LLM"],
-              relevance_score: 90,
-              reason: "AI research discussion",
-            },
+            is_reply: false,
+            reason: "AI research discussion",
           },
         ],
       };
@@ -249,7 +197,7 @@ describe("render-report", () => {
       expect(result.success).toBe(true);
       expect(result.data?.html).toContain("X-Ray Report");
       expect(result.data?.html).toContain("Test tweet about AI");
-      expect(result.data?.html).toContain("AI/LLM");
+      expect(result.data?.html).toContain("AI research discussion");
     });
 
     test("fails for non-existent report", async () => {

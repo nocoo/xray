@@ -8,7 +8,6 @@ export interface Config {
     base_url: string;
   };
   settings: {
-    time_range_hours: number;
     max_tweets_per_user: number;
   };
   classification: {

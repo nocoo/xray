@@ -1,36 +1,19 @@
 {
   "classified_at": "2026-01-21T15:35:00.000Z",
   "source_file": "data/raw_tweets.json",
+  "total_count": 3,
   "results": [
     {
       "tweet_id": "1881234567890",
-      "classification": {
-        "is_tech_related": true,
-        "is_hot_topic": true,
-        "category": ["AI/LLM", "Research"],
-        "relevance_score": 95,
-        "reason": "Announces new LLM inference optimization research with arXiv link"
-      }
+      "reason": "Announces new LLM inference optimization research with arXiv link"
     },
     {
       "tweet_id": "1881234567891",
-      "classification": {
-        "is_tech_related": false,
-        "is_hot_topic": false,
-        "category": [],
-        "relevance_score": 0,
-        "reason": "Personal life update about dinner, not tech related"
-      }
+      "reason": "Personal life update about dinner, not tech related"
     },
     {
       "tweet_id": "1881234567892",
-      "classification": {
-        "is_tech_related": true,
-        "is_hot_topic": true,
-        "category": ["AI/LLM", "Agent"],
-        "relevance_score": 98,
-        "reason": "Major LLM release announcement with MCP and agent capabilities"
-      }
+      "reason": "Major LLM release announcement with MCP and agent capabilities"
     }
   ]
 }

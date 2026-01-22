@@ -52,7 +52,7 @@ export async function loadClassified(): Promise<ClassifiedFile> {
 }
 
 export async function saveReport(data: ReportFile, customOutputDir?: string): Promise<string> {
-  const date = new Date().toISOString().split("T")[0];
+  const date = getLocalDateString();
   const filename = `${date}_report.json`;
   const outputDir = customOutputDir || OUTPUT_DIR;
   const path = join(outputDir, filename);
@@ -61,7 +61,14 @@ export async function saveReport(data: ReportFile, customOutputDir?: string): Pr
 }
 
 // =============================================================================
-// Date Helpers
+// Timezone Constants
+// =============================================================================
+
+export const TIMEZONE_OFFSET_HOURS = 8; // UTC+8 (Beijing/Shanghai)
+export const TIMEZONE_OFFSET_MS = TIMEZONE_OFFSET_HOURS * 60 * 60 * 1000;
+
+// =============================================================================
+// Date Helpers (All in UTC+8)
 // =============================================================================
 
 export function nowISO(): string {
@@ -72,6 +79,32 @@ export function hoursAgoISO(hours: number): string {
   const date = new Date();
   date.setHours(date.getHours() - hours);
   return date.toISOString();
+}
+
+export function getDateInTimezone(date: Date = new Date()): Date {
+  return new Date(date.getTime() + TIMEZONE_OFFSET_MS);
+}
+
+export function getLocalDateString(date: Date = new Date()): string {
+  const local = getDateInTimezone(date);
+  return local.toISOString().split("T")[0];
+}
+
+export function formatDateInTimezone(date: Date): string {
+  const local = getDateInTimezone(date);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[local.getUTCMonth()]} ${local.getUTCDate()}, ${local.getUTCFullYear()}`;
+}
+
+export function formatDateTimeInTimezone(date: Date): string {
+  const local = getDateInTimezone(date);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const hours = local.getUTCHours();
+  const minutes = local.getUTCMinutes();
+  const ampm = hours >= 12 ? "PM" : "AM";
+  const h12 = hours % 12 || 12;
+  const mm = minutes.toString().padStart(2, "0");
+  return `${months[local.getUTCMonth()]} ${local.getUTCDate()}, ${local.getUTCFullYear()}, ${h12}:${mm} ${ampm}`;
 }
 
 // =============================================================================

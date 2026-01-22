@@ -11,7 +11,7 @@
 
 import { join, basename } from "path";
 import type { ReportFile, ReportTweet, CommandResult } from "./lib/types";
-import { readJsonFile, fileExists, PROJECT_ROOT } from "./lib/utils";
+import { readJsonFile, fileExists, PROJECT_ROOT, getLocalDateString, formatDateInTimezone, formatDateTimeInTimezone } from "./lib/utils";
 
 // =============================================================================
 // Constants
@@ -171,18 +171,18 @@ function escapeHtml(str: string): string {
 // =============================================================================
 
 export function processReportData(report: ReportFile): TemplateData {
-  const date = report.generated_at.split("T")[0];
+  const date = getLocalDateString(new Date(report.generated_at));
   const fromDate = new Date(report.time_range.from);
   const toDate = new Date(report.time_range.to);
 
-  const timeRange = `${formatDate(fromDate)} - ${formatDate(toDate)}`;
+  const timeRange = `${formatDateInTimezone(fromDate)} - ${formatDateInTimezone(toDate)}`;
 
   const tweets = report.tweets.map((tweet) => processTweet(tweet));
 
   return {
     date,
     time_range: timeRange,
-    generated_at: formatDateTime(new Date(report.generated_at)),
+    generated_at: formatDateTimeInTimezone(new Date(report.generated_at)),
     total_fetched: report.summary.total_fetched,
     selected_count: report.summary.selected_count,
     tweets,
@@ -242,7 +242,7 @@ function processTweet(tweet: ReportTweet): ProcessedTweet {
   return {
     ...tweet,
     text_html: linkifyText(tweet.text),
-    created_at_formatted: formatDateTime(new Date(tweet.created_at)),
+    created_at_formatted: formatDateTimeInTimezone(new Date(tweet.created_at)),
     author: {
       ...tweet.author,
       initial: tweet.author.name.charAt(0).toUpperCase(),
@@ -280,25 +280,6 @@ function linkifyText(text: string): string {
   );
 
   return result;
-}
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function formatDateTime(date: Date): string {
-  return date.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
 }
 
 // =============================================================================

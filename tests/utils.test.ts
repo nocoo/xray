@@ -7,6 +7,10 @@ import {
   buildProfileUrl,
   nowISO,
   hoursAgoISO,
+  getLocalDateString,
+  formatDateInTimezone,
+  formatDateTimeInTimezone,
+  TIMEZONE_OFFSET_HOURS,
 } from "../scripts/lib/utils";
 
 describe("utils", () => {
@@ -147,6 +151,65 @@ describe("utils", () => {
 
     test("handles nitter.net URL", () => {
       expect(extractUsername("https://nitter.net/elonmusk")).toBe(null); // Not a Twitter URL
+    });
+  });
+
+  describe("timezone utilities", () => {
+    test("TIMEZONE_OFFSET_HOURS is 8 (UTC+8)", () => {
+      expect(TIMEZONE_OFFSET_HOURS).toBe(8);
+    });
+
+    test("getLocalDateString returns YYYY-MM-DD format", () => {
+      const result = getLocalDateString();
+      expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    test("getLocalDateString converts UTC to UTC+8 correctly", () => {
+      const utc2300 = new Date("2026-01-22T23:00:00.000Z");
+      const result = getLocalDateString(utc2300);
+      expect(result).toBe("2026-01-23");
+    });
+
+    test("getLocalDateString at UTC 16:00 is same day in UTC+8", () => {
+      const utc1600 = new Date("2026-01-22T16:00:00.000Z");
+      const result = getLocalDateString(utc1600);
+      expect(result).toBe("2026-01-23");
+    });
+
+    test("getLocalDateString at UTC 15:59 is still previous day in UTC+8", () => {
+      const utc1559 = new Date("2026-01-22T15:59:00.000Z");
+      const result = getLocalDateString(utc1559);
+      expect(result).toBe("2026-01-22");
+    });
+
+    test("formatDateInTimezone returns readable format", () => {
+      const date = new Date("2026-01-22T22:00:00.000Z");
+      const result = formatDateInTimezone(date);
+      expect(result).toBe("Jan 23, 2026");
+    });
+
+    test("formatDateTimeInTimezone returns readable format with time", () => {
+      const date = new Date("2026-01-22T22:30:00.000Z");
+      const result = formatDateTimeInTimezone(date);
+      expect(result).toBe("Jan 23, 2026, 6:30 AM");
+    });
+
+    test("formatDateTimeInTimezone handles PM correctly", () => {
+      const date = new Date("2026-01-22T06:00:00.000Z");
+      const result = formatDateTimeInTimezone(date);
+      expect(result).toBe("Jan 22, 2026, 2:00 PM");
+    });
+
+    test("formatDateTimeInTimezone handles noon correctly", () => {
+      const date = new Date("2026-01-22T04:00:00.000Z");
+      const result = formatDateTimeInTimezone(date);
+      expect(result).toBe("Jan 22, 2026, 12:00 PM");
+    });
+
+    test("formatDateTimeInTimezone handles midnight correctly", () => {
+      const date = new Date("2026-01-22T16:00:00.000Z");
+      const result = formatDateTimeInTimezone(date);
+      expect(result).toBe("Jan 23, 2026, 12:00 AM");
     });
   });
 });

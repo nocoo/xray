@@ -3,10 +3,10 @@
  *
  * Fetches tweets from all users in the watchlist and saves to raw_tweets.json
  * Automatically skips tweets that have already been processed.
+ * Always fetches the last 1 hour of tweets.
  *
  * Usage:
  *   bun run scripts/fetch-tweets.ts
- *   bun run scripts/fetch-tweets.ts --hours 48
  *   bun run scripts/fetch-tweets.ts --include-processed  # Include already processed tweets
  */
 
@@ -24,12 +24,13 @@ import {
   processedGetAllIds,
 } from "./lib/tweet-db";
 
+const TIME_RANGE_HOURS = 1;
+
 // =============================================================================
 // Core Functions (exported for testing)
 // =============================================================================
 
 export interface FetchOptions {
-  hours?: number;
   skipProcessed?: boolean; // Skip already processed tweets (default: true)
 }
 
@@ -45,10 +46,9 @@ export async function fetchAllTweets(options: FetchOptions = {}): Promise<Comman
     };
   }
 
-  const hours = options.hours ?? config.settings.time_range_hours;
   const skipProcessed = options.skipProcessed ?? true;
   const now = nowISO();
-  const from = hoursAgoISO(hours);
+  const from = hoursAgoISO(TIME_RANGE_HOURS);
 
   const processedIds = skipProcessed ? new Set(processedGetAllIds()) : new Set<string>();
 
@@ -152,10 +152,7 @@ function parseArgs(args: string[]): FetchOptions {
   const options: FetchOptions = {};
 
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--hours" && args[i + 1]) {
-      options.hours = parseInt(args[i + 1], 10);
-      i++;
-    } else if (args[i] === "--include-processed") {
+    if (args[i] === "--include-processed") {
       options.skipProcessed = false;
     }
   }
