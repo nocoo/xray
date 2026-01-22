@@ -5,14 +5,25 @@
   "type": "module",
   "scripts": {
     "test": "bun test",
+    "test:server": "bun test tests/server/",
     "fetch": "bun run scripts/fetch-tweets.ts",
     "report": "bun run scripts/generate-report.ts",
     "render": "bun run scripts/render-report.ts",
     "serve": "bun run scripts/render-report.ts --serve --port 7006",
-    "watchlist": "bun run scripts/manage-watchlist.ts"
+    "watchlist": "bun run scripts/manage-watchlist.ts",
+    "server": "bun run server/index.ts",
+    "dev": "bun run --watch server/index.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.2.2",
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.2.1"
   }
 }

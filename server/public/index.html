@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>X-Ray Dashboard</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    :root {
+      --bg-primary: #0f0f0f;
+      --bg-secondary: #1a1a1a;
+      --bg-card: #242424;
+      --text-primary: #e7e7e7;
+      --text-secondary: #888;
+      --accent: #1d9bf0;
+      --accent-hover: #1a8cd8;
+      --border: #2f2f2f;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: var(--bg-card); }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-type="module">
+    const { useState, useEffect, useCallback } = React;
+
+    // API functions
+    const api = {
+      async getSchedulerStatus() {
+        const res = await fetch('/api/scheduler/status');
+        return res.json();
+      },
+      async getReports() {
+        const res = await fetch('/api/reports');
+        return res.json();
+      },
+      async getReport(date) {
+        const res = await fetch(`/api/reports/${date}`);
+        return res.json();
+      },
+      async triggerPipeline() {
+        const res = await fetch('/api/scheduler/trigger', { method: 'POST' });
+        return res.json();
+      },
+      async startScheduler() {
+        const res = await fetch('/api/scheduler/start', { method: 'POST' });
+        return res.json();
+      },
+      async stopScheduler() {
+        const res = await fetch('/api/scheduler/stop', { method: 'POST' });
+        return res.json();
+      }
+    };
+
+    // Utility functions
+    function formatCountdown(targetDate) {
+      if (!targetDate) return '--:--:--';
+      const diff = new Date(targetDate) - new Date();
+      if (diff <= 0) return '00:00:00';
+      const hours = Math.floor(diff / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '-';
+      const d = new Date(dateStr);
+      return d.toLocaleString('zh-CN', { 
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+      });
+    }
+
+    // Badge component
+    function Badge({ children, variant = 'default' }) {
+      const baseStyle = {
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '2px 10px',
+        borderRadius: '9999px',
+        fontSize: '12px',
+        fontWeight: 500,
+      };
+      const variants = {
+        default: { background: 'var(--bg-card)', color: 'var(--text-secondary)' },
+        success: { background: 'rgba(34, 197, 94, 0.2)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.3)' },
+        error: { background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)' },
+        warning: { background: 'rgba(234, 179, 8, 0.2)', color: '#facc15', border: '1px solid rgba(234, 179, 8, 0.3)' },
+      };
+      return <span style={{ ...baseStyle, ...variants[variant] }}>{children}</span>;
+    }
+
+    // Button component
+    function Button({ children, onClick, disabled, variant = 'default', size = 'default' }) {
+      const baseStyle = {
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: '8px',
+        fontWeight: 500,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        border: 'none',
+        transition: 'background 0.2s',
+      };
+      const variants = {
+        default: { background: 'var(--accent)', color: 'white' },
+        secondary: { background: 'var(--bg-card)', color: 'var(--text-primary)' },
+        destructive: { background: '#dc2626', color: 'white' },
+      };
+      const sizes = {
+        default: { height: '36px', padding: '0 16px', fontSize: '14px' },
+        sm: { height: '32px', padding: '0 12px', fontSize: '13px' },
+      };
+      return (
+        <button onClick={onClick} disabled={disabled} style={{ ...baseStyle, ...variants[variant], ...sizes[size] }}>
+          {children}
+        </button>
+      );
+    }
+
+    // Card component
+    function Card({ children, style = {} }) {
+      return (
+        <div style={{
+          borderRadius: '12px',
+          border: '1px solid var(--border)',
+          background: 'var(--bg-secondary)',
+          ...style
+        }}>
+          {children}
+        </div>
+      );
+    }
+
+    // SchedulerStatus component
+    function SchedulerStatus({ status, onTrigger, onToggle }) {
+      const [countdown, setCountdown] = useState('--:--:--');
+
+      useEffect(() => {
+        const timer = setInterval(() => {
+          setCountdown(formatCountdown(status?.nextRunTime));
+        }, 1000);
+        return () => clearInterval(timer);
+      }, [status?.nextRunTime]);
+
+      const statusBadge = {
+        idle: { variant: 'default', label: '空闲' },
+        running: { variant: 'warning', label: '运行中' },
+        success: { variant: 'success', label: '成功' },
+        error: { variant: 'error', label: '失败' },
+      };
+
+      const badge = statusBadge[status?.status] || statusBadge.idle;
+
+      return (
+        <Card style={{ padding: '16px' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <svg style={{ width: '18px', height: '18px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            调度器
+          </h2>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>状态</span>
+              <Badge variant={badge.variant}>{badge.label}</Badge>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>调度</span>
+              <Badge variant={status?.isSchedulerRunning ? 'success' : 'default'}>
+                {status?.isSchedulerRunning ? '运行中' : '已停止'}
+              </Badge>
+            </div>
+
+            <div style={{ paddingTop: '12px', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+              <div style={{ fontSize: '28px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--accent)' }}>{countdown}</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>下次执行倒计时</div>
+            </div>
+
+            {status?.lastRunTime && (
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                上次执行: {formatDate(status.lastRunTime)}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px', paddingTop: '8px' }}>
+              <Button size="sm" onClick={onTrigger} disabled={status?.status === 'running'}>
+                立即执行
+              </Button>
+              <Button size="sm" variant={status?.isSchedulerRunning ? 'destructive' : 'secondary'} onClick={onToggle}>
+                {status?.isSchedulerRunning ? '停止' : '启动'}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      );
+    }
+
+    // HistoryList component
+    function HistoryList({ history, planned, onSelect, selectedDate }) {
+      return (
+        <Card style={{ padding: '16px', flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <svg style={{ width: '18px', height: '18px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            历史报告
+          </h2>
+          
+          <div className="scrollbar-thin" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {history?.map(item => (
+              <button
+                key={item.date}
+                onClick={() => onSelect(item.date)}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  border: selectedDate === item.date ? '1px solid var(--accent)' : '1px solid transparent',
+                  background: selectedDate === item.date ? 'rgba(29, 155, 240, 0.1)' : 'transparent',
+                  color: 'var(--text-primary)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: 500 }}>{item.date}</span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{item.tweetCount} 条</span>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {planned?.length > 0 && (
+            <>
+              <h3 style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '16px', marginBottom: '8px' }}>计划执行</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {planned.slice(0, 3).map((item, idx) => (
+                  <div key={idx} style={{ padding: '8px 12px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <svg style={{ width: '14px', height: '14px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {formatDate(item.date)}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </Card>
+      );
+    }
+
+    // ReportViewer component - uses iframe to display rendered HTML
+    function ReportViewer({ date }) {
+      if (!date) {
+        return (
+          <div style={{ 
+            flex: 1, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            color: 'var(--text-secondary)',
+            background: 'var(--bg-primary)'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <svg style={{ width: '64px', height: '64px', margin: '0 auto 16px', opacity: 0.5 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p>选择一个报告查看</p>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <iframe 
+          src={`/api/reports/${date}/html`}
+          style={{ flex: 1, width: '100%', border: 'none' }}
+          title={`Report ${date}`}
+        />
+      );
+    }
+
+    // Main App component
+    function App() {
+      const [schedulerStatus, setSchedulerStatus] = useState(null);
+      const [reports, setReports] = useState([]);
+      const [selectedDate, setSelectedDate] = useState(null);
+      const [loading, setLoading] = useState(true);
+
+      const fetchData = useCallback(async () => {
+        try {
+          const [status, reportList] = await Promise.all([
+            api.getSchedulerStatus(),
+            api.getReports()
+          ]);
+          setSchedulerStatus(status);
+          setReports(reportList);
+          
+          if (!selectedDate && reportList.length > 0) {
+            setSelectedDate(reportList[0].date);
+          }
+        } catch (err) {
+          console.error('Failed to fetch data:', err);
+        } finally {
+          setLoading(false);
+        }
+      }, [selectedDate]);
+
+      useEffect(() => {
+        fetchData();
+        const interval = setInterval(fetchData, 5000);
+        return () => clearInterval(interval);
+      }, [fetchData]);
+
+      const handleTrigger = async () => {
+        await api.triggerPipeline();
+        fetchData();
+      };
+
+      const handleToggle = async () => {
+        if (schedulerStatus?.isSchedulerRunning) {
+          await api.stopScheduler();
+        } else {
+          await api.startScheduler();
+        }
+        fetchData();
+      };
+
+      if (loading) {
+        return (
+          <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+            Loading...
+          </div>
+        );
+      }
+
+      return (
+        <div style={{ 
+          height: '100vh', 
+          display: 'flex', 
+          justifyContent: 'center',
+          background: 'var(--bg-primary)'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            width: '100%',
+            maxWidth: '1200px',
+          }}>
+            {/* Sidebar */}
+            <aside style={{ 
+              width: '280px', 
+              flexShrink: 0,
+              borderRight: '1px solid var(--border)', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              padding: '16px', 
+              gap: '16px',
+              background: 'var(--bg-primary)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px' }}>
+                <svg style={{ width: '28px', height: '28px', color: 'var(--accent)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <span style={{ fontSize: '20px', fontWeight: 700 }}>X-Ray</span>
+              </div>
+              
+              <SchedulerStatus 
+                status={schedulerStatus}
+                onTrigger={handleTrigger}
+                onToggle={handleToggle}
+              />
+              
+              <HistoryList 
+                history={reports}
+                planned={schedulerStatus?.planned}
+                onSelect={setSelectedDate}
+                selectedDate={selectedDate}
+              />
+            </aside>
+
+            {/* Main content */}
+            <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <ReportViewer date={selectedDate} />
+            </main>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
