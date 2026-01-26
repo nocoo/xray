@@ -1,17 +1,17 @@
 # X-Ray
 
-Twitter tech content monitoring system. Fetches tweets from a watchlist, classifies them using Claude, and generates HTML reports.
+Twitter tech content monitoring system. Fetches tweets from a watchlist and generates insightful Markdown reports using AI.
 
 ## Architecture
 
 ```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   fetch     │ -> │  classify   │ -> │   report    │ -> │   render    │
-│  (Script)   │    │  (Skill)    │    │  (Script)   │    │  (Script)   │
-└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
-       │                  │                  │                  │
-       v                  v                  v                  v
- raw_tweets.json   classified.json    *_report.json    *_report.html
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│   fetch     │ -> │   Claude    │ -> │   report    │
+│  (Script)   │    │  (AI/Skill) │    │  (Markdown) │
+└─────────────┘    └─────────────┘    └─────────────┘
+       │                  │                  │
+       v                  v                  v
+ raw_tweets.json    AI Analysis      reports/*.md
 ```
 
 ## Quick Start
@@ -22,21 +22,17 @@ bun install
 
 # Configure API key
 cp config/config.example.json config/config.json
-# Edit config/config.json with your TwitterAPI.io key
+# Edit config/config.json with your TweAPI.io key
 
 # Add users to watchlist
 bun run watchlist add @username
 
-# Fetch tweets
+# Run the pipeline (via xray-insights skill)
+# 1. Fetch tweets
 bun run fetch
 
-# Classify (via Skill) -> generates classified.json
-
-# Generate report
-bun run report
-
-# Render and serve
-bun run serve
+# 2. Use Claude to analyze and generate report
+# (This step is performed by the xray-insights skill)
 ```
 
 ## Project Structure
@@ -53,31 +49,21 @@ x-ray/
 │   │   ├── utils.ts
 │   │   └── watchlist-db.ts
 │   ├── fetch-tweets.ts
-│   ├── generate-report.ts
-│   ├── manage-watchlist.ts
-│   └── render-report.ts
+│   └── manage-watchlist.ts
 ├── skills/            # Claude Skills
-│   ├── x-ray-classify/
-│   ├── x-ray-manage/
-│   └── x-ray-pipeline/
-├── templates/
-│   └── report.html    # Mustache template
+│   └── xray-insights/ # Main skill for fetching and reporting
+├── reports/           # Generated Markdown reports
 ├── tests/             # Unit tests
 ├── config/            # API keys (gitignored)
-├── data/              # Runtime data (gitignored)
-└── public/            # Generated HTML reports
+└── data/              # Runtime data (gitignored)
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `bun test` | Run all tests (149 tests) |
+| `bun test` | Run all tests (154 tests) |
 | `bun run fetch` | Fetch tweets from watchlist |
-| `bun run fetch --hours 48` | Fetch tweets from past 48 hours |
-| `bun run report` | Generate report from classified.json |
-| `bun run render` | Render HTML report |
-| `bun run serve` | Render and start server (port 7006) |
 | `bun run watchlist` | Manage watchlist |
 | `bun run watchlist add @user` | Add user to watchlist |
 | `bun run watchlist remove @user` | Remove user from watchlist |
@@ -85,10 +71,10 @@ x-ray/
 
 ## Data Flow
 
-1. **Fetch**: `fetch-tweets.ts` calls TwitterAPI.io, saves to `data/raw_tweets.json`
-2. **Classify**: Skill reads raw_tweets.json, calls Claude for classification, saves to `data/classified.json`
-3. **Report**: `generate-report.ts` merges tweets + classifications, saves to `data/output/*_report.json`
-4. **Render**: `render-report.ts` renders HTML using Mustache template, saves to `public/*_report.html`
+1. **Fetch**: `fetch-tweets.ts` calls TweAPI.io, saves to `data/raw_tweets.json`
+2. **Analyze**: Claude reads raw_tweets.json, identifies valuable content
+3. **Report**: Claude generates magazine-style Markdown report
+4. **Save**: Report saved to `reports/` and synced to Obsidian
 
 ## Configuration
 
@@ -97,11 +83,10 @@ x-ray/
 ```json
 {
   "api": {
-    "api_key": "your-twitterapi-key",
-    "base_url": "https://api.twitterapi.io"
+    "api_key": "your-tweapi-key",
+    "base_url": "https://api.tweapi.io"
   },
   "settings": {
-    "time_range_hours": 24,
     "max_tweets_per_user": 100
   },
   "classification": {
@@ -115,9 +100,8 @@ x-ray/
 
 - **Runtime**: Bun
 - **Language**: TypeScript
-- **Database**: SQLite (better-sqlite3)
-- **API**: TwitterAPI.io
-- **Template**: Mustache
+- **Database**: SQLite (bun:sqlite)
+- **API**: TweAPI.io
 - **Testing**: bun:test
 
 ## License
