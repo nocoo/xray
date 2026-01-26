@@ -14,34 +14,52 @@ export class TwitterAPIClient {
   }
 
   async fetchUserTweets(username: string): Promise<Tweet[]> {
-    const url = `${this.baseUrl}/v1/twitter/user/userRecent20Tweets`;
+    const url = `${this.baseUrl}/v1/twitter/user/userRecentTweetsByFilter`;
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "x-api-key": this.apiKey,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        url: `https://x.com/${username}`,
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`);
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "x-api-key": this.apiKey,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          url: `https://x.com/${username}`,
+          showPost: true,
+          showReplies: false,
+          showLinks: true,
+          count: 20,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as TweAPIResponse;
+
+      if (data.code !== 201 || data.msg !== "ok") {
+        throw new Error(`API error: ${data.msg} (code: ${data.code})`);
+      }
+
+      if (!data.data?.list) {
+        return [];
+      }
+
+      return data.data.list.map((tweet) => this.normalizeTweet(tweet));
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new Error(`API request timeout after 30s for @${username}`);
+      }
+      throw err;
     }
-
-    const data = (await response.json()) as TweAPIResponse;
-
-    if (data.code !== 201 || data.msg !== "ok") {
-      throw new Error(`API error: ${data.msg} (code: ${data.code})`);
-    }
-
-    if (!data.data?.list) {
-      return [];
-    }
-
-    return data.data.list.map((tweet) => this.normalizeTweet(tweet));
   }
 
   private normalizeTweet(apiTweet: TweAPITweet): Tweet {
