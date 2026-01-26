@@ -174,17 +174,22 @@ Generate a **magazine/newsletter style** Markdown report in **Simplified Chinese
 reports/xray_YYYYMMDD_HHMM.md
 ```
 
-### 2. Copy to Obsidian
+### 2. Sync to Obsidian
 
-After saving report, copy to Obsidian vault:
+After saving report, run the sync script (this avoids external directory permission prompts):
 
 ```bash
-cp reports/xray_YYYYMMDD_HHMM.md /Users/nocoo/workspace/personal/obsidian/xray/
+bun run scripts/sync-report.ts
 ```
 
-Create the directory if it doesn't exist:
+This script automatically:
+- Finds the latest report in `reports/`
+- Creates the Obsidian directory if needed
+- Copies the report to `/Users/nocoo/workspace/personal/obsidian/xray/`
+
+You can also specify a specific report:
 ```bash
-mkdir -p /Users/nocoo/workspace/personal/obsidian/xray
+bun run scripts/sync-report.ts reports/xray_20260126_1430.md
 ```
 
 ## User Intent Examples
@@ -213,6 +218,7 @@ python3 /Users/nocoo/workspace/personal/skill-task-notifier/scripts/notify.py "X
 | Command | Description |
 |---------|-------------|
 | `bun run scripts/fetch-tweets.ts` | Fetch from watchlist |
+| `bun run scripts/sync-report.ts` | Sync latest report to Obsidian |
 | `bun run scripts/manage-watchlist.ts list` | List watched users |
 | `bun run scripts/manage-watchlist.ts add @user` | Add user |
 | `bun run scripts/manage-watchlist.ts remove @user` | Remove user |
