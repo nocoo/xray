@@ -2,11 +2,17 @@ import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
 import { TwitterAPIClient } from "../scripts/lib/api";
 import type { Config } from "../scripts/lib/types";
 
+type MockFetch = ReturnType<typeof mock<typeof fetch>>;
+
 const mockConfig: Config = {
   api: {
     api_key: "test-api-key",
     base_url: "https://api.tweapi.io",
     cookie: "test-cookie",
+  },
+  me: {
+    username: "testuser",
+    is_blue_verified: true,
   },
   settings: {
     max_tweets_per_user: 20,
@@ -154,13 +160,13 @@ describe("TwitterAPIClient", () => {
           json: () => Promise.resolve(mockTweetDetailsResponse),
         } as Response)
       );
-      globalThis.fetch = mockFetch;
+      globalThis.fetch = mockFetch as unknown as typeof fetch;
 
       const client = new TwitterAPIClient(mockConfig);
       await client.getTweetDetails("https://x.com/zhengli/status/123");
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      const [url, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const [url, options] = (mockFetch.mock.calls[0] as unknown) as [string, RequestInit];
       expect(url).toBe("https://api.tweapi.io/v1/twitter/tweet/details");
       expect(options.method).toBe("POST");
       expect(options.headers).toEqual({
@@ -173,7 +179,7 @@ describe("TwitterAPIClient", () => {
     });
 
     test("normalizes response correctly", async () => {
-      globalThis.fetch = mock(() =>
+      (globalThis.fetch as unknown) = mock(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockTweetDetailsResponse),
@@ -194,7 +200,7 @@ describe("TwitterAPIClient", () => {
     });
 
     test("handles API error response", async () => {
-      globalThis.fetch = mock(() =>
+      (globalThis.fetch as unknown) = mock(() =>
         Promise.resolve({
           ok: false,
           status: 401,
@@ -209,7 +215,7 @@ describe("TwitterAPIClient", () => {
     });
 
     test("handles API business error", async () => {
-      globalThis.fetch = mock(() =>
+      (globalThis.fetch as unknown) = mock(() =>
         Promise.resolve({
           ok: true,
           json: () =>
@@ -236,12 +242,12 @@ describe("TwitterAPIClient", () => {
           json: () => Promise.resolve(mockUserInfoResponse),
         } as Response)
       );
-      globalThis.fetch = mockFetch;
+      globalThis.fetch = mockFetch as unknown as typeof fetch;
 
       const client = new TwitterAPIClient(mockConfig);
       const result = await client.getUserInfo("https://x.com/zhengli");
 
-      const [url, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const [url, options] = (mockFetch.mock.calls[0] as unknown) as [string, RequestInit];
       expect(url).toBe("https://api.tweapi.io/v1/twitter/user/info");
       expect(JSON.parse(options.body as string)).toEqual({
         url: "https://x.com/zhengli",
@@ -258,7 +264,7 @@ describe("TwitterAPIClient", () => {
 
   describe("getTweetReplies", () => {
     test("returns array of tweets", async () => {
-      globalThis.fetch = mock(() =>
+      (globalThis.fetch as unknown) = mock(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockTweetListResponse),
@@ -274,7 +280,7 @@ describe("TwitterAPIClient", () => {
     });
 
     test("returns empty array when no data", async () => {
-      globalThis.fetch = mock(() =>
+      (globalThis.fetch as unknown) = mock(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockEmptyListResponse),
@@ -296,12 +302,12 @@ describe("TwitterAPIClient", () => {
           json: () => Promise.resolve(mockTweetListResponse),
         } as Response)
       );
-      globalThis.fetch = mockFetch;
+      globalThis.fetch = mockFetch as unknown as typeof fetch;
 
       const client = new TwitterAPIClient(mockConfig);
       await client.searchTweets("AI", 10, true);
 
-      const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const [, options] = (mockFetch.mock.calls[0] as unknown) as [string, RequestInit];
       expect(JSON.parse(options.body as string)).toEqual({
         words: "AI",
         count: 10,
@@ -316,12 +322,12 @@ describe("TwitterAPIClient", () => {
           json: () => Promise.resolve(mockTweetListResponse),
         } as Response)
       );
-      globalThis.fetch = mockFetch;
+      globalThis.fetch = mockFetch as unknown as typeof fetch;
 
       const client = new TwitterAPIClient(mockConfig);
       await client.searchTweets("AI");
 
-      const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const [, options] = (mockFetch.mock.calls[0] as unknown) as [string, RequestInit];
       expect(JSON.parse(options.body as string)).toEqual({
         words: "AI",
       });
@@ -330,7 +336,7 @@ describe("TwitterAPIClient", () => {
 
   describe("getUserTimeline", () => {
     test("returns array of tweets", async () => {
-      globalThis.fetch = mock(() =>
+      (globalThis.fetch as unknown) = mock(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockTweetListResponse),
@@ -347,7 +353,7 @@ describe("TwitterAPIClient", () => {
 
   describe("getUserReplies", () => {
     test("returns array of tweets", async () => {
-      globalThis.fetch = mock(() =>
+      (globalThis.fetch as unknown) = mock(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockTweetListResponse),
@@ -363,7 +369,7 @@ describe("TwitterAPIClient", () => {
 
   describe("getUserFollowers", () => {
     test("returns array of user info", async () => {
-      globalThis.fetch = mock(() =>
+      (globalThis.fetch as unknown) = mock(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockUserListResponse),
@@ -381,7 +387,7 @@ describe("TwitterAPIClient", () => {
 
   describe("getUserFollowing", () => {
     test("returns array of user info", async () => {
-      globalThis.fetch = mock(() =>
+      (globalThis.fetch as unknown) = mock(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockUserListResponse),
@@ -397,7 +403,7 @@ describe("TwitterAPIClient", () => {
 
   describe("getUserAffiliates", () => {
     test("returns array of user info", async () => {
-      globalThis.fetch = mock(() =>
+      (globalThis.fetch as unknown) = mock(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockEmptyListResponse),
@@ -413,7 +419,7 @@ describe("TwitterAPIClient", () => {
 
   describe("getUserHighlights", () => {
     test("returns array of tweets", async () => {
-      globalThis.fetch = mock(() =>
+      (globalThis.fetch as unknown) = mock(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockTweetListResponse),
@@ -435,12 +441,12 @@ describe("TwitterAPIClient", () => {
           json: () => Promise.resolve(mockTweetListResponse),
         } as Response)
       );
-      globalThis.fetch = mockFetch;
+      globalThis.fetch = mockFetch as unknown as typeof fetch;
 
       const client = new TwitterAPIClient(mockConfig);
       await client.searchUserTweets("https://x.com/zhengli", "AI");
 
-      const [url, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const [url, options] = (mockFetch.mock.calls[0] as unknown) as [string, RequestInit];
       expect(url).toBe("https://api.tweapi.io/v1/twitter/user/getUserTweetsBySearch");
       expect(JSON.parse(options.body as string)).toEqual({
         userUrl: "https://x.com/zhengli",
@@ -465,12 +471,12 @@ describe("TwitterAPIClient", () => {
             json: () => Promise.resolve(mockTweetListResponse),
           } as Response)
         );
-        globalThis.fetch = mockFetch;
+        globalThis.fetch = mockFetch as unknown as typeof fetch;
 
         const client = new TwitterAPIClient(mockConfig);
         await client.getUserBookmarks();
 
-        const [url, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+        const [url, options] = (mockFetch.mock.calls[0] as unknown) as [string, RequestInit];
         expect(url).toBe("https://api.tweapi.io/v1/twitter/user/bookmarks");
         expect(JSON.parse(options.body as string)).toEqual({
           cookie: "test-cookie",
@@ -489,7 +495,7 @@ describe("TwitterAPIClient", () => {
 
     describe("getUserLists", () => {
       test("returns array of lists", async () => {
-        globalThis.fetch = mock(() =>
+        (globalThis.fetch as unknown) = mock(() =>
           Promise.resolve({
             ok: true,
             json: () => Promise.resolve(mockListsResponse),
@@ -541,12 +547,12 @@ describe("TwitterAPIClient", () => {
           json: () => Promise.resolve(mockTweetListResponse),
         } as Response)
       );
-      globalThis.fetch = mockFetch;
+      globalThis.fetch = mockFetch as unknown as typeof fetch;
 
       const client = new TwitterAPIClient(mockConfig);
       await client.fetchUserTweets("testuser");
 
-      const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const [, options] = (mockFetch.mock.calls[0] as unknown) as [string, RequestInit];
       const body = JSON.parse(options.body as string);
       expect(body.url).toBe("https://x.com/testuser");
       expect(body.showPost).toBe(true);

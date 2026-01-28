@@ -17,9 +17,13 @@ describe("fetch-tweets", () => {
       retweet_count: 0,
       like_count: 0,
       reply_count: 0,
+      quote_count: 0,
+      view_count: 0,
+      bookmark_count: 0,
     },
     is_retweet: false,
     is_quote: false,
+    is_reply: false,
   });
 
   describe("deduplicateTweets", () => {

@@ -65,7 +65,7 @@ export async function addUser(input: string): Promise<CommandResult<WatchlistUse
       success: false,
       message: `User @${username} is already in the watchlist.`,
       error: "DUPLICATE",
-      data: existing,
+      data: existing ?? undefined,
     };
   }
 

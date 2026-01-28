@@ -1,9 +1,9 @@
 ---
-name: xray-insights
+name: xray-watchlist
 description: "Twitter/X watchlist monitoring skill. Fetches tweets from followed users, filters valuable content using AI, and generates magazine-style Markdown reports. Use for 'tech insights', 'AI trends', 'what's new on X', or 'Twitter briefing'."
 ---
 
-# X-Ray Insights
+# X-Ray Watchlist
 
 Fetch tweets from your watchlist and generate insightful reports.
 

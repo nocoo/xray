@@ -26,6 +26,8 @@ import type {
   Conversation,
   InboxItem,
   Analytics,
+  AnalyticsWithTimeSeries,
+  DailyMetrics,
 } from "./types";
 
 // =============================================================================
@@ -239,6 +241,17 @@ export class TwitterAPIClient {
     return this.normalizeAnalytics(data.data);
   }
 
+  async getUserAnalyticsWithTimeSeries(): Promise<AnalyticsWithTimeSeries> {
+    this.requireCookie();
+    const data = await this.request<TweAPIAnalyticsResponse>(
+      "/v1/twitter/user/analytics",
+      { cookie: this.cookie }
+    );
+    const analytics = this.normalizeAnalytics(data.data);
+    const timeSeries = this.parseTimeSeries(data.data);
+    return { ...analytics, time_series: timeSeries };
+  }
+
   async getUserBookmarks(): Promise<Tweet[]> {
     this.requireCookie();
     const data = await this.request<TweAPIResponse>(
@@ -296,6 +309,14 @@ export class TwitterAPIClient {
   }
 
   private normalizeTweet(apiTweet: TweAPITweet): Tweet {
+    if (apiTweet.retweetedTweet) {
+      const originalTweet = this.normalizeTweet(apiTweet.retweetedTweet);
+      return {
+        ...originalTweet,
+        is_retweet: true,
+      };
+    }
+
     const author: TweetAuthor = {
       id: apiTweet.tweetBy.id,
       username: apiTweet.tweetBy.userName,
@@ -310,7 +331,7 @@ export class TwitterAPIClient {
       like_count: apiTweet.likeCount || 0,
       reply_count: apiTweet.replyCount || 0,
       quote_count: apiTweet.quoteCount || 0,
-      view_count: apiTweet.viewCount || 0,
+      view_count: apiTweet.viewCount ?? 0,
       bookmark_count: apiTweet.bookmarkCount || 0,
     };
 
@@ -415,17 +436,78 @@ export class TwitterAPIClient {
   }
 
   private normalizeAnalytics(apiAnalytics: TweAPIAnalytics): Analytics {
+    const impressions = apiAnalytics.impressions ?? 0;
+    const engagements = apiAnalytics.engagements ?? 0;
+    const engagementRate = impressions > 0 ? (engagements / impressions) * 100 : 0;
+    
     return {
-      impressions: apiAnalytics.impressions,
-      engagements: apiAnalytics.engagements,
-      engagement_rate: apiAnalytics.engagementRate,
-      likes: apiAnalytics.likes,
-      retweets: apiAnalytics.retweets,
-      replies: apiAnalytics.replies,
-      profile_visits: apiAnalytics.profileVisits,
-      followers: apiAnalytics.followers,
-      following: apiAnalytics.following,
+      impressions,
+      engagements,
+      engagement_rate: engagementRate,
+      likes: apiAnalytics.likes ?? 0,
+      retweets: apiAnalytics.retweets ?? 0,
+      replies: apiAnalytics.replies ?? 0,
+      profile_visits: apiAnalytics.profileVisits ?? 0,
+      followers: apiAnalytics.followers ?? 0,
+      following: apiAnalytics.follows ?? 0,
+      verified_followers: apiAnalytics.verifiedFollowers,
+      bookmarks: apiAnalytics.bookmarks ?? undefined,
+      shares: apiAnalytics.shares ?? undefined,
+      unfollows: apiAnalytics.unfollows ?? undefined,
     };
+  }
+
+  private parseTimeSeries(apiAnalytics: TweAPIAnalytics): DailyMetrics[] {
+    const rawTimeSeries = apiAnalytics.organicMetricsTimeSeries;
+    if (!rawTimeSeries || !Array.isArray(rawTimeSeries)) {
+      return [];
+    }
+
+    return rawTimeSeries.map((day) => {
+      const metrics: DailyMetrics = {
+        date: day.timestamp.iso8601_time.split("T")[0],
+        impressions: 0,
+        engagements: 0,
+        profile_visits: 0,
+        follows: 0,
+        likes: 0,
+        replies: 0,
+        retweets: 0,
+        bookmarks: 0,
+      };
+
+      for (const m of day.metric_values) {
+        const value = m.metric_value ?? 0;
+        switch (m.metric_type) {
+          case "Impressions":
+            metrics.impressions = value;
+            break;
+          case "Engagements":
+            metrics.engagements = value;
+            break;
+          case "ProfileVisits":
+            metrics.profile_visits = value;
+            break;
+          case "Follows":
+            metrics.follows = value;
+            break;
+          case "Likes":
+            metrics.likes = value;
+            break;
+          case "Replies":
+            metrics.replies = value;
+            break;
+          case "Retweets":
+            metrics.retweets = value;
+            break;
+          case "Bookmark":
+            metrics.bookmarks = value;
+            break;
+        }
+      }
+
+      return metrics;
+    });
   }
 }
 

@@ -107,11 +107,36 @@ function initDB(): void {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS analytics (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL,
+      impressions INTEGER NOT NULL,
+      engagements INTEGER NOT NULL,
+      engagement_rate REAL NOT NULL,
+      likes INTEGER NOT NULL,
+      retweets INTEGER NOT NULL,
+      replies INTEGER NOT NULL,
+      profile_visits INTEGER NOT NULL,
+      followers INTEGER NOT NULL,
+      following INTEGER NOT NULL,
+      fetched_at TEXT NOT NULL
+    )
+  `);
+
+  db.exec(`
     CREATE INDEX IF NOT EXISTS idx_tweets_created_at ON tweets(created_at DESC)
   `);
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_processed_tweets_processed_at ON processed_tweets(processed_at DESC)
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_analytics_fetched_at ON analytics(fetched_at DESC)
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_analytics_username ON analytics(username)
   `);
 }
 
@@ -122,6 +147,7 @@ export function resetDB(): void {
     DROP TABLE IF EXISTS tweets;
     DROP TABLE IF EXISTS processed_tweets;
     DROP TABLE IF EXISTS classifications;
+    DROP TABLE IF EXISTS analytics;
   `);
   initDB();
 }

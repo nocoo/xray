@@ -82,7 +82,8 @@ beforeEach(() => resetDB());
 
 | Skill | Purpose |
 |-------|---------|
-| `xray-insights` | Fetch tweets, AI analysis, generate Markdown report |
+| `xray-watchlist` | Fetch tweets from watchlist, AI analysis, generate Markdown report |
+| `xray-me` | Fetch personal analytics, track trends, generate summary |
 
 ## Report Output
 
