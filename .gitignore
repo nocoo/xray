@@ -28,6 +28,12 @@ config/
 .claude/settings.local.json
 .claude/CLAUDE.md
 
+# OpenCode skills (local only)
+.opencode/
+
+# Generated reports (local only)
+reports/
+
 # Test outputs
 coverage/
 
