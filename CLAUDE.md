@@ -11,7 +11,7 @@ X-Ray monitors Twitter/X watchlist users and generates insightful Markdown repor
 - **Runtime**: Bun (TypeScript)
 - **Database**: SQLite (bun:sqlite)
 - **API**: TweAPI.io
-- **Testing**: bun:test (154 tests)
+- **Testing**: bun:test (180 tests)
 
 ## Coding Conventions
 
@@ -56,6 +56,11 @@ bun run watchlist add @user   # Add user
 ```
 
 ## Testing
+
+**Rules**:
+- **Before commit**: Must run `bun test` and ensure all tests pass
+- **Unit tests**: Use mock data, no real API calls
+- **E2E tests**: Run only when explicitly requested (to save API costs)
 
 Tests use isolated database: `data/test-x-ray.db`
 

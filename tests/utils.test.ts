@@ -95,14 +95,14 @@ describe("utils", () => {
     });
 
     test("handles fractional hours", () => {
-      const result = hoursAgoISO(0.5); // 30 minutes ago
+      const result = hoursAgoISO(1.5); // 1.5 hours ago
       const resultDate = new Date(result);
       const now = new Date();
 
       const diffMinutes = (now.getTime() - resultDate.getTime()) / (1000 * 60);
-      // setHours with fractional values may behave differently, just check it's positive
-      expect(diffMinutes).toBeGreaterThan(0);
-      expect(diffMinutes).toBeLessThan(120); // Less than 2 hours
+      // setHours truncates fractional part, so 1.5 becomes 1 hour = 60 minutes
+      expect(diffMinutes).toBeGreaterThanOrEqual(59);
+      expect(diffMinutes).toBeLessThan(120);
     });
 
     test("handles large hours value", () => {
