@@ -6,6 +6,7 @@ export interface Config {
   api: {
     api_key: string;
     base_url: string;
+    cookie?: string;
   };
   settings: {
     max_tweets_per_user: number;
@@ -213,6 +214,170 @@ export interface TweAPIResponse {
     list: TweAPITweet[];
     next?: string;
   };
+}
+
+export interface TweAPITweetDetailsResponse {
+  code: number;
+  msg: string;
+  data: TweAPITweet;
+}
+
+export interface TweAPIUserInfoResponse {
+  code: number;
+  msg: string;
+  data: TweAPIAuthor;
+}
+
+export interface TweAPIUserListResponse {
+  code: number;
+  msg: string;
+  data: {
+    list: TweAPIAuthor[];
+    next?: string;
+  };
+}
+
+export interface TweAPIList {
+  id: string;
+  name: string;
+  description?: string;
+  memberCount: number;
+  subscriberCount: number;
+  createdAt: string;
+  createdBy: string;
+  isFollowing?: boolean;
+  isMember?: boolean;
+}
+
+export interface TweAPIListsResponse {
+  code: number;
+  msg: string;
+  data: {
+    list: TweAPIList[];
+    next?: string;
+  };
+}
+
+export interface TweAPIMessage {
+  id: string;
+  text: string;
+  senderId: string;
+  recipientId: string;
+  createdAt: string;
+  mediaUrls?: string[];
+}
+
+export interface TweAPIConversation {
+  conversationId: string;
+  messages: TweAPIMessage[];
+  participants: TweAPIAuthor[];
+}
+
+export interface TweAPIConversationResponse {
+  code: number;
+  msg: string;
+  data: TweAPIConversation;
+}
+
+export interface TweAPIInboxItem {
+  conversationId: string;
+  lastMessage: TweAPIMessage;
+  participants: TweAPIAuthor[];
+  unreadCount?: number;
+}
+
+export interface TweAPIInboxResponse {
+  code: number;
+  msg: string;
+  data: {
+    list: TweAPIInboxItem[];
+    next?: string;
+  };
+}
+
+export interface TweAPIAnalytics {
+  impressions: number;
+  engagements: number;
+  engagementRate: number;
+  likes: number;
+  retweets: number;
+  replies: number;
+  profileVisits: number;
+  followers: number;
+  following: number;
+}
+
+export interface TweAPIAnalyticsResponse {
+  code: number;
+  msg: string;
+  data: TweAPIAnalytics;
+}
+
+// =============================================================================
+// Internal Normalized Types
+// =============================================================================
+
+export interface UserInfo {
+  id: string;
+  username: string;
+  name: string;
+  description?: string;
+  location?: string;
+  profile_image_url: string;
+  profile_banner_url?: string;
+  followers_count: number;
+  following_count: number;
+  tweet_count: number;
+  like_count: number;
+  is_verified: boolean;
+  created_at: string;
+  pinned_tweet_id?: string;
+}
+
+export interface TwitterList {
+  id: string;
+  name: string;
+  description?: string;
+  member_count: number;
+  subscriber_count: number;
+  created_at: string;
+  created_by: string;
+  is_following?: boolean;
+  is_member?: boolean;
+}
+
+export interface Message {
+  id: string;
+  text: string;
+  sender_id: string;
+  recipient_id: string;
+  created_at: string;
+  media_urls?: string[];
+}
+
+export interface Conversation {
+  conversation_id: string;
+  messages: Message[];
+  participants: UserInfo[];
+}
+
+export interface InboxItem {
+  conversation_id: string;
+  last_message: Message;
+  participants: UserInfo[];
+  unread_count?: number;
+}
+
+export interface Analytics {
+  impressions: number;
+  engagements: number;
+  engagement_rate: number;
+  likes: number;
+  retweets: number;
+  replies: number;
+  profile_visits: number;
+  followers: number;
+  following: number;
 }
 
 // =============================================================================
