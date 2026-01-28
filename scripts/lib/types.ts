@@ -8,6 +8,10 @@ export interface Config {
     base_url: string;
     cookie?: string;
   };
+  me: {
+    username: string;
+    is_blue_verified: boolean;
+  };
   settings: {
     max_tweets_per_user: number;
   };
@@ -198,13 +202,14 @@ export interface TweAPITweet {
   retweetCount: number;
   replyCount: number;
   quoteCount: number;
-  viewCount: number;
+  viewCount?: number;
   conversationId: string;
   tweetBy: TweAPIAuthor;
   entities: TweAPIEntities;
   media?: TweAPIMedia[];
   quoted?: TweAPITweet;
   replyTo?: string;
+  retweetedTweet?: TweAPITweet;
 }
 
 export interface TweAPIResponse {
@@ -295,16 +300,36 @@ export interface TweAPIInboxResponse {
   };
 }
 
+export interface TweAPIMetricValue {
+  metric_value?: number;
+  metric_type: string;
+}
+
+export interface TweAPIMetricTimeSeries {
+  metric_values: TweAPIMetricValue[];
+  timestamp: {
+    iso8601_time: string;
+  };
+}
+
 export interface TweAPIAnalytics {
-  impressions: number;
-  engagements: number;
-  engagementRate: number;
-  likes: number;
-  retweets: number;
-  replies: number;
-  profileVisits: number;
+  createdAt: string;
   followers: number;
-  following: number;
+  verifiedFollowers?: number;
+  impressions: number;
+  profileVisits: number;
+  engagements: number;
+  follows?: number;
+  replies?: number | null;
+  likes?: number | null;
+  retweets?: number | null;
+  bookmarks?: number | null;
+  shares?: number | null;
+  createTweets?: number | null;
+  createQuote?: number | null;
+  unfollows?: number | null;
+  createReply?: number | null;
+  organicMetricsTimeSeries?: TweAPIMetricTimeSeries[];
 }
 
 export interface TweAPIAnalyticsResponse {
@@ -378,6 +403,26 @@ export interface Analytics {
   profile_visits: number;
   followers: number;
   following: number;
+  verified_followers?: number;
+  bookmarks?: number;
+  shares?: number;
+  unfollows?: number;
+}
+
+export interface DailyMetrics {
+  date: string;
+  impressions: number;
+  engagements: number;
+  profile_visits: number;
+  follows: number;
+  likes: number;
+  replies: number;
+  retweets: number;
+  bookmarks: number;
+}
+
+export interface AnalyticsWithTimeSeries extends Analytics {
+  time_series: DailyMetrics[];
 }
 
 // =============================================================================

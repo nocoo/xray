@@ -1,12 +1,19 @@
-# X-Ray
+# 🔍 X-Ray
 
-Twitter tech content monitoring system. Fetches tweets from a watchlist and generates insightful Markdown reports using AI.
+Twitter/X monitoring system that fetches tweets and generates insightful Markdown reports using AI.
 
-## Architecture
+## ✨ Features
+
+- 📡 **Watchlist Monitoring** - Track tweets from your curated user list
+- 📊 **Personal Analytics** - Your account metrics, trends, bookmarks & likes
+- 🤖 **AI Analysis** - Claude identifies valuable content and generates insights
+- 📝 **Markdown Reports** - Magazine-style reports synced to Obsidian
+
+## 🏗️ Architecture
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   fetch     │ -> │   Claude    │ -> │   report    │
+│   Fetch     │ -> │   Claude    │ -> │   Report    │
 │  (Script)   │    │  (AI/Skill) │    │  (Markdown) │
 └─────────────┘    └─────────────┘    └─────────────┘
        │                  │                  │
@@ -14,7 +21,7 @@ Twitter tech content monitoring system. Fetches tweets from a watchlist and gene
  raw_tweets.json    AI Analysis      reports/*.md
 ```
 
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
 # Install dependencies
@@ -27,56 +34,54 @@ cp config/config.example.json config/config.json
 # Add users to watchlist
 bun run watchlist add @username
 
-# Run the pipeline (via xray-insights skill)
-# 1. Fetch tweets
+# Fetch tweets
 bun run fetch
-
-# 2. Use Claude to analyze and generate report
-# (This step is performed by the xray-insights skill)
 ```
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 x-ray/
-├── scripts/           # CLI scripts
-│   ├── lib/           # Shared libraries
-│   │   ├── api.ts     # Twitter API client
-│   │   ├── db.ts      # SQLite database
-│   │   ├── tweet-db.ts
-│   │   ├── tweet-utils.ts
-│   │   ├── types.ts   # TypeScript interfaces
-│   │   ├── utils.ts
-│   │   └── watchlist-db.ts
-│   ├── fetch-tweets.ts
+├── scripts/               # 🛠️ CLI scripts
+│   ├── lib/               # Shared libraries
+│   │   ├── api.ts         # Twitter API client (TweAPI.io)
+│   │   ├── db.ts          # SQLite connection
+│   │   ├── analytics-db.ts # Analytics storage
+│   │   ├── tweet-db.ts    # Tweet CRUD
+│   │   ├── watchlist-db.ts
+│   │   └── types.ts       # TypeScript interfaces
+│   ├── fetch-tweets.ts    # Watchlist tweet fetcher
+│   ├── fetch-me-data.ts   # Personal analytics fetcher
+│   ├── sync-report.ts     # Obsidian sync
 │   └── manage-watchlist.ts
-├── skills/            # Claude Skills
-│   └── xray-insights/ # Main skill for fetching and reporting
-├── reports/           # Generated Markdown reports
-├── tests/             # Unit tests
-├── config/            # API keys (gitignored)
-└── data/              # Runtime data (gitignored)
+├── skills/                # 🎯 Claude Skills
+│   ├── xray-watchlist/    # Watchlist monitoring & reports
+│   └── xray-me/           # Personal analytics & reports
+├── tests/                 # ✅ Unit tests (180+)
+├── config/                # 🔐 API keys (gitignored)
+└── data/                  # 💾 Runtime data (gitignored)
 ```
 
-## Commands
+## 📋 Commands
 
 | Command | Description |
 |---------|-------------|
-| `bun test` | Run all tests (154 tests) |
+| `bun test` | Run all tests |
 | `bun run fetch` | Fetch tweets from watchlist |
-| `bun run watchlist` | Manage watchlist |
+| `bun run scripts/fetch-me-data.ts` | Fetch personal analytics |
+| `bun run scripts/sync-report.ts` | Sync latest report to Obsidian |
+| `bun run watchlist list` | List watched users |
 | `bun run watchlist add @user` | Add user to watchlist |
-| `bun run watchlist remove @user` | Remove user from watchlist |
-| `bun run watchlist list` | List all users |
+| `bun run watchlist remove @user` | Remove user |
 
-## Data Flow
+## 🎯 Skills
 
-1. **Fetch**: `fetch-tweets.ts` calls TweAPI.io, saves to `data/raw_tweets.json`
-2. **Analyze**: Claude reads raw_tweets.json, identifies valuable content
-3. **Report**: Claude generates magazine-style Markdown report
-4. **Save**: Report saved to `reports/` and synced to Obsidian
+| Skill | Trigger | Description |
+|-------|---------|-------------|
+| `xray-watchlist` | `/xray-watchlist` | Fetch watchlist tweets, AI analysis, generate report |
+| `xray-me` | `/xray-me` | Personal analytics, bookmarks, likes, trends |
 
-## Configuration
+## 🔧 Configuration
 
 `config/config.json`:
 
@@ -84,26 +89,39 @@ x-ray/
 {
   "api": {
     "api_key": "your-tweapi-key",
-    "base_url": "https://api.tweapi.io"
+    "base_url": "https://api.tweapi.io",
+    "cookie": "optional-for-authenticated-endpoints"
+  },
+  "me": {
+    "username": "your-username",
+    "is_blue_verified": true
   },
   "settings": {
     "max_tweets_per_user": 100
-  },
-  "classification": {
-    "interests": ["AI", "LLM", "Agent", "RAG"],
-    "filter_retweets_without_comment": true
   }
 }
 ```
 
-## Tech Stack
+## 🛠️ Tech Stack
 
-- **Runtime**: Bun
-- **Language**: TypeScript
-- **Database**: SQLite (bun:sqlite)
-- **API**: TweAPI.io
-- **Testing**: bun:test
+| Component | Technology |
+|-----------|------------|
+| Runtime | Bun |
+| Language | TypeScript |
+| Database | SQLite (bun:sqlite) |
+| API | TweAPI.io |
+| Testing | bun:test |
+| AI | Claude (via Skills) |
 
-## License
+## 📊 Data Flow
+
+```
+1. 📡 Fetch    → TweAPI.io → raw_tweets.json / me-data.json
+2. 🤖 Analyze  → Claude reads data, identifies valuable content
+3. 📝 Report   → Generate magazine-style Markdown
+4. 💾 Save     → reports/*.md → Obsidian sync
+```
+
+## 📜 License
 
 MIT

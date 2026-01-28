@@ -37,9 +37,13 @@ const createMockTweet = (id: string): Tweet => ({
     retweet_count: id.length % 10,
     like_count: id.length % 100,
     reply_count: id.length % 5,
+    quote_count: 0,
+    view_count: 0,
+    bookmark_count: 0,
   },
   is_retweet: false,
   is_quote: false,
+  is_reply: false,
 });
 
 describe("tweet-db", () => {
@@ -184,12 +188,12 @@ describe("tweet-db", () => {
 
   describe("processedMark & processedGet", () => {
     test("marks a tweet as processed", () => {
-      processedMark("proc1", "tech");
+      processedMark("proc1", "selected");
 
       const result = processedGet("proc1");
       expect(result).not.toBeNull();
       expect(result!.tweet_id).toBe("proc1");
-      expect(result!.classification_result).toBe("tech");
+      expect(result!.classification_result).toBe("selected");
     });
 
     test("returns null for non-existent processed tweet", () => {
@@ -200,7 +204,7 @@ describe("tweet-db", () => {
 
   describe("processedMarkMany", () => {
     test("marks multiple tweets as processed", () => {
-      processedMarkMany(["pm1", "pm2", "pm3"], "non_tech");
+      processedMarkMany(["pm1", "pm2", "pm3"], "skipped");
 
       const all = processedGetAll();
       expect(all).toHaveLength(3);
@@ -209,8 +213,8 @@ describe("tweet-db", () => {
 
   describe("processedGetAllIds", () => {
     test("returns all processed tweet IDs", () => {
-      processedMark("ids1", "tech");
-      processedMark("ids2", "non_tech");
+      processedMark("ids1", "selected");
+      processedMark("ids2", "skipped");
       processedMark("ids3", "skipped");
 
       const ids = processedGetAllIds();
@@ -227,9 +231,9 @@ describe("tweet-db", () => {
   describe("processedCount", () => {
     test("returns correct count", () => {
       expect(processedCount()).toBe(0);
-      processedMark("pc1", "tech");
+      processedMark("pc1", "selected");
       expect(processedCount()).toBe(1);
-      processedMark("pc2", "tech");
+      processedMark("pc2", "selected");
       expect(processedCount()).toBe(2);
     });
   });
