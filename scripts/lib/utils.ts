@@ -131,3 +131,32 @@ export function isValidUsername(username: string): boolean {
 export function normalizeUsername(input: string): string {
   return input.replace(/^@/, "");
 }
+
+// =============================================================================
+// Tweet Helpers
+// =============================================================================
+
+import type { Tweet } from "./types";
+
+export function formatTweetOutput(tweet: Tweet): string {
+  const engagement = `❤️ ${tweet.metrics.like_count} | 🔁 ${tweet.metrics.retweet_count} | 💬 ${tweet.metrics.reply_count} | 👁 ${tweet.metrics.view_count}`;
+  return `@${tweet.author.username}: ${tweet.text.substring(0, 200)}${tweet.text.length > 200 ? "..." : ""}\n   ${engagement}\n   ${tweet.url}`;
+}
+
+export function calculateRelevanceScore(
+  followers: number,
+  avgEngagement: number,
+  tweetsFound: number
+): number {
+  // Weighted scoring: followers (50%) + engagement (30%) + volume (20%)
+  const logFollowers = Math.log10(followers + 1);
+  const normalizedFollowers = Math.min(logFollowers / 6, 1); // Cap at 1M
+  
+  // Use log of engagement to balance the scale
+  const logEngagement = Math.log10(avgEngagement + 1);
+  const normalizedEngagement = Math.min(logEngagement / 4, 1); // Cap at 10K avg engagement
+  
+  const volumeScore = Math.min(tweetsFound / 10, 1);
+  
+  return (normalizedFollowers * 0.5 + normalizedEngagement * 0.3 + volumeScore * 0.2) * 100;
+}

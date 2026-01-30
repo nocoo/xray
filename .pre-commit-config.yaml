@@ -1,0 +1,13 @@
+# Pre-commit hooks for X-Ray project
+
+# Run all unit tests before committing
+- repo: local
+  hooks:
+    - id: run-unit-tests
+      name: Run Unit Tests
+      description: Run all unit tests with bun test
+      entry: bun test
+      language: system
+      pass_filenames: false
+      always_run: true
+      stages: [pre-commit]
