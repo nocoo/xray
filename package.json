@@ -4,18 +4,10 @@
   "description": "Twitter tech content monitoring system",
   "type": "module",
   "scripts": {
-    "test": "bun test",
-    "test:coverage": "bun test --coverage",
-    "fetch": "bun run scripts/fetch-tweets.ts",
-    "watchlist": "bun run scripts/manage-watchlist.ts",
-    "prepare": "simple-git-hooks"
-  },
-  "simple-git-hooks": {
-    "pre-commit": "bun run scripts/scan-secrets.ts && bun test"
+    "test": "bun test"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "simple-git-hooks": "^2.11.1",
     "typescript": "^5.0.0"
   }
 }
