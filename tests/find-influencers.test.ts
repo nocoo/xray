@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
 import { TwitterAPIClient } from "../scripts/lib/api";
 import type { Config, Tweet } from "../scripts/lib/types";
+import { buildInfluencerOutput } from "../agent/research/find-influencers";
 
 // Test configuration
 const mockConfig: Config = {
@@ -200,6 +201,59 @@ describe("Find Influencers Script", () => {
       expect(typeof scoreLowFollowers).toBe("number");
       // Higher followers should not have lower score (followers weighted at 40%)
       expect(scoreHighFollowers).toBeGreaterThanOrEqual(scoreLowFollowers);
+    });
+  });
+
+  describe("buildInfluencerOutput", () => {
+    test("builds output with influencer summary", async () => {
+      const tweets: Tweet[] = [
+        {
+          id: "1",
+          text: "AI safety is crucial",
+          author: {
+            id: "a",
+            username: "karpathy",
+            name: "Andre",
+            profile_image_url: "",
+            followers_count: 500000,
+            is_verified: true,
+          },
+          created_at: "2026-01-30T10:00:00.000Z",
+          url: "https://x.com/karpathy/status/1",
+          metrics: {
+            like_count: 10,
+            retweet_count: 2,
+            reply_count: 1,
+            quote_count: 0,
+            view_count: 0,
+            bookmark_count: 0,
+          },
+          is_retweet: false,
+          is_quote: false,
+          is_reply: false,
+          lang: "en",
+        },
+      ];
+
+      const output = buildInfluencerOutput({
+        topic: "AI",
+        count: 1,
+        minFollowers: 1000,
+        tweets,
+        influencers: [
+          {
+            username: "karpathy",
+            name: "Andre",
+            followers: 500000,
+            tweetsFound: 1,
+            avgEngagement: 12,
+            relevanceScore: 88,
+          },
+        ],
+      });
+
+      expect(output.summary.total).toBe(1);
+      expect(output.query.min_followers).toBe(1000);
     });
   });
 

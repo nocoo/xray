@@ -1,5 +1,6 @@
 import { describe, test, expect, mock, beforeEach, afterEach } from "bun:test";
-import { extractTopics } from "../agent/research/competitor-watch";
+import { extractTopics, buildCompetitorOutput } from "../agent/research/competitor-watch";
+import type { Tweet } from "../scripts/lib/types";
 import { TwitterAPIClient } from "../scripts/lib/api";
 import type { Config } from "../scripts/lib/types";
 
@@ -208,6 +209,51 @@ describe("Competitor Watch Script", () => {
       const topics = extractTopics("#AI #ML #AI #ML");
       
       expect(topics).toEqual(["#ai", "#ml", "#ai", "#ml"]);
+    });
+  });
+
+  describe("buildCompetitorOutput", () => {
+    test("builds summary for accounts", async () => {
+      const tweetsByAccount: Record<string, Tweet[]> = {
+        compA: [
+          {
+            id: "1",
+            text: "hello",
+            author: {
+              id: "a",
+              username: "compA",
+              name: "Comp A",
+              profile_image_url: "",
+              followers_count: 0,
+              is_verified: false,
+            },
+            created_at: "2026-01-30T10:00:00.000Z",
+            url: "https://x.com/compA/status/1",
+            metrics: {
+              like_count: 10,
+              retweet_count: 2,
+              reply_count: 1,
+              quote_count: 0,
+              view_count: 0,
+              bookmark_count: 0,
+            },
+            is_retweet: false,
+            is_quote: false,
+            is_reply: false,
+            lang: "en",
+          },
+        ],
+      };
+
+      const output = buildCompetitorOutput({
+        accounts: ["compA"],
+        hours: 24,
+        tweetsByAccount,
+      });
+
+      expect(output.summary[0].total).toBe(1);
+      expect(output.summary[0].total_engagement).toBe(15);
+      expect(output.query.hours).toBe(24);
     });
   });
 

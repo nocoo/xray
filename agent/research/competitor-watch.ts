@@ -9,10 +9,14 @@
  */
 
 import { getAgentClient } from "../lib/agent-api";
+import { writeAgentOutput } from "../lib/agent-output";
+import { nowISO } from "../../scripts/lib/utils";
+import type { Tweet } from "../../scripts/lib/types";
 
 interface Args {
   accounts?: string;
   hours?: number;
+  out?: string;
   help?: boolean;
 }
 
@@ -42,6 +46,9 @@ function parseArgs(): Args {
     } else if (arg === "--hours" || arg === "-h") {
       args.hours = parseInt(nextArg, 10);
       i++;
+    } else if (arg === "--out" || arg === "-o") {
+      args.out = nextArg;
+      i++;
     } else if (arg === "--help" || arg === "-h") {
       args.help = true;
     }
@@ -63,6 +70,7 @@ Usage:
 Options:
   --accounts, -a    Comma-separated list of accounts to monitor (required)
   --hours, -h       Look back period in hours (default: 24)
+  --out, -o         Output JSON path (optional)
   --help, -h        Show this help message
 
 Examples:
@@ -74,6 +82,35 @@ Examples:
 export function extractTopics(text: string): string[] {
   const hashtags = text.match(/#\w+/g);
   return hashtags ? hashtags.map(h => h.toLowerCase()) : [];
+}
+
+export function buildCompetitorOutput(params: {
+  accounts: string[];
+  hours: number;
+  tweetsByAccount: Record<string, Tweet[]>;
+}) {
+  const summary = params.accounts.map((account) => {
+    const tweets = params.tweetsByAccount[account] || [];
+    const totalEngagement = tweets.reduce(
+      (sum, t) => sum + t.metrics.like_count + t.metrics.retweet_count * 2 + t.metrics.reply_count,
+      0
+    );
+    return {
+      account,
+      total: tweets.length,
+      total_engagement: totalEngagement,
+    };
+  });
+
+  return {
+    generated_at: nowISO(),
+    query: {
+      accounts: params.accounts,
+      hours: params.hours,
+    },
+    tweets_by_account: params.tweetsByAccount,
+    summary,
+  };
 }
 
 async function main() {
@@ -95,6 +132,7 @@ async function main() {
     console.log(`   Time window: ${hours} hours\n`);
     
     const allStats: CompetitorStats[] = [];
+    const tweetsByAccount: Record<string, Tweet[]> = {};
     
     for (const account of accounts) {
       console.log(`📊 Analyzing @${account}...`);
@@ -107,6 +145,7 @@ async function main() {
         const recentTweets = tweets.filter(t => 
           new Date(t.created_at) >= cutoffTime
         );
+        tweetsByAccount[account] = recentTweets;
         
         if (recentTweets.length === 0) {
           console.log(`   No tweets in the last ${hours} hours\n`);
@@ -195,6 +234,14 @@ async function main() {
         console.log(`   ${topic}: ${count} competitors`);
       }
     }
+
+    const output = buildCompetitorOutput({
+      accounts,
+      hours,
+      tweetsByAccount,
+    });
+    const outputPath = await writeAgentOutput("competitor_watch", output, args.out);
+    console.log(`\n💾 输出已保存: ${outputPath}`);
     
   } catch (error) {
     console.error(`\n❌ Error: ${error instanceof Error ? error.message : error}`);

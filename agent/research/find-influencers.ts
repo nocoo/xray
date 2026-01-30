@@ -9,11 +9,15 @@
  */
 
 import { getAgentClient } from "../lib/agent-api";
+import { writeAgentOutput } from "../lib/agent-output";
+import { nowISO } from "../../scripts/lib/utils";
+import type { Tweet } from "../../scripts/lib/types";
 
 interface Args {
   topic?: string;
   count?: number;
   minFollowers?: number;
+  out?: string;
   help?: boolean;
 }
 
@@ -43,6 +47,9 @@ function parseArgs(): Args {
     } else if (arg === "--min-followers" || arg === "-m") {
       args.minFollowers = parseInt(nextArg, 10);
       i++;
+    } else if (arg === "--out" || arg === "-o") {
+      args.out = nextArg;
+      i++;
     } else if (arg === "--help" || arg === "-h") {
       args.help = true;
     }
@@ -65,6 +72,7 @@ Options:
   --topic, -t          Topic to search for (required)
   --count, -c          Number of tweets to analyze (default: 50)
   --min-followers, -m  Minimum follower count (default: 1000)
+  --out, -o            Output JSON path (optional)
   --help, -h           Show this help message
 
 Examples:
@@ -91,6 +99,28 @@ function calculateRelevanceScore(
   return (normalizedFollowers * 0.4 + normalizedEngagement * 0.4 + volumeScore * 0.2) * 100;
 }
 
+export function buildInfluencerOutput(params: {
+  topic: string;
+  count: number;
+  minFollowers: number;
+  tweets: Tweet[];
+  influencers: Influencer[];
+}) {
+  return {
+    generated_at: nowISO(),
+    query: {
+      topic: params.topic,
+      count: params.count,
+      min_followers: params.minFollowers,
+    },
+    tweets: params.tweets,
+    influencers: params.influencers,
+    summary: {
+      total: params.influencers.length,
+    },
+  };
+}
+
 async function main() {
   const args = parseArgs();
   
@@ -114,7 +144,6 @@ async function main() {
     if (tweets.length === 0) {
       console.log("   No tweets found for this topic.");
       console.log("   Try a different topic or increase the count.\n");
-      return;
     }
     
     // Aggregate data by user
@@ -194,6 +223,16 @@ async function main() {
     const top5 = influencers.slice(0, 5).map(i => `@${i.username}`).join(", ");
     console.log(`\n💡 Suggested accounts to add to watchlist:`);
     console.log(`   ${top5}`);
+
+    const output = buildInfluencerOutput({
+      topic: args.topic,
+      count,
+      minFollowers,
+      tweets,
+      influencers,
+    });
+    const outputPath = await writeAgentOutput("find_influencers", output, args.out);
+    console.log(`\n💾 输出已保存: ${outputPath}`);
     
   } catch (error) {
     console.error(`\n❌ Error: ${error instanceof Error ? error.message : error}`);
