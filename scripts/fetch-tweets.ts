@@ -24,7 +24,7 @@ import {
   processedGetAllIds,
 } from "./lib/tweet-db";
 
-const TIME_RANGE_HOURS = 4;
+const TIME_RANGE_HOURS = 1;
 
 // =============================================================================
 // Core Functions (exported for testing)
