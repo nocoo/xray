@@ -67,7 +67,16 @@ After fetching, you (Claude) will:
    - List subscribed lists
 3. **Generate Report**: Create comprehensive summary
 4. **Save Report**: Write to `reports/xray_me_YYYYMMDD_HHMM.md`
-5. **Sync to Obsidian**: Run `bun run scripts/sync-report.ts` (auto-syncs latest report)
+
+### 4. Sync to Obsidian (REQUIRED)
+
+**⚠️ CRITICAL: This step is MANDATORY. Do NOT skip.**
+
+```bash
+bun run scripts/sync-report.ts
+```
+
+This copies the report to Obsidian vault. Must run after saving report.
 
 ## Data Structure
 

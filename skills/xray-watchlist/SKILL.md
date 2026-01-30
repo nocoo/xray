@@ -63,8 +63,18 @@ After fetching, you (Claude) will:
 2. **Identify Threads**: Group author self-replies as single units
 3. **Select Top 20**: Pick the most valuable tweets/threads
 4. **Generate Report**: Create magazine-style Markdown report
-5. **Save Report**: Write to `reports/` with timestamp
-6. **Copy to Obsidian**: Sync report to Obsidian vault
+5. **Append Full Index**: At the end, list *all* tweets, grouped by category, with full text
+6. **Save Report**: Write to `reports/` with timestamp
+
+### 3. Sync to Obsidian (REQUIRED)
+
+**⚠️ CRITICAL: This step is MANDATORY. Do NOT skip.**
+
+```bash
+bun run scripts/sync-report.ts
+```
+
+This copies the report to Obsidian vault. Must run after saving report.
 
 ## Thread Identification
 
@@ -145,6 +155,12 @@ Generate a **magazine/newsletter style** Markdown report in **Simplified Chinese
 
 ---
 
+## 📚 全量推文清单
+
+按主题分类列出 *全部* 推文，写出全文内容（不省略），并保留原推文链接。
+
+---
+
 *本报告基于 X-Ray watchlist 自动生成*
 *生成时间: YYYY-MM-DD HH:MM UTC+8*
 ```
@@ -162,9 +178,10 @@ Generate a **magazine/newsletter style** Markdown report in **Simplified Chinese
 4. **Deep Interpretation**: 2-3 bullets explaining WHY this matters
    - For Threads, mention "(N条连续推文)" in summary
 
-5. **Language**: Simplified Chinese, even for English tweets
+5. **Language**: Simplified Chinese, even for English tweets. For non-Chinese tweets, provide full Chinese translation.
 
 6. **Categories**: Group by theme if appropriate (AI, Tools, Industry, etc.)
+7. **Full Index**: At the end, list *all* tweets with full text, grouped by category.
 
 ## Output Locations
 

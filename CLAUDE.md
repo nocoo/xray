@@ -4,7 +4,7 @@
 
 X-Ray monitors Twitter/X watchlist users and generates insightful Markdown reports.
 
-**Workflow**: fetch (Script) -> AI analysis (Claude) -> Markdown report
+**Workflow**: Skill-only (Claude) -> Markdown report
 
 ## Tech Stack
 
@@ -49,10 +49,9 @@ processed_tweets(tweet_id, processed_at, classification_result)
 ## Commands
 
 ```bash
-bun test                      # Run all tests
-bun run fetch                 # Fetch tweets -> raw_tweets.json
-bun run watchlist list        # List watchlist
-bun run watchlist add @user   # Add user
+bun test                                # Run all tests
+/xray-watchlist                        # Watchlist report (skill only)
+/xray-me                               # Personal analytics report (skill only)
 ```
 
 ## Testing

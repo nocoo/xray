@@ -14,7 +14,7 @@ Twitter/X monitoring system that fetches tweets and generates insightful Markdow
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
 │   Fetch     │ -> │   Claude    │ -> │   Report    │
-│  (Script)   │    │  (AI/Skill) │    │  (Markdown) │
+│  (Skill)    │    │  (AI)       │    │  (Markdown) │
 └─────────────┘    └─────────────┘    └─────────────┘
        │                  │                  │
        v                  v                  v
@@ -31,11 +31,8 @@ bun install
 cp config/config.example.json config/config.json
 # Edit config/config.json with your TweAPI.io key
 
-# Add users to watchlist
-bun run watchlist add @username
-
-# Fetch tweets
-bun run fetch
+# Run watchlist skill flow
+/xray-watchlist
 ```
 
 ## 📁 Project Structure
@@ -67,12 +64,8 @@ x-ray/
 | Command | Description |
 |---------|-------------|
 | `bun test` | Run all tests |
-| `bun run fetch` | Fetch tweets from watchlist |
-| `bun run scripts/fetch-me-data.ts` | Fetch personal analytics |
-| `bun run scripts/sync-report.ts` | Sync latest report to Obsidian |
-| `bun run watchlist list` | List watched users |
-| `bun run watchlist add @user` | Add user to watchlist |
-| `bun run watchlist remove @user` | Remove user |
+| `/xray-watchlist` | Fetch watchlist tweets, AI analysis, generate report |
+| `/xray-me` | Fetch personal analytics, generate report |
 
 ## 🎯 Skills
 
