@@ -1,170 +1,89 @@
-# Potato Agent Scripts for X-Ray
+# Agent 脚本能力地图（原子化 & 可组合）
 
-AI-friendly scripts for scheduled tweet fetching and reporting.
+目标：让独立 agent 通过 `agent/` 下的脚本完成“原子操作”，并可组合成强大的 X 探索工作流。
 
-## Overview
+## 最终效果（愿景）
 
-Scripts are designed for autonomous operation by AI agents, with:
-- **Cost control**: Only fetch new tweets since last fetch
-- **Caching**: Use SQLite database to track processed tweets
-- **Reporting**: Generate daily summaries for the user
+1) **原子操作可复用**
+- 每个脚本只做一件事：抓取/搜索/分析/汇总
+- 输出统一 JSON，方便组合与复用
 
-## Architecture
+2) **可组合工作流**
+- 任何人都可以用 2-4 个脚本组合出强能力（趋势追踪、竞品监控、爆款洞察、影响者发现）
 
-```
-agent/
-├── fetch/                  # Fetch scripts
-│   ├── single.ts          # Fetch one user's tweets
-│   ├── incremental.ts     # Fetch new tweets since last run (RECOMMENDED)
-│   └── full.ts            # Full backfill (use sparingly)
-├── analyze/               # Analysis scripts
-│   ├── recent.ts          # Analyze recent tweets
-│   └── daily.ts           # Generate daily report
-├── report/                # Report generation
-│   ├── summary.ts         # Quick summary
-│   └── markdown.ts        # Markdown report
-├── scheduler/             # Scheduling
-│   └── hourly.ts          # Hourly fetch schedule
-└── index.ts              # Main entry point
-```
+3) **输出一致可审计**
+- 所有结果写入 `data/agent/`
+- 文件名包含时间戳，便于追踪与对比
 
-## Usage
+4) **稳定且可测试**
+- 单元测试覆盖关键路径
+- 输出格式可被验证脚本检查
 
-### Recommended: Incremental Fetch
+## 当前原子能力清单
 
-```bash
-# Fetch only new tweets since last run
-bun run agent/fetch/incremental.ts
+### 抓取类
+- `agent/fetch/single.ts`：单用户最近 N 小时
+- `agent/fetch/incremental.ts`：watchlist 批量增量抓取
 
-# Fetch specific user
-bun run agent/fetch/single.ts --user karpathy
+### 搜索类
+- `agent/research/search-user-tweets.ts`：用户 + 关键词搜索
+- `agent/research/track-topic-trends.ts`：话题搜索 + 历史对比
+- `agent/research/search-*.ts`：固定主题搜索（后续会收敛成统一入口）
 
-# Analyze and report
-bun run agent/analyze/recent.ts --hours 4
+### 分析类
+- `agent/research/viral-tweet-analyzer.ts`：爆款特征分析
+- `agent/research/sentiment-analysis.ts`：情绪分析
+- `agent/research/find-influencers.ts`：影响者筛选
+- `agent/research/competitor-watch.ts`：竞品监控
+- `agent/analyze/recent.ts`：DB 最近未处理
 
-# Full workflow: fetch + analyze + report
-bun run agent/index.ts --mode hourly
-```
+### 调试类
+- `agent/research/demo.ts`
+- `agent/research/check-never-users.ts`
+- `agent/research/fetch-history.ts`
 
-## Database Schema
+## 统一输出规范（规划）
 
-### Tables Used
-
-| Table | Purpose |
-|-------|---------|
-| `tweets` | Store all fetched tweets |
-| `processed_tweets` | Track which tweets have been analyzed |
-| `classifications` | AI analysis results |
-| `watchlist` | Users to monitor |
-
-### Cost Control
-
-1. **Incremental fetch only**: Use `fetched_at` timestamp to only fetch new tweets
-2. **Rate limiting**: Process users in batches with delay
-3. **Time window**: Default 4 hours, configurable
-
-### Caching Strategy
-
-```typescript
-// Check if tweet already processed
-const processed = processedGet(tweetId);
-if (processed) {
-  skip;  // Already fetched and analyzed
+所有原子操作应输出：
+```json
+{
+  "generated_at": "2026-01-30T10:00:00.000Z",
+  "query": { "topic": "AI", "count": 20 },
+  "tweets": [],
+  "summary": { "total": 0 }
 }
-
-// Mark as processed after analysis
-processedMark(tweetId, "selected" | "skipped");
 ```
 
-## API Functions (for AI)
+输出路径：
+- `data/agent/<op>_YYYYMMDDHHMMSS.json`
 
-### fetchUser(username, options?)
+## 组合示例（未来能力）
 
-```typescript
-import { fetchUser } from "./agent/fetch/single";
+1) **竞品情报**
+- `search-user-tweets` → `competitor-watch` → `viral-tweet-analyzer`
 
-const tweets = await fetchUser("karpathy", {
-  hoursBack: 4,  // Default
-  skipProcessed: true  // Default
-});
-```
+2) **话题趋势**
+- `track-topic-trends` → `find-influencers`
 
-### fetchWatchlist(options?)
+3) **爆款洞察**
+- `search-topic` → `viral-tweet-analyzer`
 
-```typescript
-import { fetchWatchlist } from "./agent/fetch/incremental";
+4) **影响者发现**
+- `search-topic` → `find-influencers`
 
-const result = await fetchWatchlist({
-  hoursBack: 4,
-  skipProcessed: true,
-  batchSize: 10  // Process 10 users per batch
-});
-```
+## 当前调整方向（实施中）
 
-### getUnprocessedTweets(options?)
+1) **统一配置入口**
+- 所有脚本通过 `agent/lib/agent-api.ts` 读取 API key/cookie
 
-```typescript
-import { getUnprocessedTweets } from "./agent/analyze/recent";
+2) **统一输出工具**
+- `agent/lib/agent-output.ts` 提供输出路径与写入能力
 
-const tweets = await getUnprocessedTweets({
-  limit: 50,
-  hoursBack: 24
-});
-```
+3) **路径规范化**
+- 统一输出到 `data/agent/`
 
-## Scheduling
+## 接下来要做（迭代）
 
-### Hourly Job (Recommended)
-
-```bash
-# Run every hour at :05 past
-clawdbot cron add --at "5 * * * *" --session agent:main:slack:channel:xxx "bun run ~/workspace/moltbot/xray/agent/index.ts --mode hourly"
-```
-
-### Manual Run
-
-```bash
-# Fetch + Analyze + Report
-bun run agent/index.ts --mode hourly
-
-# Fetch only
-bun run agent/fetch/incremental.ts
-
-# Analyze only
-bun run agent/analyze/recent.ts --hours 4
-```
-
-## Output
-
-### Console Output
-
-```
-[potato] Fetching 51 users...
-[potato]   @karpathy: 3 new tweets
-[potato]   @sama: 0 new tweets
-[potato] Total: 15 new tweets
-[potato] Analyzing...
-[potato]   Selected 5 tweets (tech-related)
-[potato] Report generated: reports/potato_20260130_0700.md
-```
-
-### Report Format
-
-Reports are saved to:
-- `reports/potato_YYYYMMDD_HHMM.md`
-- Sent to Slack/Obsidian
-
-## Configuration
-
-No extra config needed. Uses existing:
-- `config/config.json` for API keys
-- SQLite database for caching
-
-## Next Steps
-
-1. [ ] Implement `single.ts` (single user fetch)
-2. [ ] Implement `incremental.ts` (smart fetch)
-3. [ ] Implement `recent.ts` (get unprocessed)
-4. [ ] Implement `hourly.ts` (scheduler)
-5. [ ] Test with real API
-6. [ ] Set up cron job
+1) 把 `search-*.ts` 收敛成通用 `search-topic.ts`
+2) 将分析脚本改造成“输入 tweets → 输出分析”的纯函数风格
+3) 增加 JSON schema 校验与批量组合执行器
