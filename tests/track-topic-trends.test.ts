@@ -1,5 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach, mock, beforeAll, afterAll } from "bun:test";
 import { TwitterAPIClient } from "../scripts/lib/api";
+import { buildTrendOutput } from "../agent/research/track-topic-trends";
+import type { Tweet } from "../scripts/lib/types";
 import type { Config } from "../scripts/lib/types";
 import { writeFileSync, mkdirSync, rmSync, existsSync } from "fs";
 import { join } from "path";
@@ -198,6 +200,58 @@ describe("Track Topic Trends Script", () => {
       expect(totalEngagement).toBe(375);
       // Avg: 375 / 2 = 187.5 -> 188
       expect(avgEngagement).toBe(188);
+    });
+  });
+
+  describe("buildTrendOutput", () => {
+    test("builds output summary from tweets", async () => {
+      const tweets = (mockSearchResponse.data.list.map((t) => ({
+        id: t.id,
+        text: t.fullText,
+        author: {
+          id: t.tweetBy.id,
+          username: t.tweetBy.userName,
+          name: t.tweetBy.fullName,
+          profile_image_url: t.tweetBy.profileImage,
+          followers_count: t.tweetBy.followersCount,
+          is_verified: t.tweetBy.isVerified,
+        },
+        created_at: t.createdAt,
+        url: t.url,
+        metrics: {
+          retweet_count: t.retweetCount,
+          like_count: t.likeCount,
+          reply_count: t.replyCount,
+          quote_count: t.quoteCount,
+          view_count: t.viewCount,
+          bookmark_count: t.bookmarkCount,
+        },
+        is_retweet: false,
+        is_quote: false,
+        is_reply: false,
+        lang: t.lang,
+        entities: { hashtags: [], mentioned_users: [], urls: [] },
+      })) as Tweet[]);
+
+      const output = buildTrendOutput({
+        topic: "AI",
+        count: 2,
+        tweets,
+        current: {
+          timestamp: "2026-01-30T10:00:00.000Z",
+          topic: "AI",
+          volume: 2,
+          totalEngagement: 375,
+          avgEngagement: 188,
+          topTweets: [
+            { id: "1", author: "user1", engagement: 150, text: "AI is transforming" },
+          ],
+        },
+      });
+
+      expect(output.summary.volume).toBe(2);
+      expect(output.summary.total_engagement).toBe(375);
+      expect(output.query.topic).toBe("AI");
     });
   });
 

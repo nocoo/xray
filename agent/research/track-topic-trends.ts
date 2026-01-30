@@ -9,6 +9,9 @@
  */
 
 import { getAgentClient } from "../lib/agent-api";
+import { writeAgentOutput } from "../lib/agent-output";
+import { nowISO } from "../../scripts/lib/utils";
+import type { Tweet } from "../../scripts/lib/types";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 
@@ -17,6 +20,7 @@ interface Args {
   compare?: boolean;
   count?: number;
   save?: boolean;
+  out?: string;
   help?: boolean;
 }
 
@@ -32,6 +36,28 @@ interface TrendData {
     engagement: number;
     text: string;
   }>;
+}
+
+export function buildTrendOutput(params: {
+  topic: string;
+  count: number;
+  tweets: Tweet[];
+  current: TrendData;
+}) {
+  return {
+    generated_at: nowISO(),
+    query: {
+      topic: params.topic,
+      count: params.count,
+    },
+    tweets: params.tweets,
+    summary: {
+      volume: params.current.volume,
+      total_engagement: params.current.totalEngagement,
+      avg_engagement: params.current.avgEngagement,
+      top_tweets: params.current.topTweets,
+    },
+  };
 }
 
 function parseArgs(): Args {
@@ -52,6 +78,9 @@ function parseArgs(): Args {
       i++;
     } else if (arg === "--save" || arg === "-s") {
       args.save = true;
+    } else if (arg === "--out" || arg === "-o") {
+      args.out = nextArg;
+      i++;
     } else if (arg === "--help" || arg === "-h") {
       args.help = true;
     }
@@ -75,6 +104,7 @@ Options:
   --compare, -c    Compare with previous data (default: true if historical exists)
   --count, -n      Number of tweets to analyze (default: 50)
   --save, -s       Save current data for future comparison (default: true)
+  --out, -o        Output JSON path (optional)
   --help, -h       Show this help message
 
 Examples:
@@ -140,7 +170,6 @@ async function main() {
     
     if (tweets.length === 0) {
       console.log("   No tweets found for this topic.\n");
-      return;
     }
     
     // Calculate metrics
@@ -173,6 +202,14 @@ async function main() {
       avgEngagement: Math.round(totalEngagement / tweets.length),
       topTweets: top5Tweets,
     };
+
+    const output = buildTrendOutput({
+      topic: args.topic,
+      count,
+      tweets,
+      current: currentData,
+    });
+    const outputPath = await writeAgentOutput("track_topic_trends", output, args.out);
     
     // Display current data
     console.log("=== Current Trends ===\n");
@@ -222,6 +259,8 @@ async function main() {
     if (shouldSave) {
       await saveTrendData(args.topic, currentData);
     }
+
+    console.log(`\n💾 输出已保存: ${outputPath}`);
     
   } catch (error) {
     console.error(`\n❌ Error: ${error instanceof Error ? error.message : error}`);
