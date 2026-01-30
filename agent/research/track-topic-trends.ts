@@ -8,8 +8,7 @@
  *   bun run agent/research/track-topic-trends.ts --topic "AI" --compare
  */
 
-import { loadConfig } from "../../scripts/lib/utils";
-import { createAPIClient } from "../../scripts/lib/api";
+import { getAgentClient } from "../lib/agent-api";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 
@@ -86,16 +85,15 @@ Examples:
 }
 
 function getDataPath(topic: string): string {
-  const { HONE } = process.env;
-  const dataDir = join(import.meta.dirname, "..", "data", "trends");
+  const dataDir = join(process.cwd(), "data", "agent", "trends");
   return join(dataDir, `${topic.replace(/[^a-zA-Z0-9]/g, "_")}.json`);
 }
 
 async function saveTrendData(topic: string, data: TrendData): Promise<void> {
-  const { join, dirname } = await import("path");
+  const { join } = await import("path");
   const { existsSync, mkdirSync } = await import("fs");
   
-  const dataDir = join(import.meta.dirname, "..", "data", "trends");
+  const dataDir = join(process.cwd(), "data", "agent", "trends");
   if (!existsSync(dataDir)) {
     mkdirSync(dataDir, { recursive: true });
   }
@@ -129,8 +127,7 @@ async function main() {
   }
   
   try {
-    const config = await loadConfig();
-    const client = createAPIClient(config);
+    const client = await getAgentClient();
     
     const count = args.count || 50;
     const shouldSave = args.save !== false;

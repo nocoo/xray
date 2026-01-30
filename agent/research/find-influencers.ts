@@ -8,8 +8,7 @@
  *   bun run agent/research/find-influencers.ts --topic "AI" --count 20
  */
 
-import { loadConfig } from "../../scripts/lib/utils";
-import { createAPIClient } from "../../scripts/lib/api";
+import { getAgentClient } from "../lib/agent-api";
 
 interface Args {
   topic?: string;
@@ -101,8 +100,7 @@ async function main() {
   }
   
   try {
-    const config = await loadConfig();
-    const client = createAPIClient(config);
+    const client = await getAgentClient();
     
     const count = args.count || 50;
     const minFollowers = args.minFollowers || 1000;

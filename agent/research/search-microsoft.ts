@@ -1,9 +1,7 @@
-import { loadConfig } from "../../scripts/lib/utils";
-import { createAPIClient } from "../../scripts/lib/api";
+import { getAgentClient } from "../lib/agent-api";
 
 async function main() {
-  const config = await loadConfig();
-  const client = createAPIClient(config);
+  const client = await getAgentClient();
   
   console.log("=== Searching for Microsoft stock crash tweets ===\n");
   

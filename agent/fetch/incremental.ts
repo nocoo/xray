@@ -10,8 +10,8 @@
  *   bun run agent/fetch/incremental.ts --batch 10
  */
 
-import { loadConfig, hoursAgoISO, nowISO } from "../../scripts/lib/utils";
-import { createAPIClient } from "../../scripts/lib/api";
+import { hoursAgoISO } from "../../scripts/lib/utils";
+import { getAgentClient } from "../lib/agent-api";
 import {
   watchlistGetAll,
   watchlistGet,
@@ -52,9 +52,8 @@ export async function fetchIncremental(
     delayMs = 500,
   } = options;
 
-  const config = await loadConfig();
   const users = watchlistGetAll();
-  const client = createAPIClient(config);
+  const client = await getAgentClient();
   const from = hoursAgoISO(hoursBack);
   const processedIds = skipProcessed ? new Set(processedGetAllIds()) : new Set<string>();
 

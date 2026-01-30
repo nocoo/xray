@@ -8,8 +8,8 @@
  *   bun run agent/fetch/single.ts --user karpathy --hours 8
  */
 
-import { loadConfig, hoursAgoISO } from "../../scripts/lib/utils";
-import { createAPIClient } from "../../scripts/lib/api";
+import { hoursAgoISO } from "../../scripts/lib/utils";
+import { getAgentClient } from "../lib/agent-api";
 import {
   tweetInsertMany,
   processedGet,
@@ -30,8 +30,7 @@ export async function fetchUser(options: FetchOptions): Promise<CommandResult<{ 
     skipProcessed = true,
   } = options;
 
-  const config = await loadConfig();
-  const client = createAPIClient(config);
+  const client = await getAgentClient();
   const from = hoursAgoISO(hoursBack);
   const processedIds = skipProcessed ? new Set(processedGetAllIds()) : new Set<string>();
 

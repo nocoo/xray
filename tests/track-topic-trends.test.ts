@@ -106,7 +106,7 @@ describe("Track Topic Trends Script", () => {
   let testDataDir: string;
 
   beforeAll(() => {
-    testDataDir = join(import.meta.dirname, "..", "data", "trends");
+    testDataDir = join(process.cwd(), "data", "agent", "trends");
     if (!existsSync(testDataDir)) {
       mkdirSync(testDataDir, { recursive: true });
     }

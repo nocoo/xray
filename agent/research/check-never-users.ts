@@ -1,11 +1,9 @@
-import { loadConfig } from "../../scripts/lib/utils";
-import { createAPIClient } from "../../scripts/lib/api";
+import { getAgentClient } from "../lib/agent-api";
 
 const NEVER_USERS = ["karpathy", "AndrewYNg", "GitHub_Daily", "AppSaildotDEV", "MParakhin", "sama"];
 
 async function main() {
-  const config = await loadConfig();
-  const client = createAPIClient(config);
+  const client = await getAgentClient();
   
   console.log("=== Testing users with NO tweets ===\n");
   

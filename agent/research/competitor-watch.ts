@@ -8,8 +8,7 @@
  *   bun run agent/research/competitor-watch.ts --accounts "@competitor1,@competitor2" --hours 24
  */
 
-import { loadConfig } from "../../scripts/lib/utils";
-import { createAPIClient } from "../../scripts/lib/api";
+import { getAgentClient } from "../lib/agent-api";
 
 interface Args {
   accounts?: string;
@@ -86,8 +85,7 @@ async function main() {
   }
   
   try {
-    const config = await loadConfig();
-    const client = createAPIClient(config);
+    const client = await getAgentClient();
     
     const hours = args.hours || 24;
     const accounts = args.accounts.split(",").map(a => a.trim().replace(/^@/, ""));

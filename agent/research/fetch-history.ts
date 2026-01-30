@@ -1,5 +1,4 @@
-import { loadConfig } from "../../scripts/lib/utils";
-import { createAPIClient } from "../../scripts/lib/api";
+import { getAgentClient } from "../lib/agent-api";
 
 const NEVER_USERS = [
   "AppSaildotDEV", "DIYgod", "EXM7777", "GitHub_Daily", "Khazix0918", 
@@ -20,8 +19,7 @@ interface UserStats {
 }
 
 async function main() {
-  const config = await loadConfig();
-  const client = createAPIClient(config);
+  const client = await getAgentClient();
   
   console.log("=== Fetching historical tweets ===\n");
   

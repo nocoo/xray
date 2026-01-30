@@ -8,8 +8,7 @@
  *   bun run agent/research/search-user-tweets.ts --user @karpathy --words "AI safety" --count 20
  */
 
-import { loadConfig } from "../../scripts/lib/utils";
-import { createAPIClient } from "../../scripts/lib/api";
+import { getAgentClient } from "../lib/agent-api";
 import { normalizeUsername, formatTweetOutput } from "../../scripts/lib/utils";
 
 interface Args {
@@ -81,8 +80,7 @@ async function main() {
   }
   
   try {
-    const config = await loadConfig();
-    const client = createAPIClient(config);
+    const client = await getAgentClient();
     
     const username = normalizeUsername(args.user);
     const count = args.count || 20;

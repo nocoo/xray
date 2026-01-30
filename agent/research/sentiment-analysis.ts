@@ -8,8 +8,7 @@
  *   bun run agent/research/sentiment-analysis.ts --topic "AI" --count 50
  */
 
-import { loadConfig } from "../../scripts/lib/utils";
-import { createAPIClient } from "../../scripts/lib/api";
+import { getAgentClient } from "../lib/agent-api";
 
 interface Args {
   topic?: string;
@@ -137,8 +136,7 @@ async function main() {
   }
   
   try {
-    const config = await loadConfig();
-    const client = createAPIClient(config);
+    const client = await getAgentClient();
     
     const count = args.count || 50;
     

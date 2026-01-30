@@ -1,11 +1,9 @@
-import { loadConfig } from "../../scripts/lib/utils";
-import { createAPIClient } from "../../scripts/lib/api";
+import { getAgentClient } from "../lib/agent-api";
 
 const USERS = ["steipete", "gregisenberg", "yetone", "tom_doerr"];
 
 async function main() {
-  const config = await loadConfig();
-  const client = createAPIClient(config);
+  const client = await getAgentClient();
   
   console.log("=== 用户深入调查 ===\n");
   let apiCalls = 0;
