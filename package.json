@@ -11,7 +11,7 @@
     "prepare": "simple-git-hooks"
   },
   "simple-git-hooks": {
-    "pre-commit": "bun test"
+    "pre-commit": "bun run scripts/scan-secrets.ts && bun test"
   },
   "devDependencies": {
     "@types/bun": "latest",
