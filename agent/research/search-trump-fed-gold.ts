@@ -1,4 +1,24 @@
 import { getAgentClient } from "../lib/agent-api";
+import { writeAgentOutput } from "../lib/agent-output";
+import { nowISO } from "../../scripts/lib/utils";
+import type { Tweet } from "../../scripts/lib/types";
+
+export function buildSearchOutput(params: {
+  queries: string[];
+  results: Array<{ term: string; tweets: Tweet[] }>;
+}) {
+  const total = params.results.reduce((sum, r) => sum + r.tweets.length, 0);
+  return {
+    generated_at: nowISO(),
+    query: {
+      terms: params.queries,
+    },
+    results: params.results,
+    summary: {
+      total,
+    },
+  };
+}
 
 async function main() {
   const client = await getAgentClient();
@@ -13,7 +33,7 @@ async function main() {
     "Trump Fed choice gold trading"
   ];
   
-  let allTweets: Array<{term: string; tweet: any}> = [];
+  const results: Array<{ term: string; tweets: Tweet[] }> = [];
   
   for (const term of searchTerms) {
     try {
@@ -24,17 +44,19 @@ async function main() {
       for (const tweet of tweets.slice(0, 5)) {
         console.log(`  @${tweet.author.username}: ${tweet.text.substring(0, 150)}...`);
         console.log(`     ❤️ ${tweet.metrics.like_count} | 🔁 ${tweet.metrics.retweet_count} | 👁 ${tweet.metrics.view_count}\n`);
-        
-        allTweets.push({ term, tweet });
       }
+
+      results.push({ term, tweets });
     } catch (err) {
-      console.log(`   Error: ${err.message}\n`);
+      const message = err instanceof Error ? err.message : String(err);
+      console.log(`   Error: ${message}\n`);
     }
   }
   
   // 按互动数排序显示
   console.log("\n=== Top 10 by Engagement ===\n");
-  const topTweets = allTweets
+  const flattened = results.flatMap((r) => r.tweets.map((tweet) => ({ term: r.term, tweet })));
+  const topTweets = flattened
     .sort((a, b) => b.tweet.metrics.like_count - a.tweet.metrics.like_count)
     .slice(0, 10);
   
@@ -47,8 +69,17 @@ async function main() {
   // 分析讨论观点
   console.log("\n=== Analysis Summary ===\n");
   console.log("搜索到关于 Trump Fed 提名对黄金市场影响的讨论。");
-  console.log(`共获取 ${allTweets.length} 条相关推文。`);
+  console.log(`共获取 ${flattened.length} 条相关推文。`);
   console.log("由于是昨晚消息，今晚提名才会公布，市场正在观望状态。");
+
+  const output = buildSearchOutput({
+    queries: searchTerms,
+    results,
+  });
+  const outputPath = await writeAgentOutput("search_trump_fed_gold", output);
+  console.log(`\n💾 输出已保存: ${outputPath}`);
 }
 
-main().catch(console.error);
+if (import.meta.main) {
+  main().catch(console.error);
+}

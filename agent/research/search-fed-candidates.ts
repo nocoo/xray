@@ -1,4 +1,24 @@
 import { getAgentClient } from "../lib/agent-api";
+import { writeAgentOutput } from "../lib/agent-output";
+import { nowISO } from "../../scripts/lib/utils";
+import type { Tweet } from "../../scripts/lib/types";
+
+export function buildSearchOutput(params: {
+  queries: string[];
+  results: Array<{ term: string; tweets: Tweet[] }>;
+}) {
+  const total = params.results.reduce((sum, r) => sum + r.tweets.length, 0);
+  return {
+    generated_at: nowISO(),
+    query: {
+      terms: params.queries,
+    },
+    results: params.results,
+    summary: {
+      total,
+    },
+  };
+}
 
 async function main() {
   const client = await getAgentClient();
@@ -15,7 +35,7 @@ async function main() {
     "Trump Fed independence market reaction"
   ];
 
-  const allResults: Array<{ category: string; term: string; tweets: any[] }> = [];
+  const allResults: Array<{ term: string; tweets: Tweet[] }> = [];
 
   for (const term of extendedTerms) {
     try {
@@ -24,7 +44,7 @@ async function main() {
       console.log(`   Found ${tweets.length} tweets\n`);
 
       if (tweets.length > 0) {
-        allResults.push({ category: "extended", term, tweets });
+        allResults.push({ term, tweets });
         
         for (const tweet of tweets.slice(0, 3)) {
           console.log(`  @${tweet.author.username}: ${tweet.text.substring(0, 120)}...`);
@@ -32,13 +52,23 @@ async function main() {
         }
       }
     } catch (err) {
-      console.log(`   Error: ${err.message}\n`);
+      const message = err instanceof Error ? err.message : String(err);
+      console.log(`   Error: ${message}\n`);
     }
   }
 
   console.log("\n=== Summary ===\n");
   console.log(`Total searches: ${extendedTerms.length}`);
   console.log(`Total results: ${allResults.reduce((acc, r) => acc + r.tweets.length, 0)}`);
+
+  const output = buildSearchOutput({
+    queries: extendedTerms,
+    results: allResults,
+  });
+  const outputPath = await writeAgentOutput("search_fed_candidates", output);
+  console.log(`\n💾 输出已保存: ${outputPath}`);
 }
 
-main().catch(console.error);
+if (import.meta.main) {
+  main().catch(console.error);
+}
