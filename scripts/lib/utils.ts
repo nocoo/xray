@@ -1,4 +1,5 @@
 import { join } from "path";
+import { existsSync, mkdirSync } from "fs";
 import type { Config, RawTweetsFile, ClassifiedFile, ReportFile } from "./types";
 
 // =============================================================================
@@ -10,6 +11,7 @@ export const CONFIG_PATH = join(PROJECT_ROOT, "config/config.json");
 export const RAW_TWEETS_PATH = join(PROJECT_ROOT, "data/raw_tweets.json");
 export const CLASSIFIED_PATH = join(PROJECT_ROOT, "data/classified.json");
 export const OUTPUT_DIR = join(PROJECT_ROOT, "data/output");
+export const ANALYZE_OUTPUT_PATH = join(PROJECT_ROOT, "data/analyze_output.json");
 
 // =============================================================================
 // File Operations
@@ -47,6 +49,28 @@ export async function saveRawTweets(data: RawTweetsFile): Promise<void> {
   await writeJsonFile(RAW_TWEETS_PATH, data);
 }
 
+export async function loadAnalyzeOutput(): Promise<{
+  generated_at: string;
+  items: {
+    id: string;
+    translation: string;
+    score: number;
+    evaluation: string;
+  }[];
+} | null> {
+  const exists = await fileExists(ANALYZE_OUTPUT_PATH);
+  if (!exists) return null;
+  return await readJsonFile<{
+    generated_at: string;
+    items: {
+      id: string;
+      translation: string;
+      score: number;
+      evaluation: string;
+    }[];
+  }>(ANALYZE_OUTPUT_PATH);
+}
+
 export async function loadClassified(): Promise<ClassifiedFile> {
   return await readJsonFile<ClassifiedFile>(CLASSIFIED_PATH);
 }
@@ -60,19 +84,40 @@ export async function saveReport(data: ReportFile, customOutputDir?: string): Pr
   return path;
 }
 
+export async function saveWatchlistReport(mdContent: string, generatedAt: string): Promise<string> {
+  const datePart = getLocalDateString(new Date(generatedAt)).replace(/-/g, "");
+  const timePart = new Date(generatedAt)
+    .toTimeString()
+    .slice(0, 5)
+    .replace(":", "");
+  const filename = `xray_${datePart}_${timePart}.md`;
+  const reportsDir = join(PROJECT_ROOT, "reports");
+  if (!existsSync(reportsDir)) {
+    mkdirSync(reportsDir, { recursive: true });
+  }
+  const path = join(reportsDir, filename);
+  await Bun.write(path, mdContent);
+  return path;
+}
+
 // =============================================================================
 // Timezone Constants
 // =============================================================================
 
-export const TIMEZONE_OFFSET_HOURS = 8; // UTC+8 (Beijing/Shanghai)
-export const TIMEZONE_OFFSET_MS = TIMEZONE_OFFSET_HOURS * 60 * 60 * 1000;
-
 // =============================================================================
-// Date Helpers (All in UTC+8)
+// Date Helpers (Local Time)
 // =============================================================================
 
 export function nowISO(): string {
   return new Date().toISOString();
+}
+
+export function nowLocalISO(): string {
+  return nowISO();
+}
+
+export function toLocalISOString(date: Date): string {
+  return date.toISOString();
 }
 
 export function hoursAgoISO(hours: number): string {
@@ -81,30 +126,29 @@ export function hoursAgoISO(hours: number): string {
   return date.toISOString();
 }
 
-export function getDateInTimezone(date: Date = new Date()): Date {
-  return new Date(date.getTime() + TIMEZONE_OFFSET_MS);
+export function hoursAgoLocalISO(hours: number): string {
+  const date = new Date();
+  date.setHours(date.getHours() - hours);
+  return date.toISOString();
 }
 
 export function getLocalDateString(date: Date = new Date()): string {
-  const local = getDateInTimezone(date);
-  return local.toISOString().split("T")[0];
+  return date.toISOString().split("T")[0];
 }
 
 export function formatDateInTimezone(date: Date): string {
-  const local = getDateInTimezone(date);
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${months[local.getUTCMonth()]} ${local.getUTCDate()}, ${local.getUTCFullYear()}`;
+  return `${months[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
 }
 
 export function formatDateTimeInTimezone(date: Date): string {
-  const local = getDateInTimezone(date);
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const hours = local.getUTCHours();
-  const minutes = local.getUTCMinutes();
+  const hours = date.getUTCHours();
+  const minutes = date.getUTCMinutes();
   const ampm = hours >= 12 ? "PM" : "AM";
   const h12 = hours % 12 || 12;
   const mm = minutes.toString().padStart(2, "0");
-  return `${months[local.getUTCMonth()]} ${local.getUTCDate()}, ${local.getUTCFullYear()}, ${h12}:${mm} ${ampm}`;
+  return `${months[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}, ${h12}:${mm} ${ampm}`;
 }
 
 // =============================================================================

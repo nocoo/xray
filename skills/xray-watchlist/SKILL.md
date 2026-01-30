@@ -29,8 +29,22 @@ JSON file at `data/raw_tweets.json` containing:
 ```json
 {
   "fetched_at": "2026-01-26T10:00:00.000Z",
-  "time_range": { "from": "...", "to": "..." },
   "tweets": [...]
+}
+```
+
+Analyze output at `data/analyze_output.json` (STRICT JSON only):
+```json
+{
+  "generated_at": "2026-01-26T10:05:00.000Z",
+  "items": [
+    {
+      "id": "tweet_id",
+      "translation": "中文译文（仅英文）",
+      "score": 86,
+      "evaluation": "1-2句中文评价"
+    }
+  ]
 }
 ```
 
@@ -54,20 +68,30 @@ When user triggers this skill:
 bun run scripts/fetch-tweets.ts
 ```
 
-### 2. AI Analysis & Report Generation
+Or run the guided flow:
+
+```bash
+bun run scripts/run-watchlist-report.ts
+```
+
+### 2. Analyze (AI Step)
 
 After fetching, you (Claude) will:
 
 1. **Read** `data/raw_tweets.json`
-2. **Per-user Cap**: Keep up to 20 most recent tweets per user
-3. **Translate**: If tweet text is English, translate to Simplified Chinese
-4. **Classify**: Assign a category label (AI, Tools, Industry, etc.)
-5. **Score & Evaluate**: Give a quality score based on content value, likes, and reposts; add a short evaluation
-6. **Sort**: Sort all tweets by score descending
-7. **Generate Report**: Create Slack-compatible Markdown output
-8. **Save Report**: Write to `reports/` with timestamp
+2. **Analyze**: For each tweet, output translation (English only), score (0-100 integer), evaluation (1-2 Chinese sentences)
+3. **Write** `data/analyze_output.json` in strict JSON format
+4. **Run** `bun run scripts/validate-analyze-output.ts`
 
-### 3. Sync to Obsidian (REQUIRED)
+### 3. Generate Report
+
+```bash
+bun run scripts/generate-watchlist-report.ts
+```
+
+This reads `data/raw_tweets.json` + `data/analyze_output.json` and generates a fixed-format report in `reports/`.
+
+### 4. Sync to Obsidian (REQUIRED)
 
 **⚠️ CRITICAL: This step is MANDATORY. Do NOT skip.**
 
@@ -79,48 +103,34 @@ This copies the report to Obsidian vault. Must run after saving report.
 
 ## Scoring Guidelines
 
-Score each tweet on a 0-100 scale using:
-
-1. **Content Value** (0-50): information depth, originality, usefulness
-2. **Engagement** (0-30): likes and reposts
-3. **Clarity** (0-20): clear point, actionable takeaway
-
-Include a short evaluation sentence (Chinese) that explains the score.
+Score each tweet on a 0-100 scale based on content and engagement.
+Include a 1-2 sentence evaluation in Chinese.
 
 ## Report Format (CRITICAL)
 
-Generate a **Slack-compatible Markdown** report in **Simplified Chinese**.
+Generate a **Markdown** report in **Simplified Chinese**.
 
 ### Structure:
 
 ```markdown
-# X 洞察 | YYYY-MM-DD
+# X-Ray Watchlist Report
+Generated: YYYY-MM-DD HH:MM
+Total tweets: N
 
-## 🔥 评分排序清单
 
-1. <https://x.com/...|Tweet Title / Summary>
-   作者: @username | 时间: X小时前 | 互动: X likes, X reposts
-   分类: AI | 评分: 92/100
-   评价: 一句话解释评分理由。
-   翻译: 若原文为英文，输出完整中文译文。
-
-2. <https://x.com/...|Next Tweet>
-   ...
-
----
-
-*本报告基于 X-Ray watchlist 自动生成*
-*生成时间: YYYY-MM-DD HH:MM UTC+8*
+## N. @user
+<translation if English>
+<full text>
+<url>
+- Engagement: likes X | reposts Y | replies Z | quotes Q | views V
+- Score: 0-100
+- Evaluation: 1-2句中文评价
 ```
 
 ### Format Rules:
 
-1. **Title Link**: Use Slack link format `<url|title>`
-2. **Metadata Line**: Author, Time (relative), Engagement metrics
-3. **Category Line**: Category label and score
-4. **Evaluation Line**: Short Chinese evaluation explaining the score
-5. **Translation Line**: Only for English tweets, provide full Chinese translation
-6. **Ordering**: Sort by score descending
+1. **Translation line** only for English tweets
+2. **Ordering**: Sort by score descending
 
 ## Output Locations
 
@@ -174,6 +184,9 @@ python3 /Users/nocoo/workspace/personal/skill-task-notifier/scripts/notify.py "X
 | Command | Description |
 |---------|-------------|
 | `bun run scripts/fetch-tweets.ts` | Fetch from watchlist |
+| `bun run scripts/run-watchlist-report.ts` | Guided watchlist flow |
+| `bun run scripts/validate-analyze-output.ts` | Validate analyze output |
+| `bun run scripts/generate-watchlist-report.ts` | Generate watchlist report |
 | `bun run scripts/sync-report.ts` | Sync latest report to Obsidian |
 | `bun run scripts/manage-watchlist.ts list` | List watched users |
 | `bun run scripts/manage-watchlist.ts add @user` | Add user |
@@ -184,6 +197,7 @@ python3 /Users/nocoo/workspace/personal/skill-task-notifier/scripts/notify.py "X
 | File | Description |
 |------|-------------|
 | `data/raw_tweets.json` | Fetched tweets (input for AI) |
+| `data/analyze_output.json` | Analyze output (AI) |
 | `reports/*.md` | Generated Markdown reports |
 | `data/x-ray.db` | SQLite database (watchlist, tweets) |
 | `config/config.json` | API keys (never commit) |

@@ -93,10 +93,6 @@ export interface Tweet {
 
 export interface RawTweetsFile {
   fetched_at: string; // ISO 8601
-  time_range: {
-    from: string;
-    to: string;
-  };
   tweets: Tweet[];
   errors?: {
     username: string;
@@ -146,10 +142,6 @@ export interface ReportTweet extends Tweet {
 
 export interface ReportFile {
   generated_at: string; // ISO 8601
-  time_range: {
-    from: string;
-    to: string;
-  };
   summary: {
     total_fetched: number;
     selected_count: number;

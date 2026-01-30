@@ -1,4 +1,5 @@
 import { getDB } from "./db";
+import { nowISO } from "./utils";
 import type { Tweet, TweetAuthor, TweetMetrics, ProcessedTweet } from "./types";
 
 export interface TweetRow {
@@ -73,7 +74,7 @@ export function tweetInsert(tweet: Tweet): void {
     tweet.is_reply ? 1 : 0,
     tweet.lang || null,
     tweet.reply_to_id || null,
-    new Date().toISOString()
+    nowISO()
   );
 }
 
@@ -95,6 +96,36 @@ export function tweetGet(id: string): TweetRow | null {
 export function tweetGetRecent(limit: number = 100): TweetRow[] {
   const db = getDB();
   return db.query(`SELECT * FROM tweets ORDER BY created_at DESC LIMIT ?`).all(limit) as TweetRow[];
+}
+
+export function tweetGetByFetchedAtRange(from: string, to: string): TweetRow[] {
+  const db = getDB();
+  return db
+    .query(`SELECT * FROM tweets WHERE fetched_at >= ? AND fetched_at <= ? ORDER BY fetched_at DESC`)
+    .all(from, to) as TweetRow[];
+}
+
+export function tweetGetByCreatedAtRange(from: string, to: string): TweetRow[] {
+  const db = getDB();
+  return db
+    .query(`SELECT * FROM tweets WHERE created_at >= ? AND created_at <= ? ORDER BY created_at DESC`)
+    .all(from, to) as TweetRow[];
+}
+
+export function getExistingTweetIds(ids: string[]): Set<string> {
+  if (ids.length === 0) return new Set();
+  const db = getDB();
+  const placeholders = ids.map(() => "?").join(",");
+  const rows = db.query(`SELECT id FROM tweets WHERE id IN (${placeholders})`).all(...ids) as { id: string }[];
+  return new Set(rows.map((r) => r.id));
+}
+
+export function deleteTweetsByIds(ids: string[]): number {
+  if (ids.length === 0) return 0;
+  const db = getDB();
+  const placeholders = ids.map(() => "?").join(",");
+  const result = db.query(`DELETE FROM tweets WHERE id IN (${placeholders})`).run(...ids);
+  return result.changes || 0;
 }
 
 export function tweetGetByIds(ids: string[]): TweetRow[] {
@@ -144,7 +175,7 @@ export function processedMark(tweetId: string, classificationResult: "selected" 
   const db = getDB();
   db.query(
     `INSERT OR REPLACE INTO processed_tweets (tweet_id, processed_at, classification_result) VALUES (?, ?, ?)`
-  ).run(tweetId, new Date().toISOString(), classificationResult);
+  ).run(tweetId, nowISO(), classificationResult);
 }
 
 export function processedMarkMany(
@@ -156,7 +187,7 @@ export function processedMarkMany(
     const stmt = db.query(
       `INSERT OR REPLACE INTO processed_tweets (tweet_id, processed_at, classification_result) VALUES (?, ?, ?)`
     );
-    const now = new Date().toISOString();
+    const now = nowISO();
     for (const tweetId of tweetIds) {
       stmt.run(tweetId, now, classificationResult);
     }
@@ -208,7 +239,7 @@ export function classificationUpsert(
     JSON.stringify(classification.category),
     classification.relevance_score,
     classification.reason,
-    new Date().toISOString()
+    nowISO()
   );
 }
 

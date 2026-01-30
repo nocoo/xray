@@ -3,7 +3,6 @@
  *
  * Fetches tweets from all users in the watchlist and saves to raw_tweets.json
  * Automatically skips tweets that have already been processed.
- * Always fetches the last 1 hour of tweets.
  *
  * Usage:
  *   bun run scripts/fetch-tweets.ts
@@ -14,17 +13,19 @@ import type { RawTweetsFile, Tweet, CommandResult } from "./lib/types";
 import {
   loadConfig,
   nowISO,
-  hoursAgoISO,
   saveRawTweets,
+  hoursAgoISO,
 } from "./lib/utils";
 import { createAPIClient } from "./lib/api";
 import { watchlistGetAll } from "./lib/watchlist-db";
 import {
   tweetInsertMany,
   processedGetAllIds,
+  getExistingTweetIds,
+  deleteTweetsByIds,
+  tweetGetByCreatedAtRange,
+  tweetToModel,
 } from "./lib/tweet-db";
-
-const TIME_RANGE_HOURS = 1;
 
 // =============================================================================
 // Core Functions (exported for testing)
@@ -33,6 +34,7 @@ const TIME_RANGE_HOURS = 1;
 export interface FetchOptions {
   skipProcessed?: boolean; // Skip already processed tweets (default: true)
 }
+
 
 export async function fetchAllTweets(options: FetchOptions = {}): Promise<CommandResult<RawTweetsFile>> {
   const config = await loadConfig();
@@ -48,22 +50,18 @@ export async function fetchAllTweets(options: FetchOptions = {}): Promise<Comman
 
   const skipProcessed = options.skipProcessed ?? true;
   const now = nowISO();
-  const from = hoursAgoISO(TIME_RANGE_HOURS);
-
   const processedIds = skipProcessed ? new Set(processedGetAllIds()) : new Set<string>();
 
   const client = createAPIClient(config);
   const allTweets: Tweet[] = [];
   const errors: { username: string; error: string }[] = [];
   let skippedCount = 0;
+  let replacedCount = 0;
 
   console.log(`Fetching tweets from ${users.length} user(s)...`);
-  console.log(`Time range: ${from} to ${now}`);
   if (skipProcessed) {
     console.log(`Skipping ${processedIds.size} already processed tweet(s)`);
   }
-
-  const fromDate = new Date(from);
   const BATCH_SIZE = 5;
 
   for (let i = 0; i < users.length; i += BATCH_SIZE) {
@@ -75,14 +73,9 @@ export async function fetchAllTweets(options: FetchOptions = {}): Promise<Comman
         console.log(`  Fetching @${user.username}...`);
         const tweets = await client.fetchUserTweets(user.username);
 
-        const filteredTweets = tweets.filter((tweet) => {
-          const tweetDate = new Date(tweet.created_at);
-          return tweetDate >= fromDate;
-        });
-
         const noRetweets = config.classification.filter_retweets_without_comment
-          ? filteredTweets.filter((tweet) => !tweet.is_retweet)
-          : filteredTweets;
+          ? tweets.filter((tweet) => !tweet.is_retweet)
+          : tweets;
 
         const finalTweets = skipProcessed
           ? noRetweets.filter((tweet) => {
@@ -94,7 +87,7 @@ export async function fetchAllTweets(options: FetchOptions = {}): Promise<Comman
             })
           : noRetweets;
 
-        console.log(`    Found ${finalTweets.length} new tweet(s) in time range`);
+        console.log(`    Found ${finalTweets.length} new tweet(s)`);
         return { tweets: finalTweets, error: null };
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
@@ -118,23 +111,37 @@ export async function fetchAllTweets(options: FetchOptions = {}): Promise<Comman
   });
 
   const uniqueTweets = deduplicateTweets(allTweets);
+  const existingIds = getExistingTweetIds(uniqueTweets.map((tweet) => tweet.id));
+  if (existingIds.size > 0) {
+    replacedCount = deleteTweetsByIds([...existingIds]);
+  }
 
   if (uniqueTweets.length > 0) {
     tweetInsertMany(uniqueTweets);
   }
 
+  const windowFrom = hoursAgoISO(1);
+  const windowTo = now;
+  const windowRows = tweetGetByCreatedAtRange(windowFrom, windowTo);
+  const summaryTweets = windowRows.map(tweetToModel);
+  const summaryCount = summaryTweets.length;
+
   const result: RawTweetsFile = {
     fetched_at: now,
-    time_range: { from, to: now },
-    tweets: uniqueTweets,
+    tweets: summaryTweets,
     errors: errors.length > 0 ? errors : undefined,
   };
 
   await saveRawTweets(result);
 
+
   return {
     success: true,
-    message: `Fetched ${uniqueTweets.length} new tweet(s) from ${users.length} user(s)${skippedCount > 0 ? ` (${skippedCount} skipped as already processed)` : ""}. Saved to database.`,
+    message: `Fetched ${uniqueTweets.length} new tweet(s) from ${users.length} user(s)`
+      + `${skippedCount > 0 ? ` (${skippedCount} skipped as already processed)` : ""}`
+      + `${replacedCount > 0 ? ` (${replacedCount} replaced in database)` : ""}`
+      + `. Saved to database.`
+      + ` Summary: ${summaryCount} tweet(s) in last 1h (UTC).`,
     data: result,
   };
 }
@@ -147,16 +154,6 @@ export function deduplicateTweets(tweets: Tweet[]): Tweet[] {
     }
     seen.add(tweet.id);
     return true;
-  });
-}
-
-export function filterTweetsByTimeRange(tweets: Tweet[], from: string, to: string): Tweet[] {
-  const fromDate = new Date(from);
-  const toDate = new Date(to);
-
-  return tweets.filter((tweet) => {
-    const tweetDate = new Date(tweet.created_at);
-    return tweetDate >= fromDate && tweetDate <= toDate;
   });
 }
 

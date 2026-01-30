@@ -1,13 +1,8 @@
 import { TwitterAPIClient } from "./lib/api";
-import type { Config } from "./lib/types";
+import { loadConfig } from "./lib/utils";
 
 const TEST_USER_URL = "https://x.com/zhengli";
 const TEST_TWEET_URL = "https://x.com/zhengli/status/2015179265155952807";
-
-async function loadConfig(): Promise<Config> {
-  const configFile = Bun.file("./config/config.json");
-  return await configFile.json();
-}
 
 async function testEndpoint<T>(
   name: string,
