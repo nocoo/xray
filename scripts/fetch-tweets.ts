@@ -63,38 +63,54 @@ export async function fetchAllTweets(options: FetchOptions = {}): Promise<Comman
     console.log(`Skipping ${processedIds.size} already processed tweet(s)`);
   }
 
-  for (const user of users) {
-    try {
-      console.log(`  Fetching @${user.username}...`);
-      const tweets = await client.fetchUserTweets(user.username);
+  const fromDate = new Date(from);
+  const BATCH_SIZE = 5;
 
-      const fromDate = new Date(from);
-      const filteredTweets = tweets.filter((tweet) => {
-        const tweetDate = new Date(tweet.created_at);
-        return tweetDate >= fromDate;
-      });
+  for (let i = 0; i < users.length; i += BATCH_SIZE) {
+    const batch = users.slice(i, i + BATCH_SIZE);
+    console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(users.length / BATCH_SIZE)}...`);
 
-      const noRetweets = config.classification.filter_retweets_without_comment
-        ? filteredTweets.filter((tweet) => !tweet.is_retweet)
-        : filteredTweets;
+    const batchPromises = batch.map(async (user) => {
+      try {
+        console.log(`  Fetching @${user.username}...`);
+        const tweets = await client.fetchUserTweets(user.username);
 
-      const finalTweets = skipProcessed
-        ? noRetweets.filter((tweet) => {
-            if (processedIds.has(tweet.id)) {
-              skippedCount++;
-              return false;
-            }
-            return true;
-          })
-        : noRetweets;
+        const filteredTweets = tweets.filter((tweet) => {
+          const tweetDate = new Date(tweet.created_at);
+          return tweetDate >= fromDate;
+        });
 
-      console.log(`    Found ${finalTweets.length} new tweet(s) in time range`);
-      allTweets.push(...finalTweets);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      console.error(`    Error fetching @${user.username}: ${errorMessage}`);
-      errors.push({ username: user.username, error: errorMessage });
-    }
+        const noRetweets = config.classification.filter_retweets_without_comment
+          ? filteredTweets.filter((tweet) => !tweet.is_retweet)
+          : filteredTweets;
+
+        const finalTweets = skipProcessed
+          ? noRetweets.filter((tweet) => {
+              if (processedIds.has(tweet.id)) {
+                skippedCount++;
+                return false;
+              }
+              return true;
+            })
+          : noRetweets;
+
+        console.log(`    Found ${finalTweets.length} new tweet(s) in time range`);
+        return { tweets: finalTweets, error: null };
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.error(`    Error fetching @${user.username}: ${errorMessage}`);
+        return { tweets: [], error: { username: user.username, error: errorMessage } };
+      }
+    });
+
+    const batchResults = await Promise.all(batchPromises);
+    batchResults.forEach((result) => {
+      if (result.error) {
+        errors.push(result.error);
+      } else {
+        allTweets.push(...result.tweets);
+      }
+    });
   }
 
   allTweets.sort((a, b) => {
