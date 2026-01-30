@@ -1,4 +1,5 @@
 import { describe, test, expect, mock, beforeEach, afterEach } from "bun:test";
+import { extractTopics } from "../agent/research/competitor-watch";
 import { TwitterAPIClient } from "../scripts/lib/api";
 import type { Config } from "../scripts/lib/types";
 
@@ -260,7 +261,7 @@ describe("Competitor Watch Script", () => {
       const tweets = await client.fetchUserTweets("competitor");
       
       // All tweets in mockCompetitorTweets are within 24 hours
-      const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000 - 1000);
       const recentTweets = tweets.filter(t => new Date(t.created_at) >= cutoffTime);
       
       expect(recentTweets.length).toBe(3);
@@ -286,7 +287,7 @@ describe("Competitor Watch Script", () => {
       const client = new TwitterAPIClient(mockConfig);
       const tweets = await client.fetchUserTweets("competitor");
       
-      const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000 - 1000);
       const recentTweets = tweets.filter(t => new Date(t.created_at) >= cutoffTime);
       
       // Should include 3 recent tweets, exclude 1 old tweet

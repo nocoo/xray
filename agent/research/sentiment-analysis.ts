@@ -72,7 +72,7 @@ Examples:
  * Simple sentiment analysis based on engagement metrics and keywords.
  * In a real implementation, you would use an ML model.
  */
-function analyzeSentiment(text: string, engagement: number): SentimentResult {
+export function analyzeSentiment(text: string, engagement: number): SentimentResult {
   const lowerText = text.toLowerCase();
   
   // Positive keywords
@@ -105,7 +105,10 @@ function analyzeSentiment(text: string, engagement: number): SentimentResult {
   let sentiment: "positive" | "negative" | "neutral";
   let score: number;
   
-  if (positiveScore > negativeScore) {
+  if (positiveScore > 0 && negativeScore > 0) {
+    sentiment = "negative";
+    score = (negativeScore - positiveScore) + (engagement / 1000);
+  } else if (positiveScore > negativeScore) {
     sentiment = "positive";
     score = (positiveScore - negativeScore) + (engagement / 1000);
   } else if (negativeScore > positiveScore) {

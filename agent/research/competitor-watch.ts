@@ -72,7 +72,7 @@ Examples:
 `);
 }
 
-function extractTopics(text: string): string[] {
+export function extractTopics(text: string): string[] {
   const hashtags = text.match(/#\w+/g);
   return hashtags ? hashtags.map(h => h.toLowerCase()) : [];
 }

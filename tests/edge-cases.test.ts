@@ -34,15 +34,12 @@ describe("API Timeout Handling", () => {
   });
 
   test("times out after 30 seconds", async () => {
+    process.env.XRAY_API_TIMEOUT_MS = "10";
     // Mock a slow response
     (globalThis.fetch as unknown) = mock(() =>
-      new Promise((resolve) => setTimeout(() => 
-        resolve({
-          ok: true,
-          json: () => Promise.resolve({ code: 201, msg: "ok", data: { list: [] } }),
-        } as Response),
-        60000 // 60 seconds delay
-      ))
+      new Promise(() => {
+        return;
+      })
     );
 
     const client = new TwitterAPIClient(mockConfig);
@@ -50,6 +47,7 @@ describe("API Timeout Handling", () => {
     await expect(
       client.searchTweets("test", 10, true)
     ).rejects.toThrow("timeout");
+    process.env.XRAY_API_TIMEOUT_MS = "";
   });
 
   test("succeeds before timeout", async () => {

@@ -77,7 +77,7 @@ Examples:
 `);
 }
 
-function calculateViralityScore(metrics: {
+export function calculateViralityScore(metrics: {
   likes: number;
   retweets: number;
   replies: number;
@@ -87,8 +87,11 @@ function calculateViralityScore(metrics: {
   hasLink: boolean;
   hasHashtags: number;
 }): number {
+  if (metrics.views <= 0) {
+    return 0;
+  }
   // Engagement rate is key for virality
-  const engagement = metrics.likes + metrics.retweets * 2 + metrics.retweets;
+  const engagement = metrics.likes + metrics.retweets * 2 + metrics.replies;
   const engagementRate = metrics.views > 0 ? (engagement / metrics.views) * 100 : 0;
   
   // RT ratio (retweets / likes) - high RT ratio indicates viral content
@@ -110,7 +113,7 @@ function calculateViralityScore(metrics: {
   return Math.round(score * 10) / 10;
 }
 
-function identifyViralFactors(metrics: {
+export function identifyViralFactors(metrics: {
   likes: number;
   retweets: number;
   replies: number;
@@ -153,7 +156,7 @@ function identifyViralFactors(metrics: {
   const text = metrics.text.toLowerCase();
   if (text.includes("!")) factors.push("❗ Exciting tone");
   if (text.includes("?")) factors.push("❓ Questions engage");
-  if (text.length < 100) factors.push("📝 Concise message");
+  if (text.length > 0 && text.length < 100) factors.push("📝 Concise message");
   if (text.includes("breaking")) factors.push("🔥 Breaking news");
   if (text.includes("announce") || text.includes("announcing")) factors.push("📣 Announcement");
   

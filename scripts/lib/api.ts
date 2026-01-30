@@ -44,25 +44,45 @@ export class TwitterAPIClient {
     this.apiKey = config.api.api_key;
     this.baseUrl = config.api.base_url;
     this.cookie = config.api.cookie;
+    const timeoutOverride = process.env.XRAY_API_TIMEOUT_MS;
+    if (timeoutOverride) {
+      const parsed = Number(timeoutOverride);
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        this.timeout = parsed;
+      }
+    }
   }
 
   private async request<T>(endpoint: string, body: object): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    let didTimeout = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        didTimeout = true;
+        controller.abort();
+        reject(new Error(`API request timeout after ${this.timeout}ms`));
+      }, this.timeout);
+    });
 
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "x-api-key": this.apiKey,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
+      const response = await Promise.race([
+        fetch(url, {
+          method: "POST",
+          headers: {
+            "x-api-key": this.apiKey,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        }),
+        timeoutPromise,
+      ]);
 
-      clearTimeout(timeoutId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`);
@@ -76,8 +96,10 @@ export class TwitterAPIClient {
 
       return data;
     } catch (err) {
-      clearTimeout(timeoutId);
-      if (err instanceof Error && err.name === "AbortError") {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      if (didTimeout || (err instanceof Error && err.name === "AbortError")) {
         throw new Error(`API request timeout after ${this.timeout}ms`);
       }
       throw err;
@@ -313,6 +335,7 @@ export class TwitterAPIClient {
       const originalTweet = this.normalizeTweet(apiTweet.retweetedTweet);
       return {
         ...originalTweet,
+        text: apiTweet.fullText,
         is_retweet: true,
       };
     }
