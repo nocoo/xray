@@ -1,6 +1,8 @@
 import { describe, test, expect, mock, beforeEach, afterEach } from "bun:test";
 import { TwitterAPIClient } from "../scripts/lib/api";
 import type { Config } from "../scripts/lib/types";
+import { buildViralOutput } from "../agent/research/viral-tweet-analyzer";
+import type { Tweet } from "../scripts/lib/types";
 
 const mockConfig: Config = {
   api: {
@@ -238,6 +240,62 @@ describe("Viral Tweet Analyzer Script", () => {
       });
       
       expect(score).toBe(0); // Division by zero protection
+    });
+  });
+
+  describe("buildViralOutput", () => {
+    test("builds output summary with top ids", async () => {
+      const tweets: Tweet[] = [
+        {
+          id: "1",
+          text: "test",
+          author: {
+            id: "a",
+            username: "user",
+            name: "User",
+            profile_image_url: "",
+            followers_count: 0,
+            is_verified: false,
+          },
+          created_at: "2026-01-30T10:00:00.000Z",
+          url: "https://x.com/user/status/1",
+          metrics: {
+            like_count: 10,
+            retweet_count: 2,
+            reply_count: 1,
+            quote_count: 0,
+            view_count: 100,
+            bookmark_count: 0,
+          },
+          is_retweet: false,
+          is_quote: false,
+          is_reply: false,
+          lang: "en",
+        },
+      ];
+
+      const output = buildViralOutput({
+        topic: "AI",
+        count: 1,
+        tweets,
+        results: [
+          {
+            tweet: {
+              id: "1",
+              author: "user",
+              text: "test",
+              engagement: 15,
+              metrics: { likes: 10, retweets: 2, replies: 1, views: 100 },
+            },
+            viralityScore: 42,
+            viralFactors: ["factor"],
+          },
+        ],
+      });
+
+      expect(output.summary.total).toBe(1);
+      expect(output.summary.top_ids).toEqual(["1"]);
+      expect(output.query.topic).toBe("AI");
     });
   });
 
@@ -493,7 +551,6 @@ describe("Viral Tweet Analyzer Script", () => {
         hasMedia: false,
         hasLink: false,
         hasHashtags: 0,
-        text: "",
       });
       
       expect(score).toBe(0);
@@ -525,7 +582,6 @@ describe("Viral Tweet Analyzer Script", () => {
         hasMedia: true,
         hasLink: true,
         hasHashtags: 5,
-        text: "INSANE!",
       });
       
       expect(score).toBeGreaterThan(100);

@@ -9,10 +9,14 @@
  */
 
 import { getAgentClient } from "../lib/agent-api";
+import { writeAgentOutput } from "../lib/agent-output";
+import { nowISO } from "../../scripts/lib/utils";
+import type { Tweet } from "../../scripts/lib/types";
 
 interface Args {
   topic?: string;
   count?: number;
+  out?: string;
   help?: boolean;
 }
 
@@ -38,6 +42,9 @@ function parseArgs(): Args {
     } else if (arg === "--count" || arg === "-c") {
       args.count = parseInt(nextArg, 10);
       i++;
+    } else if (arg === "--out" || arg === "-o") {
+      args.out = nextArg;
+      i++;
     } else if (arg === "--help" || arg === "-h") {
       args.help = true;
     }
@@ -59,12 +66,53 @@ Usage:
 Options:
   --topic, -t      Topic to analyze (required)
   --count, -c      Number of tweets to analyze (default: 50)
+  --out, -o        Output JSON path (optional)
   --help, -h       Show this help message
 
 Examples:
   bun run agent/research/sentiment-analysis.ts --topic "AI"
   bun run agent/research/sentiment-analysis.ts -t "Crypto" -c 100
 `);
+}
+
+export function buildSentimentOutput(params: {
+  topic: string;
+  count: number;
+  tweets: Tweet[];
+  summary: {
+    total: number;
+    positive: number;
+    neutral: number;
+    negative: number;
+  };
+  overall: number;
+}): {
+  generated_at: string;
+  query: { topic: string; count: number };
+  tweets: Tweet[];
+  summary: {
+    total: number;
+    positive: number;
+    neutral: number;
+    negative: number;
+    overall_score: number;
+  };
+} {
+  return {
+    generated_at: nowISO(),
+    query: {
+      topic: params.topic,
+      count: params.count,
+    },
+    tweets: params.tweets,
+    summary: {
+      total: params.summary.total,
+      positive: params.summary.positive,
+      neutral: params.summary.neutral,
+      negative: params.summary.negative,
+      overall_score: params.overall,
+    },
+  };
 }
 
 /**
@@ -148,7 +196,6 @@ async function main() {
     
     if (tweets.length === 0) {
       console.log("   No tweets found for this topic.\n");
-      return;
     }
     
     // Analyze sentiment for each tweet
@@ -205,6 +252,21 @@ async function main() {
     
     console.log(`\n=== Overall Sentiment ===`);
     console.log(`${overallSentiment} (score: ${overallScore.toFixed(2)})`);
+
+    const output = buildSentimentOutput({
+      topic: args.topic,
+      count,
+      tweets,
+      summary: {
+        total: tweets.length,
+        positive: positive.length,
+        neutral: neutral.length,
+        negative: negative.length,
+      },
+      overall: Number.isFinite(overallScore) ? Number(overallScore.toFixed(2)) : 0,
+    });
+    const outputPath = await writeAgentOutput("sentiment_analysis", output, args.out);
+    console.log(`\n💾 输出已保存: ${outputPath}`);
     
   } catch (error) {
     console.error(`\n❌ Error: ${error instanceof Error ? error.message : error}`);

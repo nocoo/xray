@@ -1,6 +1,7 @@
 import { describe, test, expect, mock, beforeEach, afterEach } from "bun:test";
 import { TwitterAPIClient } from "../scripts/lib/api";
-import type { Config } from "../scripts/lib/types";
+import type { Config, Tweet } from "../scripts/lib/types";
+import { buildSentimentOutput } from "../agent/research/sentiment-analysis";
 
 // Test configuration
 const mockConfig: Config = {
@@ -243,6 +244,51 @@ describe("Sentiment Analysis Script", () => {
       const multiple = analyzeSentiment("Terrible awful horrible bad experience", 100);
       
       expect(multiple.score).toBeGreaterThan(single.score);
+    });
+  });
+
+  describe("buildSentimentOutput", () => {
+    test("builds output with summary counts", async () => {
+      const tweets: Tweet[] = [
+        {
+          id: "1",
+          text: "This is amazing!",
+          author: {
+            id: "a",
+            username: "user",
+            name: "User",
+            profile_image_url: "",
+            followers_count: 0,
+            is_verified: false,
+          },
+          created_at: "2026-01-30T10:00:00.000Z",
+          url: "https://x.com/user/status/1",
+          metrics: {
+            like_count: 10,
+            retweet_count: 2,
+            reply_count: 1,
+            quote_count: 0,
+            view_count: 0,
+            bookmark_count: 0,
+          },
+          is_retweet: false,
+          is_quote: false,
+          is_reply: false,
+          lang: "en",
+        },
+      ];
+
+      const output = buildSentimentOutput({
+        topic: "AI",
+        count: 1,
+        tweets,
+        summary: { total: 1, positive: 1, neutral: 0, negative: 0 },
+        overall: 1,
+      });
+
+      expect(output.summary.total).toBe(1);
+      expect(output.summary.positive).toBe(1);
+      expect(output.query.topic).toBe("AI");
     });
   });
 

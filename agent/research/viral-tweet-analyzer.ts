@@ -9,10 +9,14 @@
  */
 
 import { getAgentClient } from "../lib/agent-api";
+import { writeAgentOutput } from "../lib/agent-output";
+import { nowISO } from "../../scripts/lib/utils";
+import type { Tweet } from "../../scripts/lib/types";
 
 interface Args {
   topic?: string;
   count?: number;
+  out?: string;
   help?: boolean;
 }
 
@@ -47,6 +51,9 @@ function parseArgs(): Args {
     } else if (arg === "--count" || arg === "-c") {
       args.count = parseInt(nextArg, 10);
       i++;
+    } else if (arg === "--out" || arg === "-o") {
+      args.out = nextArg;
+      i++;
     } else if (arg === "--help" || arg === "-h") {
       args.help = true;
     }
@@ -68,12 +75,36 @@ Usage:
 Options:
   --topic, -t      Topic to analyze (required)
   --count, -c      Number of tweets to analyze (default: 20)
+  --out, -o        Output JSON path (optional)
   --help, -h       Show this help message
 
 Examples:
   bun run agent/research/viral-tweet-analyzer.ts --topic "AI"
   bun run agent/research/viral-tweet-analyzer.ts -t "Crypto" -c 50
 `);
+}
+
+export function buildViralOutput(params: {
+  topic: string;
+  count: number;
+  tweets: Tweet[];
+  results: AnalysisResult[];
+}) {
+  return {
+    generated_at: nowISO(),
+    query: {
+      topic: params.topic,
+      count: params.count,
+    },
+    tweets: params.tweets,
+    summary: {
+      total: params.tweets.length,
+      top_ids: params.results.slice(0, 5).map((r) => r.tweet.id),
+      avg_virality: params.results.length
+        ? Math.round((params.results.reduce((sum, r) => sum + r.viralityScore, 0) / params.results.length) * 10) / 10
+        : 0,
+    },
+  };
 }
 
 export function calculateViralityScore(metrics: {
@@ -187,7 +218,6 @@ async function main() {
     
     if (tweets.length === 0) {
       console.log("   No tweets found for this topic.\n");
-      return;
     }
     
     // Analyze each tweet
@@ -306,6 +336,15 @@ async function main() {
     for (const rec of recommendations) {
       console.log(`   • ${rec}`);
     }
+
+    const output = buildViralOutput({
+      topic: args.topic,
+      count,
+      tweets,
+      results,
+    });
+    const outputPath = await writeAgentOutput("viral_tweet_analyzer", output, args.out);
+    console.log(`\n💾 输出已保存: ${outputPath}`);
     
   } catch (error) {
     console.error(`\n❌ Error: ${error instanceof Error ? error.message : error}`);
