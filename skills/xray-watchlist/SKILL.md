@@ -17,10 +17,9 @@ Fetch tweets from your watchlist and generate insightful reports.
 bun run scripts/fetch-tweets.ts
 ```
 
-Fetches the last 1 hour of tweets from all users in watchlist, automatically:
+Fetches recent tweets from all users in watchlist, automatically:
 - Filters out pure retweets (configurable)
-- Skips already processed tweets
-- Saves to database and `data/raw_tweets.json`
+- Saves to `data/raw_tweets.json`
 
 **Arguments:**
 - `--include-processed`: Include already processed tweets (default: skip)
@@ -60,11 +59,13 @@ bun run scripts/fetch-tweets.ts
 After fetching, you (Claude) will:
 
 1. **Read** `data/raw_tweets.json`
-2. **Identify Threads**: Group author self-replies as single units
-3. **Select Top 20**: Pick the most valuable tweets/threads
-4. **Generate Report**: Create magazine-style Markdown report
-5. **Append Full Index**: At the end, list *all* tweets, grouped by category, with full text
-6. **Save Report**: Write to `reports/` with timestamp
+2. **Per-user Cap**: Keep up to 20 most recent tweets per user
+3. **Translate**: If tweet text is English, translate to Simplified Chinese
+4. **Classify**: Assign a category label (AI, Tools, Industry, etc.)
+5. **Score & Evaluate**: Give a quality score based on content value, likes, and reposts; add a short evaluation
+6. **Sort**: Sort all tweets by score descending
+7. **Generate Report**: Create Slack-compatible Markdown output
+8. **Save Report**: Write to `reports/` with timestamp
 
 ### 3. Sync to Obsidian (REQUIRED)
 
@@ -76,88 +77,35 @@ bun run scripts/sync-report.ts
 
 This copies the report to Obsidian vault. Must run after saving report.
 
-## Thread Identification
+## Scoring Guidelines
 
-Same-author consecutive replies should be treated as one Thread:
+Score each tweet on a 0-100 scale using:
 
-```
-Main tweet "Just shipped a new feature..."
-  └── Reply "Here's how it works..."
-        └── Reply "And the GitHub repo..."
-```
+1. **Content Value** (0-50): information depth, originality, usefulness
+2. **Engagement** (0-30): likes and reposts
+3. **Clarity** (0-20): clear point, actionable takeaway
 
-**Detection**: Check `reply_to_id` field, trace up to find root tweet by same author.
-
-**Thread Priority**: Threads indicate deeper content, prioritize them in selection.
-
-## Selection Criteria
-
-Use your judgment to pick valuable content:
-
-1. **Information Value** - Substantial content, not fluff
-2. **Uniqueness** - New perspectives, resources, insights
-3. **Timeliness** - Breaking news, fresh releases
-4. **Thread Bonus** - Multi-reply threads = deeper discussion
-
-**Worth selecting:**
-- Hot events (product launches, major news, industry updates)
-- Deep insights or contrarian views
-- Practical resources (tools, tutorials, open source)
-- Interesting discussions or debates
-
-**Not limited to tech** - anything valuable is fair game.
-
-## Exclusions
-
-- Pure retweets without comment
-- Ads / promotional content
-- Low-value small talk
-- Duplicate content (pick the most representative)
-- Child replies already merged into Thread (only select root)
+Include a short evaluation sentence (Chinese) that explains the score.
 
 ## Report Format (CRITICAL)
 
-Generate a **magazine/newsletter style** Markdown report in **Simplified Chinese**.
+Generate a **Slack-compatible Markdown** report in **Simplified Chinese**.
 
 ### Structure:
 
 ```markdown
 # X 洞察 | YYYY-MM-DD
 
----
+## 🔥 评分排序清单
 
-## 🔥 今日热点
+1. <https://x.com/...|Tweet Title / Summary>
+   作者: @username | 时间: X小时前 | 互动: X likes, X reposts
+   分类: AI | 评分: 92/100
+   评价: 一句话解释评分理由。
+   翻译: 若原文为英文，输出完整中文译文。
 
-### 1. [Tweet Title / Summary](https://x.com/...)
-
-**作者**: @username | **时间**: X小时前 | **互动**: X likes, X retweets
-
-一句话点明核心价值或新闻点。
-
-**深度解读**:
-- 💡 关键洞察1
-- 🔥 关键洞察2
-- 📈 趋势/启发
-
----
-
-### 2. [Next Tweet]...
-
-...
-
-## 📝 总结
-
-今日X动态呈现以下趋势:
-1. ...
-2. ...
-
-**关注重点**: ...
-
----
-
-## 📚 全量推文清单
-
-按主题分类列出 *全部* 推文，写出全文内容（不省略），并保留原推文链接。
+2. <https://x.com/...|Next Tweet>
+   ...
 
 ---
 
@@ -167,21 +115,12 @@ Generate a **magazine/newsletter style** Markdown report in **Simplified Chinese
 
 ### Format Rules:
 
-1. **Title**: MUST be a Markdown link to original tweet URL
-   - ✅ `### 1. [Claude 发布新功能](https://x.com/...)`
-   - ❌ `### 1. Claude 发布新功能`
-
+1. **Title Link**: Use Slack link format `<url|title>`
 2. **Metadata Line**: Author, Time (relative), Engagement metrics
-
-3. **1-Liner Summary**: Punchy "so what?" summary
-
-4. **Deep Interpretation**: 2-3 bullets explaining WHY this matters
-   - For Threads, mention "(N条连续推文)" in summary
-
-5. **Language**: Simplified Chinese, even for English tweets. For non-Chinese tweets, provide full Chinese translation.
-
-6. **Categories**: Group by theme if appropriate (AI, Tools, Industry, etc.)
-7. **Full Index**: At the end, list *all* tweets with full text, grouped by category.
+3. **Category Line**: Category label and score
+4. **Evaluation Line**: Short Chinese evaluation explaining the score
+5. **Translation Line**: Only for English tweets, provide full Chinese translation
+6. **Ordering**: Sort by score descending
 
 ## Output Locations
 
