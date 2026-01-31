@@ -1,120 +1,75 @@
 # 🔍 X-Ray
 
-Twitter/X monitoring system that fetches tweets and generates insightful Markdown reports using AI.
+用于监控 Twitter/X 观察名单并生成洞察型 Markdown 报告的系统。📘
 
-## ✨ Features
+## ✨ 主要功能
 
-- 📡 **Watchlist Monitoring** - Track tweets from your curated user list
-- 📊 **Personal Analytics** - Your account metrics, trends, bookmarks & likes
-- 🤖 **AI Analysis** - Claude identifies valuable content and generates insights
-- 📝 **Markdown Reports** - Magazine-style reports synced to Obsidian
+- 📡 观察名单监控：拉取指定用户的推文
+- 📊 个人分析：账号指标、趋势、书签与点赞
+- 🤖 AI 分析：Claude 识别高价值内容并生成洞察
+- 📝 Markdown 报告：杂志风格报告并同步到 Obsidian
 
-## 🏗️ Architecture
+## 🧭 文档导航
 
-```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Fetch     │ -> │   Claude    │ -> │   Report    │
-│  (Skill)    │    │  (AI)       │    │  (Markdown) │
-└─────────────┘    └─────────────┘    └─────────────┘
-       │                  │                  │
-       v                  v                  v
- raw_tweets.json    AI Analysis      reports/*.md
-```
+- `docs/01-overview.md`
+- `docs/02-architecture.md`
+- `docs/03-run-and-scripts.md`
+- `docs/04-testing.md`
+- `docs/05-config-and-data.md`
+- `docs/06-api-tweapi.md`
 
-## 🚀 Quick Start
+## 🚀 快速开始
 
 ```bash
-# Install dependencies
 bun install
-
-# Configure API key
 cp config/config.example.json config/config.json
-# Edit config/config.json with your TweAPI.io key
+```
 
-# Run watchlist skill flow
+在 `config/config.json` 中配置 TweAPI.io 的 `api_key` 后运行：
+
+```bash
 /xray-watchlist
 ```
 
-## 📁 Project Structure
+## 🧱 主要目录结构
 
 ```
 x-ray/
-├── scripts/               # 🛠️ CLI scripts
-│   ├── lib/               # Shared libraries
-│   │   ├── api.ts         # Twitter API client (TweAPI.io)
-│   │   ├── db.ts          # SQLite connection
-│   │   ├── analytics-db.ts # Analytics storage
-│   │   ├── tweet-db.ts    # Tweet CRUD
-│   │   ├── watchlist-db.ts
-│   │   └── types.ts       # TypeScript interfaces
-│   ├── fetch-tweets.ts    # Watchlist tweet fetcher
-│   ├── fetch-me-data.ts   # Personal analytics fetcher
-│   ├── sync-report.ts     # Obsidian sync
-│   └── manage-watchlist.ts
-├── skills/                # 🎯 Claude Skills
-│   ├── xray-watchlist/    # Watchlist monitoring & reports
-│   └── xray-me/           # Personal analytics & reports
-├── tests/                 # ✅ Unit tests (180+)
-├── config/                # 🔐 API keys (gitignored)
-└── data/                  # 💾 Runtime data (gitignored)
+├── scripts/               # CLI 脚本
+│   ├── lib/               # 共享库
+│   ├── fetch-tweets.ts
+│   ├── fetch-me-data.ts
+│   ├── generate-watchlist-report.ts
+│   └── generate-me-report.ts
+├── skills/                # Claude Skills
+│   ├── xray-watchlist/
+│   └── xray-me/
+├── tests/                 # 单元测试
+├── docs/                  # 项目文档
+├── config/                # API Key（gitignored）
+└── data/                  # 运行数据（gitignored）
 ```
 
-## 📋 Commands
+## 🧪 测试
 
-| Command | Description |
-|---------|-------------|
-| `bun test` | Run all tests |
-| `/xray-watchlist` | Fetch watchlist tweets, AI analysis, generate report |
-| `/xray-me` | Fetch personal analytics, generate report |
+- 运行：`bun test`
+- 覆盖率目标：单元测试覆盖率不低于 90%
+- E2E 测试仅在明确要求时执行（避免真实 API 成本）
 
-## 🎯 Skills
+## 🧰 开发运行方式（给 Agent 的说明）
 
-| Skill | Trigger | Description |
-|-------|---------|-------------|
-| `xray-watchlist` | `/xray-watchlist` | Fetch watchlist tweets, AI analysis, generate report |
-| `xray-me` | `/xray-me` | Personal analytics, bookmarks, likes, trends |
+- 本项目没有传统 dev server；通过脚本或 Skills 运行
+- 技能入口：`/xray-watchlist`、`/xray-me`
+- 脚本入口：`bun run scripts/<script>.ts`
 
-## 🔧 Configuration
+## 📚 文档要求（给 Agent 的说明）
 
-`config/config.json`:
+- 更新代码时必须同步更新相关文档
+- README 仅做概览，细节下沉到 `docs/` 分层文档
+- 文档以中文为主，结构清晰、可追溯
 
-```json
-{
-  "api": {
-    "api_key": "your-tweapi-key",
-    "base_url": "https://api.tweapi.io",
-    "cookie": "optional-for-authenticated-endpoints"
-  },
-  "me": {
-    "username": "your-username",
-    "is_blue_verified": true
-  },
-  "settings": {
-    "max_tweets_per_user": 100
-  }
-}
-```
+## ✅ 质量与提交要求（给 Agent 的说明）
 
-## 🛠️ Tech Stack
-
-| Component | Technology |
-|-----------|------------|
-| Runtime | Bun |
-| Language | TypeScript |
-| Database | SQLite (bun:sqlite) |
-| API | TweAPI.io |
-| Testing | bun:test |
-| AI | Claude (via Skills) |
-
-## 📊 Data Flow
-
-```
-1. 📡 Fetch    → TweAPI.io → raw_tweets.json / me-data.json
-2. 🤖 Analyze  → Claude reads data, identifies valuable content
-3. 📝 Report   → Generate magazine-style Markdown
-4. 💾 Save     → reports/*.md → Obsidian sync
-```
-
-## 📜 License
-
-MIT
+- 单元测试覆盖率目标 90%
+- 提交必须原子化，遵循 Conventional Commits
+- 若变更触及核心逻辑，先确保 `bun test` 通过
