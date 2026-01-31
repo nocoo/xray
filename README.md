@@ -17,6 +17,7 @@
 - `docs/04-testing.md`
 - `docs/05-config-and-data.md`
 - `docs/06-api-tweapi.md`
+- `docs/07-agent-scripts.md`
 
 ## 🚀 快速开始
 
@@ -44,7 +45,9 @@ x-ray/
 ├── skills/                # Claude Skills
 │   ├── xray-watchlist/
 │   └── xray-me/
+│   └── ...
 ├── tests/                 # 单元测试
+├── agent/                 # Agent 原子化工具
 ├── docs/                  # 项目文档
 ├── config/                # API Key（gitignored）
 └── data/                  # 运行数据（gitignored）
@@ -61,6 +64,11 @@ x-ray/
 - 本项目没有传统 dev server；通过脚本或 Skills 运行
 - 技能入口：`/xray-watchlist`、`/xray-me`
 - 脚本入口：`bun run scripts/<script>.ts`
+
+## 🧭 定位说明（给 Agent 的说明）
+
+- `skills/`：给 agent 用的统一、标准化流程（稳定主路径）
+- `agent/`：给 agent 用的 ad hoc 分析原子化工具（按需组合）
 
 ## 📚 文档要求（给 Agent 的说明）
 
