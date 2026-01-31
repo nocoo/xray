@@ -1,4 +1,7 @@
 import { getAgentClient } from "../lib/agent-api";
+import { writeAgentOutput } from "../lib/agent-output";
+import { nowISO } from "../../scripts/lib/utils";
+import type { Tweet } from "../../scripts/lib/types";
 
 const NEVER_USERS = [
   "AppSaildotDEV", "DIYgod", "EXM7777", "GitHub_Daily", "Khazix0918", 
@@ -18,12 +21,32 @@ interface UserStats {
   daysActive: number;
 }
 
+export function buildHistoryOutput(params: {
+  users: string[];
+  results: Array<{ username: string; tweets: Tweet[] }>;
+  stats: UserStats[];
+}) {
+  const total = params.results.reduce((sum, r) => sum + r.tweets.length, 0);
+  return {
+    generated_at: nowISO(),
+    query: {
+      users: params.users,
+    },
+    results: params.results,
+    summary: {
+      total,
+      users: params.stats,
+    },
+  };
+}
+
 async function main() {
   const client = await getAgentClient();
   
   console.log("=== Fetching historical tweets ===\n");
   
   const results: UserStats[] = [];
+  const tweetResults: Array<{ username: string; tweets: Tweet[] }> = [];
   
   for (const username of NEVER_USERS) {
     try {
@@ -43,13 +66,16 @@ async function main() {
           newestTweet: newest.toISOString().split('T')[0],
           daysActive: Math.round(daysActive * 10) / 10
         });
+
+        tweetResults.push({ username, tweets });
         
         console.log(`  ${tweets.length} tweets, from ${results[results.length-1].oldestTweet} to ${results[results.length-1].newestTweet} (${results[results.length-1].daysActive} days)\n`);
       } else {
         console.log(`  No tweets found\n`);
       }
     } catch (err) {
-      console.log(`  Error: ${err.message}\n`);
+      const message = err instanceof Error ? err.message : String(err);
+      console.log(`  Error: ${message}\n`);
     }
   }
   
@@ -73,6 +99,16 @@ async function main() {
   console.log(`Total users checked: ${NEVER_USERS.length}`);
   console.log(`Users with tweets: ${results.length}`);
   console.log(`Lowest frequency: ${results[0]?.username || 'N/A'} (${results[0] ? (results[0].tweetCount / Math.max(results[0].daysActive, 1)).toFixed(1) : 'N/A'} tweets/day)`);
+
+  const output = buildHistoryOutput({
+    users: NEVER_USERS,
+    results: tweetResults,
+    stats: results,
+  });
+  const outputPath = await writeAgentOutput("fetch_history", output);
+  console.log(`\n💾 输出已保存: ${outputPath}`);
 }
 
-main().catch(console.error);
+if (import.meta.main) {
+  main().catch(console.error);
+}
