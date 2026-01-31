@@ -19,6 +19,24 @@
 - 单元测试覆盖关键路径
 - 输出格式可被验证脚本检查
 
+## 统一输出
+
+多数脚本会将结果写入 `data/agent/`，文件名带时间戳。
+支持 `--out` 的脚本可指定输出路径。
+
+输出结构示例：
+```json
+{
+  "generated_at": "2026-01-30T10:00:00.000Z",
+  "query": {},
+  "tweets": [],
+  "summary": {}
+}
+```
+
+输出路径：
+- `data/agent/<op>_YYYYMMDDHHMMSS.json`
+
 ## 当前原子能力清单
 
 ### 抓取类
@@ -28,7 +46,9 @@
 ### 搜索类
 - `agent/research/search-user-tweets.ts`：用户 + 关键词搜索
 - `agent/research/track-topic-trends.ts`：话题搜索 + 历史对比
-- `agent/research/search-*.ts`：固定主题搜索（后续会收敛成统一入口）
+- `agent/research/search-fed-candidates.ts`：固定主题搜索（联储候选相关）
+- `agent/research/search-trump-fed-gold.ts`：固定主题搜索（Trump/Fed/Gold 相关）
+- `agent/research/search-microsoft.ts`：固定主题搜索（Microsoft 相关）
 
 ### 分析类
 - `agent/research/viral-tweet-analyzer.ts`：爆款特征分析
@@ -37,25 +57,96 @@
 - `agent/research/competitor-watch.ts`：竞品监控
 - `agent/analyze/recent.ts`：DB 最近未处理
 
-### 调试类
+### 调试/探索类
 - `agent/research/demo.ts`
 - `agent/research/check-never-users.ts`
 - `agent/research/fetch-history.ts`
 
-## 统一输出规范（规划）
+### 工作流类
+- `agent/index.ts`：简化工作流（抓取→分析→报告），输出 JSON
+- `agent/workflow/hourly.ts`：小时级工作流（抓取→AI 分析→报告→Obsidian/Slack），输出 JSON
 
-所有原子操作应输出：
-```json
-{
-  "generated_at": "2026-01-30T10:00:00.000Z",
-  "query": { "topic": "AI", "count": 20 },
-  "tweets": [],
-  "summary": { "total": 0 }
-}
-```
+## 参数说明
 
-输出路径：
-- `data/agent/<op>_YYYYMMDDHHMMSS.json`
+### agent/fetch/single.ts
+参数：
+- `--user`：用户名（带或不带 @）
+- `--hours`：回溯小时数
+- `--skip-processed`：是否跳过已处理推文
+
+### agent/fetch/incremental.ts
+参数：
+- `--hours`：回溯小时数
+- `--batch`：批处理大小
+- `--delay`：批次间延迟（ms）
+- `--skip-processed`：是否跳过已处理推文
+
+### agent/research/search-user-tweets.ts
+参数：
+- `--user` / `-u`：用户名
+- `--words` / `-w`：关键词
+- `--count` / `-c`：返回数量
+- `--sort` / `-s`：是否按互动排序（true=Top，false=Recent）
+- `--out` / `-o`：输出 JSON 路径（可选）
+
+### agent/research/track-topic-trends.ts
+参数：
+- `--topic` / `-t`：话题关键词
+- `--compare` / `-c`：是否对比历史
+- `--count` / `-n`：抓取数量
+- `--save` / `-s`：是否保存历史
+- `--out` / `-o`：输出 JSON 路径（可选）
+
+### agent/research/search-fed-candidates.ts
+无参数（固定主题）。
+
+### agent/research/search-trump-fed-gold.ts
+无参数（固定主题）。
+
+### agent/research/search-microsoft.ts
+无参数（固定主题）。
+
+### agent/research/viral-tweet-analyzer.ts
+参数：
+- `--topic` / `-t`
+- `--count` / `-c`
+- `--out` / `-o`
+
+### agent/research/sentiment-analysis.ts
+参数：
+- `--topic` / `-t`
+- `--count` / `-c`
+- `--out` / `-o`
+
+### agent/research/find-influencers.ts
+参数：
+- `--topic` / `-t`
+- `--count` / `-c`
+- `--min-followers` / `-m`
+- `--out` / `-o`
+
+### agent/research/competitor-watch.ts
+参数：
+- `--accounts` / `-a`
+- `--hours` / `-h`
+- `--out` / `-o`
+
+### agent/research/demo.ts
+无参数（固定账号集合）。
+
+### agent/research/check-never-users.ts
+无参数（固定账号集合）。
+
+### agent/research/fetch-history.ts
+无参数（固定账号集合）。
+
+### agent/index.ts
+参数：
+- `--mode`：`hourly | fetch | analyze`
+
+### agent/workflow/hourly.ts
+参数：
+- `--dry-run`：只跑分析与输出，不写 Obsidian/Slack
 
 ## 组合示例（未来能力）
 
@@ -82,8 +173,6 @@
 3) **路径规范化**
 - 统一输出到 `data/agent/`
 
-## 接下来要做（迭代）
+## 注意事项
 
-1) 把 `search-*.ts` 收敛成通用 `search-topic.ts`
-2) 将分析脚本改造成“输入 tweets → 输出分析”的纯函数风格
-3) 增加 JSON schema 校验与批量组合执行器
+- `config/` 与 `data/` 为敏感目录，禁止提交
