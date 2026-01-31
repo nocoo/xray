@@ -1,4 +1,4 @@
-#!/bin/sh
-set -e
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/h"
 
 bun test
