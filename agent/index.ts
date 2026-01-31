@@ -10,6 +10,7 @@
  */
 
 import { nowISO } from "../../scripts/lib/utils";
+import { writeAgentOutput } from "../lib/agent-output";
 import { fetchIncremental, IncrementalOptions } from "../fetch/incremental";
 import { getRecentTweets, RecentOptions } from "../analyze/recent";
 import {
@@ -101,7 +102,7 @@ function generateReport(analyses: AnalysisResult[], tweets: Tweet[]): string {
   const selectedTweets = analyses.filter((r) => r.is_selected);
   const tweetMap = new Map(tweets.map((t) => [t.id, t]));
 
-  const report = `# Potato Daily Report
+  let report = `# Potato Daily Report
 
 Generated: ${nowISO()}
 
@@ -136,6 +137,7 @@ export async function runWorkflow(options: WorkflowOptions): Promise<{
   fetched: number;
   analyzed: number;
   report?: string;
+  outputPath?: string;
 }> {
   const { mode } = options;
 
@@ -144,6 +146,7 @@ export async function runWorkflow(options: WorkflowOptions): Promise<{
   let fetchedCount = 0;
   let analyzedCount = 0;
   let report: string | undefined;
+  let outputPath: string | undefined;
 
   // Step 1: Fetch
   if (mode === "hourly" || mode === "fetch") {
@@ -168,6 +171,15 @@ export async function runWorkflow(options: WorkflowOptions): Promise<{
       const analyses = await analyzeTweets(tweets);
       analyzedCount = analyses.length;
       report = generateReport(analyses, tweets);
+      const output = {
+        generated_at: nowISO(),
+        summary: {
+          fetched: fetchedCount,
+          analyzed: analyzedCount,
+        },
+        analyses,
+      };
+      outputPath = await writeAgentOutput("workflow", output);
     } else {
       console.log(`[potato] No new tweets to analyze`);
     }
@@ -184,6 +196,7 @@ export async function runWorkflow(options: WorkflowOptions): Promise<{
     fetched: fetchedCount,
     analyzed: analyzedCount,
     report,
+    outputPath,
   };
 }
 
@@ -203,6 +216,9 @@ async function main() {
   if (result.report) {
     console.log("\n=== Report ===\n");
     console.log(result.report);
+  }
+  if (result.outputPath) {
+    console.log(`\nOutput: ${result.outputPath}`);
   }
 
   process.exit(result.success ? 0 : 1);

@@ -9,9 +9,10 @@
  * 5. Sends to Slack
  */
 
-import { resolve, dirname } from "path";
+import { resolve } from "path";
 import { existsSync, writeFileSync, readFileSync } from "fs";
-import { nowISO, hoursAgoISO } from "../../scripts/lib/utils";
+import { nowISO } from "../../scripts/lib/utils";
+import { writeAgentOutput } from "../lib/agent-output";
 import { fetchIncremental, IncrementalOptions } from "../fetch/incremental";
 import { analyzeTweets, generateMarkdownReport, AnalyzeOptions } from "../analyze/ai-analyze";
 import type { AnalysisReport } from "../analyze/ai-analyze";
@@ -74,6 +75,7 @@ async function saveToObsidian(report: AnalysisReport, mdContent: string): Promis
 async function sendToSlack(report: AnalysisReport, mdContent: string): Promise<boolean> {
   try {
     // Import message function
+    // @ts-expect-error - external runtime tool
     const { message } = await import("../../../../.cursor/tools/clawdbot.js");
     
     // Send a summary (first part of report)
@@ -112,6 +114,7 @@ export async function runHourlyWorkflow(
   analyzed: number;
   reportPath?: string;
   slackSent: boolean;
+  outputPath?: string;
 }> {
   const startTime = Date.now();
   // eslint-disable-next-line no-console
@@ -122,6 +125,7 @@ export async function runHourlyWorkflow(
   let fetchedCount = 0;
   let analyzedCount = 0;
   let reportPath: string | undefined;
+  let outputPath: string | undefined;
   let slackSent = false;
 
   try {
@@ -157,6 +161,16 @@ export async function runHourlyWorkflow(
       console.log("[potato] Step 3: Generating report...");
       const mdContent = generateMarkdownReport(analyzeResult.data);
 
+      const output = {
+        generated_at: nowISO(),
+        summary: {
+          fetched: fetchedCount,
+          analyzed: analyzedCount,
+        },
+        report: analyzeResult.data,
+      };
+      outputPath = await writeAgentOutput("hourly_workflow", output);
+
       if (!dryRun) {
         // Step 4: Save to Obsidian
         // eslint-disable-next-line no-console
@@ -191,6 +205,7 @@ export async function runHourlyWorkflow(
       analyzed: analyzedCount,
       reportPath,
       slackSent,
+      outputPath,
     };
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
@@ -202,6 +217,7 @@ export async function runHourlyWorkflow(
       fetched: fetchedCount,
       analyzed: analyzedCount,
       slackSent,
+      outputPath,
     };
   }
 }
@@ -230,6 +246,10 @@ async function main() {
   if (result.reportPath) {
     // eslint-disable-next-line no-console
     console.log(`Report: ${result.reportPath}`);
+  }
+  if (result.outputPath) {
+    // eslint-disable-next-line no-console
+    console.log(`Output: ${result.outputPath}`);
   }
   // eslint-disable-next-line no-console
   console.log(`Slack: ${result.slackSent ? "✓" : "✗"}`);
