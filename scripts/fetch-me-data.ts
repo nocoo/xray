@@ -1,8 +1,7 @@
 import { TwitterAPIClient } from "./lib/api";
 import { loadConfig } from "./lib/utils";
-import { saveAnalytics, getLatestAnalytics, calculateTrend } from "./lib/analytics-db";
+import { saveAnalytics, getLatestAnalytics, getAnalyticsHistory, calculateTrend, type AnalyticsRecord, type AnalyticsTrend } from "./lib/analytics-db";
 import type { Tweet, TwitterList, AnalyticsWithTimeSeries } from "./lib/types";
-import type { AnalyticsTrend, AnalyticsRecord } from "./lib/analytics-db";
 
 export interface MeData {
   username: string;
@@ -37,11 +36,63 @@ async function main() {
   const client = new TwitterAPIClient(config);
 
   try {
-    console.log("\n🔄 Fetching analytics...");
-    const analyticsWithTS = await client.getUserAnalyticsWithTimeSeries();
-    const previous = getLatestAnalytics(username);
-    const saved = saveAnalytics(username, analyticsWithTS);
-    const trend = calculateTrend(saved, previous);
+    let analyticsData: {
+      current: AnalyticsRecord;
+      previous: AnalyticsRecord | null;
+      trend: AnalyticsTrend;
+      time_series: AnalyticsWithTimeSeries["time_series"];
+    };
+    let analyticsFetched = false;
+
+    try {
+      console.log("\n🔄 Fetching analytics...");
+      const analyticsWithTS = await client.getUserAnalyticsWithTimeSeries();
+      const previous = getLatestAnalytics(username);
+      const saved = saveAnalytics(username, analyticsWithTS);
+      const trend = calculateTrend(saved, previous);
+      analyticsData = {
+        current: saved,
+        previous,
+        trend,
+        time_series: analyticsWithTS.time_series,
+      };
+      analyticsFetched = true;
+    } catch (analyticsError) {
+      console.warn("⚠️  Analytics API unavailable (may require paid subscription)");
+      console.warn("   Continuing with other data sources...");
+      const previous = getLatestAnalytics(username);
+      const emptyRecord: AnalyticsRecord = {
+        id: 0,
+        username,
+        fetched_at: new Date().toISOString(),
+        followers: 0,
+        impressions: 0,
+        engagements: 0,
+        engagement_rate: 0,
+        profile_visits: 0,
+        likes: 0,
+        replies: 0,
+        retweets: 0,
+        bookmarks: 0,
+        following: 0,
+      };
+      analyticsData = {
+        current: previous || emptyRecord,
+        previous: previous ? getAnalyticsHistory(username, 2)[1] || null : null,
+        trend: {
+          followers: { value: previous?.followers || 0, change: 0, percent: 0 },
+          impressions: { value: previous?.impressions || 0, change: 0, percent: 0 },
+          engagements: { value: previous?.engagements || 0, change: 0, percent: 0 },
+          engagement_rate: { value: previous?.engagement_rate || 0, change: 0, percent: 0 },
+          likes: { value: previous?.likes || 0, change: 0, percent: 0 },
+          retweets: { value: previous?.retweets || 0, change: 0, percent: 0 },
+          replies: { value: previous?.replies || 0, change: 0, percent: 0 },
+          profile_visits: { value: previous?.profile_visits || 0, change: 0, percent: 0 },
+          following: { value: previous?.following || 0, change: 0, percent: 0 },
+        },
+        time_series: [],
+      };
+    }
 
     console.log("🔄 Fetching bookmarks...");
     const bookmarks = await client.getUserBookmarks();
@@ -55,12 +106,7 @@ async function main() {
     const meData: MeData = {
       username,
       fetched_at: new Date().toISOString(),
-      analytics: {
-        current: saved,
-        previous,
-        trend,
-        time_series: analyticsWithTS.time_series,
-      },
+      analytics: analyticsData,
       bookmarks,
       likes,
       lists,
@@ -71,24 +117,24 @@ async function main() {
     console.log("\n" + "=".repeat(60));
     console.log("📊 Data Summary");
     console.log("=".repeat(60));
-    console.log(`Followers:       ${saved.followers.toLocaleString()}`);
-    console.log(`Impressions:     ${saved.impressions.toLocaleString()}`);
-    console.log(`Engagements:     ${saved.engagements.toLocaleString()}`);
-    console.log(`Engagement Rate: ${saved.engagement_rate.toFixed(2)}%`);
-    console.log(`Profile Visits:  ${saved.profile_visits.toLocaleString()}`);
+    console.log(`Followers:       ${analyticsData.current.followers.toLocaleString()}`);
+    console.log(`Impressions:     ${analyticsData.current.impressions.toLocaleString()}`);
+    console.log(`Engagements:     ${analyticsData.current.engagements.toLocaleString()}`);
+    console.log(`Engagement Rate: ${analyticsData.current.engagement_rate.toFixed(2)}%`);
+    console.log(`Profile Visits:  ${analyticsData.current.profile_visits.toLocaleString()}`);
     console.log(`Bookmarks:       ${bookmarks.length} tweets`);
     console.log(`Likes:           ${likes.length} tweets`);
     console.log(`Lists:           ${lists.length} subscribed`);
-    console.log(`Time Series:     ${analyticsWithTS.time_series.length} days`);
+    console.log(`Time Series:     ${analyticsData.time_series.length} days`);
     console.log("=".repeat(60));
 
-    if (previous) {
-      const prevDate = new Date(previous.fetched_at);
+    if (analyticsData.previous && analyticsFetched) {
+      const prevDate = new Date(analyticsData.previous.fetched_at);
       const hours = Math.round((Date.now() - prevDate.getTime()) / (1000 * 60 * 60));
       console.log(`\n📈 Compared to ${hours} hours ago`);
-      printTrendSummary(trend);
+      printTrendSummary(analyticsData.trend);
     } else {
-      console.log("\n📝 First record - no comparison available");
+      console.log("\n📝 No comparison available");
     }
 
     console.log("\n✅ All data saved to data/me-data.json");
