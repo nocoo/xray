@@ -94,14 +94,35 @@ async function main() {
       };
     }
 
-    console.log("🔄 Fetching bookmarks...");
-    const bookmarks = await client.getUserBookmarks();
+    let bookmarks: Tweet[] = [];
+    try {
+      console.log("🔄 Fetching bookmarks...");
+      bookmarks = await client.getUserBookmarks();
+    } catch (bookmarksError) {
+      console.warn("⚠️  Bookmarks API unavailable (may require paid subscription)");
+      console.warn("   Continuing with other data sources...");
+      bookmarks = [];
+    }
 
-    console.log("🔄 Fetching likes...");
-    const likes = await client.getUserLikes();
+    let likes: Tweet[] = [];
+    try {
+      console.log("🔄 Fetching likes...");
+      likes = await client.getUserLikes();
+    } catch (likesError) {
+      console.warn("⚠️  Likes API unavailable (may require paid subscription)");
+      console.warn("   Continuing with other data sources...");
+      likes = [];
+    }
 
-    console.log("🔄 Fetching lists...");
-    const lists = await client.getUserLists();
+    let lists: TwitterList[] = [];
+    try {
+      console.log("🔄 Fetching lists...");
+      lists = await client.getUserLists();
+    } catch (listsError) {
+      console.warn("⚠️  Lists API unavailable (may require paid subscription)");
+      console.warn("   Continuing with other data sources...");
+      lists = [];
+    }
 
     const meData: MeData = {
       username,
