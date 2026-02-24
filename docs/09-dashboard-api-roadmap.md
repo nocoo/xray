@@ -1,6 +1,6 @@
 # Dashboard API 全量接入执行计划
 
-> 状态：**规划中** | 创建：2026-02-25 | 最后更新：2026-02-25
+> 状态：**进行中 — Phase 1 已完成** | 创建：2026-02-25 | 最后更新：2026-02-25
 
 ## 1. 背景
 
@@ -304,20 +304,21 @@ export interface CreditsUsageRecord {
 
 **任务清单**：
 
-- [ ] 重构 `sidebar.tsx`：`navItems` 改为分组结构（支持 section headers）
-- [ ] 新建占位页面（每个页面显示标题 + 调用的 API 列表 + "Coming Soon"）
-  - [ ] `/tweets/page.tsx`
-  - [ ] `/tweets/[id]/page.tsx`
-  - [ ] `/users/page.tsx`
-  - [ ] `/users/[username]/page.tsx`
-  - [ ] `/users/[username]/connections/page.tsx`
-  - [ ] `/bookmarks/page.tsx`
-  - [ ] `/likes/page.tsx`
-  - [ ] `/lists/page.tsx`
-  - [ ] `/messages/page.tsx`
-  - [ ] `/messages/[conversationId]/page.tsx`
-- [ ] 保留现有 `/explore` 和 `/analytics` 路由不变
-- [ ] 单元测试：侧边栏渲染所有分组和链接
+- [x] 重构 `sidebar.tsx`：`navItems` 改为分组结构（支持 section headers）
+- [x] 新建占位页面（每个页面显示标题 + 调用的 API 列表 + "Coming Soon"）
+  - [x] `/tweets/page.tsx`
+  - [x] `/tweets/[id]/page.tsx`
+  - [x] `/users/page.tsx`
+  - [x] `/users/[username]/page.tsx`
+  - [x] `/users/[username]/connections/page.tsx`
+  - [x] `/bookmarks/page.tsx`
+  - [x] `/likes/page.tsx`
+  - [x] `/lists/page.tsx`
+  - [x] `/messages/page.tsx`
+  - [x] `/messages/[conversationId]/page.tsx`
+- [x] 保留现有 `/explore` 和 `/analytics` 路由不变
+- [x] 单元测试：侧边栏渲染所有分组和链接
+- [x] E2E 测试：所有占位页面返回 200 + 现有页面不受影响
 
 **Commit 策略**：
 1. `refactor: restructure sidebar navigation with grouped sections`
@@ -530,3 +531,4 @@ export interface CreditsUsageRecord {
 | 日期 | 变更内容 |
 |---|---|
 | 2026-02-25 | 初始计划创建 |
+| 2026-02-25 | Phase 1 完成：sidebar 分组重构 + 10 个占位页面 + UT + E2E |
