@@ -1,8 +1,5 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import { getDb } from "@/db";
-import { users, accounts, sessions, verificationTokens } from "@/db/schema";
 
 // Get allowed emails from environment variable
 const allowedEmails = (process.env.ALLOWED_EMAILS ?? "")
@@ -18,12 +15,10 @@ const useSecureCookies =
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
-  adapter: DrizzleAdapter(getDb(), {
-    usersTable: users,
-    accountsTable: accounts,
-    sessionsTable: sessions,
-    verificationTokensTable: verificationTokens,
-  }),
+  // Note: Drizzle adapter is NOT used here because proxy.ts (middleware)
+  // imports auth.ts and middleware runs in an edge/node context where
+  // bun:sqlite is unavailable. Instead, we use JWT sessions and persist
+  // user records via API routes when needed.
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -33,10 +28,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     signIn: "/login",
     error: "/login",
-  },
-  // Use database sessions (not JWT) for multi-tenant user scoping
-  session: {
-    strategy: "database",
   },
   cookies: {
     pkceCodeVerifier: {
@@ -102,10 +93,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return true;
     },
-    async session({ session, user }) {
-      // Attach user ID to session for multi-tenant scoping
-      if (session.user) {
-        session.user.id = user.id;
+    async jwt({ token, user }) {
+      // On initial sign-in, persist user info into the JWT
+      if (user) {
+        token.id = user.id;
+        token.email = user.email;
+        token.name = user.name;
+        token.picture = user.image;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      // Expose user ID from JWT in the session for multi-tenant scoping
+      if (session.user && token.id) {
+        session.user.id = token.id as string;
       }
       return session;
     },

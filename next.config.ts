@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  serverExternalPackages: ["bun:sqlite"],
+  serverExternalPackages: ["bun:sqlite", "better-sqlite3"],
   // Allow E2E tests to use a separate build directory
   distDir: process.env.NEXT_DIST_DIR || ".next",
   // Allow cross-origin requests in development

@@ -22,8 +22,6 @@ let sqlite: any = null;
 let dbInstance: any;
 let currentDbFile: string | null = null;
 
-const isBun = typeof globalThis.Bun !== "undefined";
-
 function isTestEnv(): boolean {
   return process.env.NODE_ENV === "test" || process.env.BUN_ENV === "test";
 }
@@ -54,21 +52,13 @@ function createDatabase(filename: string): DbInstance {
 
   currentDbFile = resolvedPath;
 
-  if (isBun) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { Database } = require("bun:sqlite");
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { drizzle } = require("drizzle-orm/bun-sqlite");
-    sqlite = new Database(resolvedPath);
-    dbInstance = drizzle(sqlite, { schema });
-  } else {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Database = require("better-sqlite3");
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { drizzle } = require("drizzle-orm/better-sqlite3");
-    sqlite = new Database(resolvedPath);
-    dbInstance = drizzle(sqlite, { schema });
-  }
+  // Bun runtime only — bun:sqlite is the sole supported driver
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { Database } = require("bun:sqlite");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { drizzle } = require("drizzle-orm/bun-sqlite");
+  sqlite = new Database(resolvedPath);
+  dbInstance = drizzle(sqlite, { schema });
 
   initSchema();
   return dbInstance;
