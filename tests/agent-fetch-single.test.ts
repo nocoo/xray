@@ -5,30 +5,30 @@ import { useTestDB, useRealDB, resetDB } from "../scripts/lib/db";
 
 const createApiTweet = (id: string, createdAt: string, userName: string) => ({
   id,
-  url: `https://x.com/${userName}/status/${id}`,
-  fullText: `tweet ${id}`,
-  createdAt,
-  lang: "en",
-  bookmarkCount: 0,
-  likeCount: 1,
-  retweetCount: 0,
-  replyCount: 0,
-  quoteCount: 0,
-  viewCount: 10,
-  conversationId: id,
-  tweetBy: {
+  text: `tweet ${id}`,
+  author: {
     id: `${userName}-id`,
-    userName,
-    fullName: userName,
-    profileImage: "",
-    followersCount: 1,
-    followingsCount: 1,
-    statusesCount: 1,
-    likeCount: 1,
-    isVerified: false,
-    createdAt: "2020-01-01T00:00:00.000Z",
+    username: userName,
+    name: userName,
+    profile_image_url: "",
+    followers_count: 1,
+    is_verified: false,
   },
-  entities: { hashtags: [], mentionedUsers: [], urls: [] },
+  created_at: createdAt,
+  url: `https://x.com/${userName}/status/${id}`,
+  metrics: {
+    retweet_count: 0,
+    like_count: 1,
+    reply_count: 0,
+    quote_count: 0,
+    view_count: 10,
+    bookmark_count: 0,
+  },
+  is_retweet: false,
+  is_quote: false,
+  is_reply: false,
+  lang: "en",
+  entities: { hashtags: [], mentioned_users: [], urls: [] },
 });
 
 describe("agent/fetch/single", () => {
@@ -57,14 +57,11 @@ describe("agent/fetch/single", () => {
     const old = new Date(now.getTime() - 6 * 60 * 60 * 1000).toISOString();
 
     const response = {
-      code: 201,
-      msg: "ok",
-      data: {
-        list: [
-          createApiTweet("t1", recent, "alice"),
-          createApiTweet("t2", old, "alice"),
-        ],
-      },
+      success: true,
+      data: [
+        createApiTweet("t1", recent, "alice"),
+        createApiTweet("t2", old, "alice"),
+      ],
     };
 
     const mockFetch = mock(() =>
@@ -90,6 +87,7 @@ describe("agent/fetch/single", () => {
         ok: false,
         status: 500,
         statusText: "Internal Server Error",
+        text: () => Promise.resolve("server error"),
       } as Response)
     );
     globalThis.fetch = mockFetch as unknown as typeof fetch;
@@ -97,6 +95,6 @@ describe("agent/fetch/single", () => {
     const result = await fetchUser({ user: "alice", hoursBack: 4 });
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("API error");
+    expect(result.error).toContain("X-Ray API error");
   });
 });

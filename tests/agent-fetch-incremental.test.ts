@@ -6,30 +6,30 @@ import { useTestDB, useRealDB, resetDB } from "../scripts/lib/db";
 
 const createApiTweet = (id: string, createdAt: string, userName: string) => ({
   id,
-  url: `https://x.com/${userName}/status/${id}`,
-  fullText: `tweet ${id}`,
-  createdAt,
-  lang: "en",
-  bookmarkCount: 0,
-  likeCount: 1,
-  retweetCount: 0,
-  replyCount: 0,
-  quoteCount: 0,
-  viewCount: 10,
-  conversationId: id,
-  tweetBy: {
+  text: `tweet ${id}`,
+  author: {
     id: `${userName}-id`,
-    userName,
-    fullName: userName,
-    profileImage: "",
-    followersCount: 1,
-    followingsCount: 1,
-    statusesCount: 1,
-    likeCount: 1,
-    isVerified: false,
-    createdAt: "2020-01-01T00:00:00.000Z",
+    username: userName,
+    name: userName,
+    profile_image_url: "",
+    followers_count: 1,
+    is_verified: false,
   },
-  entities: { hashtags: [], mentionedUsers: [], urls: [] },
+  created_at: createdAt,
+  url: `https://x.com/${userName}/status/${id}`,
+  metrics: {
+    retweet_count: 0,
+    like_count: 1,
+    reply_count: 0,
+    quote_count: 0,
+    view_count: 10,
+    bookmark_count: 0,
+  },
+  is_retweet: false,
+  is_quote: false,
+  is_reply: false,
+  lang: "en",
+  entities: { hashtags: [], mentioned_users: [], urls: [] },
 });
 
 describe("agent/fetch/incremental", () => {
@@ -61,24 +61,18 @@ describe("agent/fetch/incremental", () => {
     watchlistAdd({ username: "bob", url: "https://x.com/bob", added_at: now.toISOString() });
 
     const responseAlice = {
-      code: 201,
-      msg: "ok",
-      data: {
-        list: [
-          createApiTweet("t1", recent, "alice"),
-          createApiTweet("t2", old, "alice"),
-        ],
-      },
+      success: true,
+      data: [
+        createApiTweet("t1", recent, "alice"),
+        createApiTweet("t2", old, "alice"),
+      ],
     };
 
     const responseBob = {
-      code: 201,
-      msg: "ok",
-      data: {
-        list: [
-          createApiTweet("t3", recent, "bob"),
-        ],
-      },
+      success: true,
+      data: [
+        createApiTweet("t3", recent, "bob"),
+      ],
     };
 
     let callIndex = 0;
@@ -106,14 +100,11 @@ describe("agent/fetch/incremental", () => {
     watchlistAdd({ username: "alice", url: "https://x.com/alice", added_at: now.toISOString() });
 
     const response = {
-      code: 201,
-      msg: "ok",
-      data: {
-        list: [
-          createApiTweet("t1", recent, "alice"),
-          createApiTweet("t2", recent, "alice"),
-        ],
-      },
+      success: true,
+      data: [
+        createApiTweet("t1", recent, "alice"),
+        createApiTweet("t2", recent, "alice"),
+      ],
     };
 
     const mockFetch = mock(() =>

@@ -16,7 +16,7 @@ describe("agent/lib/agent-api", () => {
     const mockFetch = mock(() =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ code: 201, msg: "ok", data: { list: [] } }),
+        json: () => Promise.resolve({ success: true, data: [] }),
       } as Response)
     );
     globalThis.fetch = mockFetch as unknown as typeof fetch;
