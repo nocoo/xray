@@ -1,5 +1,8 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export type AuthenticatedUser = {
   id: string;
@@ -7,6 +10,30 @@ export type AuthenticatedUser = {
   name?: string | null;
   image?: string | null;
 };
+
+/**
+ * Ensure the authenticated user exists in the database.
+ * With JWT sessions, NextAuth doesn't persist users to the DB automatically.
+ * This upserts the user row so FK constraints on business tables are satisfied.
+ */
+function ensureUserExists(user: AuthenticatedUser): void {
+  const existing = db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.id, user.id))
+    .get();
+
+  if (!existing) {
+    db.insert(users)
+      .values({
+        id: user.id,
+        email: user.email,
+        name: user.name ?? null,
+        image: user.image ?? null,
+      })
+      .run();
+  }
+}
 
 /**
  * Get the authenticated user from the current session.
@@ -28,6 +55,7 @@ export async function getAuthUser(): Promise<AuthenticatedUser | null> {
 /**
  * Require authentication for an API route.
  * Returns the user if authenticated, or a 401 JSON response.
+ * Also ensures the user row exists in the database for FK constraints.
  */
 export async function requireAuth(): Promise<
   | { user: AuthenticatedUser; error?: never }
@@ -42,5 +70,9 @@ export async function requireAuth(): Promise<
       ),
     };
   }
+
+  // Ensure user exists in DB (JWT sessions don't persist users automatically)
+  ensureUserExists(user);
+
   return { user };
 }
