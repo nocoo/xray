@@ -19,6 +19,9 @@ import {
   EyeOff,
   Plus,
   Shield,
+  Bot,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 
 // =============================================================================
@@ -57,6 +60,8 @@ export default function SettingsPage() {
         <CredentialsSection />
         <Separator />
         <WebhooksSection />
+        <Separator />
+        <AiPromptSection />
       </div>
     </AppShell>
   );
@@ -402,6 +407,125 @@ function WebhooksSection() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// =============================================================================
+// AI Prompt Section
+// =============================================================================
+
+const AI_PROMPT_TEMPLATE = `You have access to the X-Ray Twitter API for fetching Twitter/X data.
+
+## Authentication
+Include the header \`X-Webhook-Key: {{KEY}}\` in every request.
+
+## Base URL
+\`https://xray.hexly.ai\`
+
+## Available Endpoints (all GET)
+
+| Endpoint | Description | Parameters |
+|----------|-------------|------------|
+| /api/twitter/users/{username}/info | User profile | — |
+| /api/twitter/users/{username}/tweets | User's tweets | ?count=20 (1-100) |
+| /api/twitter/users/{username}/search | Search user's tweets | ?q=keyword (required) |
+| /api/twitter/tweets/search | Global tweet search | ?q=keyword (required), ?count=20, ?sort_by_top=true |
+| /api/twitter/tweets/{id} | Tweet details by ID | — |
+| /api/twitter/me/analytics | My account analytics | — |
+| /api/twitter/me/bookmarks | My bookmarks | — |
+| /api/twitter/me/likes | My liked tweets | — |
+| /api/twitter/me/lists | My lists | — |
+
+## Response Format
+Success: \`{ "success": true, "data": { ... } }\`
+Error: \`{ "success": false, "error": "message" }\`
+
+## Example
+\`\`\`bash
+curl -H "X-Webhook-Key: {{KEY}}" "https://xray.hexly.ai/api/twitter/users/karpathy/tweets?count=10"
+\`\`\``;
+
+function AiPromptSection() {
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [keyInput, setKeyInput] = useState("");
+
+  const prompt = keyInput
+    ? AI_PROMPT_TEMPLATE.replaceAll("{{KEY}}", keyInput)
+    : AI_PROMPT_TEMPLATE.replaceAll("{{KEY}}", "<YOUR_WEBHOOK_KEY>");
+
+  const copyPrompt = async () => {
+    await navigator.clipboard.writeText(prompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <section className="space-y-4">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center gap-2 text-left"
+      >
+        <Bot className="size-5 text-primary" />
+        <h2 className="text-lg font-semibold">AI Agent Prompt</h2>
+        {expanded ? (
+          <ChevronDown className="ml-auto size-4 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="ml-auto size-4 text-muted-foreground" />
+        )}
+      </button>
+
+      {!expanded && (
+        <p className="text-sm text-muted-foreground">
+          Copy a ready-made prompt to give your AI agent access to the X-Ray API.
+        </p>
+      )}
+
+      {expanded && (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Paste this prompt into your AI agent (Claude, GPT, Cursor, etc.) to
+            let it call the X-Ray API on your behalf. Optionally fill in your
+            webhook key below to embed it directly.
+          </p>
+
+          <div className="space-y-2">
+            <Label htmlFor="ai-key-input">Webhook Key (optional)</Label>
+            <Input
+              id="ai-key-input"
+              type="password"
+              placeholder="xrk_... (paste your key to embed it in the prompt)"
+              value={keyInput}
+              onChange={(e) => setKeyInput(e.target.value)}
+            />
+          </div>
+
+          <div className="relative">
+            <pre className="max-h-80 overflow-auto rounded-card bg-secondary p-4 font-mono text-xs leading-relaxed text-foreground">
+              {prompt}
+            </pre>
+            <Button
+              size="sm"
+              variant="outline"
+              className="absolute right-3 top-3"
+              onClick={copyPrompt}
+            >
+              {copied ? (
+                <>
+                  <Check className="mr-1 size-3.5" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="mr-1 size-3.5" />
+                  Copy
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       )}
     </section>
