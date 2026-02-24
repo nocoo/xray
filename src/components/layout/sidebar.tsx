@@ -5,8 +5,6 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import {
   LayoutDashboard,
-  KeyRound,
-  Webhook,
   Settings,
   PanelLeft,
   Radar,
@@ -24,8 +22,6 @@ import { useSidebar } from "./sidebar-context";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/credentials", label: "API Credentials", icon: KeyRound },
-  { href: "/webhooks", label: "Webhooks", icon: Webhook },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
