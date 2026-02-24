@@ -6,7 +6,11 @@ const nextConfig: NextConfig = {
   // Allow E2E tests to use a separate build directory
   distDir: process.env.NEXT_DIST_DIR || ".next",
   // Allow cross-origin requests in development
-  allowedDevOrigins: ["localhost"],
+  allowedDevOrigins: [
+    "localhost",
+    "*.hexly.ai",
+    "*.dev.hexly.ai",
+  ],
   // Allow loading images from external domains (e.g., Google avatars)
   images: {
     remotePatterns: [
