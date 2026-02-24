@@ -49,19 +49,27 @@ export async function PUT(request: Request) {
     );
   }
 
-  // Merge with existing values (don't wipe fields not being updated)
-  const existing = credentialsRepo.findByUserId(user.id);
-  const tweapiKey = body.tweapiKey ?? existing?.tweapiKey ?? null;
-  const twitterCookie = body.twitterCookie ?? existing?.twitterCookie ?? null;
+  try {
+    // Merge with existing values (don't wipe fields not being updated)
+    const existing = credentialsRepo.findByUserId(user.id);
+    const tweapiKey = body.tweapiKey ?? existing?.tweapiKey ?? null;
+    const twitterCookie = body.twitterCookie ?? existing?.twitterCookie ?? null;
 
-  const result = credentialsRepo.upsert(user.id, { tweapiKey, twitterCookie });
+    const result = credentialsRepo.upsert(user.id, { tweapiKey, twitterCookie });
 
-  return NextResponse.json({
-    configured: true,
-    tweapiKey: result.tweapiKey ? maskSecret(result.tweapiKey) : null,
-    twitterCookie: result.twitterCookie ? maskSecret(result.twitterCookie) : null,
-    updatedAt: result.updatedAt,
-  });
+    return NextResponse.json({
+      configured: true,
+      tweapiKey: result.tweapiKey ? maskSecret(result.tweapiKey) : null,
+      twitterCookie: result.twitterCookie ? maskSecret(result.twitterCookie) : null,
+      updatedAt: result.updatedAt,
+    });
+  } catch (err) {
+    console.error("Failed to save credentials:", err);
+    return NextResponse.json(
+      { error: "Failed to save credentials" },
+      { status: 500 }
+    );
+  }
 }
 
 /**

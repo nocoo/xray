@@ -114,8 +114,12 @@ function CredentialsSection() {
         setTwitterCookie("");
         setMessage({ type: "success", text: "Credentials saved successfully." });
       } else {
-        const err = await res.json();
-        setMessage({ type: "error", text: err.error || "Failed to save." });
+        try {
+          const err = await res.json();
+          setMessage({ type: "error", text: err.error || "Failed to save." });
+        } catch {
+          setMessage({ type: "error", text: `Failed to save (HTTP ${res.status}).` });
+        }
       }
     } finally {
       setSaving(false);
