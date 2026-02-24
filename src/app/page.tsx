@@ -59,7 +59,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-3xl space-y-8 p-6">
+      <div className="space-y-6">
         {/* Welcome header */}
         <div>
           <h1 className="font-display text-2xl font-semibold">
@@ -104,7 +104,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Setup checklist */}
-        <div className="rounded-lg border bg-card p-5">
+        <div className="rounded-card bg-secondary p-5">
           <div className="mb-4 flex items-center gap-2">
             <Activity className="size-5 text-primary" />
             <h2 className="text-lg font-semibold">Setup Checklist</h2>
@@ -158,7 +158,7 @@ function StatusCard({
 }) {
   if (loading) {
     return (
-      <div className="rounded-lg border bg-card p-4 animate-pulse">
+      <div className="rounded-card bg-secondary p-4 animate-pulse">
         <div className="h-4 w-20 rounded bg-muted mb-3" />
         <div className="h-6 w-24 rounded bg-muted" />
       </div>
@@ -166,7 +166,7 @@ function StatusCard({
   }
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="rounded-card bg-secondary p-4">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 text-muted-foreground">
           {icon}

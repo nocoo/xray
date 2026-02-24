@@ -46,7 +46,7 @@ type WebhookData = {
 export default function SettingsPage() {
   return (
     <AppShell breadcrumbs={[{ label: "Settings" }]}>
-      <div className="mx-auto max-w-2xl space-y-8 p-6">
+      <div className="space-y-8">
         <div>
           <h1 className="font-display text-2xl font-semibold">Settings</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -162,7 +162,7 @@ function CredentialsSection() {
       )}
 
       {!editing ? (
-        <div className="space-y-3 rounded-lg border bg-card p-4">
+        <div className="space-y-3 rounded-card bg-secondary p-4">
           <CredentialRow
             icon={<Key className="size-4" />}
             label="TweAPI Key"
@@ -186,7 +186,7 @@ function CredentialsSection() {
           </div>
         </div>
       ) : (
-        <div className="space-y-4 rounded-lg border bg-card p-4">
+        <div className="space-y-4 rounded-card bg-secondary p-4">
           <div className="space-y-2">
             <Label htmlFor="tweapi-key">TweAPI Key</Label>
             <div className="relative">
@@ -353,7 +353,7 @@ function WebhooksSection() {
       )}
 
       {newKey && (
-        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+        <div className="rounded-card border border-primary/30 bg-primary/5 p-4">
           <p className="mb-2 text-sm font-medium text-primary">New Webhook Key (shown once)</p>
           <div className="flex items-center gap-2">
             <code className="flex-1 break-all rounded bg-muted px-2 py-1 font-mono text-xs">
@@ -367,7 +367,7 @@ function WebhooksSection() {
       )}
 
       {hooks.length === 0 ? (
-        <div className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-card border border-dashed py-8 text-center text-sm text-muted-foreground">
           No webhook keys yet. Create one to get started.
         </div>
       ) : (
@@ -375,7 +375,7 @@ function WebhooksSection() {
           {hooks.map((hook) => (
             <div
               key={hook.id}
-              className="flex items-center justify-between rounded-lg border bg-card p-3"
+              className="flex items-center justify-between rounded-card bg-secondary p-3"
             >
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -433,7 +433,7 @@ function CredentialRow({
 function StatusMessage({ type, text }: { type: "success" | "error"; text: string }) {
   return (
     <div
-      className={`rounded-lg px-3 py-2 text-sm ${
+      className={`rounded-card px-3 py-2 text-sm ${
         type === "success"
           ? "border border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200"
           : "border border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
@@ -450,7 +450,7 @@ function SectionSkeleton({ title }: { title: string }) {
       <h2 className="text-lg font-semibold">{title}</h2>
       <div className="animate-pulse space-y-3">
         <div className="h-4 w-3/4 rounded bg-muted" />
-        <div className="h-24 rounded-lg bg-muted" />
+        <div className="h-24 rounded-card bg-muted" />
       </div>
     </section>
   );
