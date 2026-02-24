@@ -1,4 +1,4 @@
-import { resolve, dirname } from "path";
+import { resolve, dirname, basename } from "path";
 import { fileURLToPath } from "url";
 import * as schema from "./schema";
 
@@ -7,9 +7,28 @@ export type DbInstance = any;
 
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
-/** Resolve a database filename to an absolute path under the project root. */
+// Railway Volume mount — set XRAY_DATA_DIR=/data to persist SQLite across deploys
+function getDataDir(): string {
+  return process.env.XRAY_DATA_DIR || PROJECT_ROOT;
+}
+
+/**
+ * Resolve a database filename to an absolute path.
+ *
+ * Production DB ("database/xray.db"):
+ *   - If XRAY_DATA_DIR is set → /data/xray.db (volume-mounted, survives redeploys)
+ *   - Otherwise → PROJECT_ROOT/database/xray.db (local dev)
+ *
+ * Test/E2E DBs always resolve relative to PROJECT_ROOT.
+ */
 function resolveDbPath(filename: string): string {
   if (filename === ":memory:" || filename.startsWith("/")) return filename;
+
+  const dataDir = getDataDir();
+  if (filename === DEFAULT_DB_FILE && dataDir !== PROJECT_ROOT) {
+    // Production: strip "database/" prefix, place directly in volume
+    return resolve(dataDir, basename(filename));
+  }
   return resolve(PROJECT_ROOT, filename);
 }
 
