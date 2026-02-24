@@ -17,6 +17,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=7027
+ENV HOSTNAME=0.0.0.0
 
 # Create data directory for SQLite volume mount
 RUN mkdir -p /data
