@@ -22,6 +22,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "drizzle-kit": "^0.31.9",
+    "eslint": "9",
     "eslint-config-next": "^16.1.6",
     "husky": "^9.1.7",
     "shadcn": "^3.8.5",

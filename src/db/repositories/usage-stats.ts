@@ -1,6 +1,6 @@
 import { eq, and, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { usageStats, type UsageStat, type NewUsageStat } from "@/db/schema";
+import { usageStats, type UsageStat } from "@/db/schema";
 
 // =============================================================================
 // Usage Stats Repository

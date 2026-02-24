@@ -56,7 +56,7 @@ describe("e2e: auth and settings", () => {
 
   describe("credentials", () => {
     test("GET /api/credentials returns not configured initially", async () => {
-      const { status, data } = await apiRequest<{
+      const { status } = await apiRequest<{
         configured: boolean;
         tweapiKey: string | null;
         twitterCookie: string | null;

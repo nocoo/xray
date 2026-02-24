@@ -2,7 +2,10 @@
 . "$(dirname -- "$0")/_/h"
 
 # Root-level unit tests (scripts, agent)
-bun test
+bun test tests/ --timeout 30000
 
 # Server unit + integration tests (excludes E2E)
 cd server && bun test tests/unit tests/integration
+
+# Next.js unit tests (excludes E2E)
+cd .. && bun test src/__tests__/auth.test.ts src/__tests__/crypto.test.ts src/__tests__/db/ src/__tests__/api/

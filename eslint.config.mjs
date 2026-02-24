@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Legacy directories (Phase 2-3 migration)
     "server/**",
     "agent/**",
+    "scripts/**",
+    "tests/**",
     // Playwright E2E tests (not React code)
     "e2e/**",
   ]),

@@ -25,6 +25,7 @@ export async function setupE2E(): Promise<void> {
   // Clean up any existing E2E database
   const dbPath = resolve(PROJECT_ROOT, E2E_DB);
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { unlinkSync } = require("fs");
     unlinkSync(dbPath);
   } catch {
@@ -66,6 +67,7 @@ export async function teardownE2E(): Promise<void> {
   // Clean up E2E database
   const dbPath = resolve(PROJECT_ROOT, E2E_DB);
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { unlinkSync } = require("fs");
     unlinkSync(dbPath);
   } catch {

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db } from "@/db";
 import { webhooks, type Webhook, type NewWebhook } from "@/db/schema";
 
@@ -23,7 +23,7 @@ export function findByIdAndUserId(
   return db
     .select()
     .from(webhooks)
-    .where(eq(webhooks.id, id))
+    .where(and(eq(webhooks.id, id), eq(webhooks.userId, userId)))
     .get();
 }
 

@@ -388,8 +388,7 @@ describe("db/schema", () => {
         .run();
 
       // Enable foreign keys (SQLite requires explicit enabling)
-      const raw = require("bun:sqlite");
-      // Foreign keys are enabled per-connection; use getRawSqlite()
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { getRawSqlite } = require("@/db");
       const sqlite = getRawSqlite();
       sqlite.exec("PRAGMA foreign_keys = ON");

@@ -87,7 +87,7 @@ describe("lib/crypto", () => {
 
     test("returns false for tampered hash", () => {
       const key = generateWebhookKey();
-      const hash = hashWebhookKey(key);
+      hashWebhookKey(key);
       const tampered = "0".repeat(64);
 
       expect(verifyWebhookKey(key, tampered)).toBe(false);
