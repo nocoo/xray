@@ -7,3 +7,4 @@ export { ProviderError, UpstreamError, AuthRequiredError, TimeoutError } from ".
 export { TweAPIProvider } from "./tweapi-provider";
 export type { TweAPIConfig } from "./tweapi-provider";
 export { MockTwitterProvider } from "./mock-provider";
+export { createProviderForUser } from "./provider-factory";
