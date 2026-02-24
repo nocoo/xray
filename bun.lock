@@ -6,7 +6,6 @@
       "name": "x-ray",
       "dependencies": {
         "@auth/drizzle-adapter": "^1.11.1",
-        "better-sqlite3": "^12.6.2",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "drizzle-orm": "^0.45.1",
@@ -24,7 +23,6 @@
       "devDependencies": {
         "@playwright/test": "^1.58.2",
         "@tailwindcss/postcss": "^4.2.1",
-        "@types/better-sqlite3": "^7.6.13",
         "@types/bun": "latest",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.2.3",

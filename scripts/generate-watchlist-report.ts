@@ -1,19 +1,41 @@
 import { loadRawTweets, loadAnalyzeOutput, nowISO, saveWatchlistReport } from "./lib/utils";
-import type { Tweet } from "./lib/types";
 
-function buildEngagementLabel(tweet: Tweet): string {
-  const metrics = tweet.metrics;
-  const likes = metrics.like_count || 0;
-  const reposts = metrics.retweet_count || 0;
-  const replies = metrics.reply_count || 0;
-  const quotes = metrics.quote_count || 0;
-  const views = metrics.view_count || 0;
+interface RawTweetFromDB {
+  id: string;
+  text: string;
+  author_id: string;
+  author_username: string;
+  author_name: string;
+  author_profile_image: string;
+  created_at: string;
+  url: string;
+  retweet_count: number;
+  like_count: number;
+  reply_count: number;
+  quote_count: number;
+  view_count: number;
+  is_retweet: number;
+  is_quote: number;
+  lang?: string;
+  fetched_at: string;
+  author_followers_count: number;
+  author_is_verified: number;
+  bookmark_count: number;
+  is_reply: number;
+}
+
+function buildEngagementLabel(tweet: RawTweetFromDB): string {
+  const likes = tweet.like_count || 0;
+  const reposts = tweet.retweet_count || 0;
+  const replies = tweet.reply_count || 0;
+  const quotes = tweet.quote_count || 0;
+  const views = tweet.view_count || 0;
   return `likes ${likes} | reposts ${reposts} | replies ${replies} | quotes ${quotes} | views ${views}`;
 }
 
 
 function buildReportMarkdown(
-  tweets: Tweet[],
+  tweets: RawTweetFromDB[],
   generatedAt: string,
   analysis: Record<string, { translation: string; score: number; evaluation: string }>
 ): string {
@@ -49,7 +71,7 @@ function buildReportMarkdown(
   };
 
   const items = tweets.map((tweet) => {
-    const authorLink = `[@${tweet.author.username}](https://x.com/${tweet.author.username})`;
+    const authorLink = `[@${tweet.author_username}](https://x.com/${tweet.author_username})`;
     const result = analysis[tweet.id];
     return {
       url: tweet.url,
@@ -79,7 +101,7 @@ export default async function main() {
   const generatedAt = nowISO();
 
   const reportMarkdown = buildReportMarkdown(
-    raw.tweets,
+    raw.tweets as unknown as RawTweetFromDB[],
     generatedAt,
     analyzeMap
   );
