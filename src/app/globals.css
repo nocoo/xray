@@ -54,6 +54,18 @@
   --color-info: hsl(var(--info));
   --color-info-foreground: hsl(var(--info-foreground));
 
+  /* Chart colors */
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+  --color-chart-6: hsl(var(--chart-6));
+  --color-chart-7: hsl(var(--chart-7));
+  --color-chart-8: hsl(var(--chart-8));
+  --color-chart-9: hsl(var(--chart-9));
+  --color-chart-10: hsl(var(--chart-10));
+
   /* Radius tokens */
   --radius-card: 14px;
   --radius-widget: 10px;
@@ -132,6 +144,34 @@
   --warning-foreground: 0 0% 12%;
   --info: 217 91% 60%;
   --info-foreground: 0 0% 100%;
+
+  /* Chart palette (24 sequential) */
+  --chart-1: 230 75% 55%;
+  --chart-2: 199 89% 48%;
+  --chart-3: 172 66% 40%;
+  --chart-4: 160 60% 42%;
+  --chart-5: 142 71% 35%;
+  --chart-6: 84 65% 42%;
+  --chart-7: 45 93% 47%;
+  --chart-8: 27 96% 54%;
+  --chart-9: 213 94% 56%;
+  --chart-10: 0 72% 51%;
+  --chart-11: 340 82% 55%;
+  --chart-12: 310 70% 50%;
+  --chart-13: 280 68% 60%;
+  --chart-14: 270 70% 60%;
+  --chart-15: 240 60% 55%;
+  --chart-16: 220 70% 50%;
+  --chart-17: 210 30% 50%;
+  --chart-18: 195 40% 45%;
+  --chart-19: 165 50% 50%;
+  --chart-20: 90 35% 45%;
+  --chart-21: 40 80% 50%;
+  --chart-22: 20 90% 55%;
+  --chart-23: 350 75% 50%;
+  --chart-24: 0 0% 55%;
+  --chart-axis: 0 0% 45%;
+  --chart-muted: 220 14% 80%;
 }
 
 .dark {
@@ -183,6 +223,34 @@
   --warning-foreground: 45 80% 92%;
   --info: 217 70% 45%;
   --info-foreground: 217 70% 92%;
+
+  /* Chart palette (dark mode — controlled brightness) */
+  --chart-1: 230 60% 55%;
+  --chart-2: 199 70% 50%;
+  --chart-3: 172 55% 42%;
+  --chart-4: 160 50% 44%;
+  --chart-5: 142 60% 40%;
+  --chart-6: 84 55% 44%;
+  --chart-7: 45 80% 48%;
+  --chart-8: 27 80% 52%;
+  --chart-9: 213 80% 52%;
+  --chart-10: 0 60% 48%;
+  --chart-11: 340 65% 52%;
+  --chart-12: 310 55% 48%;
+  --chart-13: 280 55% 55%;
+  --chart-14: 270 55% 55%;
+  --chart-15: 240 50% 52%;
+  --chart-16: 220 55% 48%;
+  --chart-17: 210 25% 48%;
+  --chart-18: 195 35% 45%;
+  --chart-19: 165 40% 48%;
+  --chart-20: 90 30% 44%;
+  --chart-21: 40 65% 48%;
+  --chart-22: 20 75% 52%;
+  --chart-23: 350 60% 48%;
+  --chart-24: 0 0% 48%;
+  --chart-axis: 0 0% 48%;
+  --chart-muted: 0 0% 25%;
 }
 
 /*

@@ -12,6 +12,7 @@ import {
   ArrowRight,
   CheckCircle2,
   XCircle,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -28,6 +29,14 @@ type WebhookItem = {
   keyPrefix: string;
 };
 
+type UsageSummary = {
+  summary: {
+    totalRequests: number;
+    uniqueEndpoints: number;
+    lastUsedAt: string | null;
+  };
+};
+
 // =============================================================================
 // Dashboard Page
 // =============================================================================
@@ -36,16 +45,19 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const [creds, setCreds] = useState<CredentialsStatus | null>(null);
   const [hooks, setHooks] = useState<WebhookItem[] | null>(null);
+  const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
-      const [credsRes, hooksRes] = await Promise.all([
+      const [credsRes, hooksRes, usageRes] = await Promise.all([
         fetch("/api/credentials"),
         fetch("/api/webhooks"),
+        fetch("/api/usage?days=7"),
       ]);
       if (credsRes.ok) setCreds(await credsRes.json());
       if (hooksRes.ok) setHooks(await hooksRes.json());
+      if (usageRes.ok) setUsage(await usageRes.json());
     } finally {
       setLoading(false);
     }
@@ -71,7 +83,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Status cards grid */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatusCard
             icon={<Radar className="size-5" />}
             title="System"
@@ -101,6 +113,31 @@ export default function DashboardPage() {
             }
             loading={loading}
           />
+          <Link href="/usage" className="block">
+            <StatusCard
+              icon={<Zap className="size-5" />}
+              title="API Requests"
+              value={
+                usage
+                  ? `${usage.summary.totalRequests.toLocaleString()} total`
+                  : "—"
+              }
+              badge={
+                <Badge
+                  variant={
+                    usage && usage.summary.totalRequests > 0
+                      ? "default"
+                      : "secondary"
+                  }
+                >
+                  {usage && usage.summary.totalRequests > 0
+                    ? `${usage.summary.uniqueEndpoints} endpoints`
+                    : "No activity"}
+                </Badge>
+              }
+              loading={loading}
+            />
+          </Link>
         </div>
 
         {/* Setup checklist */}
@@ -128,8 +165,9 @@ export default function DashboardPage() {
               loading={loading}
             />
             <ChecklistItem
-              done={false}
+              done={(usage?.summary.totalRequests ?? 0) > 0}
               label="Make your first API request"
+              href="/usage"
               loading={loading}
             />
           </div>

@@ -1,4 +1,4 @@
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, gte, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { usageStats, type UsageStat } from "@/db/schema";
 
@@ -99,4 +99,73 @@ export function getSummary(userId: string): {
   );
 
   return { totalRequests, uniqueEndpoints, lastUsedAt };
+}
+
+/**
+ * Get usage stats for a user within a date range (inclusive).
+ */
+export function findByUserIdInRange(
+  userId: string,
+  startDate: string,
+  endDate: string,
+): UsageStat[] {
+  return db
+    .select()
+    .from(usageStats)
+    .where(
+      and(
+        eq(usageStats.userId, userId),
+        gte(usageStats.date, startDate),
+        lte(usageStats.date, endDate),
+      ),
+    )
+    .all();
+}
+
+/**
+ * Aggregate usage by endpoint for a user (optionally within a date range).
+ * Returns endpoint → total request count, sorted descending.
+ */
+export function getEndpointBreakdown(
+  userId: string,
+  startDate?: string,
+  endDate?: string,
+): { endpoint: string; total: number }[] {
+  const stats =
+    startDate && endDate
+      ? findByUserIdInRange(userId, startDate, endDate)
+      : findByUserId(userId);
+
+  const map = new Map<string, number>();
+  for (const s of stats) {
+    map.set(s.endpoint, (map.get(s.endpoint) ?? 0) + s.requestCount);
+  }
+
+  return [...map.entries()]
+    .map(([endpoint, total]) => ({ endpoint, total }))
+    .sort((a, b) => b.total - a.total);
+}
+
+/**
+ * Aggregate usage by date for a user (optionally within a date range).
+ * Returns date → total request count, sorted by date ascending.
+ */
+export function getDailyTotals(
+  userId: string,
+  startDate?: string,
+  endDate?: string,
+): { date: string; total: number }[] {
+  const stats =
+    startDate && endDate
+      ? findByUserIdInRange(userId, startDate, endDate)
+      : findByUserId(userId);
+
+  const map = new Map<string, number>();
+  for (const s of stats) {
+    map.set(s.date, (map.get(s.date) ?? 0) + s.requestCount);
+  }
+
+  return [...map.entries()]
+    .map(([date, total]) => ({ date, total }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }

@@ -30,11 +30,7 @@
     "src/**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "scripts/**/*.ts",
-    "tests/**/*.ts",
-    "server/**/*.ts",
-    "shared/**/*.ts",
-    "agent/**/*.ts"
+    "shared/**/*.ts"
   ],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "agent", "server", "scripts", "tests"]
 }
