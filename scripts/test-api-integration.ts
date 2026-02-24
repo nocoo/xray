@@ -1,4 +1,4 @@
-import { TwitterAPIClient } from "./lib/api";
+import { XRayClient } from "./lib/xray-client";
 import { loadConfig } from "./lib/utils";
 
 const TEST_USER_URL = "https://x.com/zhengli";
@@ -26,7 +26,7 @@ async function testEndpoint<T>(
 
 async function main() {
   const config = await loadConfig();
-  const client = new TwitterAPIClient(config);
+  const client = new XRayClient(config);
 
   const results: Array<{ name: string; success: boolean; error?: string }> = [];
 
@@ -52,14 +52,6 @@ async function main() {
     if (testToRun) return;
   }
 
-  if (!testToRun || testToRun === "tweet-replies") {
-    const r = await testEndpoint("getTweetReplies", () =>
-      client.getTweetReplies(TEST_TWEET_URL)
-    );
-    results.push(r);
-    if (testToRun) return;
-  }
-
   if (!testToRun || testToRun === "search-tweets") {
     const r = await testEndpoint("searchTweets", () =>
       client.searchTweets("AI", 5, true)
@@ -68,53 +60,9 @@ async function main() {
     if (testToRun) return;
   }
 
-  if (!testToRun || testToRun === "user-timeline") {
-    const r = await testEndpoint("getUserTimeline", () =>
-      client.getUserTimeline(TEST_USER_URL)
-    );
-    results.push(r);
-    if (testToRun) return;
-  }
-
-  if (!testToRun || testToRun === "user-replies") {
-    const r = await testEndpoint("getUserReplies", () =>
-      client.getUserReplies(TEST_USER_URL)
-    );
-    results.push(r);
-    if (testToRun) return;
-  }
-
-  if (!testToRun || testToRun === "user-followers") {
-    const r = await testEndpoint("getUserFollowers", () =>
-      client.getUserFollowers(TEST_USER_URL)
-    );
-    results.push(r);
-    if (testToRun) return;
-  }
-
-  if (!testToRun || testToRun === "user-following") {
-    const r = await testEndpoint("getUserFollowing", () =>
-      client.getUserFollowing(TEST_USER_URL)
-    );
-    results.push(r);
-    if (testToRun) return;
-  }
-
-  if (!testToRun || testToRun === "user-affiliates") {
-    const r = await testEndpoint("getUserAffiliates", () =>
-      client.getUserAffiliates(TEST_USER_URL)
-    );
-    results.push(r);
-    if (testToRun) return;
-  }
-
-  if (!testToRun || testToRun === "user-highlights") {
-    const r = await testEndpoint("getUserHighlights", () =>
-      client.getUserHighlights(TEST_USER_URL)
-    );
-    results.push(r);
-    if (testToRun) return;
-  }
+  // NOTE: The following methods were removed from XRayClient as they are not
+  // actively used: getUserTimeline, getUserReplies, getUserFollowers,
+  // getUserFollowing, getUserAffiliates, getUserHighlights, getTweetReplies
 
   if (!testToRun || testToRun === "search-user-tweets") {
     const r = await testEndpoint("searchUserTweets", () =>

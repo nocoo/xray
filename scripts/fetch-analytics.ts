@@ -1,4 +1,4 @@
-import { TwitterAPIClient } from "./lib/api";
+import { XRayClient } from "./lib/xray-client";
 import { loadConfig } from "./lib/utils";
 import { saveAnalytics, getLatestAnalytics, calculateTrend } from "./lib/analytics-db";
 import type { AnalyticsTrend } from "./lib/analytics-db";
@@ -19,7 +19,7 @@ async function main() {
   const username = config.me.username;
   console.log(`Fetching analytics for @${username}...`);
 
-  const client = new TwitterAPIClient(config);
+  const client = new XRayClient(config);
 
   try {
     const analytics = await client.getUserAnalytics();

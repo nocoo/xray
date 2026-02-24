@@ -1,4 +1,4 @@
-import { TwitterAPIClient } from "./lib/api";
+import { XRayClient } from "./lib/xray-client";
 import { loadConfig } from "./lib/utils";
 import { saveAnalytics, getLatestAnalytics, getAnalyticsHistory, calculateTrend, type AnalyticsRecord, type AnalyticsTrend } from "./lib/analytics-db";
 import type { Tweet, TwitterList, AnalyticsWithTimeSeries } from "./lib/types";
@@ -33,7 +33,7 @@ async function main() {
   const username = config.me.username;
   console.log(`📊 Fetching all data for @${username}...`);
 
-  const client = new TwitterAPIClient(config);
+  const client = new XRayClient(config);
 
   try {
     let analyticsData: {
