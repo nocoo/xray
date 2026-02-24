@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
   Image as ImageIcon,
   AtSign,
   Hash,
+  User,
 } from "lucide-react";
 
 // We intentionally use <img> for external Twitter profile images and media.
@@ -83,7 +85,11 @@ type Tweet = {
 // Explore Page
 // =============================================================================
 
+type SearchMode = "tweets" | "users";
+
 export default function ExplorePage() {
+  const router = useRouter();
+  const [mode, setMode] = useState<SearchMode>("tweets");
   const [query, setQuery] = useState("");
   const [tweets, setTweets] = useState<Tweet[]>([]);
   const [loading, setLoading] = useState(false);
@@ -97,6 +103,14 @@ export default function ExplorePage() {
       const q = query.trim();
       if (!q) return;
 
+      // User mode: navigate to profile page
+      if (mode === "users") {
+        const username = q.replace(/^@/, "");
+        router.push(`/explore/user/${encodeURIComponent(username)}`);
+        return;
+      }
+
+      // Tweet mode: search API
       setLoading(true);
       setError(null);
       setSearched(true);
@@ -123,7 +137,7 @@ export default function ExplorePage() {
         setLoading(false);
       }
     },
-    [query, sortByTop],
+    [query, sortByTop, mode, router],
   );
 
   return (
@@ -133,39 +147,79 @@ export default function ExplorePage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Explore</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Search tweets across Twitter/X in real time.
+            Search tweets or look up user profiles on Twitter/X.
           </p>
+        </div>
+
+        {/* Mode toggle */}
+        <div className="flex gap-1 rounded-widget bg-secondary p-1 w-fit">
+          <button
+            type="button"
+            onClick={() => setMode("tweets")}
+            className={`flex items-center gap-1.5 rounded-widget px-3 py-1.5 text-sm font-medium transition-colors ${
+              mode === "tweets"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Search className="h-3.5 w-3.5" />
+            Tweets
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("users")}
+            className={`flex items-center gap-1.5 rounded-widget px-3 py-1.5 text-sm font-medium transition-colors ${
+              mode === "users"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <User className="h-3.5 w-3.5" />
+            Users
+          </button>
         </div>
 
         {/* Search bar */}
         <form onSubmit={handleSearch} className="flex gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            {mode === "tweets" ? (
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            ) : (
+              <AtSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            )}
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search tweets... (e.g. 'AI agents', 'from:elonmusk')"
+              placeholder={
+                mode === "tweets"
+                  ? "Search tweets... (e.g. 'AI agents', 'from:elonmusk')"
+                  : "Enter username... (e.g. 'elonmusk' or '@elonmusk')"
+              }
               className="pl-9"
             />
           </div>
-          <button
-            type="button"
-            onClick={() => setSortByTop((v) => !v)}
-            className={`flex items-center gap-1.5 rounded-widget px-3 text-xs font-medium transition-colors ${
-              sortByTop
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-muted-foreground hover:text-foreground"
-            }`}
-            title={sortByTop ? "Sorted by top" : "Sorted by recent"}
-          >
-            <ArrowUpDown className="h-3.5 w-3.5" />
-            {sortByTop ? "Top" : "Recent"}
-          </button>
+          {mode === "tweets" && (
+            <button
+              type="button"
+              onClick={() => setSortByTop((v) => !v)}
+              className={`flex items-center gap-1.5 rounded-widget px-3 text-xs font-medium transition-colors ${
+                sortByTop
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+              title={sortByTop ? "Sorted by top" : "Sorted by recent"}
+            >
+              <ArrowUpDown className="h-3.5 w-3.5" />
+              {sortByTop ? "Top" : "Recent"}
+            </button>
+          )}
           <Button type="submit" disabled={loading || !query.trim()}>
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
+            ) : mode === "tweets" ? (
               "Search"
+            ) : (
+              "Look Up"
             )}
           </Button>
         </form>
@@ -177,14 +231,14 @@ export default function ExplorePage() {
           </div>
         )}
 
-        {/* Results */}
-        {searched && !loading && !error && tweets.length === 0 && (
+        {/* Results (tweet mode only) */}
+        {mode === "tweets" && searched && !loading && !error && tweets.length === 0 && (
           <div className="rounded-card bg-secondary p-8 text-center text-muted-foreground">
             No tweets found for &quot;{query}&quot;
           </div>
         )}
 
-        {tweets.length > 0 && (
+        {mode === "tweets" && tweets.length > 0 && (
           <div className="space-y-3">
             <div className="text-sm text-muted-foreground">
               {tweets.length} result{tweets.length !== 1 ? "s" : ""}
@@ -196,7 +250,7 @@ export default function ExplorePage() {
         )}
 
         {/* Empty state */}
-        {!searched && (
+        {!searched && mode === "tweets" && (
           <div className="rounded-card bg-secondary p-12 text-center">
             <Search className="mx-auto h-10 w-10 text-muted-foreground/40 mb-4" />
             <p className="text-muted-foreground">
@@ -207,6 +261,21 @@ export default function ExplorePage() {
               <code className="rounded bg-muted px-1">from:username</code>,{" "}
               <code className="rounded bg-muted px-1">min_likes:100</code>,{" "}
               <code className="rounded bg-muted px-1">lang:en</code>
+            </p>
+          </div>
+        )}
+
+        {mode === "users" && !loading && (
+          <div className="rounded-card bg-secondary p-12 text-center">
+            <User className="mx-auto h-10 w-10 text-muted-foreground/40 mb-4" />
+            <p className="text-muted-foreground">
+              Enter a Twitter/X username to view their profile and recent
+              tweets.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground/70">
+              The @ symbol is optional — both{" "}
+              <code className="rounded bg-muted px-1">elonmusk</code> and{" "}
+              <code className="rounded bg-muted px-1">@elonmusk</code> work.
             </p>
           </div>
         )}
