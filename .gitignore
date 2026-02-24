@@ -4,6 +4,10 @@ node_modules/
 # Build outputs
 dist/
 build/
+.next/
+.next-e2e/
+.next-e2e-ui/
+out/
 
 # Database files
 *.db
@@ -24,6 +28,11 @@ config/
 *.swo
 .DS_Store
 
+# Environment
+.env
+.env.local
+.env.production.local
+
 # Claude settings
 .claude/settings.local.json
 .claude/CLAUDE.md
@@ -40,3 +49,6 @@ coverage/
 # Logs
 *.log
 npm-debug.log*
+
+# Next.js
+next-env.d.ts
