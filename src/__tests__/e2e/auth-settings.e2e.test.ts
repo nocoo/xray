@@ -95,6 +95,24 @@ describe("e2e: auth and settings", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Health check
+  // ---------------------------------------------------------------------------
+
+  describe("health", () => {
+    test("GET /api/live returns ok status", async () => {
+      const res = await fetch(`${getBaseUrl()}/api/live`);
+      expect(res.status).toBe(200);
+
+      const data = await res.json();
+      expect(data.status).toBe("ok");
+      expect(typeof data.timestamp).toBe("number");
+      expect(typeof data.uptime).toBe("number");
+      expect(data.checks).toBeDefined();
+      expect(data.checks.database).toBe("ok");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Pages
   // ---------------------------------------------------------------------------
 
