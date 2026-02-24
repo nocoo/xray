@@ -17,3 +17,4 @@ X-Ray 是一个用于监控 Twitter/X 的内容系统。它从观察名单与个
 - `docs/06-api-tweapi.md`：TweAPI 接口文档
 - `docs/07-agent-scripts.md`：Agent 脚本能力地图
 - `docs/08-deployment.md`：Railway 部署与 Docker 配置
+- `docs/09-dashboard-api-roadmap.md`：Dashboard API 全量接入执行计划
