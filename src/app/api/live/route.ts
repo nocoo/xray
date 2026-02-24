@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
+import { APP_VERSION } from "@/lib/version";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/live
  * Unauthenticated health check endpoint.
- * Returns system status and basic diagnostics.
+ * Returns system status, version, and basic diagnostics.
  */
 export async function GET() {
   const now = Date.now();
@@ -25,8 +26,10 @@ export async function GET() {
 
   return NextResponse.json({
     status,
+    version: process.env.npm_package_version ?? APP_VERSION,
     timestamp: now,
     uptime: Math.floor(process.uptime()),
+    runtime: typeof Bun !== "undefined" ? "bun" : "node",
     checks: {
       database: dbOk ? "ok" : "error",
     },
