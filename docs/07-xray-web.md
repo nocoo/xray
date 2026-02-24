@@ -105,21 +105,21 @@ xray/
 
 | # | Commit | Description | Status |
 |---|--------|-------------|--------|
-| 1 | `feat: scaffold next.js project with bun and tailwind 4` | Install Next.js 16, Tailwind 4, TypeScript config, adapt to existing project | ⬜ |
-| 2 | `feat: add drizzle orm schema with nextauth and business tables` | schema.ts + drizzle.config.ts + DB connection + initSchema | ⬜ |
-| 3 | `feat: add nextauth v5 with google provider and drizzle adapter` | auth.ts, proxy.ts, [...nextauth] route, email allowlist | ⬜ |
-| 4 | `feat: add login page with google sign-in` | Login page UI (surety badge card style) | ⬜ |
-| 5 | `feat: add app shell layout with sidebar and user info` | Root layout, AuthProvider, AppShell, Sidebar | ⬜ |
-| 6 | `test: add auth and database unit tests` | Schema, DB connection, auth config tests | ⬜ |
-| 7 | `feat: add credentials repository and api routes` | credentials repo + GET/PUT /api/credentials | ⬜ |
-| 8 | `feat: add webhook generation with crypto key management` | crypto.ts + webhooks repo + POST/GET /api/webhooks | ⬜ |
-| 9 | `feat: add webhook key rotation endpoint` | POST /api/webhooks/rotate | ⬜ |
-| 10 | `feat: add settings page for credentials and webhook management` | Settings page UI | ⬜ |
-| 11 | `feat: add dashboard page with usage overview` | Dashboard with basic stats | ⬜ |
-| 12 | `test: add repository and api route unit tests` | credentials/webhooks/usage-stats repo tests | ⬜ |
-| 13 | `test: add e2e tests for auth flow and settings management` | E2E login, settings, webhook rotation | ⬜ |
-| 14 | `feat: add health check and live endpoint` | /api/live | ⬜ |
-| 15 | `chore: update husky hooks for next.js test structure` | pre-commit/pre-push hooks | ⬜ |
+| 1 | `feat: scaffold next.js project with bun and tailwind 4` | Install Next.js 16, Tailwind 4, TypeScript config, adapt to existing project | ✅ |
+| 2 | `feat: add drizzle orm schema with nextauth and business tables` | schema.ts + drizzle.config.ts + DB connection + initSchema | ✅ |
+| 3 | `feat: add nextauth v5 with google provider and drizzle adapter` | auth.ts, proxy.ts, [...nextauth] route, email allowlist | ✅ |
+| 4 | `feat: add login page with google sign-in` | Login page UI (surety badge card style) | ✅ |
+| 5 | `feat: add app shell layout with sidebar and user info` | Root layout, AuthProvider, AppShell, Sidebar | ✅ |
+| 6 | `test: add auth and database unit tests` | Schema, DB connection, auth config tests | ✅ |
+| 7 | `feat: add credentials repository and api routes` | credentials repo + GET/PUT /api/credentials | ✅ |
+| 8 | `feat: add webhook generation with crypto key management` | crypto.ts + webhooks repo + POST/GET /api/webhooks | ✅ |
+| 9 | `feat: add webhook key rotation endpoint` | POST /api/webhooks/rotate | ✅ |
+| 10 | `feat: add settings page for credentials and webhook management` | Settings page UI | ✅ |
+| 11 | `feat: add dashboard page with usage overview` | Dashboard with basic stats | ✅ |
+| 12 | `test: add repository and api route unit tests` | credentials/webhooks/usage-stats repo tests | ✅ |
+| 13 | `test: add e2e tests for auth flow and settings management` | E2E login, settings, webhook rotation | ✅ |
+| 14 | `feat: add health check and live endpoint` | /api/live | ✅ |
+| 15 | `chore: update husky hooks for next.js test structure` | pre-commit/pre-push hooks + lint fixes | ✅ |
 
 ### Phase 2: Migrate Hono Routes (future)
 
