@@ -1,74 +1,115 @@
 "use client";
 
+import { useState, useEffect, use } from "react";
 import { AppShell } from "@/components/layout";
-import { Badge } from "@/components/ui/badge";
-import { FileText, MessageCircle } from "lucide-react";
+import { TweetCard } from "@/components/twitter/tweet-card";
+import { Loader2, MessageCircle } from "lucide-react";
 
-export default function TweetDetailPage() {
+import type { Tweet } from "../../../../shared/types";
+
+// =============================================================================
+// Tweet Detail Page — shows tweet details + reply thread
+// =============================================================================
+
+export default function TweetDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
+  const [tweet, setTweet] = useState<Tweet | null>(null);
+  const [replies, setReplies] = useState<Tweet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchTweetDetail() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const res = await fetch(`/api/explore/tweets/${encodeURIComponent(id)}`);
+        const data = await res.json();
+
+        if (cancelled) return;
+
+        if (!res.ok || !data.success) {
+          setError(data.error ?? "Failed to load tweet");
+          return;
+        }
+
+        setTweet(data.data.tweet);
+        setReplies(data.data.replies ?? []);
+      } catch {
+        if (!cancelled) {
+          setError("Network error — could not reach API");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchTweetDetail();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
   return (
-    <AppShell breadcrumbs={[{ label: "Tweets", href: "/tweets" }, { label: "Detail" }]}>
+    <AppShell
+      breadcrumbs={[
+        { label: "Tweets", href: "/tweets" },
+        { label: tweet ? `@${tweet.author.username}` : id },
+      ]}
+    >
       <div className="space-y-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Tweet Detail
-            </h1>
-            <Badge variant="secondary">Coming Soon</Badge>
+        {/* Loading state */}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            View full tweet content with reply thread.
-          </p>
-        </div>
+        )}
 
-        <div className="rounded-card bg-secondary p-8">
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Planned Features
-            </h3>
-            <div className="space-y-3">
-              <FeatureItem
-                icon={<FileText className="h-4 w-4" />}
-                title="Tweet Details"
-                api="POST /v1/twitter/tweet/details"
-                description="Full tweet content, author info, and engagement metrics"
-              />
-              <FeatureItem
-                icon={<MessageCircle className="h-4 w-4" />}
-                title="Reply Thread"
-                api="POST /v1/twitter/tweet/replys"
-                description="Threaded replies below the main tweet"
-              />
-            </div>
+        {/* Error state */}
+        {error && (
+          <div className="rounded-card bg-destructive/10 p-4 text-sm text-destructive">
+            {error}
           </div>
-        </div>
+        )}
+
+        {/* Tweet detail */}
+        {!loading && tweet && (
+          <>
+            <TweetCard tweet={tweet} linkToDetail={false} />
+
+            {/* Replies section */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <MessageCircle className="h-4 w-4" />
+                <span>
+                  {replies.length} repl{replies.length !== 1 ? "ies" : "y"}
+                </span>
+              </div>
+
+              {replies.length === 0 ? (
+                <div className="rounded-card bg-secondary p-8 text-center text-muted-foreground">
+                  No replies yet.
+                </div>
+              ) : (
+                <div className="space-y-2 pl-4 border-l-2 border-border">
+                  {replies.map((reply) => (
+                    <TweetCard key={reply.id} tweet={reply} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </AppShell>
-  );
-}
-
-function FeatureItem({
-  icon,
-  title,
-  api,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  api: string;
-  description: string;
-}) {
-  return (
-    <div className="flex items-start gap-3 rounded-lg bg-card/50 p-3">
-      <span className="mt-0.5 text-primary">{icon}</span>
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{title}</span>
-          <code className="text-[11px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-            {api}
-          </code>
-        </div>
-        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-      </div>
-    </div>
   );
 }
