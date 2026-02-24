@@ -122,29 +122,29 @@ export const TweetEntitiesSchema = z
   })
   .openapi("TweetEntities");
 
-// Use lazy for recursive Tweet type (quoted_tweet)
-const BaseTweetFields = {
-  id: z.string(),
-  text: z.string(),
-  author: TweetAuthorSchema,
-  created_at: z.string(),
-  url: z.string(),
-  metrics: TweetMetricsSchema,
-  is_retweet: z.boolean(),
-  is_quote: z.boolean(),
-  is_reply: z.boolean(),
-  lang: z.string().optional(),
-  media: z.array(TweetMediaSchema).optional(),
-  entities: TweetEntitiesSchema.optional(),
-  reply_to_id: z.string().optional(),
-};
-
-export const TweetSchema: z.ZodType = z.lazy(() =>
-  z.object({
-    ...BaseTweetFields,
-    quoted_tweet: TweetSchema.optional(),
-  }),
-).openapi("Tweet");
+// NOTE: quoted_tweet uses z.any() because @hono/zod-openapi cannot generate
+// OpenAPI specs from z.lazy() recursive schemas. Runtime shape is Tweet.
+export const TweetSchema = z
+  .object({
+    id: z.string(),
+    text: z.string(),
+    author: TweetAuthorSchema,
+    created_at: z.string(),
+    url: z.string(),
+    metrics: TweetMetricsSchema,
+    is_retweet: z.boolean(),
+    is_quote: z.boolean(),
+    is_reply: z.boolean(),
+    lang: z.string().optional(),
+    media: z.array(TweetMediaSchema).optional(),
+    entities: TweetEntitiesSchema.optional(),
+    reply_to_id: z.string().optional(),
+    quoted_tweet: z.any().optional().openapi({
+      type: "object",
+      description: "Quoted tweet (same shape as Tweet, recursive)",
+    }),
+  })
+  .openapi("Tweet");
 
 export const TweetListResponseSchema = z
   .object({
