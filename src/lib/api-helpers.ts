@@ -4,6 +4,15 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
+// E2E test bypass — when set, skip session auth and use a deterministic user
+const E2E_SKIP_AUTH = process.env.E2E_SKIP_AUTH === "true";
+const E2E_USER: AuthenticatedUser = {
+  id: "e2e-test-user",
+  email: "e2e@test.com",
+  name: "E2E Test User",
+  image: null,
+};
+
 export type AuthenticatedUser = {
   id: string;
   email: string;
@@ -37,9 +46,12 @@ function ensureUserExists(user: AuthenticatedUser): void {
 
 /**
  * Get the authenticated user from the current session.
+ * In E2E mode, returns a deterministic test user.
  * Returns null if not authenticated.
  */
 export async function getAuthUser(): Promise<AuthenticatedUser | null> {
+  if (E2E_SKIP_AUTH) return E2E_USER;
+
   const session = await auth();
   if (!session?.user?.id || !session.user.email) {
     return null;
