@@ -29,10 +29,10 @@ describe("loadServerConfig", () => {
     Object.assign(process.env, originalEnv);
   });
 
-  test("returns default port 3456 when PORT is not set", () => {
+  test("returns default port 7027 when PORT is not set", () => {
     process.env.CONFIG_PATH = "/nonexistent/config.json"; // avoid loading real config
     const config = loadServerConfig();
-    expect(config.port).toBe(3456);
+    expect(config.port).toBe(7027);
   });
 
   test("respects PORT environment variable", () => {

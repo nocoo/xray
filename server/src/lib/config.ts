@@ -11,7 +11,7 @@ export interface ServerConfig {
 }
 
 export function loadServerConfig(): ServerConfig {
-  const port = Number(process.env.PORT) || 3456;
+  const port = Number(process.env.PORT) || 7027;
   const provider = (process.env.MOCK_PROVIDER === "true" ? "mock" : "tweapi") as ServerConfig["provider"];
 
   // Load from config file or env

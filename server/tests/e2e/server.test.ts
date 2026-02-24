@@ -7,7 +7,7 @@ import { describe, expect, test, beforeAll, afterAll } from "bun:test";
 import type { Subprocess } from "bun";
 
 let serverProcess: Subprocess;
-const PORT = 13456; // Use non-standard port to avoid conflicts
+const PORT = 17027; // Use non-standard port to avoid conflicts
 const BASE_URL = `http://localhost:${PORT}`;
 
 async function waitForServer(url: string, timeoutMs = 10000) {

@@ -24,7 +24,7 @@ export class XRayClient {
   constructor(config: Config | XRayClientConfig) {
     if ("api" in config) {
       // Legacy Config object — derive server URL from env or default
-      this.baseUrl = process.env.XRAY_SERVER_URL || "http://localhost:3456";
+      this.baseUrl = process.env.XRAY_SERVER_URL || "http://localhost:7027";
     } else {
       this.baseUrl = config.baseUrl;
     }

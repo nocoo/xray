@@ -5,7 +5,7 @@ import { XRayClient } from "../scripts/lib/xray-client";
 // Test helpers
 // =============================================================================
 
-function createClient(baseUrl = "http://localhost:3456"): XRayClient {
+function createClient(baseUrl = "http://localhost:7027"): XRayClient {
   return new XRayClient({ baseUrl });
 }
 
@@ -80,7 +80,7 @@ describe("XRayClient", () => {
       expect(client).toBeDefined();
     });
 
-    test("accepts legacy Config object and defaults to localhost:3456", () => {
+    test("accepts legacy Config object and defaults to localhost:7027", () => {
       const config = {
         api: { api_key: "key", base_url: "https://api.tweapi.io" },
         me: { username: "test", is_blue_verified: false },
@@ -92,7 +92,7 @@ describe("XRayClient", () => {
     });
 
     test("respects custom timeout", () => {
-      const client = new XRayClient({ baseUrl: "http://localhost:3456", timeoutMs: 5000 });
+      const client = new XRayClient({ baseUrl: "http://localhost:7027", timeoutMs: 5000 });
       expect(client).toBeDefined();
     });
   });
@@ -287,7 +287,7 @@ describe("XRayClient", () => {
       );
       globalThis.fetch = fn as unknown as typeof fetch;
 
-      const client = new XRayClient({ baseUrl: "http://localhost:3456", timeoutMs: 100 });
+      const client = new XRayClient({ baseUrl: "http://localhost:7027", timeoutMs: 100 });
       await expect(client.fetchUserTweets("alice")).rejects.toThrow("API request timeout");
     });
   });
