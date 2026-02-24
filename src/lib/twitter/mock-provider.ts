@@ -56,6 +56,25 @@ export class MockTwitterProvider implements ITwitterProvider {
     });
   }
 
+  async getTweetReplies(tweetId: string): Promise<Tweet[]> {
+    return [
+      createMockTweet({
+        id: `mock-reply-${tweetId}-1`,
+        text: `Mock reply 1 to tweet ${tweetId}`,
+        authorUsername: "replier1",
+        isReply: true,
+        replyToId: tweetId,
+      }),
+      createMockTweet({
+        id: `mock-reply-${tweetId}-2`,
+        text: `Mock reply 2 to tweet ${tweetId}`,
+        authorUsername: "replier2",
+        isReply: true,
+        replyToId: tweetId,
+      }),
+    ];
+  }
+
   async searchUserTweets(
     username: string,
     query: string,
@@ -160,6 +179,8 @@ function createMockTweet(params: {
   id: string;
   text: string;
   authorUsername: string;
+  isReply?: boolean;
+  replyToId?: string;
 }): Tweet {
   return {
     id: params.id,
@@ -184,13 +205,14 @@ function createMockTweet(params: {
     },
     is_retweet: false,
     is_quote: false,
-    is_reply: false,
+    is_reply: params.isReply ?? false,
     lang: "en",
     entities: {
       hashtags: [],
       mentioned_users: [],
       urls: [],
     },
+    ...(params.replyToId ? { reply_to_id: params.replyToId } : {}),
   };
 }
 

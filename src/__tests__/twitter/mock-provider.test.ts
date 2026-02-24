@@ -57,6 +57,16 @@ describe("MockTwitterProvider", () => {
     expect(tweets[0].author.username).toBe("testuser");
   });
 
+  test("getTweetReplies returns reply tweets for a given tweet", async () => {
+    const replies = await provider.getTweetReplies("12345");
+    expect(replies.length).toBeGreaterThan(0);
+    for (const reply of replies) {
+      expect(reply.is_reply).toBe(true);
+      expect(reply.reply_to_id).toBe("12345");
+      expect(reply.id).toContain("reply");
+    }
+  });
+
   // ===========================================================================
   // Authenticated endpoints
   // ===========================================================================

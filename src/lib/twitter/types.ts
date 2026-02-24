@@ -30,6 +30,7 @@ export interface ITwitterProvider {
   ): Promise<Tweet[]>;
   getUserInfo(username: string): Promise<UserInfo>;
   getTweetDetails(tweetId: string): Promise<Tweet>;
+  getTweetReplies(tweetId: string): Promise<Tweet[]>;
   searchUserTweets(username: string, query: string): Promise<Tweet[]>;
 
   // Authenticated data (cookie/token required)

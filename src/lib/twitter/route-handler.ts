@@ -23,6 +23,7 @@ type HandlerFn = (
 function extractEndpoint(pathname: string): string {
   return pathname
     .replace(/\/users\/[^/]+\//, "/users/:username/")
+    .replace(/\/tweets\/[^/]+\//, "/tweets/:id/")
     .replace(/\/tweets\/[^/]+$/, "/tweets/:id");
 }
 

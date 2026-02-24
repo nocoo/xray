@@ -185,6 +185,15 @@ export class TweAPIProvider implements ITwitterProvider {
     return normalizeTweet(data.data);
   }
 
+  async getTweetReplies(tweetId: string): Promise<Tweet[]> {
+    const data = await this.request<TweAPIResponse>(
+      "/v1/twitter/tweet/replys",
+      { url: `https://x.com/i/status/${tweetId}` },
+    );
+    if (!data.data?.list) return [];
+    return data.data.list.map((tweet) => normalizeTweet(tweet));
+  }
+
   async searchUserTweets(
     username: string,
     query: string,
