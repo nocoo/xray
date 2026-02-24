@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/h"
+
+# Root-level unit tests (scripts, agent)
+bun test
+
+# Server: all tests including E2E
+cd server && bun test
