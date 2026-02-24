@@ -2,6 +2,7 @@ import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { createTestDb, closeDb, initSchema } from "@/db";
 import * as webhooksRepo from "@/db/repositories/webhooks";
 import * as credentialsRepo from "@/db/repositories/credentials";
+import * as usageStatsRepo from "@/db/repositories/usage-stats";
 import { generateWebhookKey, hashWebhookKey, getKeyPrefix } from "@/lib/crypto";
 import { withTwitterProvider } from "@/lib/twitter/route-handler";
 import { NextRequest } from "next/server";
@@ -159,6 +160,53 @@ describe("withTwitterProvider", () => {
         throw new Error("unexpected failure");
       });
       expect(res.status).toBe(500);
+    } finally {
+      process.env.MOCK_PROVIDER = originalEnv;
+    }
+  });
+
+  test("tracks usage stats on successful request", async () => {
+    const originalEnv = process.env.MOCK_PROVIDER;
+    process.env.MOCK_PROVIDER = "true";
+    try {
+      const key = setupUserWithWebhook();
+      const req = createRequest(
+        "http://localhost:7027/api/twitter/users/testuser/tweets",
+        { webhookKey: key },
+      );
+      const res = await withTwitterProvider(req, async (provider) => {
+        const tweets = await provider.fetchUserTweets("testuser");
+        return Response.json({ success: true, data: tweets });
+      });
+      expect(res.status).toBe(200);
+
+      // Verify usage stats were recorded
+      const stats = usageStatsRepo.findByUserId(TEST_USER_ID);
+      expect(stats.length).toBe(1);
+      expect(stats[0]!.endpoint).toBe(
+        "/api/twitter/users/:username/tweets",
+      );
+      expect(stats[0]!.requestCount).toBe(1);
+    } finally {
+      process.env.MOCK_PROVIDER = originalEnv;
+    }
+  });
+
+  test("does not track usage stats on failed request", async () => {
+    const originalEnv = process.env.MOCK_PROVIDER;
+    process.env.MOCK_PROVIDER = "true";
+    try {
+      const key = setupUserWithWebhook();
+      const req = createRequest("http://localhost:7027/api/twitter/test", {
+        webhookKey: key,
+      });
+      await withTwitterProvider(req, async () => {
+        throw new Error("boom");
+      });
+
+      // No usage stats should be recorded
+      const stats = usageStatsRepo.findByUserId(TEST_USER_ID);
+      expect(stats.length).toBe(0);
     } finally {
       process.env.MOCK_PROVIDER = originalEnv;
     }
