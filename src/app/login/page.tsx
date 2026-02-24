@@ -3,8 +3,9 @@
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { Radar } from "lucide-react";
 import LoadingScreen from "@/components/loading-screen";
+
+/* eslint-disable @next/next/no-img-element */
 
 function ScanLine() {
   return (
@@ -63,9 +64,11 @@ function LoginContent() {
             <ScanLine />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <Radar
-                  className="h-5 w-5 text-primary-foreground"
-                  strokeWidth={1.5}
+                <img
+                  src="/logo-24.png"
+                  alt="X-Ray"
+                  width={24}
+                  height={24}
                 />
                 <span className="text-base font-semibold text-primary-foreground font-mono tracking-wide">
                   X-Ray
@@ -82,11 +85,15 @@ function LoginContent() {
 
           {/* Body */}
           <div className="flex flex-col items-center px-6 pt-8 pb-6">
-            {/* Icon */}
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary ring-1 ring-border">
-              <span className="text-xl font-bold text-primary font-mono">
-                X
-              </span>
+            {/* Logo */}
+            <div className="h-20 w-20 overflow-hidden rounded-full bg-secondary dark:bg-[#171717] ring-1 ring-border p-2.5">
+              <img
+                src="/logo-80.png"
+                alt="X-Ray"
+                width={80}
+                height={80}
+                className="h-full w-full object-contain"
+              />
             </div>
 
             <p className="mt-4 text-base font-semibold text-foreground">
