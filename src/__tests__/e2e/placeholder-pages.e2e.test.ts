@@ -71,39 +71,39 @@ describe("e2e: placeholder pages", () => {
   // ---------------------------------------------------------------------------
 
   describe("my account", () => {
-    test("GET /bookmarks returns 200 with Coming Soon", async () => {
+    test("GET /bookmarks returns 200 with functional page", async () => {
       const { status, html } = await fetchPage("/bookmarks");
       expect(status).toBe(200);
       expect(html).toContain("Bookmarks");
-      expect(html).toContain("Coming Soon");
+      expect(html).not.toContain("Coming Soon");
     });
 
-    test("GET /likes returns 200 with Coming Soon", async () => {
+    test("GET /likes returns 200 with functional page", async () => {
       const { status, html } = await fetchPage("/likes");
       expect(status).toBe(200);
       expect(html).toContain("Likes");
-      expect(html).toContain("Coming Soon");
+      expect(html).not.toContain("Coming Soon");
     });
 
-    test("GET /lists returns 200 with Coming Soon", async () => {
+    test("GET /lists returns 200 with functional page", async () => {
       const { status, html } = await fetchPage("/lists");
       expect(status).toBe(200);
       expect(html).toContain("Lists");
-      expect(html).toContain("Coming Soon");
+      expect(html).not.toContain("Coming Soon");
     });
 
-    test("GET /messages returns 200 with Coming Soon", async () => {
+    test("GET /messages returns 200 with functional inbox", async () => {
       const { status, html } = await fetchPage("/messages");
       expect(status).toBe(200);
       expect(html).toContain("Messages");
-      expect(html).toContain("Coming Soon");
+      expect(html).not.toContain("Coming Soon");
     });
 
-    test("GET /messages/conv-123 returns 200 with Coming Soon", async () => {
+    test("GET /messages/conv-123 returns 200 with functional conversation", async () => {
       const { status, html } = await fetchPage("/messages/conv-123");
       expect(status).toBe(200);
       expect(html).toContain("Conversation");
-      expect(html).toContain("Coming Soon");
+      expect(html).not.toContain("Coming Soon");
     });
   });
 
