@@ -1,6 +1,6 @@
 # Dashboard API 全量接入执行计划
 
-> 状态：**进行中 — Phase 4 已完成** | 创建：2026-02-25 | 最后更新：2026-02-25
+> 状态：**已完成 — 全部 5 个 Phase** | 创建：2026-02-25 | 最后更新：2026-02-25
 
 ## 1. 背景
 
@@ -438,23 +438,23 @@ export interface CreditsUsageRecord {
 
 **任务清单**：
 
-- [ ] `ITwitterProvider` 新增方法：
-  - [ ] `getCredits(): Promise<Credits>`
-  - [ ] `getCreditsUsage(): Promise<CreditsUsageRecord[]>`
-- [ ] `shared/types.ts` 新增 `Credits` 和 `CreditsUsageRecord` 类型
-- [ ] `TweAPIProvider` 实现 `getCredits` + `getCreditsUsage`
-- [ ] `MockTwitterProvider` 实现 `getCredits` + `getCreditsUsage`
-- [ ] 新建 API 路由：
-  - [ ] `GET /api/credits`
-  - [ ] `GET /api/credits/usage`
-- [ ] Settings 页面新增 Credits 余额卡片
-- [ ] Usage 页面新增 TweAPI Credits 消费明细面板
-- [ ] 确认所有新页面功能完整后，移除旧路由：
-  - [ ] `/explore` → 由 `/tweets` + `/users` 替代
-  - [ ] `/explore/user/[username]` → 由 `/users/[username]` 替代
-- [ ] 更新 Dashboard 首页状态卡片
-- [ ] 单元测试：Provider / API 路由
-- [ ] 全量 E2E 回归
+- [x] `ITwitterProvider` 新增方法：
+  - [x] `getCredits(): Promise<Credits>`
+  - [x] `getCreditsUsage(): Promise<CreditsUsageRecord[]>`
+- [x] `shared/types.ts` 新增 `Credits` 和 `CreditsUsageRecord` 类型
+- [x] `TweAPIProvider` 实现 `getCredits` + `getCreditsUsage`（含 `requestGet<T>()` 方法）
+- [x] `MockTwitterProvider` 实现 `getCredits` + `getCreditsUsage`
+- [x] 新建 API 路由：
+  - [x] `GET /api/credits`
+  - [x] `GET /api/credits/usage`
+- [x] Settings 页面新增 Credits 余额卡片
+- [x] Usage 页面新增 TweAPI Credits 消费明细面板
+- [x] 确认所有新页面功能完整后，移除旧路由：
+  - [x] `/explore` → 由 `/tweets` + `/users` 替代
+  - [x] `/explore/user/[username]` → 由 `/users/[username]` 替代
+- [x] 更新 Dashboard 首页状态卡片
+- [x] 单元测试：Provider / API 路由（22 mock-provider tests）
+- [x] 全量 E2E 回归（99 E2E tests, 315 total tests, 0 failures）
 
 **Commit 策略**：
 1. `test: add credits provider tests (red)`
@@ -535,3 +535,5 @@ export interface CreditsUsageRecord {
 | 2026-02-25 | Phase 2 完成：getTweetReplies provider + API routes + /tweets 搜索页 + /tweets/[id] 详情页 + 共享 TweetCard 组件 + E2E |
 | 2026-02-25 | Phase 3 完成：6 个 user content/connections provider 方法 + 12 个 API 路由 + /users 搜索页 + /users/[username] 多标签 profile 页 + /users/[username]/connections 页 + UserCard 组件 + 19 E2E tests (76 total, 0 fail) |
 | 2026-02-25 | Phase 4 完成：bookmarks/likes/lists 功能页 + getInbox/getConversation provider 方法 + 7 个 API 路由 (webhook + explore) + /messages 收件箱页 + /messages/[conversationId] 对话页 + 18 E2E tests (94 total, 0 fail) |
+| 2026-02-25 | Phase 5 完成：getCredits/getCreditsUsage provider 方法 (含 requestGet) + Credits/CreditsUsageRecord 类型 + 2 个 API 路由 + Settings 页 Credits 余额卡片 + Usage 页 Credits 消费明细面板 + 移除 /explore 旧页面 + 4 E2E tests (99 total, 315 all tests, 0 fail) |
+| 2026-02-25 | **全部 Phase 完成** 🎉 20/20 TweAPI 接口已接入，29 commits，315 tests (99 E2E), 0 failures |
