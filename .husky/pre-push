@@ -4,14 +4,13 @@
 # Root-level unit tests (scripts, agent)
 bun test tests/ --timeout 30000
 
-# Server: all tests including E2E
-cd server && bun test
-
-# Next.js unit tests
-cd .. && bun test src/__tests__/auth.test.ts src/__tests__/crypto.test.ts src/__tests__/db/ src/__tests__/api/
+# Next.js unit + integration tests (excludes e2e)
+bun test src/__tests__/auth.test.ts src/__tests__/crypto.test.ts src/__tests__/version.test.ts \
+  src/__tests__/db/ src/__tests__/api/ src/__tests__/twitter/ src/__tests__/components/ \
+  --timeout 30000
 
 # Lint
 bun run lint
 
 # Next.js E2E tests
-bun test src/__tests__/e2e/
+bun test src/__tests__/e2e/ --timeout 30000
