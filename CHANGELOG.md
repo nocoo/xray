@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-02-26
+
+### Added
+
+- **Playwright browser E2E** — 15 smoke tests covering all pages, sidebar navigation, tweet/user search flows, and settings rendering
+- **Test coverage reporting** — `bun run test:coverage` with 70% line/function threshold via `bunfig.toml`
+- **ViewModel hooks** — `useFetch`, `useSearch`, `useMutation` in `src/hooks/use-api.ts` for clean data-fetching patterns
+- **Shared feedback components** — `ErrorBanner`, `EmptyState`, `LoadingSpinner`, `StatusMessage`, `SectionSkeleton` in `src/components/ui/feedback.tsx`
+- **XRayAPIClient** — production API client for scripts using webhook key auth
+- Unit tests for `normalizeCredits` and `normalizeCreditsUsage`
+
+### Changed
+
+- All 6 page components migrated from inline `useState`+`useEffect`+`fetch` to ViewModel hooks (`useFetch`/`useSearch`)
+- Settings page uses shared feedback components instead of local duplicates
+- ESLint coverage extended to `agent/` and `scripts/` directories (previously ignored); all 54 warnings fixed
+- Credits API calls now routed through `normalizer.ts` anti-corruption layer (`normalizeCredits`, `normalizeCreditsUsage`)
+- `TweAPIProvider.request()`/`requestGet()` deduplicated into shared `_fetch()` method
+- `scripts/lib/types.ts` de-duplicated — now re-exports from `shared/types.ts`
+- Playwright test files use `*.pw.ts` naming to avoid `bun test` discovery conflict
+- Pre-push hook now runs Playwright browser E2E in addition to API E2E + lint
+
+### Removed
+
+- Legacy Hono server and unused `XRayClient`
+- `TwitterAPIClient` and legacy TweAPI type files (scripts migrated to `XRayAPIClient`)
+- Dead `server/` reference from Husky hooks
+
+### Fixed
+
+- Non-null assertion errors in `mock-provider.test.ts` and `normalizer.test.ts` (pre-existing TS strict mode violations)
+- Husky hooks now include all test directories (`src/__tests__/twitter/`, `src/__tests__/components/`, `src/__tests__/version.test.ts`)
+
 ## [1.0.0] - 2026-02-25
 
 ### Added
