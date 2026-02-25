@@ -22,6 +22,7 @@ import {
   Bot,
   ChevronDown,
   ChevronRight,
+  Coins,
 } from "lucide-react";
 
 // =============================================================================
@@ -42,6 +43,12 @@ type WebhookData = {
   rotatedAt: string;
 };
 
+type CreditsData = {
+  remaining: number;
+  total: number;
+  expires_at?: string;
+};
+
 // =============================================================================
 // Settings Page
 // =============================================================================
@@ -57,6 +64,8 @@ export default function SettingsPage() {
           </p>
         </div>
 
+        <CreditsSection />
+        <Separator />
         <CredentialsSection />
         <Separator />
         <WebhooksSection />
@@ -64,6 +73,99 @@ export default function SettingsPage() {
         <AiPromptSection />
       </div>
     </AppShell>
+  );
+}
+
+// =============================================================================
+// Credits Balance Section
+// =============================================================================
+
+function CreditsSection() {
+  const [credits, setCredits] = useState<CreditsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/credits");
+        if (res.ok) {
+          const json = await res.json();
+          setCredits(json.data);
+        } else {
+          setError("Could not load credits balance.");
+        }
+      } catch {
+        setError("Could not load credits balance.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) {
+    return <SectionSkeleton title="TweAPI Credits" />;
+  }
+
+  const usedPercent =
+    credits && credits.total > 0
+      ? Math.round(((credits.total - credits.remaining) / credits.total) * 100)
+      : 0;
+
+  const barColor =
+    usedPercent > 90
+      ? "bg-red-500"
+      : usedPercent > 70
+        ? "bg-yellow-500"
+        : "bg-primary";
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Coins className="size-5 text-primary" />
+        <h2 className="text-lg font-semibold">TweAPI Credits</h2>
+      </div>
+
+      <p className="text-sm text-muted-foreground">
+        Your API credit balance for TweAPI requests.
+      </p>
+
+      {error ? (
+        <StatusMessage type="error" text={error} />
+      ) : credits ? (
+        <div className="space-y-4 rounded-card bg-secondary p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-2xl font-bold font-display">
+                {credits.remaining.toLocaleString()}
+              </span>
+              <span className="ml-1 text-sm text-muted-foreground">
+                / {credits.total.toLocaleString()} credits
+              </span>
+            </div>
+            <Badge
+              variant={usedPercent > 90 ? "destructive" : usedPercent > 70 ? "secondary" : "default"}
+            >
+              {usedPercent}% used
+            </Badge>
+          </div>
+
+          {/* Progress bar */}
+          <div className="h-2 w-full rounded-full bg-muted">
+            <div
+              className={`h-2 rounded-full transition-all ${barColor}`}
+              style={{ width: `${usedPercent}%` }}
+            />
+          </div>
+
+          {credits.expires_at && (
+            <p className="text-xs text-muted-foreground">
+              Expires {formatDate(credits.expires_at)}
+            </p>
+          )}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
