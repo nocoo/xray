@@ -6,12 +6,18 @@ import {
   normalizeAnalytics,
   normalizeAnalyticsWithTimeSeries,
   parseTimeSeries,
+  normalizeCredits,
+  normalizeCreditsUsage,
 } from "@/lib/twitter/normalizer";
 import type {
   TweAPITweet,
   TweAPIAuthor,
   TweAPIList,
   TweAPIAnalytics,
+} from "@/lib/twitter/api-types";
+import type {
+  TweAPICreditsResponse,
+  TweAPICreditsUsageResponse,
 } from "@/lib/twitter/api-types";
 
 // =============================================================================
@@ -333,5 +339,85 @@ describe("normalizeAnalyticsWithTimeSeries", () => {
     expect(result.impressions).toBe(10000);
     expect(result.time_series).toHaveLength(1);
     expect(result.time_series[0].impressions).toBe(1500);
+  });
+});
+
+// =============================================================================
+// normalizeCredits
+// =============================================================================
+
+describe("normalizeCredits", () => {
+  test("maps TweAPICreditsResponse to Credits", () => {
+    const apiResponse: TweAPICreditsResponse = {
+      code: 200,
+      msg: "ok",
+      data: { remaining: 4200, total: 5000, expiresAt: "2026-12-31T23:59:59Z" },
+    };
+    const result = normalizeCredits(apiResponse);
+    expect(result.remaining).toBe(4200);
+    expect(result.total).toBe(5000);
+    expect(result.expires_at).toBe("2026-12-31T23:59:59Z");
+  });
+
+  test("defaults to 0 when data fields are missing", () => {
+    const apiResponse = {
+      code: 200,
+      msg: "ok",
+      data: {},
+    } as TweAPICreditsResponse;
+    const result = normalizeCredits(apiResponse);
+    expect(result.remaining).toBe(0);
+    expect(result.total).toBe(0);
+    expect(result.expires_at).toBeUndefined();
+  });
+
+  test("handles missing data property gracefully", () => {
+    const apiResponse = { code: 200, msg: "ok" } as TweAPICreditsResponse;
+    const result = normalizeCredits(apiResponse);
+    expect(result.remaining).toBe(0);
+    expect(result.total).toBe(0);
+    expect(result.expires_at).toBeUndefined();
+  });
+});
+
+// =============================================================================
+// normalizeCreditsUsage
+// =============================================================================
+
+describe("normalizeCreditsUsage", () => {
+  test("maps TweAPICreditsUsageResponse to CreditsUsageRecord[]", () => {
+    const apiResponse: TweAPICreditsUsageResponse = {
+      code: 200,
+      msg: "ok",
+      data: {
+        list: [
+          { date: "2026-02-20", endpoint: "/v1/twitter/user/info", creditsUsed: 10, requestCount: 5 },
+          { date: "2026-02-21", endpoint: "/v1/twitter/tweet/search", creditsUsed: 30, requestCount: 15 },
+        ],
+      },
+    };
+    const result = normalizeCreditsUsage(apiResponse);
+    expect(result).toHaveLength(2);
+    expect(result[0]!.date).toBe("2026-02-20");
+    expect(result[0]!.endpoint).toBe("/v1/twitter/user/info");
+    expect(result[0]!.credits_used).toBe(10);
+    expect(result[0]!.request_count).toBe(5);
+    expect(result[1]!.credits_used).toBe(30);
+  });
+
+  test("returns empty array when list is missing", () => {
+    const apiResponse = {
+      code: 200,
+      msg: "ok",
+      data: {},
+    } as TweAPICreditsUsageResponse;
+    const result = normalizeCreditsUsage(apiResponse);
+    expect(result).toEqual([]);
+  });
+
+  test("returns empty array when data is missing", () => {
+    const apiResponse = { code: 200, msg: "ok" } as TweAPICreditsUsageResponse;
+    const result = normalizeCreditsUsage(apiResponse);
+    expect(result).toEqual([]);
   });
 });
