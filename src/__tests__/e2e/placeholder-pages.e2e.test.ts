@@ -132,9 +132,9 @@ describe("e2e: placeholder pages", () => {
       expect(status).toBe(200);
     });
 
-    test("GET /explore returns 200 (preserved until Phase 5)", async () => {
+    test("GET /explore returns 404 (removed in Phase 5)", async () => {
       const { status } = await fetchPage("/explore");
-      expect(status).toBe(200);
+      expect(status).toBe(404);
     });
   });
 });
