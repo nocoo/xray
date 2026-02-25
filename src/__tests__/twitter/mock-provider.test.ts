@@ -54,7 +54,7 @@ describe("MockTwitterProvider", () => {
   test("searchUserTweets returns results", async () => {
     const tweets = await provider.searchUserTweets("testuser", "ai");
     expect(tweets.length).toBeGreaterThan(0);
-    expect(tweets[0].author.username).toBe("testuser");
+    expect(tweets[0]!.author.username).toBe("testuser");
   });
 
   test("getTweetReplies returns reply tweets for a given tweet", async () => {
@@ -94,8 +94,8 @@ describe("MockTwitterProvider", () => {
   test("getUserHighlights returns highlighted tweets", async () => {
     const highlights = await provider.getUserHighlights("testuser");
     expect(highlights.length).toBeGreaterThan(0);
-    expect(highlights[0].id).toContain("highlight");
-    expect(highlights[0].author.username).toBe("testuser");
+    expect(highlights[0]!.id).toContain("highlight");
+    expect(highlights[0]!.author.username).toBe("testuser");
   });
 
   // ===========================================================================
@@ -159,8 +159,8 @@ describe("MockTwitterProvider", () => {
   test("getUserLists returns lists", async () => {
     const lists = await provider.getUserLists();
     expect(lists.length).toBeGreaterThan(0);
-    expect(lists[0].name).toBeDefined();
-    expect(lists[0].member_count).toBeGreaterThan(0);
+    expect(lists[0]!.name).toBeDefined();
+    expect(lists[0]!.member_count).toBeGreaterThan(0);
   });
 
   // ---------------------------------------------------------------------------
@@ -177,7 +177,7 @@ describe("MockTwitterProvider", () => {
       expect(item.last_message.text).toBeDefined();
       expect(item.last_message.sender_id).toBeDefined();
       expect(item.participants.length).toBeGreaterThan(0);
-      expect(item.participants[0].username).toBeDefined();
+      expect(item.participants[0]!.username).toBeDefined();
     }
   });
 
@@ -193,7 +193,7 @@ describe("MockTwitterProvider", () => {
       expect(msg.created_at).toBeDefined();
     }
     expect(conversation.participants.length).toBeGreaterThan(0);
-    expect(conversation.participants[0].username).toBeDefined();
+    expect(conversation.participants[0]!.username).toBeDefined();
   });
 
   // ===========================================================================

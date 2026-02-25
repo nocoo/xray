@@ -117,10 +117,10 @@ describe("normalizeTweet", () => {
     });
     const result = normalizeTweet(tweet);
     expect(result.media).toHaveLength(2);
-    expect(result.media![0].type).toBe("PHOTO");
-    expect(result.media![0].thumbnail_url).toBe("https://example.com/thumb.jpg");
-    expect(result.media![1].type).toBe("VIDEO");
-    expect(result.media![1].thumbnail_url).toBeUndefined();
+    expect(result.media![0]!.type).toBe("PHOTO");
+    expect(result.media![0]!.thumbnail_url).toBe("https://example.com/thumb.jpg");
+    expect(result.media![1]!.type).toBe("VIDEO");
+    expect(result.media![1]!.thumbnail_url).toBeUndefined();
   });
 
   test("maps entities correctly", () => {
@@ -297,11 +297,11 @@ describe("parseTimeSeries", () => {
     };
     const result = parseTimeSeries(analytics);
     expect(result).toHaveLength(2);
-    expect(result[0].date).toBe("2026-02-23");
-    expect(result[0].impressions).toBe(1500);
-    expect(result[0].likes).toBe(30);
-    expect(result[1].retweets).toBe(18);
-    expect(result[1].bookmarks).toBe(8);
+    expect(result[0]!.date).toBe("2026-02-23");
+    expect(result[0]!.impressions).toBe(1500);
+    expect(result[0]!.likes).toBe(30);
+    expect(result[1]!.retweets).toBe(18);
+    expect(result[1]!.bookmarks).toBe(8);
   });
 
   test("returns empty array when no time series", () => {
@@ -338,7 +338,7 @@ describe("normalizeAnalyticsWithTimeSeries", () => {
     const result = normalizeAnalyticsWithTimeSeries(analytics);
     expect(result.impressions).toBe(10000);
     expect(result.time_series).toHaveLength(1);
-    expect(result.time_series[0].impressions).toBe(1500);
+    expect(result.time_series[0]!.impressions).toBe(1500);
   });
 });
 
