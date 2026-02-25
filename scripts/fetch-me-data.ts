@@ -1,4 +1,4 @@
-import { TwitterAPIClient } from "./lib/api";
+import { createXRayAPIClient } from "./lib/xray-api-client";
 import { loadConfig } from "./lib/utils";
 import { saveAnalytics, getLatestAnalytics, getAnalyticsHistory, calculateTrend, type AnalyticsRecord, type AnalyticsTrend } from "./lib/analytics-db";
 import type { Tweet, TwitterList, AnalyticsWithTimeSeries } from "./lib/types";
@@ -20,11 +20,6 @@ export interface MeData {
 async function main() {
   const config = await loadConfig();
 
-  if (!config.api.cookie) {
-    console.error("Error: Cookie is required. Please set api.cookie in config.");
-    process.exit(1);
-  }
-
   if (!config.me?.username) {
     console.error("Error: me.username is required in config.");
     process.exit(1);
@@ -33,7 +28,7 @@ async function main() {
   const username = config.me.username;
   console.log(`📊 Fetching all data for @${username}...`);
 
-  const client = new TwitterAPIClient(config);
+  const client = await createXRayAPIClient();
 
   try {
     let analyticsData: {

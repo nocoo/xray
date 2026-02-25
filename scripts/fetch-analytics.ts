@@ -1,15 +1,10 @@
-import { TwitterAPIClient } from "./lib/api";
+import { createXRayAPIClient } from "./lib/xray-api-client";
 import { loadConfig } from "./lib/utils";
 import { saveAnalytics, getLatestAnalytics, calculateTrend } from "./lib/analytics-db";
 import type { AnalyticsTrend } from "./lib/analytics-db";
 
 async function main() {
   const config = await loadConfig();
-
-  if (!config.api.cookie) {
-    console.error("Error: Cookie is required for analytics API. Please set api.cookie in config.");
-    process.exit(1);
-  }
 
   if (!config.me?.username) {
     console.error("Error: me.username is required in config.");
@@ -19,7 +14,7 @@ async function main() {
   const username = config.me.username;
   console.log(`Fetching analytics for @${username}...`);
 
-  const client = new TwitterAPIClient(config);
+  const client = await createXRayAPIClient();
 
   try {
     const analytics = await client.getUserAnalytics();

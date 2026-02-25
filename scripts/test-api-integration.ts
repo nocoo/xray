@@ -1,5 +1,4 @@
-import { TwitterAPIClient } from "./lib/api";
-import { loadConfig } from "./lib/utils";
+import { createXRayAPIClient } from "./lib/xray-api-client";
 
 const TEST_USER_URL = "https://x.com/zhengli";
 const TEST_TWEET_URL = "https://x.com/zhengli/status/2015179265155952807";
@@ -25,8 +24,7 @@ async function testEndpoint<T>(
 }
 
 async function main() {
-  const config = await loadConfig();
-  const client = new TwitterAPIClient(config);
+  const client = await createXRayAPIClient();
 
   const results: Array<{ name: string; success: boolean; error?: string }> = [];
 

@@ -1,7 +1,5 @@
-import { loadConfig } from "../../scripts/lib/utils";
-import { createAPIClient } from "../../scripts/lib/api";
+import { createXRayAPIClient } from "../../scripts/lib/xray-api-client";
 
 export async function getAgentClient() {
-  const config = await loadConfig();
-  return createAPIClient(config);
+  return createXRayAPIClient();
 }
