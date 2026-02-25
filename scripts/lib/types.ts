@@ -1,4 +1,33 @@
 // =============================================================================
+// Script-layer Types
+// Shared domain types are re-exported from shared/types.ts (single source of truth).
+// Only script-specific types are defined here.
+// =============================================================================
+
+export type {
+  Tweet,
+  TweetAuthor,
+  TweetMetrics,
+  TweetMedia,
+  TweetEntities,
+  UserInfo,
+  TwitterList,
+  Analytics,
+  DailyMetrics,
+  AnalyticsWithTimeSeries,
+  Message,
+  Conversation,
+  InboxItem,
+  Credits,
+  CreditsUsageRecord,
+} from "../../shared/types";
+
+import type {
+  Tweet,
+  TweetMetrics,
+} from "../../shared/types";
+
+// =============================================================================
 // Configuration Types
 // =============================================================================
 
@@ -33,58 +62,6 @@ export interface WatchlistUser {
 
 export interface Watchlist {
   users: WatchlistUser[];
-}
-
-// =============================================================================
-// Tweet Types (Internal Model)
-// =============================================================================
-
-export interface TweetAuthor {
-  id: string;
-  username: string;
-  name: string;
-  profile_image_url?: string;
-  followers_count?: number;
-  is_verified?: boolean;
-}
-
-export interface TweetMetrics {
-  retweet_count: number;
-  like_count: number;
-  reply_count: number;
-  quote_count: number;
-  view_count: number;
-  bookmark_count: number;
-}
-
-export interface TweetMedia {
-  id: string;
-  type: "PHOTO" | "VIDEO" | "GIF";
-  url: string;
-  thumbnail_url?: string;
-}
-
-export interface TweetEntities {
-  hashtags: string[];
-  mentioned_users: string[];
-  urls: string[];
-}
-
-export interface Tweet {
-  id: string;
-  text: string;
-  author: TweetAuthor;
-  created_at: string; // ISO 8601
-  url: string;
-  metrics: TweetMetrics;
-  is_retweet: boolean;
-  is_quote: boolean;
-  is_reply: boolean;
-  lang?: string;
-  media?: TweetMedia[];
-  entities?: TweetEntities;
-  quoted_tweet?: Tweet;
-  reply_to_id?: string;
 }
 
 // =============================================================================
@@ -147,93 +124,6 @@ export interface ReportFile {
     selected_count: number;
   };
   tweets: ReportTweet[];
-}
-
-// =============================================================================
-// Internal Normalized Types
-// =============================================================================
-
-export interface UserInfo {
-  id: string;
-  username: string;
-  name: string;
-  description?: string;
-  location?: string;
-  profile_image_url: string;
-  profile_banner_url?: string;
-  followers_count: number;
-  following_count: number;
-  tweet_count: number;
-  like_count: number;
-  is_verified: boolean;
-  created_at: string;
-  pinned_tweet_id?: string;
-}
-
-export interface TwitterList {
-  id: string;
-  name: string;
-  description?: string;
-  member_count: number;
-  subscriber_count: number;
-  created_at: string;
-  created_by: string;
-  is_following?: boolean;
-  is_member?: boolean;
-}
-
-export interface Message {
-  id: string;
-  text: string;
-  sender_id: string;
-  recipient_id: string;
-  created_at: string;
-  media_urls?: string[];
-}
-
-export interface Conversation {
-  conversation_id: string;
-  messages: Message[];
-  participants: UserInfo[];
-}
-
-export interface InboxItem {
-  conversation_id: string;
-  last_message: Message;
-  participants: UserInfo[];
-  unread_count?: number;
-}
-
-export interface Analytics {
-  impressions: number;
-  engagements: number;
-  engagement_rate: number;
-  likes: number;
-  retweets: number;
-  replies: number;
-  profile_visits: number;
-  followers: number;
-  following: number;
-  verified_followers?: number;
-  bookmarks?: number;
-  shares?: number;
-  unfollows?: number;
-}
-
-export interface DailyMetrics {
-  date: string;
-  impressions: number;
-  engagements: number;
-  profile_visits: number;
-  follows: number;
-  likes: number;
-  replies: number;
-  retweets: number;
-  bookmarks: number;
-}
-
-export interface AnalyticsWithTimeSeries extends Analytics {
-  time_series: DailyMetrics[];
 }
 
 // =============================================================================
