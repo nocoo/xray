@@ -56,7 +56,7 @@ export function createApp(deps: AppDeps) {
     openapi: "3.0.0",
     info: {
       title: "X-Ray API",
-      version: "0.1.0",
+      version: "0.2.1",
       description: "Social media data proxy with provider abstraction",
     },
   });
