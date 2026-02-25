@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { AppShell } from "@/components/layout";
 import { TweetCard } from "@/components/twitter/tweet-card";
-import { Loader2, Bookmark } from "lucide-react";
+import { LoadingSpinner, ErrorBanner, EmptyState } from "@/components/ui/feedback";
+import { Bookmark } from "lucide-react";
+import { useFetch } from "@/hooks/use-api";
 
 import type { Tweet } from "../../../shared/types";
 
@@ -12,28 +13,10 @@ import type { Tweet } from "../../../shared/types";
 // =============================================================================
 
 export default function BookmarksPage() {
-  const [tweets, setTweets] = useState<Tweet[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch("/api/explore/bookmarks");
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          setError(data.error ?? "Failed to load bookmarks");
-        } else {
-          setTweets(data.data ?? []);
-        }
-      } catch {
-        setError("Network error — could not reach API");
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  const { data: tweets, loading, error } = useFetch<Tweet[]>(
+    "/api/explore/bookmarks",
+    "Failed to load bookmarks",
+  );
 
   return (
     <AppShell breadcrumbs={[{ label: "Bookmarks" }]}>
@@ -46,22 +29,10 @@ export default function BookmarksPage() {
           </p>
         </div>
 
-        {/* Loading */}
-        {loading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        )}
+        {loading && <LoadingSpinner />}
+        {error && <ErrorBanner error={error} />}
 
-        {/* Error */}
-        {error && (
-          <div className="rounded-card bg-destructive/10 p-4 text-sm text-destructive">
-            {error}
-          </div>
-        )}
-
-        {/* Results */}
-        {!loading && !error && tweets.length > 0 && (
+        {!loading && !error && tweets && tweets.length > 0 && (
           <div className="space-y-4">
             {tweets.map((tweet) => (
               <TweetCard key={tweet.id} tweet={tweet} />
@@ -69,15 +40,12 @@ export default function BookmarksPage() {
           </div>
         )}
 
-        {/* Empty */}
-        {!loading && !error && tweets.length === 0 && (
-          <div className="rounded-card bg-secondary p-12 text-center">
-            <Bookmark className="mx-auto h-10 w-10 text-muted-foreground/40 mb-4" />
-            <p className="text-muted-foreground">No bookmarks found.</p>
-            <p className="mt-1 text-xs text-muted-foreground/70">
-              Bookmark tweets on Twitter/X and they will appear here.
-            </p>
-          </div>
+        {!loading && !error && (!tweets || tweets.length === 0) && (
+          <EmptyState
+            icon={Bookmark}
+            title="No bookmarks found."
+            subtitle="Bookmark tweets on Twitter/X and they will appear here."
+          />
         )}
       </div>
     </AppShell>
