@@ -1,6 +1,6 @@
 # Dashboard API 全量接入执行计划
 
-> 状态：**进行中 — Phase 3 已完成** | 创建：2026-02-25 | 最后更新：2026-02-25
+> 状态：**进行中 — Phase 4 已完成** | 创建：2026-02-25 | 最后更新：2026-02-25
 
 ## 1. 背景
 
@@ -398,28 +398,28 @@ export interface CreditsUsageRecord {
 
 **任务清单**：
 
-- [ ] 实现 `/bookmarks` 页面（调用已有 `getUserBookmarks` API）
-- [ ] 实现 `/likes` 页面（调用已有 `getUserLikes` API）
-- [ ] 实现 `/lists` 页面（调用已有 `getUserLists` API）
-- [ ] `ITwitterProvider` 新增方法：
-  - [ ] `getInbox(): Promise<InboxItem[]>`
-  - [ ] `getConversation(conversationId: string): Promise<Conversation>`
-- [ ] `TweAPIProvider` 实现 `getInbox` + `getConversation`
-- [ ] `MockTwitterProvider` 实现 `getInbox` + `getConversation`
-- [ ] Normalizer 适配消息数据格式
-- [ ] 新建 API 路由：
-  - [ ] `GET /api/twitter/me/inbox`
-  - [ ] `GET /api/twitter/me/messages/[conversationId]`
-- [ ] 新建 Explore API 路由：
-  - [ ] `GET /api/explore/bookmarks`
-  - [ ] `GET /api/explore/likes`
-  - [ ] `GET /api/explore/lists`
-  - [ ] `GET /api/explore/inbox`
-  - [ ] `GET /api/explore/messages/[conversationId]`
-- [ ] 实现 `/messages` 页面（收件箱列表）
-- [ ] 实现 `/messages/[conversationId]` 页面（对话消息）
-- [ ] 单元测试：Provider / Normalizer / API 路由
-- [ ] E2E：书签跳转推文详情 / 收件箱 → 对话
+- [x] 实现 `/bookmarks` 页面（调用已有 `getUserBookmarks` API）
+- [x] 实现 `/likes` 页面（调用已有 `getUserLikes` API）
+- [x] 实现 `/lists` 页面（调用已有 `getUserLists` API）
+- [x] `ITwitterProvider` 新增方法：
+  - [x] `getInbox(): Promise<InboxItem[]>`
+  - [x] `getConversation(conversationId: string): Promise<Conversation>`
+- [x] `TweAPIProvider` 实现 `getInbox` + `getConversation`
+- [x] `MockTwitterProvider` 实现 `getInbox` + `getConversation`
+- [x] Normalizer 适配消息数据格式
+- [x] 新建 API 路由：
+  - [x] `GET /api/twitter/me/inbox`
+  - [x] `GET /api/twitter/me/messages/[conversationId]`
+- [x] 新建 Explore API 路由：
+  - [x] `GET /api/explore/bookmarks`
+  - [x] `GET /api/explore/likes`
+  - [x] `GET /api/explore/lists`
+  - [x] `GET /api/explore/inbox`
+  - [x] `GET /api/explore/messages/[conversationId]`
+- [x] 实现 `/messages` 页面（收件箱列表）
+- [x] 实现 `/messages/[conversationId]` 页面（对话消息）
+- [x] 单元测试：Provider / Normalizer / API 路由
+- [x] E2E：书签跳转推文详情 / 收件箱 → 对话
 
 **Commit 策略**：
 1. `feat: implement bookmarks page`
@@ -534,3 +534,4 @@ export interface CreditsUsageRecord {
 | 2026-02-25 | Phase 1 完成：sidebar 分组重构 + 10 个占位页面 + UT + E2E |
 | 2026-02-25 | Phase 2 完成：getTweetReplies provider + API routes + /tweets 搜索页 + /tweets/[id] 详情页 + 共享 TweetCard 组件 + E2E |
 | 2026-02-25 | Phase 3 完成：6 个 user content/connections provider 方法 + 12 个 API 路由 + /users 搜索页 + /users/[username] 多标签 profile 页 + /users/[username]/connections 页 + UserCard 组件 + 19 E2E tests (76 total, 0 fail) |
+| 2026-02-25 | Phase 4 完成：bookmarks/likes/lists 功能页 + getInbox/getConversation provider 方法 + 7 个 API 路由 (webhook + explore) + /messages 收件箱页 + /messages/[conversationId] 对话页 + 18 E2E tests (94 total, 0 fail) |
