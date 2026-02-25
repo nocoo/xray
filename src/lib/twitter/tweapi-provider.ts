@@ -416,9 +416,9 @@ export class TweAPIProvider implements ITwitterProvider {
       "/v1/credits",
     );
     return {
-      remaining: data.data.remaining,
-      total: data.data.total,
-      expires_at: data.data.expiresAt,
+      remaining: data.data?.remaining ?? 0,
+      total: data.data?.total ?? 0,
+      expires_at: data.data?.expiresAt,
     };
   }
 

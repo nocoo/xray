@@ -91,7 +91,13 @@ function CreditsSection() {
         const res = await fetch("/api/credits");
         if (res.ok) {
           const json = await res.json();
-          setCredits(json.data);
+          const d = json.data;
+          if (d && typeof d.remaining === "number" && typeof d.total === "number") {
+            setCredits(d);
+          } else {
+            // API returned unexpected shape — treat as unconfigured
+            setCredits(null);
+          }
         } else if (res.status === 503) {
           // API key not configured — not an error, just show empty state
           setCredits(null);
@@ -140,10 +146,10 @@ function CreditsSection() {
           <div className="flex items-center justify-between">
             <div>
               <span className="text-2xl font-bold font-display">
-                {credits.remaining.toLocaleString()}
+                {(credits.remaining ?? 0).toLocaleString()}
               </span>
               <span className="ml-1 text-sm text-muted-foreground">
-                / {credits.total.toLocaleString()} credits
+                / {(credits.total ?? 0).toLocaleString()} credits
               </span>
             </div>
             <Badge
