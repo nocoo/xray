@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { AppShell } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
+import { LoadingSpinner, ErrorBanner } from "@/components/ui/feedback";
+import { useFetch } from "@/hooks/use-api";
 import {
   TrendingUp,
   Eye,
@@ -15,8 +17,6 @@ import {
   UserMinus,
   Users,
   UserCheck,
-  Loader2,
-  AlertCircle,
 } from "lucide-react";
 import {
   AreaChart,
@@ -127,36 +127,13 @@ const SERIES_LINES = [
 // =============================================================================
 
 export default function AnalyticsPage() {
-  const [data, setData] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, loading, error } = useFetch<AnalyticsData>(
+    "/api/explore/analytics",
+    "Failed to load analytics",
+  );
   const [visibleSeries, setVisibleSeries] = useState<Set<string>>(
     new Set(["impressions", "engagements", "likes"]),
   );
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/explore/analytics");
-      const json = await res.json().catch(() => null);
-
-      if (!res.ok || !json?.success) {
-        setError(json?.error ?? "Failed to load analytics");
-      } else {
-        setData(json.data);
-      }
-    } catch {
-      setError("Network error — could not reach API");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   const toggleSeries = (key: string) => {
     setVisibleSeries((prev) => {
@@ -184,20 +161,9 @@ export default function AnalyticsPage() {
           </p>
         </div>
 
-        {/* Loading */}
-        {loading && (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        )}
+        {loading && <LoadingSpinner className="py-20" />}
 
-        {/* Error */}
-        {error && !loading && (
-          <div className="rounded-card bg-destructive/10 p-6 text-center">
-            <AlertCircle className="mx-auto h-8 w-8 text-destructive mb-2" />
-            <p className="text-sm text-destructive">{error}</p>
-          </div>
-        )}
+        {error && !loading && <ErrorBanner error={error} />}
 
         {/* Content */}
         {data && !loading && (
