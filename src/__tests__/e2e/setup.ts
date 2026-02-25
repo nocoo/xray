@@ -34,7 +34,7 @@ export async function setupE2E(): Promise<void> {
   }
 
   // Start Next.js dev server
-  serverProcess = Bun.spawn(["bun", "next", "dev", "--port", String(E2E_PORT)], {
+  serverProcess = Bun.spawn(["bun", "--bun", "next", "dev", "--port", String(E2E_PORT)], {
     cwd: PROJECT_ROOT,
     env: {
       ...process.env,

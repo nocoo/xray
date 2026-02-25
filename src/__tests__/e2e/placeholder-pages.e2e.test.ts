@@ -29,18 +29,17 @@ describe("e2e: placeholder pages", () => {
   // ---------------------------------------------------------------------------
 
   describe("explore world", () => {
-    test("GET /tweets returns 200 with Coming Soon", async () => {
+    test("GET /tweets returns 200 with search UI", async () => {
       const { status, html } = await fetchPage("/tweets");
       expect(status).toBe(200);
       expect(html).toContain("Tweets");
-      expect(html).toContain("Coming Soon");
+      expect(html).toContain("Search tweets");
     });
 
-    test("GET /tweets/123 returns 200 with Coming Soon", async () => {
+    test("GET /tweets/123 returns 200 with tweet detail", async () => {
       const { status, html } = await fetchPage("/tweets/123");
       expect(status).toBe(200);
-      expect(html).toContain("Tweet Detail");
-      expect(html).toContain("Coming Soon");
+      expect(html).toContain("Tweets"); // breadcrumb
     });
 
     test("GET /users returns 200 with Coming Soon", async () => {

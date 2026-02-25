@@ -16,7 +16,7 @@ import {
   saveRawTweets,
   hoursAgoISO,
 } from "./lib/utils";
-import { createXRayClient } from "./lib/xray-client";
+import { createAPIClient } from "./lib/api";
 import { watchlistGetAll } from "./lib/watchlist-db";
 import {
   tweetInsertMany,
@@ -52,7 +52,7 @@ export async function fetchAllTweets(options: FetchOptions = {}): Promise<Comman
   const now = nowISO();
   const processedIds = skipProcessed ? new Set(processedGetAllIds()) : new Set<string>();
 
-  const client = createXRayClient(config);
+  const client = createAPIClient(config);
   const allTweets: Tweet[] = [];
   const errors: { username: string; error: string }[] = [];
   let skippedCount = 0;
