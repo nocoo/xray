@@ -19,9 +19,10 @@ export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
+  const url = new URL(req.url);
   const days = Math.min(
     Math.max(
-      parseInt(req.nextUrl.searchParams.get("days") ?? "30", 10) || 30,
+      parseInt(url.searchParams.get("days") ?? "30", 10) || 30,
       1,
     ),
     365,
