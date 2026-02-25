@@ -10,6 +10,7 @@
     "lint": "eslint",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
+    "test:e2e:browser": "npx playwright test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
