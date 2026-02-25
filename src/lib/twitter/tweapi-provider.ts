@@ -71,10 +71,14 @@ export class TweAPIProvider implements ITwitterProvider {
   }
 
   // ---------------------------------------------------------------------------
-  // Core HTTP request
+  // Core HTTP helpers
   // ---------------------------------------------------------------------------
 
-  private async request<T>(endpoint: string, body: object): Promise<T> {
+  private async _fetch<T>(
+    endpoint: string,
+    init: { method: "GET" | "POST"; body?: string; headers: Record<string, string> },
+    successCodes: number[],
+  ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
     let didTimeout = false;
@@ -90,15 +94,7 @@ export class TweAPIProvider implements ITwitterProvider {
 
     try {
       const response = await Promise.race([
-        fetch(url, {
-          method: "POST",
-          headers: {
-            "x-api-key": this.apiKey,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify(body),
-          signal: controller.signal,
-        }),
+        fetch(url, { ...init, signal: controller.signal }),
         timeoutPromise,
       ]);
 
@@ -116,7 +112,7 @@ export class TweAPIProvider implements ITwitterProvider {
         msg: string;
       };
 
-      if (data.code !== 201 || data.msg !== "ok") {
+      if (!successCodes.includes(data.code)) {
         throw new UpstreamError(
           502,
           `TweAPI error: ${data.msg} (code: ${data.code})`,
@@ -136,6 +132,26 @@ export class TweAPIProvider implements ITwitterProvider {
         err,
       );
     }
+  }
+
+  private request<T>(endpoint: string, body: object): Promise<T> {
+    return this._fetch<T>(
+      endpoint,
+      {
+        method: "POST",
+        headers: { "x-api-key": this.apiKey, "content-type": "application/json" },
+        body: JSON.stringify(body),
+      },
+      [201],
+    );
+  }
+
+  private requestGet<T>(endpoint: string): Promise<T> {
+    return this._fetch<T>(
+      endpoint,
+      { method: "GET", headers: { "x-api-key": this.apiKey } },
+      [200, 201],
+    );
   }
 
   private requireCookie(): void {
@@ -350,68 +366,6 @@ export class TweAPIProvider implements ITwitterProvider {
   // ---------------------------------------------------------------------------
   // Credits endpoints (GET, API Key only)
   // ---------------------------------------------------------------------------
-
-  private async requestGet<T>(endpoint: string): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
-    const controller = new AbortController();
-    let didTimeout = false;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => {
-        didTimeout = true;
-        controller.abort();
-        reject(new TimeoutError(this.timeout));
-      }, this.timeout);
-    });
-
-    try {
-      const response = await Promise.race([
-        fetch(url, {
-          method: "GET",
-          headers: {
-            "x-api-key": this.apiKey,
-          },
-          signal: controller.signal,
-        }),
-        timeoutPromise,
-      ]);
-
-      if (timeoutId) clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new UpstreamError(
-          response.status,
-          `TweAPI error: ${response.status} ${response.statusText}`,
-        );
-      }
-
-      const data = (await response.json()) as T & {
-        code: number;
-        msg: string;
-      };
-
-      if (data.code !== 200 && data.code !== 201) {
-        throw new UpstreamError(
-          502,
-          `TweAPI error: ${data.msg} (code: ${data.code})`,
-        );
-      }
-
-      return data;
-    } catch (err) {
-      if (timeoutId) clearTimeout(timeoutId);
-      if (didTimeout || (err instanceof Error && err.name === "AbortError")) {
-        throw new TimeoutError(this.timeout);
-      }
-      if (err instanceof ProviderError) throw err;
-      throw new ProviderError(
-        `TweAPI request failed: ${err instanceof Error ? err.message : String(err)}`,
-        500,
-        err,
-      );
-    }
-  }
 
   async getCredits(): Promise<Credits> {
     const data = await this.requestGet<TweAPICreditsResponse>(
