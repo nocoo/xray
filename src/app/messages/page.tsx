@@ -9,7 +9,6 @@ import { useFetch } from "@/hooks/use-api";
 import type { InboxItem } from "../../../shared/types";
 
 // We intentionally use <img> for external Twitter profile images.
-/* eslint-disable @next/next/no-img-element */
 
 // =============================================================================
 // Messages Inbox Page — displays the user's DM inbox

@@ -20,7 +20,6 @@ import type { Tweet } from "../../../shared/types";
 // We intentionally use <img> for external Twitter profile images and media.
 // next/image requires known hostnames in next.config, which is impractical
 // for user-generated Twitter content.
-/* eslint-disable @next/next/no-img-element */
 
 // =============================================================================
 // TweetCard — reusable tweet display component

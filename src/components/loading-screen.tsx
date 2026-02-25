@@ -1,7 +1,6 @@
 /**
  * Full-screen loading overlay with orbital spinner.
  */
-/* eslint-disable @next/next/no-img-element */
 export default function LoadingScreen() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background animate-in fade-in duration-300">

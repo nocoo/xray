@@ -9,7 +9,6 @@ import { Loader2, ArrowLeft, MessageSquare } from "lucide-react";
 import type { Conversation } from "../../../../shared/types";
 
 // We intentionally use <img> for external Twitter profile images.
-/* eslint-disable @next/next/no-img-element */
 
 // =============================================================================
 // Conversation Page — displays a single DM conversation thread

@@ -5,8 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import LoadingScreen from "@/components/loading-screen";
 
-/* eslint-disable @next/next/no-img-element */
-
 function ScanLine() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">

@@ -13,7 +13,6 @@ import {
 import type { UserInfo } from "../../../shared/types";
 
 // We intentionally use <img> for external Twitter profile images.
-/* eslint-disable @next/next/no-img-element */
 
 // =============================================================================
 // UserCard — reusable user profile display component
