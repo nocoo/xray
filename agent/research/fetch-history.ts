@@ -40,7 +40,7 @@ export function buildHistoryOutput(params: {
   };
 }
 
-async function main() {
+export async function main() {
   const client = await getAgentClient();
   
   console.log("=== Fetching historical tweets ===\n");

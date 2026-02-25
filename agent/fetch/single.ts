@@ -71,7 +71,7 @@ export async function fetchUser(options: FetchOptions): Promise<CommandResult<{ 
 }
 
 // CLI
-async function main() {
+export async function main() {
   const args = process.argv.slice(2);
   let user = "";
   let hoursBack = 4;

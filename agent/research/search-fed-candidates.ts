@@ -20,7 +20,7 @@ export function buildSearchOutput(params: {
   };
 }
 
-async function main() {
+export async function main() {
   const client = await getAgentClient();
 
   console.log("=== Extended Search: Fed Candidates & Market Views ===\n");

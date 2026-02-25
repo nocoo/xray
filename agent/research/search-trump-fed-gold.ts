@@ -20,7 +20,7 @@ export function buildSearchOutput(params: {
   };
 }
 
-async function main() {
+export async function main() {
   const client = await getAgentClient();
   
   console.log("=== Searching for Trump Fed Nominee & Gold Discussion ===\n");

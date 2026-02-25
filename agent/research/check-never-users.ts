@@ -22,7 +22,7 @@ export function buildNeverUsersOutput(params: {
   };
 }
 
-async function main() {
+export async function main() {
   const client = await getAgentClient();
   
   console.log("=== Testing users with NO tweets ===\n");

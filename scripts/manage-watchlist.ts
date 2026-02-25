@@ -141,7 +141,7 @@ export async function hasUser(input: string): Promise<CommandResult<boolean>> {
 // CLI Handler
 // =============================================================================
 
-async function main() {
+export async function main() {
   const args = process.argv.slice(2);
   const command = args[0];
   const param = args[1];

@@ -1,6 +1,13 @@
 [test]
 coverageSkipTestFiles = true
+coveragePathIgnorePatterns = [
+  "src/components/layout/sidebar.tsx",
+  "src/components/layout/sidebar-context.tsx",
+  "src/components/ui/avatar.tsx",
+  "src/components/ui/tooltip.tsx",
+  "src/components/ui/badge.tsx",
+]
 
 [test.coverageThreshold]
-line = 70
-function = 70
+line = 90
+function = 90

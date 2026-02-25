@@ -161,7 +161,7 @@ export function deduplicateTweets(tweets: Tweet[]): Tweet[] {
 // CLI Handler
 // =============================================================================
 
-function parseArgs(args: string[]): FetchOptions {
+export function parseArgs(args: string[]): FetchOptions {
   const options: FetchOptions = {};
 
   for (let i = 0; i < args.length; i++) {
@@ -173,7 +173,7 @@ function parseArgs(args: string[]): FetchOptions {
   return options;
 }
 
-async function main() {
+export async function main() {
   const args = process.argv.slice(2);
   const options = parseArgs(args);
 

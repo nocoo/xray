@@ -54,7 +54,7 @@ export async function getRecentTweets(
 }
 
 // CLI
-async function main() {
+export async function main() {
   const args = process.argv.slice(2);
   let hoursBack = 24;
   let limit = 50;

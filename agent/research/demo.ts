@@ -22,7 +22,7 @@ export function buildDemoOutput(params: {
   };
 }
 
-async function main() {
+export async function main() {
   const client = await getAgentClient();
   
   console.log("=== 用户深入调查 ===\n");
