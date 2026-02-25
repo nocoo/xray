@@ -9,6 +9,7 @@ import {
   Zap,
   Clock,
   TrendingUp,
+  Coins,
 } from "lucide-react";
 import {
   BarChart,
@@ -36,6 +37,13 @@ type UsageData = {
   range: { startDate: string; endDate: string; days: number };
 };
 
+type CreditsUsageRecord = {
+  date: string;
+  endpoint: string;
+  credits_used: number;
+  request_count: number;
+};
+
 // =============================================================================
 // Usage Page
 // =============================================================================
@@ -44,6 +52,8 @@ export default function UsagePage() {
   const [data, setData] = useState<UsageData | null>(null);
   const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(true);
+  const [creditsUsage, setCreditsUsage] = useState<CreditsUsageRecord[] | null>(null);
+  const [creditsLoading, setCreditsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -58,6 +68,22 @@ export default function UsagePage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/credits/usage");
+        if (res.ok) {
+          const json = await res.json();
+          setCreditsUsage(json.data);
+        }
+      } catch {
+        // silently ignore — credits usage is supplementary
+      } finally {
+        setCreditsLoading(false);
+      }
+    })();
+  }, []);
 
   const todayTotal =
     data?.daily.find((d) => d.date === new Date().toISOString().slice(0, 10))
@@ -265,8 +291,119 @@ export default function UsagePage() {
             </div>
           </div>
         )}
+
+        {/* TweAPI Credits Usage */}
+        <CreditsUsagePanel data={creditsUsage} loading={creditsLoading} />
       </div>
     </AppShell>
+  );
+}
+
+// =============================================================================
+// Credits Usage Panel
+// =============================================================================
+
+function CreditsUsagePanel({
+  data,
+  loading,
+}: {
+  data: CreditsUsageRecord[] | null;
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="rounded-card bg-secondary p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Coins className="h-4 w-4 text-primary" strokeWidth={1.5} />
+          <h3 className="text-base font-semibold">TweAPI Credits Usage</h3>
+        </div>
+        <div className="h-32 w-full animate-pulse rounded bg-muted/50" />
+      </div>
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="rounded-card bg-secondary p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Coins className="h-4 w-4 text-primary" strokeWidth={1.5} />
+          <h3 className="text-base font-semibold">TweAPI Credits Usage</h3>
+        </div>
+        <div className="flex h-24 items-center justify-center text-muted-foreground text-sm">
+          No credits usage data available.
+        </div>
+      </div>
+    );
+  }
+
+  const totalCredits = data.reduce((sum, r) => sum + r.credits_used, 0);
+  const totalRequests = data.reduce((sum, r) => sum + r.request_count, 0);
+
+  // Group by endpoint for summary
+  const byEndpoint = new Map<string, { credits: number; requests: number }>();
+  for (const record of data) {
+    const existing = byEndpoint.get(record.endpoint) ?? { credits: 0, requests: 0 };
+    existing.credits += record.credits_used;
+    existing.requests += record.request_count;
+    byEndpoint.set(record.endpoint, existing);
+  }
+
+  const endpointList = Array.from(byEndpoint.entries())
+    .map(([endpoint, stats]) => ({ endpoint, ...stats }))
+    .sort((a, b) => b.credits - a.credits);
+
+  return (
+    <div className="rounded-card bg-secondary">
+      <div className="flex items-center justify-between p-4 pb-2">
+        <div className="flex items-center gap-2">
+          <Coins className="h-4 w-4 text-primary" strokeWidth={1.5} />
+          <h3 className="text-base font-semibold">TweAPI Credits Usage</h3>
+        </div>
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <span>
+            <strong className="text-foreground font-display">
+              {totalCredits.toLocaleString()}
+            </strong>{" "}
+            credits
+          </span>
+          <span>
+            <strong className="text-foreground font-display">
+              {totalRequests.toLocaleString()}
+            </strong>{" "}
+            requests
+          </span>
+        </div>
+      </div>
+      <div className="divide-y divide-border">
+        {endpointList.map((e, i) => (
+          <div
+            key={e.endpoint}
+            className="flex items-center justify-between px-4 py-3"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: getChartColor(i) }}
+              />
+              <code className="truncate text-sm">{shortenEndpoint(e.endpoint)}</code>
+            </div>
+            <div className="flex items-center gap-4 shrink-0">
+              <span className="text-xs text-muted-foreground">
+                {e.requests.toLocaleString()} req
+              </span>
+              <Badge variant="secondary" className="font-display">
+                {e.credits.toLocaleString()} cr
+              </Badge>
+              {totalCredits > 0 && (
+                <span className="text-xs text-muted-foreground w-10 text-right">
+                  {Math.round((e.credits / totalCredits) * 100)}%
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -406,6 +543,7 @@ function formatDateShort(dateStr: string): string {
 function shortenEndpoint(endpoint: string): string {
   return endpoint
     .replace("/api/twitter/", "")
+    .replace("/v1/twitter/", "")
     .replace(":username", "{user}")
     .replace(":id", "{id}");
 }
