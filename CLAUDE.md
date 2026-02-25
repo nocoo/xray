@@ -17,3 +17,11 @@ README.md
 7. **Bun test runner discovers `*.spec.ts` files globally** — Bun has no `ignore` config for test discovery. If Playwright tests use `*.spec.ts` naming, `bun test` will load them and crash on `@playwright/test` imports. Fix: name Playwright files `*.pw.ts` and set `testMatch: "*.pw.ts"` in `playwright.config.ts`.
 
 8. **`bunfig.toml` `coverage = false` overrides CLI `--coverage` flag** — Setting `coverage = false` in bunfig makes `bun test --coverage` silently skip coverage output. Fix: omit the `coverage` key entirely; bun defaults to off, and `--coverage` flag will work as expected.
+
+9. **vinext RSC environment is pure ESM — `require()` is unavailable** — Unlike Next.js which supports CJS `require()` in server code, vinext's RSC runtime is strict ESM. Fix: use top-level `await import()` to eagerly load modules at module init time, keeping downstream functions synchronous.
+
+10. **vinext passes params with null prototype across RSC boundary** — In Next.js 15+, dynamic route `params` is a `Promise` unwrapped via `use(params)`. vinext passes params as objects with null prototypes, which RSC serialization rejects ("Only plain objects can be passed to Client Components from Server Components"). Fix: use `useParams()` from `next/navigation` in `"use client"` components instead of receiving `params` as a prop.
+
+11. **vinext `next/font/google` shim only exports ~20 common fonts** — Named imports like `import { DM_Sans } from "next/font/google"` fail because Rollup can't statically resolve names not explicitly exported. Fix: use default import `import googleFonts from "next/font/google"` then `const DM_Sans = googleFonts.DM_Sans` — the shim's Proxy default export handles any font name at runtime.
+
+12. **vinext route handlers don't provide `nextUrl` on Request** — `next-auth` v5 expects `NextRequest` with a `nextUrl` property. vinext's route handlers pass plain `Request` objects. Fix: wrap handlers to convert `Request` to `NextRequest` before passing to next-auth.
