@@ -252,6 +252,100 @@ describe("XRayAPIClient", () => {
       await client.getUserLists();
       expect(calls[0]).toContain("/api/twitter/me/lists");
     });
+
+    test("getUserTimeline calls correct URL", async () => {
+      const calls = mockFetchAndCapture();
+      const client = createClient();
+      await client.getUserTimeline("karpathy");
+      expect(calls[0]).toContain("/api/twitter/users/karpathy/timeline");
+    });
+
+    test("getUserReplies calls correct URL", async () => {
+      const calls = mockFetchAndCapture();
+      const client = createClient();
+      await client.getUserReplies("karpathy");
+      expect(calls[0]).toContain("/api/twitter/users/karpathy/replies");
+    });
+
+    test("getUserFollowers calls correct URL", async () => {
+      const calls = mockFetchAndCapture();
+      const client = createClient();
+      await client.getUserFollowers("karpathy");
+      expect(calls[0]).toContain("/api/twitter/users/karpathy/followers");
+    });
+
+    test("getUserFollowing calls correct URL", async () => {
+      const calls = mockFetchAndCapture();
+      const client = createClient();
+      await client.getUserFollowing("karpathy");
+      expect(calls[0]).toContain("/api/twitter/users/karpathy/following");
+    });
+
+    test("getUserHighlights calls correct URL", async () => {
+      const calls = mockFetchAndCapture();
+      const client = createClient();
+      await client.getUserHighlights("karpathy");
+      expect(calls[0]).toContain("/api/twitter/users/karpathy/highlights");
+    });
+
+    test("getUserAffiliates calls correct URL", async () => {
+      const calls = mockFetchAndCapture();
+      const client = createClient();
+      await client.getUserAffiliates("karpathy");
+      expect(calls[0]).toContain("/api/twitter/users/karpathy/affiliates");
+    });
+
+    test("getUserAnalyticsWithTimeSeries calls /me/analytics", async () => {
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                impressions: 100,
+                engagements: 10,
+                engagement_rate: 10,
+                likes: 5,
+                retweets: 2,
+                replies: 1,
+                profile_visits: 20,
+                followers: 100,
+                following: 50,
+                time_series: [{ date: "2026-01-20", impressions: 50 }],
+              },
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
+        ),
+      ) as unknown as typeof fetch;
+
+      const client = createClient();
+      const result = await client.getUserAnalyticsWithTimeSeries();
+      expect(result).toHaveProperty("time_series");
+      expect(result.time_series.length).toBeGreaterThan(0);
+    });
+
+    test("URL parsing: getUserTimeline with X URL", async () => {
+      const calls = mockFetchAndCapture();
+      const client = createClient();
+      await client.getUserTimeline("https://x.com/karpathy");
+      expect(calls[0]).toContain("/api/twitter/users/karpathy/timeline");
+    });
+
+    test("URL parsing: getUserFollowers with @ prefix", async () => {
+      const calls = mockFetchAndCapture();
+      const client = createClient();
+      await client.getUserFollowers("@karpathy");
+      expect(calls[0]).toContain("/api/twitter/users/karpathy/followers");
+    });
+
+    test("searchUserTweets calls correct URL with query", async () => {
+      const calls = mockFetchAndCapture();
+      const client = createClient();
+      await client.searchUserTweets("karpathy", "neural networks");
+      expect(calls[0]).toContain("/api/twitter/users/karpathy/search");
+      expect(calls[0]).toContain("q=neural+networks");
+    });
   });
 
   // ===========================================================================
