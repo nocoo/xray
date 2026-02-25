@@ -1,6 +1,6 @@
 # Dashboard API 全量接入执行计划
 
-> 状态：**进行中 — Phase 2 已完成** | 创建：2026-02-25 | 最后更新：2026-02-25
+> 状态：**进行中 — Phase 3 已完成** | 创建：2026-02-25 | 最后更新：2026-02-25
 
 ## 1. 背景
 
@@ -357,28 +357,28 @@ export interface CreditsUsageRecord {
 
 **任务清单**：
 
-- [ ] `ITwitterProvider` 新增方法：
-  - [ ] `getUserTimeline(username: string): Promise<Tweet[]>`
-  - [ ] `getUserReplies(username: string): Promise<Tweet[]>`
-  - [ ] `getUserHighlights(username: string): Promise<Tweet[]>`
-  - [ ] `getUserFollowers(username: string): Promise<UserInfo[]>`
-  - [ ] `getUserFollowing(username: string): Promise<UserInfo[]>`
-  - [ ] `getUserAffiliates(username: string): Promise<UserInfo[]>`
-- [ ] `TweAPIProvider` 实现所有新增方法
-- [ ] `MockTwitterProvider` 实现所有新增方法
-- [ ] Normalizer 适配用户列表数据格式（follower/following/affiliates → UserInfo[]）
-- [ ] 新建 API 路由：
-  - [ ] `GET /api/twitter/users/[username]/timeline`
-  - [ ] `GET /api/twitter/users/[username]/replies`
-  - [ ] `GET /api/twitter/users/[username]/highlights`
-  - [ ] `GET /api/twitter/users/[username]/followers`
-  - [ ] `GET /api/twitter/users/[username]/following`
-  - [ ] `GET /api/twitter/users/[username]/affiliates`
-- [ ] 实现 `/users` 页面（搜索 UI，迁移自 `/explore` 用户搜索逻辑）
-- [ ] 升级 `/users/[username]` 页面（新增标签页：Timeline / Replies / Highlights）
-- [ ] 实现 `/users/[username]/connections` 页面（Followers / Following / Affiliates 标签页）
-- [ ] 单元测试：Provider / Normalizer / API 路由
-- [ ] E2E：搜索用户 → 查看资料 → 切换标签 → 点击粉丝数 → connections
+- [x] `ITwitterProvider` 新增方法：
+  - [x] `getUserTimeline(username: string): Promise<Tweet[]>`
+  - [x] `getUserReplies(username: string): Promise<Tweet[]>`
+  - [x] `getUserHighlights(username: string): Promise<Tweet[]>`
+  - [x] `getUserFollowers(username: string): Promise<UserInfo[]>`
+  - [x] `getUserFollowing(username: string): Promise<UserInfo[]>`
+  - [x] `getUserAffiliates(username: string): Promise<UserInfo[]>`
+- [x] `TweAPIProvider` 实现所有新增方法
+- [x] `MockTwitterProvider` 实现所有新增方法
+- [x] Normalizer 适配用户列表数据格式（follower/following/affiliates → UserInfo[]）
+- [x] 新建 API 路由：
+  - [x] `GET /api/twitter/users/[username]/timeline`
+  - [x] `GET /api/twitter/users/[username]/replies`
+  - [x] `GET /api/twitter/users/[username]/highlights`
+  - [x] `GET /api/twitter/users/[username]/followers`
+  - [x] `GET /api/twitter/users/[username]/following`
+  - [x] `GET /api/twitter/users/[username]/affiliates`
+- [x] 实现 `/users` 页面（搜索 UI，迁移自 `/explore` 用户搜索逻辑）
+- [x] 升级 `/users/[username]` 页面（新增标签页：Timeline / Replies / Highlights）
+- [x] 实现 `/users/[username]/connections` 页面（Followers / Following / Affiliates 标签页）
+- [x] 单元测试：Provider / Normalizer / API 路由
+- [x] E2E：搜索用户 → 查看资料 → 切换标签 → 点击粉丝数 → connections
 
 **Commit 策略**：
 1. `test: add user timeline/replies/highlights provider tests (red)`
@@ -533,3 +533,4 @@ export interface CreditsUsageRecord {
 | 2026-02-25 | 初始计划创建 |
 | 2026-02-25 | Phase 1 完成：sidebar 分组重构 + 10 个占位页面 + UT + E2E |
 | 2026-02-25 | Phase 2 完成：getTweetReplies provider + API routes + /tweets 搜索页 + /tweets/[id] 详情页 + 共享 TweetCard 组件 + E2E |
+| 2026-02-25 | Phase 3 完成：6 个 user content/connections provider 方法 + 12 个 API 路由 + /users 搜索页 + /users/[username] 多标签 profile 页 + /users/[username]/connections 页 + UserCard 组件 + 19 E2E tests (76 total, 0 fail) |
