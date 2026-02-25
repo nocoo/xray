@@ -1,0 +1,6 @@
+[test]
+coverageSkipTestFiles = true
+
+[test.coverageThreshold]
+line = 70
+function = 70

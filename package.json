@@ -9,6 +9,7 @@
     "start": "next start --port 7027",
     "lint": "eslint",
     "test": "bun test",
+    "test:coverage": "bun test --coverage",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
