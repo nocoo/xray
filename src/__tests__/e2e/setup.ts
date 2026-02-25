@@ -17,7 +17,7 @@ export function getBaseUrl(): string {
 }
 
 /**
- * Start the Next.js dev server for E2E testing.
+ * Start the vinext dev server for E2E testing.
  * Uses E2E_SKIP_AUTH=true to bypass authentication.
  */
 export async function setupE2E(): Promise<void> {
@@ -167,4 +167,78 @@ export function seedWebhookKey(userId: string = "e2e-test-user"): string {
 
   db.close();
   return key;
+}
+
+// =============================================================================
+// No-auth server — a separate vinext instance WITHOUT E2E_SKIP_AUTH
+// for testing 401 enforcement on protected routes.
+// =============================================================================
+
+const NO_AUTH_PORT = 17029;
+const NO_AUTH_DB = "database/xray.noauth.db";
+
+let noAuthProcess: Subprocess | null = null;
+
+/** Get the base URL for the no-auth E2E server. */
+export function getNoAuthBaseUrl(): string {
+  return `http://localhost:${NO_AUTH_PORT}`;
+}
+
+/**
+ * Start a vinext dev server WITHOUT auth bypass.
+ * Requests to protected routes will return 401 since there is no session.
+ */
+export async function setupNoAuthE2E(): Promise<void> {
+  if (process.env.E2E_SKIP_SETUP === "true") return;
+
+  // Clean up any existing no-auth database
+  const dbPath = resolve(PROJECT_ROOT, NO_AUTH_DB);
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { unlinkSync } = require("fs");
+    unlinkSync(dbPath);
+  } catch {
+    // File doesn't exist, that's fine
+  }
+
+  // Start vinext dev server WITHOUT E2E_SKIP_AUTH
+  noAuthProcess = Bun.spawn(["npx", "vinext", "dev", "--port", String(NO_AUTH_PORT)], {
+    cwd: PROJECT_ROOT,
+    env: {
+      ...process.env,
+      NODE_ENV: "development",
+      XRAY_DB: NO_AUTH_DB,
+      MOCK_PROVIDER: "true",
+      NEXTAUTH_SECRET: "e2e-test-secret",
+      NEXTAUTH_URL: `http://localhost:${NO_AUTH_PORT}`,
+      GOOGLE_CLIENT_ID: "e2e-test-client-id",
+      GOOGLE_CLIENT_SECRET: "e2e-test-client-secret",
+      ALLOWED_EMAILS: "e2e@test.com",
+      // NOTE: E2E_SKIP_AUTH is intentionally NOT set
+    },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  await waitForServer(getNoAuthBaseUrl(), 60_000);
+}
+
+/** Stop the no-auth E2E server. */
+export async function teardownNoAuthE2E(): Promise<void> {
+  if (process.env.E2E_SKIP_SETUP === "true") return;
+
+  if (noAuthProcess) {
+    noAuthProcess.kill();
+    await noAuthProcess.exited;
+    noAuthProcess = null;
+  }
+
+  const dbPath = resolve(PROJECT_ROOT, NO_AUTH_DB);
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { unlinkSync } = require("fs");
+    unlinkSync(dbPath);
+  } catch {
+    // Already cleaned or doesn't exist
+  }
 }
