@@ -1,6 +1,6 @@
 # Dashboard API 全量接入执行计划
 
-> 状态：**进行中 — Phase 1 已完成** | 创建：2026-02-25 | 最后更新：2026-02-25
+> 状态：**进行中 — Phase 2 已完成** | 创建：2026-02-25 | 最后更新：2026-02-25
 
 ## 1. 背景
 
@@ -332,16 +332,16 @@ export interface CreditsUsageRecord {
 
 **任务清单**：
 
-- [ ] `ITwitterProvider` 新增 `getTweetReplies(tweetId: string): Promise<Tweet[]>`
-- [ ] `TweAPIProvider` 实现 `getTweetReplies`（调用 `tweet/replys`）
-- [ ] `MockTwitterProvider` 实现 `getTweetReplies`
-- [ ] Normalizer 适配回复列表数据格式
-- [ ] 新建 API 路由 `GET /api/twitter/tweets/[id]/replies`
-- [ ] 新建 Explore API 路由 `GET /api/explore/tweets/[id]`（合并详情+回复）
-- [ ] 实现 `/tweets` 页面（搜索 UI，迁移自 `/explore` 推文搜索逻辑）
-- [ ] 实现 `/tweets/[id]` 页面（详情 + 回复列表）
-- [ ] 单元测试：Provider / Normalizer / API 路由
-- [ ] E2E：搜索推文 → 点击 → 查看详情+回复
+- [x] `ITwitterProvider` 新增 `getTweetReplies(tweetId: string): Promise<Tweet[]>`
+- [x] `TweAPIProvider` 实现 `getTweetReplies`（调用 `tweet/replys`）
+- [x] `MockTwitterProvider` 实现 `getTweetReplies`
+- [x] Normalizer 适配回复列表数据格式
+- [x] 新建 API 路由 `GET /api/twitter/tweets/[id]/replies`
+- [x] 新建 Explore API 路由 `GET /api/explore/tweets/[id]`（合并详情+回复）
+- [x] 实现 `/tweets` 页面（搜索 UI，提取共享 TweetCard 组件）
+- [x] 实现 `/tweets/[id]` 页面（详情 + 回复列表）
+- [x] 单元测试：Provider / Mock Provider（12 tests passing）
+- [x] E2E：搜索推文 → 查看详情+回复（5 tests passing）
 
 **Commit 策略**：
 1. `test: add getTweetReplies provider tests (red)`
@@ -532,3 +532,4 @@ export interface CreditsUsageRecord {
 |---|---|
 | 2026-02-25 | 初始计划创建 |
 | 2026-02-25 | Phase 1 完成：sidebar 分组重构 + 10 个占位页面 + UT + E2E |
+| 2026-02-25 | Phase 2 完成：getTweetReplies provider + API routes + /tweets 搜索页 + /tweets/[id] 详情页 + 共享 TweetCard 组件 + E2E |
