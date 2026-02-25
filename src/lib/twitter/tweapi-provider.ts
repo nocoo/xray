@@ -7,6 +7,8 @@ import type {
   UserInfo,
   TwitterList,
   AnalyticsWithTimeSeries,
+  InboxItem,
+  Conversation,
 } from "../../../shared/types";
 
 import type {
@@ -29,6 +31,8 @@ import type {
   TweAPIListsResponse,
   TweAPIAnalyticsResponse,
   TweAPIUserListResponse,
+  TweAPIInboxResponse,
+  TweAPIConversationResponse,
 } from "./api-types";
 
 import {
@@ -36,6 +40,8 @@ import {
   normalizeUserInfo,
   normalizeList,
   normalizeAnalyticsWithTimeSeries,
+  normalizeInboxItem,
+  normalizeConversation,
 } from "./normalizer";
 
 export interface TweAPIConfig {
@@ -310,5 +316,28 @@ export class TweAPIProvider implements ITwitterProvider {
     );
     if (!data.data?.list) return [];
     return data.data.list.map((list) => normalizeList(list));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Messages endpoints (cookie required)
+  // ---------------------------------------------------------------------------
+
+  async getInbox(): Promise<InboxItem[]> {
+    this.requireCookie();
+    const data = await this.request<TweAPIInboxResponse>(
+      "/v1/twitter/message/inbox",
+      { cookie: this.cookie },
+    );
+    if (!data.data?.list) return [];
+    return data.data.list.map((item) => normalizeInboxItem(item));
+  }
+
+  async getConversation(conversationId: string): Promise<Conversation> {
+    this.requireCookie();
+    const data = await this.request<TweAPIConversationResponse>(
+      "/v1/twitter/message/conversation",
+      { cookie: this.cookie, conversationId },
+    );
+    return normalizeConversation(data.data);
   }
 }

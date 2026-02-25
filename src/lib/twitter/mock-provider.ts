@@ -7,6 +7,8 @@ import type {
   UserInfo,
   TwitterList,
   AnalyticsWithTimeSeries,
+  InboxItem,
+  Conversation,
 } from "../../../shared/types";
 
 import type {
@@ -224,6 +226,78 @@ export class MockTwitterProvider implements ITwitterProvider {
         is_following: true,
       },
     ];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Messages endpoints (cookie required)
+  // ---------------------------------------------------------------------------
+
+  async getInbox(): Promise<InboxItem[]> {
+    return [
+      {
+        conversation_id: "conv-mock-1",
+        last_message: {
+          id: "msg-mock-1",
+          text: "Hey, have you seen the latest update?",
+          sender_id: "user-alice",
+          recipient_id: "user-me",
+          created_at: "2026-02-25T10:30:00Z",
+        },
+        participants: [
+          createMockUserInfo("alice"),
+          createMockUserInfo("me"),
+        ],
+        unread_count: 2,
+      },
+      {
+        conversation_id: "conv-mock-2",
+        last_message: {
+          id: "msg-mock-2",
+          text: "Thanks for the feedback!",
+          sender_id: "user-me",
+          recipient_id: "user-bob",
+          created_at: "2026-02-24T15:00:00Z",
+        },
+        participants: [
+          createMockUserInfo("bob"),
+          createMockUserInfo("me"),
+        ],
+        unread_count: 0,
+      },
+    ];
+  }
+
+  async getConversation(conversationId: string): Promise<Conversation> {
+    return {
+      conversation_id: conversationId,
+      messages: [
+        {
+          id: `${conversationId}-msg-1`,
+          text: "Hello! How are you?",
+          sender_id: "user-alice",
+          recipient_id: "user-me",
+          created_at: "2026-02-25T10:00:00Z",
+        },
+        {
+          id: `${conversationId}-msg-2`,
+          text: "I'm great, thanks! Working on the dashboard.",
+          sender_id: "user-me",
+          recipient_id: "user-alice",
+          created_at: "2026-02-25T10:15:00Z",
+        },
+        {
+          id: `${conversationId}-msg-3`,
+          text: "Hey, have you seen the latest update?",
+          sender_id: "user-alice",
+          recipient_id: "user-me",
+          created_at: "2026-02-25T10:30:00Z",
+        },
+      ],
+      participants: [
+        createMockUserInfo("alice"),
+        createMockUserInfo("me"),
+      ],
+    };
   }
 }
 

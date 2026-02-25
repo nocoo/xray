@@ -7,6 +7,8 @@ import type {
   UserInfo,
   TwitterList,
   AnalyticsWithTimeSeries,
+  InboxItem,
+  Conversation,
 } from "../../../shared/types";
 
 export interface FetchTweetsOptions {
@@ -48,4 +50,8 @@ export interface ITwitterProvider {
   getUserBookmarks(): Promise<Tweet[]>;
   getUserLikes(): Promise<Tweet[]>;
   getUserLists(): Promise<TwitterList[]>;
+
+  // Messages (cookie required)
+  getInbox(): Promise<InboxItem[]>;
+  getConversation(conversationId: string): Promise<Conversation>;
 }

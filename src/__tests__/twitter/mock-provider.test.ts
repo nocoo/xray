@@ -162,4 +162,37 @@ describe("MockTwitterProvider", () => {
     expect(lists[0].name).toBeDefined();
     expect(lists[0].member_count).toBeGreaterThan(0);
   });
+
+  // ---------------------------------------------------------------------------
+  // Messages
+  // ---------------------------------------------------------------------------
+
+  test("getInbox returns inbox items with participants and last message", async () => {
+    const inbox = await provider.getInbox();
+    expect(inbox.length).toBeGreaterThan(0);
+    for (const item of inbox) {
+      expect(item.conversation_id).toBeDefined();
+      expect(item.last_message).toBeDefined();
+      expect(item.last_message.id).toBeDefined();
+      expect(item.last_message.text).toBeDefined();
+      expect(item.last_message.sender_id).toBeDefined();
+      expect(item.participants.length).toBeGreaterThan(0);
+      expect(item.participants[0].username).toBeDefined();
+    }
+  });
+
+  test("getConversation returns conversation with messages and participants", async () => {
+    const conversation = await provider.getConversation("conv-mock-1");
+    expect(conversation.conversation_id).toBe("conv-mock-1");
+    expect(conversation.messages.length).toBeGreaterThan(0);
+    for (const msg of conversation.messages) {
+      expect(msg.id).toBeDefined();
+      expect(msg.text).toBeDefined();
+      expect(msg.sender_id).toBeDefined();
+      expect(msg.recipient_id).toBeDefined();
+      expect(msg.created_at).toBeDefined();
+    }
+    expect(conversation.participants.length).toBeGreaterThan(0);
+    expect(conversation.participants[0].username).toBeDefined();
+  });
 });

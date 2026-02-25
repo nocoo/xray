@@ -141,3 +141,42 @@ export interface TweAPIUserListResponse {
     next?: string;
   };
 }
+
+// =============================================================================
+// Message / DM types
+// =============================================================================
+
+export interface TweAPIMessage {
+  id: string;
+  text: string;
+  senderId: string;
+  recipientId: string;
+  createdAt: string;
+  mediaUrls?: string[];
+}
+
+export interface TweAPIInboxItem {
+  conversationId: string;
+  lastMessage: TweAPIMessage;
+  participants: TweAPIAuthor[];
+  unreadCount?: number;
+}
+
+export interface TweAPIInboxResponse {
+  code: number;
+  msg: string;
+  data: {
+    list: TweAPIInboxItem[];
+    next?: string;
+  };
+}
+
+export interface TweAPIConversationResponse {
+  code: number;
+  msg: string;
+  data: {
+    conversationId: string;
+    messages: TweAPIMessage[];
+    participants: TweAPIAuthor[];
+  };
+}

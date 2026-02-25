@@ -13,6 +13,9 @@ import type {
   Analytics,
   DailyMetrics,
   AnalyticsWithTimeSeries,
+  Message,
+  Conversation,
+  InboxItem,
 } from "../../../shared/types";
 
 import type {
@@ -20,6 +23,8 @@ import type {
   TweAPIAuthor,
   TweAPIList,
   TweAPIAnalytics,
+  TweAPIMessage,
+  TweAPIInboxItem,
 } from "./api-types";
 
 // =============================================================================
@@ -222,4 +227,40 @@ export function normalizeAnalyticsWithTimeSeries(
   const analytics = normalizeAnalytics(apiAnalytics);
   const timeSeries = parseTimeSeries(apiAnalytics);
   return { ...analytics, time_series: timeSeries };
+}
+
+// =============================================================================
+// Message normalization
+// =============================================================================
+
+export function normalizeMessage(apiMessage: TweAPIMessage): Message {
+  return {
+    id: apiMessage.id,
+    text: apiMessage.text,
+    sender_id: apiMessage.senderId,
+    recipient_id: apiMessage.recipientId,
+    created_at: apiMessage.createdAt,
+    media_urls: apiMessage.mediaUrls,
+  };
+}
+
+export function normalizeInboxItem(apiItem: TweAPIInboxItem): InboxItem {
+  return {
+    conversation_id: apiItem.conversationId,
+    last_message: normalizeMessage(apiItem.lastMessage),
+    participants: apiItem.participants.map((p) => normalizeUserInfo(p)),
+    unread_count: apiItem.unreadCount,
+  };
+}
+
+export function normalizeConversation(data: {
+  conversationId: string;
+  messages: TweAPIMessage[];
+  participants: TweAPIAuthor[];
+}): Conversation {
+  return {
+    conversation_id: data.conversationId,
+    messages: data.messages.map((m) => normalizeMessage(m)),
+    participants: data.participants.map((p) => normalizeUserInfo(p)),
+  };
 }
