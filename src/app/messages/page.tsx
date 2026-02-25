@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout";
-import { Loader2, Inbox, MessageSquare, Circle } from "lucide-react";
+import { LoadingSpinner, ErrorBanner, EmptyState } from "@/components/ui/feedback";
+import { Inbox, MessageSquare, Circle } from "lucide-react";
+import { useFetch } from "@/hooks/use-api";
 
 import type { InboxItem } from "../../../shared/types";
 
@@ -15,33 +16,14 @@ import type { InboxItem } from "../../../shared/types";
 // =============================================================================
 
 export default function MessagesPage() {
-  const [items, setItems] = useState<InboxItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch("/api/explore/inbox");
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          setError(data.error ?? "Failed to load inbox");
-        } else {
-          setItems(data.data ?? []);
-        }
-      } catch {
-        setError("Network error — could not reach API");
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  const { data: items, loading, error } = useFetch<InboxItem[]>(
+    "/api/explore/inbox",
+    "Failed to load inbox",
+  );
 
   return (
     <AppShell breadcrumbs={[{ label: "Messages" }]}>
       <div className="space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Messages</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -49,22 +31,10 @@ export default function MessagesPage() {
           </p>
         </div>
 
-        {/* Loading */}
-        {loading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        )}
+        {loading && <LoadingSpinner />}
+        {error && <ErrorBanner error={error} />}
 
-        {/* Error */}
-        {error && (
-          <div className="rounded-card bg-destructive/10 p-4 text-sm text-destructive">
-            {error}
-          </div>
-        )}
-
-        {/* Results */}
-        {!loading && !error && items.length > 0 && (
+        {!loading && !error && items && items.length > 0 && (
           <div className="space-y-2">
             {items.map((item) => (
               <InboxCard key={item.conversation_id} item={item} />
@@ -72,15 +42,12 @@ export default function MessagesPage() {
           </div>
         )}
 
-        {/* Empty */}
-        {!loading && !error && items.length === 0 && (
-          <div className="rounded-card bg-secondary p-12 text-center">
-            <Inbox className="mx-auto h-10 w-10 text-muted-foreground/40 mb-4" />
-            <p className="text-muted-foreground">No messages found.</p>
-            <p className="mt-1 text-xs text-muted-foreground/70">
-              Start a conversation on Twitter/X and it will appear here.
-            </p>
-          </div>
+        {!loading && !error && (!items || items.length === 0) && (
+          <EmptyState
+            icon={Inbox}
+            title="No messages found."
+            subtitle="Start a conversation on Twitter/X and it will appear here."
+          />
         )}
       </div>
     </AppShell>
