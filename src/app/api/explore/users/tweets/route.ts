@@ -1,6 +1,7 @@
 // =============================================================================
-// GET /api/explore/users/tweets?username=&count=
-// Session-authenticated — get recent tweets for a user.
+// GET /api/explore/users/tweets?username=&count=&q=
+// Session-authenticated — get recent tweets or search a user's tweets.
+// If `q` is provided, searches within the user's tweets.
 // =============================================================================
 
 import { NextRequest } from "next/server";
@@ -20,6 +21,15 @@ export async function GET(req: NextRequest) {
   }
 
   return withSessionProvider(async (provider) => {
+    const query = url.searchParams.get("q");
+
+    // If a search query is provided, use searchUserTweets
+    if (query?.trim()) {
+      const tweets = await provider.searchUserTweets(username, query.trim());
+      return Response.json({ success: true, data: tweets });
+    }
+
+    // Otherwise, fetch recent tweets
     const countParam = url.searchParams.get("count");
     const count = countParam ? parseInt(countParam, 10) : 20;
 

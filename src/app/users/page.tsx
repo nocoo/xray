@@ -1,84 +1,126 @@
 "use client";
 
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout";
-import { Badge } from "@/components/ui/badge";
-import { User, Clock, MessageCircle, Star } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { UserCard } from "@/components/twitter/user-card";
+import { Search, Loader2 } from "lucide-react";
+
+import type { UserInfo } from "../../../shared/types";
+
+// =============================================================================
+// Users Search Page
+// =============================================================================
 
 export default function UsersPage() {
+  const router = useRouter();
+  const [username, setUsername] = useState("");
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searched, setSearched] = useState(false);
+
+  const handleSearch = useCallback(
+    async (e?: React.FormEvent) => {
+      e?.preventDefault();
+      const u = username.trim().replace(/^@/, "");
+      if (!u) return;
+
+      setLoading(true);
+      setError(null);
+      setSearched(true);
+
+      try {
+        const res = await fetch(
+          `/api/explore/users?username=${encodeURIComponent(u)}`,
+        );
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          setError(data.error ?? "User lookup failed");
+          setUser(null);
+        } else {
+          setUser(data.data ?? null);
+        }
+      } catch {
+        setError("Network error — could not reach API");
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [username],
+  );
+
   return (
     <AppShell breadcrumbs={[{ label: "Users" }]}>
       <div className="space-y-6">
+        {/* Header */}
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
-            <Badge variant="secondary">Coming Soon</Badge>
-          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Look up any Twitter/X user to view their profile, timeline, and social connections.
+            Look up any Twitter/X user to view their profile, timeline, and
+            social connections.
           </p>
         </div>
 
-        <div className="rounded-card bg-secondary p-8">
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Planned Features
-            </h3>
-            <div className="space-y-3">
-              <FeatureItem
-                icon={<User className="h-4 w-4" />}
-                title="User Profile"
-                api="POST /v1/twitter/user/info"
-                description="View user bio, stats, and profile details"
-              />
-              <FeatureItem
-                icon={<Clock className="h-4 w-4" />}
-                title="Timeline"
-                api="POST /v1/twitter/user/timeline"
-                description="Full user activity feed including retweets and replies"
-              />
-              <FeatureItem
-                icon={<MessageCircle className="h-4 w-4" />}
-                title="Replies"
-                api="POST /v1/twitter/user/replies"
-                description="View all replies posted by a user"
-              />
-              <FeatureItem
-                icon={<Star className="h-4 w-4" />}
-                title="Highlights"
-                api="POST /v1/twitter/user/highLights"
-                description="Pinned and featured tweets"
-              />
-            </div>
+        {/* Search bar */}
+        <form onSubmit={handleSearch} className="flex gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter a username (e.g. elonmusk)"
+              className="pl-9"
+            />
           </div>
-        </div>
+          <Button type="submit" disabled={loading || !username.trim()}>
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Look up"
+            )}
+          </Button>
+        </form>
+
+        {/* Error state */}
+        {error && (
+          <div className="rounded-card bg-destructive/10 p-4 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+
+        {/* User result */}
+        {user && (
+          <UserCard
+            user={user}
+            onClick={() => router.push(`/users/${user.username}`)}
+          />
+        )}
+
+        {/* No result */}
+        {searched && !loading && !error && !user && (
+          <div className="rounded-card bg-secondary p-8 text-center text-muted-foreground">
+            No user found for &quot;{username}&quot;
+          </div>
+        )}
+
+        {/* Initial empty state */}
+        {!searched && (
+          <div className="rounded-card bg-secondary p-12 text-center">
+            <Search className="mx-auto h-10 w-10 text-muted-foreground/40 mb-4" />
+            <p className="text-muted-foreground">
+              Enter a username to view their profile.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground/70">
+              You can enter with or without the @ symbol.
+            </p>
+          </div>
+        )}
       </div>
     </AppShell>
-  );
-}
-
-function FeatureItem({
-  icon,
-  title,
-  api,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  api: string;
-  description: string;
-}) {
-  return (
-    <div className="flex items-start gap-3 rounded-lg bg-card/50 p-3">
-      <span className="mt-0.5 text-primary">{icon}</span>
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{title}</span>
-          <code className="text-[11px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-            {api}
-          </code>
-        </div>
-        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-      </div>
-    </div>
   );
 }

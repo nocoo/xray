@@ -1,9 +1,27 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useEffect, useCallback } from "react";
 import { AppShell } from "@/components/layout";
-import { Badge } from "@/components/ui/badge";
-import { Users, UserPlus, Link2 } from "lucide-react";
+import { UserCardCompact } from "@/components/twitter/user-card";
+import { Loader2 } from "lucide-react";
+
+import type { UserInfo } from "../../../../../shared/types";
+
+// =============================================================================
+// Tab definitions
+// =============================================================================
+
+type TabKey = "followers" | "following" | "affiliates";
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "followers", label: "Followers" },
+  { key: "following", label: "Following" },
+  { key: "affiliates", label: "Affiliates" },
+];
+
+// =============================================================================
+// Connections Page
+// =============================================================================
 
 export default function ConnectionsPage({
   params,
@@ -11,6 +29,39 @@ export default function ConnectionsPage({
   params: Promise<{ username: string }>;
 }) {
   const { username } = use(params);
+  const [activeTab, setActiveTab] = useState<TabKey>("followers");
+  const [users, setUsers] = useState<UserInfo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchConnections = useCallback(
+    async (tab: TabKey) => {
+      setLoading(true);
+      setError(null);
+      setUsers([]);
+
+      try {
+        const u = encodeURIComponent(username);
+        const res = await fetch(`/api/explore/users/${tab}?username=${u}`);
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          setError(data.error ?? "Failed to load connections");
+        } else {
+          setUsers(data.data ?? []);
+        }
+      } catch {
+        setError("Network error — could not reach API");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [username],
+  );
+
+  useEffect(() => {
+    fetchConnections(activeTab);
+  }, [activeTab, fetchConnections]);
 
   return (
     <AppShell
@@ -21,73 +72,65 @@ export default function ConnectionsPage({
       ]}
     >
       <div className="space-y-6">
+        {/* Header */}
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Connections
-            </h1>
-            <Badge variant="secondary">Coming Soon</Badge>
-          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">Connections</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Social connections for @{username} — followers, following, and affiliated accounts.
+            Social connections for @{username} — followers, following, and
+            affiliated accounts.
           </p>
         </div>
 
-        <div className="rounded-card bg-secondary p-8">
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Tab Views
-            </h3>
-            <div className="space-y-3">
-              <FeatureItem
-                icon={<Users className="h-4 w-4" />}
-                title="Followers"
-                api="POST /v1/twitter/user/follower"
-                description="People who follow this user"
-              />
-              <FeatureItem
-                icon={<UserPlus className="h-4 w-4" />}
-                title="Following"
-                api="POST /v1/twitter/user/following"
-                description="People this user follows"
-              />
-              <FeatureItem
-                icon={<Link2 className="h-4 w-4" />}
-                title="Affiliates"
-                api="POST /v1/twitter/user/affiliates"
-                description="Affiliated and linked accounts"
-              />
-            </div>
-          </div>
+        {/* Tabs */}
+        <div className="border-b border-border">
+          <nav className="flex gap-1 -mb-px">
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab.key
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
         </div>
+
+        {/* Content */}
+        {loading && (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-card bg-destructive/10 p-4 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+
+        {!loading && !error && users.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-sm text-muted-foreground">
+              {users.length} user{users.length !== 1 ? "s" : ""}
+            </div>
+            {users.map((user) => (
+              <UserCardCompact key={user.id} user={user} />
+            ))}
+          </div>
+        )}
+
+        {!loading && !error && users.length === 0 && (
+          <div className="rounded-card bg-secondary p-8 text-center text-muted-foreground">
+            No {activeTab} found.
+          </div>
+        )}
       </div>
     </AppShell>
-  );
-}
-
-function FeatureItem({
-  icon,
-  title,
-  api,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  api: string;
-  description: string;
-}) {
-  return (
-    <div className="flex items-start gap-3 rounded-lg bg-card/50 p-3">
-      <span className="mt-0.5 text-primary">{icon}</span>
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{title}</span>
-          <code className="text-[11px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-            {api}
-          </code>
-        </div>
-        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-      </div>
-    </div>
   );
 }
