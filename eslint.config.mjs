@@ -1,16 +1,15 @@
 import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import tseslint from "typescript-eslint";
 
 const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
+  ...tseslint.configs.recommended,
   globalIgnores([
     ".next/**",
     ".next-e2e/**",
     ".next-e2e-ui/**",
     "out/**",
     "build/**",
+    "dist/**",
     "next-env.d.ts",
     // Legacy directories
     "server/**",

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import { AppShell } from "@/components/layout";
 import { TweetCard } from "@/components/twitter/tweet-card";
 import { Loader2, MessageCircle } from "lucide-react";
@@ -11,12 +12,8 @@ import type { Tweet } from "../../../../shared/types";
 // Tweet Detail Page — shows tweet details + reply thread
 // =============================================================================
 
-export default function TweetDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
+export default function TweetDetailPage() {
+  const { id } = useParams<{ id: string }>();
   const [tweet, setTweet] = useState<Tweet | null>(null);
   const [replies, setReplies] = useState<Tweet[]>([]);
   const [loading, setLoading] = useState(true);

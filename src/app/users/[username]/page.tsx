@@ -1,6 +1,7 @@
 "use client";
 
-import { use, useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useParams } from "next/navigation";
 import { AppShell } from "@/components/layout";
 import { UserCard } from "@/components/twitter/user-card";
 import { TweetCard } from "@/components/twitter/tweet-card";
@@ -28,12 +29,8 @@ const TABS: { key: TabKey; label: string }[] = [
 // User Profile Page
 // =============================================================================
 
-export default function UserProfilePage({
-  params,
-}: {
-  params: Promise<{ username: string }>;
-}) {
-  const { username } = use(params);
+export default function UserProfilePage() {
+  const { username } = useParams<{ username: string }>();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [userError, setUserError] = useState<string | null>(null);

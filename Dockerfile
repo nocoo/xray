@@ -24,11 +24,14 @@ ENV HOSTNAME=0.0.0.0
 # Create data directory for SQLite volume mount
 RUN mkdir -p /data
 
-# Copy built assets and dependencies
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+# Copy full project (vinext start needs project structure)
+COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/next.config.ts ./
+COPY --from=builder /app/vite.config.ts ./
 
 EXPOSE 7027
 
-CMD ["bun", "server.js"]
+CMD ["bun", "run", "start"]

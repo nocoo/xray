@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/layout";
 import { Loader2, ArrowLeft, MessageSquare } from "lucide-react";
@@ -14,12 +15,8 @@ import type { Conversation } from "../../../../shared/types";
 // Conversation Page — displays a single DM conversation thread
 // =============================================================================
 
-export default function ConversationPage({
-  params,
-}: {
-  params: Promise<{ conversationId: string }>;
-}) {
-  const { conversationId } = use(params);
+export default function ConversationPage() {
+  const { conversationId } = useParams<{ conversationId: string }>();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

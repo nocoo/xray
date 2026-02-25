@@ -33,8 +33,8 @@ export async function setupE2E(): Promise<void> {
     // File doesn't exist, that's fine
   }
 
-  // Start Next.js dev server
-  serverProcess = Bun.spawn(["bun", "--bun", "next", "dev", "--port", String(E2E_PORT)], {
+  // Start vinext dev server
+  serverProcess = Bun.spawn(["npx", "vinext", "dev", "--port", String(E2E_PORT)], {
     cwd: PROJECT_ROOT,
     env: {
       ...process.env,

@@ -1,6 +1,7 @@
 "use client";
 
-import { use, useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useParams } from "next/navigation";
 import { AppShell } from "@/components/layout";
 import { UserCardCompact } from "@/components/twitter/user-card";
 import { Loader2 } from "lucide-react";
@@ -23,12 +24,8 @@ const TABS: { key: TabKey; label: string }[] = [
 // Connections Page
 // =============================================================================
 
-export default function ConnectionsPage({
-  params,
-}: {
-  params: Promise<{ username: string }>;
-}) {
-  const { username } = use(params);
+export default function ConnectionsPage() {
+  const { username } = useParams<{ username: string }>();
   const [activeTab, setActiveTab] = useState<TabKey>("followers");
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [loading, setLoading] = useState(false);

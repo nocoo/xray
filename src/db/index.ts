@@ -39,6 +39,25 @@ const E2E_DB_FILE = "database/xray.e2e.db";
 // next dev spawns Node.js workers, so bun:sqlite is unavailable there.
 const isBun = typeof globalThis.Bun !== "undefined";
 
+// Eagerly load the correct SQLite driver and drizzle adapter via top-level await.
+// This replaces require() calls which are unavailable in vinext's pure ESM environment.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let DatabaseConstructor: any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let drizzleFn: any;
+
+if (isBun) {
+  const bunSqlite = await import("bun:sqlite");
+  const bunDrizzle = await import("drizzle-orm/bun-sqlite");
+  DatabaseConstructor = bunSqlite.Database;
+  drizzleFn = bunDrizzle.drizzle;
+} else {
+  const betterSqlite = await import("better-sqlite3");
+  const betterDrizzle = await import("drizzle-orm/better-sqlite3");
+  DatabaseConstructor = betterSqlite.default;
+  drizzleFn = betterDrizzle.drizzle;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let sqlite: any = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -75,23 +94,8 @@ function createDatabase(filename: string): DbInstance {
 
   currentDbFile = resolvedPath;
 
-  if (isBun) {
-    // Bun runtime: use bun:sqlite (production, bun test, bun --bun next dev)
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { Database } = require("bun:sqlite");
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { drizzle } = require("drizzle-orm/bun-sqlite");
-    sqlite = new Database(resolvedPath);
-    dbInstance = drizzle(sqlite, { schema });
-  } else {
-    // Node.js runtime: use better-sqlite3 (next dev, next build)
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Database = require("better-sqlite3");
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { drizzle } = require("drizzle-orm/better-sqlite3");
-    sqlite = new Database(resolvedPath);
-    dbInstance = drizzle(sqlite, { schema });
-  }
+  sqlite = new DatabaseConstructor(resolvedPath);
+  dbInstance = drizzleFn(sqlite, { schema });
 
   initSchema();
   return dbInstance;

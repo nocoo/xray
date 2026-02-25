@@ -25,7 +25,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: `bun --bun next dev --port ${E2E_PORT}`,
+    command: `bunx vinext dev --port ${E2E_PORT}`,
     port: E2E_PORT,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
