@@ -92,6 +92,9 @@ function CreditsSection() {
         if (res.ok) {
           const json = await res.json();
           setCredits(json.data);
+        } else if (res.status === 503) {
+          // API key not configured — not an error, just show empty state
+          setCredits(null);
         } else {
           setError("Could not load credits balance.");
         }
@@ -164,7 +167,11 @@ function CreditsSection() {
             </p>
           )}
         </div>
-      ) : null}
+      ) : (
+        <div className="rounded-card border border-dashed py-6 text-center text-sm text-muted-foreground">
+          Configure your TweAPI Key below to view credit balance.
+        </div>
+      )}
     </section>
   );
 }
