@@ -42,25 +42,27 @@ describe("e2e: placeholder pages", () => {
       expect(html).toContain("Tweets"); // breadcrumb
     });
 
-    test("GET /users returns 200 with Coming Soon", async () => {
+    test("GET /users returns 200 with search UI", async () => {
       const { status, html } = await fetchPage("/users");
       expect(status).toBe(200);
       expect(html).toContain("Users");
-      expect(html).toContain("Coming Soon");
+      expect(html).toContain("Enter a username");
+      expect(html).not.toContain("Coming Soon");
     });
 
-    test("GET /users/elonmusk returns 200 with username", async () => {
+    test("GET /users/elonmusk returns 200 with profile page", async () => {
       const { status, html } = await fetchPage("/users/elonmusk");
       expect(status).toBe(200);
       expect(html).toContain("elonmusk");
-      expect(html).toContain("Coming Soon");
+      expect(html).not.toContain("Coming Soon");
     });
 
-    test("GET /users/elonmusk/connections returns 200", async () => {
+    test("GET /users/elonmusk/connections returns 200 with tabs", async () => {
       const { status, html } = await fetchPage("/users/elonmusk/connections");
       expect(status).toBe(200);
       expect(html).toContain("Connections");
-      expect(html).toContain("Coming Soon");
+      expect(html).toContain("Followers");
+      expect(html).not.toContain("Coming Soon");
     });
   });
 
