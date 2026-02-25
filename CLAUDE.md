@@ -13,3 +13,7 @@ README.md
 5. **Next.js standalone requires HOSTNAME=0.0.0.0 in containers** — Without `ENV HOSTNAME=0.0.0.0`, Next.js standalone `server.js` binds to the container's internal hostname (e.g., `6783221ac502`), making it unreachable by Railway's reverse proxy. Always set `HOSTNAME=0.0.0.0` in the Dockerfile.
 
 6. **`next dev` runs Node.js workers, not Bun** — Even when launched via `bun run dev`, Next.js dev server internally spawns Node.js worker processes. `require("bun:sqlite")` fails there. Fix: runtime detection `const isBun = typeof globalThis.Bun !== "undefined"` with `better-sqlite3` fallback. Same pattern used in surety and life.ai projects. Keep `serverExternalPackages: ["bun:sqlite"]` in `next.config.ts` to prevent webpack from bundling it.
+
+7. **Bun test runner discovers `*.spec.ts` files globally** — Bun has no `ignore` config for test discovery. If Playwright tests use `*.spec.ts` naming, `bun test` will load them and crash on `@playwright/test` imports. Fix: name Playwright files `*.pw.ts` and set `testMatch: "*.pw.ts"` in `playwright.config.ts`.
+
+8. **`bunfig.toml` `coverage = false` overrides CLI `--coverage` flag** — Setting `coverage = false` in bunfig makes `bun test --coverage` silently skip coverage output. Fix: omit the `coverage` key entirely; bun defaults to off, and `--coverage` flag will work as expected.
