@@ -35,6 +35,10 @@ function resolveDbPath(filename: string): string {
 const DEFAULT_DB_FILE = "database/xray.db";
 const E2E_DB_FILE = "database/xray.e2e.db";
 
+// Runtime detection: Bun exposes globalThis.Bun, Node.js does not.
+// next dev spawns Node.js workers, so bun:sqlite is unavailable there.
+const isBun = typeof globalThis.Bun !== "undefined";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let sqlite: any = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -71,13 +75,23 @@ function createDatabase(filename: string): DbInstance {
 
   currentDbFile = resolvedPath;
 
-  // Bun runtime: use bun:sqlite
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { Database } = require("bun:sqlite");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { drizzle } = require("drizzle-orm/bun-sqlite");
-  sqlite = new Database(resolvedPath);
-  dbInstance = drizzle(sqlite, { schema });
+  if (isBun) {
+    // Bun runtime: use bun:sqlite (production, bun test, bun --bun next dev)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Database } = require("bun:sqlite");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { drizzle } = require("drizzle-orm/bun-sqlite");
+    sqlite = new Database(resolvedPath);
+    dbInstance = drizzle(sqlite, { schema });
+  } else {
+    // Node.js runtime: use better-sqlite3 (next dev, next build)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Database = require("better-sqlite3");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { drizzle } = require("drizzle-orm/better-sqlite3");
+    sqlite = new Database(resolvedPath);
+    dbInstance = drizzle(sqlite, { schema });
+  }
 
   initSchema();
   return dbInstance;
