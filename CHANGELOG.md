@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-02-26
+
+### Added
+
+- **vinext migration** — replaced Next.js 16 with vinext 0.0.9 (Vite 7 + RSC), enabling faster builds and HMR
+- **Explore API E2E tests** — 12 tests covering 4 explore routes with 400 validation
+- **Usage API E2E tests** — 6 tests covering usage route with days parameter boundary testing
+- **Auth enforcement E2E tests** — 16 tests using dedicated no-auth server (port 17029), verifying 13 API routes return 401 and 3 public routes remain accessible
+- **Playwright functional E2E tests** — 10 browser tests for dashboard, analytics, usage, tweet detail, user profile, and settings
+- **No-auth E2E server** — `setupNoAuthE2E()` / `teardownNoAuthE2E()` in setup.ts for testing 401 enforcement without auth bypass
+
+### Changed
+
+- **Unit test coverage raised to 97.72% lines / 94.46% functions** (up from ~70%), 731 tests with 1741 assertions
+- **Total test count: 888** (731 UT + 132 API E2E + 25 Playwright browser E2E)
+- Build system switched from `next build` / `next dev` to `vinext build` / `vinext dev`
+- Dockerfile updated for vinext standalone output structure
+- ESLint config migrated from `eslint-config-next` to standalone flat config
+- `src/db/index.ts` uses top-level `await import()` instead of `require()` for vinext ESM compatibility
+- Dynamic route pages use `useParams()` instead of `use(params)` prop for vinext null-prototype params compatibility
+- `src/app/layout.tsx` uses default import for `next/font/google` to work with vinext's Proxy-based font shim
+- Usage route handler uses `new URL(req.url).searchParams` instead of `req.nextUrl` for vinext compatibility
+
+### Fixed
+
+- `require()` crashes in vinext RSC environment — replaced with top-level `await import()`
+- `next/font/google` named import fails for `DM_Sans` — switched to default import with Proxy resolution
+- `next-auth` v5 route handler missing `nextUrl` — added `Request` → `NextRequest` wrapper
+- Vite dev server blocks custom domains — set `server.allowedHosts: true`
+- 8 stale `@next/next/no-img-element` eslint-disable comments removed after `eslint-config-next` removal
+- Type errors in tweapi-provider tests resolved
+
 ## [1.0.1] - 2026-02-26
 
 ### Added
