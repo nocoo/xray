@@ -93,9 +93,6 @@ x-ray/
 │   ├── 07-xray-web.md            # Web 端文档
 │   ├── 08-deployment.md          # 部署指南
 │   └── 09-dashboard-api-roadmap.md # API 路线图
-├── 📂 server/                    # Hono API Server (独立进程)
-│   ├── 📂 src/                   # 服务端源码
-│   └── 📂 tests/                 # 服务端测试
 ├── 📂 agent/                     # AI Agent 原子化工具
 │   ├── 📂 analyze/               # 分析工具
 │   ├── 📂 fetch/                 # 数据拉取
@@ -153,7 +150,7 @@ x-ray/
 | 🗄️ Database | SQLite + [Drizzle ORM](https://orm.drizzle.team) |
 | 🎨 UI | [Tailwind CSS](https://tailwindcss.com) + [shadcn/ui](https://ui.shadcn.com) |
 | 🔐 Auth | [NextAuth.js](https://next-auth.js.org) (Google OAuth) |
-| 🌐 API Server | [Hono](https://hono.dev) (独立 API 代理层) |
+| 🌐 API | Next.js API Routes (webhook key auth) |
 | 📊 Charts | [Recharts](https://recharts.org) |
 
 ## 📋 常用命令

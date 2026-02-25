@@ -542,8 +542,4 @@ export function createAPIClient(config: Config): TwitterAPIClient {
   return new TwitterAPIClient(config);
 }
 
-// =============================================================================
-// Re-export XRayClient for consumers migrating to the HTTP server
-// =============================================================================
 
-export { XRayClient, createXRayClient } from "./xray-client";
