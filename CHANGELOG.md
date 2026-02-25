@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `bun:sqlite` module resolution in E2E tests (use `bun --bun next dev`)
+- `next dev` crashes with `Cannot find module 'bun:sqlite'` — added `better-sqlite3` fallback with `isBun` runtime detection (aligned with surety/life.ai pattern)
 - Explore route `GET /api/explore/users/tweets` now correctly handles the `q` query parameter
 - Next.js standalone `HOSTNAME=0.0.0.0` binding for container deployments
 - Railway DOCKERFILE builder exec-mode `startCommand` issue
