@@ -5,13 +5,10 @@
  */
 
 import type { Tweet } from "../../scripts/lib/types";
-import { getRecentTweets, RecentOptions } from "../analyze/recent";
+import { getRecentTweets } from "../analyze/recent";
 import {
-  processedMark,
   processedMarkMany,
   classificationUpsert,
-  tweetCount,
-  processedCount,
 } from "../../scripts/lib/tweet-db";
 import type { CommandResult } from "../../scripts/lib/types";
 
@@ -46,7 +43,7 @@ export interface AnalysisReport {
  * Get AI analysis prompt
  */
 function getAnalysisPrompt(tweets: Tweet[], options: AnalyzeOptions): string {
-  const { topN = 20, translateToChinese = true } = options;
+  const { topN = 20 } = options;
   
   const tweetsJson = tweets.map((t, i) => {
     return `${i + 1}. @${t.author.username}: ${t.text} (${t.metrics.like_count} likes, ${t.metrics.retweet_count} retweets)`;
@@ -184,13 +181,12 @@ export async function analyzeTweets(
     hoursBack = 1,
     limit = 100,
     topN = 20,
-    translateToChinese = true,
   } = options;
 
   console.log(`[potato-ai] Starting analysis (last ${hoursBack}h, top ${topN})...`);
 
   // Get unprocessed tweets
-  const { tweets, count } = await getRecentTweets({
+  const { tweets } = await getRecentTweets({
     hoursBack,
     limit,
     skipProcessed: true,

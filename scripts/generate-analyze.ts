@@ -7,7 +7,7 @@ function analyzeTweet(tweet: Tweet): {
   score: number;
   evaluation: string;
 } {
-  const { lang, text, metrics, author } = tweet;
+  const { lang, text, metrics } = tweet;
   const likes = metrics.like_count;
 
   // Determine score based on likes

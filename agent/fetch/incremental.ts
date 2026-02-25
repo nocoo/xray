@@ -14,12 +14,10 @@ import { hoursAgoISO } from "../../scripts/lib/utils";
 import { getAgentClient } from "../lib/agent-api";
 import {
   watchlistGetAll,
-  watchlistGet,
 } from "../../scripts/lib/watchlist-db";
 import {
   tweetInsertMany,
   processedGetAllIds,
-  processedMark,
   processedMarkMany,
   tweetCount,
   processedCount,

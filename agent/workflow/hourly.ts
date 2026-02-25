@@ -38,7 +38,7 @@ async function saveToObsidian(report: AnalysisReport, mdContent: string): Promis
 
   // Ensure directory exists
   if (!existsSync(REPORTS_DIR)) {
-    // eslint-disable-next-line no-console
+     
     console.log("[potato] Creating reports directory...");
   }
 
@@ -72,7 +72,7 @@ async function saveToObsidian(report: AnalysisReport, mdContent: string): Promis
 /**
  * Send summary to Slack
  */
-async function sendToSlack(report: AnalysisReport, mdContent: string): Promise<boolean> {
+async function sendToSlack(report: AnalysisReport): Promise<boolean> {
   try {
     // Import message function
     // @ts-expect-error - external runtime tool
@@ -97,7 +97,7 @@ async function sendToSlack(report: AnalysisReport, mdContent: string): Promise<b
 
     return true;
   } catch (err) {
-    // eslint-disable-next-line no-console
+     
     console.error("[potato] Failed to send to Slack:", err);
     return false;
   }
@@ -117,7 +117,7 @@ export async function runHourlyWorkflow(
   outputPath?: string;
 }> {
   const startTime = Date.now();
-  // eslint-disable-next-line no-console
+   
   console.log(`[potato] Starting hourly workflow at ${nowISO()}...`);
 
   const { fetchOptions = {}, analyzeOptions = {}, dryRun = false } = options;
@@ -130,7 +130,7 @@ export async function runHourlyWorkflow(
 
   try {
     // Step 1: Fetch new tweets (incremental)
-    // eslint-disable-next-line no-console
+     
     console.log("[potato] Step 1: Fetching new tweets...");
     const fetchResult = await fetchIncremental({
       hoursBack: 1,
@@ -139,11 +139,11 @@ export async function runHourlyWorkflow(
       ...fetchOptions,
     });
     fetchedCount = fetchResult.newTweets;
-    // eslint-disable-next-line no-console
+     
     console.log(`[potato]   Fetched ${fetchedCount} new tweets`);
 
     // Step 2: Analyze with AI
-    // eslint-disable-next-line no-console
+     
     console.log("[potato] Step 2: Analyzing with AI...");
     const analyzeResult = await analyzeTweets({
       hoursBack: 1,
@@ -157,7 +157,7 @@ export async function runHourlyWorkflow(
       analyzedCount = analyzeResult.data.selectedCount;
 
       // Step 3: Generate markdown report
-      // eslint-disable-next-line no-console
+       
       console.log("[potato] Step 3: Generating report...");
       const mdContent = generateMarkdownReport(analyzeResult.data);
 
@@ -173,30 +173,30 @@ export async function runHourlyWorkflow(
 
       if (!dryRun) {
         // Step 4: Save to Obsidian
-        // eslint-disable-next-line no-console
+         
         console.log("[potato] Step 4: Saving to Obsidian...");
         reportPath = await saveToObsidian(analyzeResult.data, mdContent);
-        // eslint-disable-next-line no-console
+         
         console.log(`[potato]   Saved to: ${reportPath}`);
 
         // Step 5: Send to Slack
-        // eslint-disable-next-line no-console
+         
         console.log("[potato] Step 5: Sending to Slack...");
-        slackSent = await sendToSlack(analyzeResult.data, mdContent);
-        // eslint-disable-next-line no-console
+        slackSent = await sendToSlack(analyzeResult.data);
+         
         console.log(`[potato]   Slack sent: ${slackSent}`);
       }
     } else {
-      // eslint-disable-next-line no-console
+       
       console.log("[potato]   No new tweets to analyze");
     }
 
     const duration = Date.now() - startTime;
-    // eslint-disable-next-line no-console
+     
     console.log(`[potato] Workflow complete in ${duration}ms`);
-    // eslint-disable-next-line no-console
+     
     console.log(`[potato]   Fetched: ${fetchedCount}`);
-    // eslint-disable-next-line no-console
+     
     console.log(`[potato]   Analyzed: ${analyzedCount}`);
 
     return {
@@ -209,7 +209,7 @@ export async function runHourlyWorkflow(
     };
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
-    // eslint-disable-next-line no-console
+     
     console.error(`[potato] Workflow failed: ${error}`);
 
     return {
@@ -235,23 +235,23 @@ async function main() {
 
   const result = await runHourlyWorkflow({ dryRun });
 
-  // eslint-disable-next-line no-console
+   
   console.log("\n=== Final Result ===");
-  // eslint-disable-next-line no-console
+   
   console.log(`Success: ${result.success}`);
-  // eslint-disable-next-line no-console
+   
   console.log(`Fetched: ${result.fetched}`);
-  // eslint-disable-next-line no-console
+   
   console.log(`Analyzed: ${result.analyzed}`);
   if (result.reportPath) {
-    // eslint-disable-next-line no-console
+     
     console.log(`Report: ${result.reportPath}`);
   }
   if (result.outputPath) {
-    // eslint-disable-next-line no-console
+     
     console.log(`Output: ${result.outputPath}`);
   }
-  // eslint-disable-next-line no-console
+   
   console.log(`Slack: ${result.slackSent ? "✓" : "✗"}`);
 
   process.exit(result.success ? 0 : 1);
@@ -259,7 +259,7 @@ async function main() {
 
 if (import.meta.main) {
   main().catch((err) => {
-    // eslint-disable-next-line no-console
+     
     console.error("Error:", err.message);
     process.exit(1);
   });

@@ -15,9 +15,7 @@ import { fetchIncremental, IncrementalOptions } from "../fetch/incremental";
 import { getRecentTweets, RecentOptions } from "../analyze/recent";
 import {
   processedMark,
-  processedMarkMany,
   classificationUpsert,
-  classificationGetTechRelated,
   tweetCount,
   processedCount,
 } from "../../scripts/lib/tweet-db";
@@ -161,7 +159,7 @@ export async function runWorkflow(options: WorkflowOptions): Promise<{
 
   // Step 2: Analyze
   if (mode === "hourly" || mode === "analyze") {
-    const { tweets, count } = await getRecentTweets({
+    const { tweets } = await getRecentTweets({
       hoursBack: 24,
       limit: 100,
       ...options.analyzeOptions,

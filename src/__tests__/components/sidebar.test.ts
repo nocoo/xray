@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import { navSections, allNavItems, isActive } from "@/components/layout/sidebar";
-import type { NavSection } from "@/components/layout/sidebar";
 
 // =============================================================================
 // Sidebar navigation structure tests

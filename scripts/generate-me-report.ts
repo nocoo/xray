@@ -116,7 +116,7 @@ function generateReport(data: MeData): string {
     hour12: false,
   });
 
-  const { current, previous, trend, time_series } = data.analytics;
+  const { current, trend, time_series } = data.analytics;
 
   let report = `# 📊 我的 X 日报 | ${date}\n\n---\n\n## 📈 核心指标\n\n| 指标 | 当前值 | 变化 | 趋势 |\n|------|--------|------|------|\n`;
 

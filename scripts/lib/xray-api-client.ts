@@ -165,7 +165,8 @@ export class XRayAPIClient {
     const data = await this.get<AnalyticsWithTimeSeries>(
       "/api/twitter/me/analytics",
     );
-    const { time_series: _, ...analytics } = data;
+    const { time_series, ...analytics } = data;
+    void time_series;
     return analytics;
   }
 

@@ -12,13 +12,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Legacy directories (Phase 2-3 migration)
+    // Legacy directories
     "server/**",
-    "agent/**",
-    "scripts/**",
     "tests/**",
     // Playwright E2E tests (not React code)
     "e2e/**",
+    // Python file mis-named as .ts
+    "scripts/fix-translations.ts",
   ]),
 ]);
 

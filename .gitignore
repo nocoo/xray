@@ -45,6 +45,8 @@ reports/
 
 # Test outputs
 coverage/
+test-results/
+playwright-report/
 
 # Logs
 *.log
@@ -52,3 +54,4 @@ npm-debug.log*
 
 # Next.js
 next-env.d.ts
+tsconfig.tsbuildinfo

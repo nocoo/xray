@@ -12,7 +12,6 @@ import { hoursAgoISO } from "../../scripts/lib/utils";
 import { getAgentClient } from "../lib/agent-api";
 import {
   tweetInsertMany,
-  processedGet,
   processedGetAllIds,
 } from "../../scripts/lib/tweet-db";
 import type { Tweet, CommandResult } from "../../scripts/lib/types";

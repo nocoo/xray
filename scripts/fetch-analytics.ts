@@ -1,7 +1,6 @@
 import { createXRayAPIClient } from "./lib/xray-api-client";
 import { loadConfig } from "./lib/utils";
 import { saveAnalytics, getLatestAnalytics, calculateTrend } from "./lib/analytics-db";
-import type { AnalyticsTrend } from "./lib/analytics-db";
 
 async function main() {
   const config = await loadConfig();

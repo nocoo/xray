@@ -52,7 +52,7 @@ async function main() {
         time_series: analyticsWithTS.time_series,
       };
       analyticsFetched = true;
-    } catch (analyticsError) {
+    } catch {
       console.warn("⚠️  Analytics API unavailable (may require paid subscription)");
       console.warn("   Continuing with other data sources...");
       const previous = getLatestAnalytics(username);
@@ -93,7 +93,7 @@ async function main() {
     try {
       console.log("🔄 Fetching bookmarks...");
       bookmarks = await client.getUserBookmarks();
-    } catch (bookmarksError) {
+    } catch {
       console.warn("⚠️  Bookmarks API unavailable (may require paid subscription)");
       console.warn("   Continuing with other data sources...");
       bookmarks = [];
@@ -103,7 +103,7 @@ async function main() {
     try {
       console.log("🔄 Fetching likes...");
       likes = await client.getUserLikes();
-    } catch (likesError) {
+    } catch {
       console.warn("⚠️  Likes API unavailable (may require paid subscription)");
       console.warn("   Continuing with other data sources...");
       likes = [];
@@ -113,7 +113,7 @@ async function main() {
     try {
       console.log("🔄 Fetching lists...");
       lists = await client.getUserLists();
-    } catch (listsError) {
+    } catch {
       console.warn("⚠️  Lists API unavailable (may require paid subscription)");
       console.warn("   Continuing with other data sources...");
       lists = [];

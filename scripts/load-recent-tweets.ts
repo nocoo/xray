@@ -4,7 +4,7 @@ import { saveRawTweets, nowISO } from "./lib/utils";
 import type { RawTweetsFile } from "./lib/types";
 
 async function main() {
-  const db = getDB();
+  getDB();
   const recentTweets = tweetGetRecent(100);
   const tweets = recentTweets.map(tweetToModel);
 

@@ -1,6 +1,6 @@
 import { getDB } from "./db";
 import { nowISO } from "./utils";
-import type { Tweet, TweetAuthor, TweetMetrics, ProcessedTweet } from "./types";
+import type { Tweet } from "./types";
 
 export interface TweetRow {
   id: string;

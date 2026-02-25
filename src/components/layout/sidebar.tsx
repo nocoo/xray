@@ -16,8 +16,6 @@ import {
   Bookmark,
   Heart,
   List,
-  Globe,
-  User,
 } from "lucide-react";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/version";
