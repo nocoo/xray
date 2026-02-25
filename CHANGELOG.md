@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-02-25
+
+### Added
+
+- GitHub repository link in header toolbar
+- README rewritten to match project standards (centered logo, badges, structured sections)
+
+### Fixed
+
+- Sidebar logo jitter on expand/collapse — aligned collapsed padding with expanded state
+
+### Changed
+
+- Version bumped to 1.0.0 (stable release)
+- Removed stale files: `package-lock.json`, `.pre-commit-config.yaml`, `AGENT.md`, `data/analyze_output.json`
+
 ## [0.2.2] - 2026-02-25
 
 ### Fixed
