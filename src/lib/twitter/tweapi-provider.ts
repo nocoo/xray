@@ -9,6 +9,8 @@ import type {
   AnalyticsWithTimeSeries,
   InboxItem,
   Conversation,
+  Credits,
+  CreditsUsageRecord,
 } from "../../../shared/types";
 
 import type {
@@ -33,6 +35,8 @@ import type {
   TweAPIUserListResponse,
   TweAPIInboxResponse,
   TweAPIConversationResponse,
+  TweAPICreditsResponse,
+  TweAPICreditsUsageResponse,
 } from "./api-types";
 
 import {
@@ -339,5 +343,95 @@ export class TweAPIProvider implements ITwitterProvider {
       { cookie: this.cookie, conversationId },
     );
     return normalizeConversation(data.data);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Credits endpoints (GET, API Key only)
+  // ---------------------------------------------------------------------------
+
+  private async requestGet<T>(endpoint: string): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    const controller = new AbortController();
+    let didTimeout = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        didTimeout = true;
+        controller.abort();
+        reject(new TimeoutError(this.timeout));
+      }, this.timeout);
+    });
+
+    try {
+      const response = await Promise.race([
+        fetch(url, {
+          method: "GET",
+          headers: {
+            "x-api-key": this.apiKey,
+          },
+          signal: controller.signal,
+        }),
+        timeoutPromise,
+      ]);
+
+      if (timeoutId) clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new UpstreamError(
+          response.status,
+          `TweAPI error: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      const data = (await response.json()) as T & {
+        code: number;
+        msg: string;
+      };
+
+      if (data.code !== 200 && data.code !== 201) {
+        throw new UpstreamError(
+          502,
+          `TweAPI error: ${data.msg} (code: ${data.code})`,
+        );
+      }
+
+      return data;
+    } catch (err) {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (didTimeout || (err instanceof Error && err.name === "AbortError")) {
+        throw new TimeoutError(this.timeout);
+      }
+      if (err instanceof ProviderError) throw err;
+      throw new ProviderError(
+        `TweAPI request failed: ${err instanceof Error ? err.message : String(err)}`,
+        500,
+        err,
+      );
+    }
+  }
+
+  async getCredits(): Promise<Credits> {
+    const data = await this.requestGet<TweAPICreditsResponse>(
+      "/v1/credits",
+    );
+    return {
+      remaining: data.data.remaining,
+      total: data.data.total,
+      expires_at: data.data.expiresAt,
+    };
+  }
+
+  async getCreditsUsage(): Promise<CreditsUsageRecord[]> {
+    const data = await this.requestGet<TweAPICreditsUsageResponse>(
+      "/v1/credits/usage",
+    );
+    if (!data.data?.list) return [];
+    return data.data.list.map((item) => ({
+      date: item.date,
+      endpoint: item.endpoint,
+      credits_used: item.creditsUsed,
+      request_count: item.requestCount,
+    }));
   }
 }

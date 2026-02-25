@@ -155,6 +155,23 @@ export interface InboxItem {
 }
 
 // =============================================================================
+// Credits Types
+// =============================================================================
+
+export interface Credits {
+  remaining: number;
+  total: number;
+  expires_at?: string;
+}
+
+export interface CreditsUsageRecord {
+  date: string;
+  endpoint: string;
+  credits_used: number;
+  request_count: number;
+}
+
+// =============================================================================
 // API Response Envelope
 // =============================================================================
 

@@ -180,3 +180,32 @@ export interface TweAPIConversationResponse {
     participants: TweAPIAuthor[];
   };
 }
+
+// =============================================================================
+// Credits types
+// =============================================================================
+
+export interface TweAPICreditsResponse {
+  code: number;
+  msg: string;
+  data: {
+    remaining: number;
+    total: number;
+    expiresAt?: string;
+  };
+}
+
+export interface TweAPICreditsUsageItem {
+  date: string;
+  endpoint: string;
+  creditsUsed: number;
+  requestCount: number;
+}
+
+export interface TweAPICreditsUsageResponse {
+  code: number;
+  msg: string;
+  data: {
+    list: TweAPICreditsUsageItem[];
+  };
+}

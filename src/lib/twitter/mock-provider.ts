@@ -9,6 +9,8 @@ import type {
   AnalyticsWithTimeSeries,
   InboxItem,
   Conversation,
+  Credits,
+  CreditsUsageRecord,
 } from "../../../shared/types";
 
 import type {
@@ -298,6 +300,53 @@ export class MockTwitterProvider implements ITwitterProvider {
         createMockUserInfo("me"),
       ],
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Credits endpoints (API Key only)
+  // ---------------------------------------------------------------------------
+
+  async getCredits(): Promise<Credits> {
+    return {
+      remaining: 8500,
+      total: 10000,
+      expires_at: "2026-12-31T23:59:59Z",
+    };
+  }
+
+  async getCreditsUsage(): Promise<CreditsUsageRecord[]> {
+    return [
+      {
+        date: "2026-02-25",
+        endpoint: "/v1/twitter/tweet/search",
+        credits_used: 150,
+        request_count: 30,
+      },
+      {
+        date: "2026-02-25",
+        endpoint: "/v1/twitter/user/info",
+        credits_used: 50,
+        request_count: 10,
+      },
+      {
+        date: "2026-02-24",
+        endpoint: "/v1/twitter/tweet/details",
+        credits_used: 100,
+        request_count: 20,
+      },
+      {
+        date: "2026-02-24",
+        endpoint: "/v1/twitter/user/timeline",
+        credits_used: 75,
+        request_count: 15,
+      },
+      {
+        date: "2026-02-23",
+        endpoint: "/v1/twitter/tweet/search",
+        credits_used: 200,
+        request_count: 40,
+      },
+    ];
   }
 }
 

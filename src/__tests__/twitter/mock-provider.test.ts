@@ -195,4 +195,28 @@ describe("MockTwitterProvider", () => {
     expect(conversation.participants.length).toBeGreaterThan(0);
     expect(conversation.participants[0].username).toBeDefined();
   });
+
+  // ===========================================================================
+  // Credits endpoints
+  // ===========================================================================
+
+  test("getCredits returns credits balance with remaining and total", async () => {
+    const credits = await provider.getCredits();
+    expect(credits.remaining).toBeGreaterThan(0);
+    expect(credits.total).toBeGreaterThan(0);
+    expect(credits.remaining).toBeLessThanOrEqual(credits.total);
+    expect(credits.expires_at).toBeDefined();
+  });
+
+  test("getCreditsUsage returns usage records with required fields", async () => {
+    const usage = await provider.getCreditsUsage();
+    expect(usage.length).toBeGreaterThan(0);
+    for (const record of usage) {
+      expect(record.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(record.endpoint).toBeDefined();
+      expect(record.endpoint.length).toBeGreaterThan(0);
+      expect(record.credits_used).toBeGreaterThan(0);
+      expect(record.request_count).toBeGreaterThan(0);
+    }
+  });
 });

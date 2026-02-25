@@ -9,6 +9,8 @@ import type {
   AnalyticsWithTimeSeries,
   InboxItem,
   Conversation,
+  Credits,
+  CreditsUsageRecord,
 } from "../../../shared/types";
 
 export interface FetchTweetsOptions {
@@ -54,4 +56,8 @@ export interface ITwitterProvider {
   // Messages (cookie required)
   getInbox(): Promise<InboxItem[]>;
   getConversation(conversationId: string): Promise<Conversation>;
+
+  // Platform management (API Key only)
+  getCredits(): Promise<Credits>;
+  getCreditsUsage(): Promise<CreditsUsageRecord[]>;
 }
