@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { StatusMessage, SectionSkeleton } from "@/components/ui/feedback";
 import {
   Key,
   Cookie,
@@ -670,32 +671,6 @@ function CredentialRow({
         {value || "Not set"}
       </code>
     </div>
-  );
-}
-
-function StatusMessage({ type, text }: { type: "success" | "error"; text: string }) {
-  return (
-    <div
-      className={`rounded-card px-3 py-2 text-sm ${
-        type === "success"
-          ? "border border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200"
-          : "border border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
-      }`}
-    >
-      {text}
-    </div>
-  );
-}
-
-function SectionSkeleton({ title }: { title: string }) {
-  return (
-    <section className="space-y-4">
-      <h2 className="text-lg font-semibold">{title}</h2>
-      <div className="animate-pulse space-y-3">
-        <div className="h-4 w-3/4 rounded bg-muted" />
-        <div className="h-24 rounded-card bg-muted" />
-      </div>
-    </section>
   );
 }
 
