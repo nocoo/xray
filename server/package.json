@@ -1,6 +1,6 @@
 {
   "name": "xray-server",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "X-Ray API Server - Social media data proxy with provider abstraction",
   "type": "module",
   "scripts": {
