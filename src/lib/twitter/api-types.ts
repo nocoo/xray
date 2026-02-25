@@ -132,3 +132,12 @@ export interface TweAPIAnalyticsResponse {
   msg: string;
   data: TweAPIAnalytics;
 }
+
+export interface TweAPIUserListResponse {
+  code: number;
+  msg: string;
+  data: {
+    list: TweAPIAuthor[];
+    next?: string;
+  };
+}

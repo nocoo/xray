@@ -33,6 +33,16 @@ export interface ITwitterProvider {
   getTweetReplies(tweetId: string): Promise<Tweet[]>;
   searchUserTweets(username: string, query: string): Promise<Tweet[]>;
 
+  // User content (API Key only)
+  getUserTimeline(username: string): Promise<Tweet[]>;
+  getUserReplies(username: string): Promise<Tweet[]>;
+  getUserHighlights(username: string): Promise<Tweet[]>;
+
+  // User connections (API Key only)
+  getUserFollowers(username: string): Promise<UserInfo[]>;
+  getUserFollowing(username: string): Promise<UserInfo[]>;
+  getUserAffiliates(username: string): Promise<UserInfo[]>;
+
   // Authenticated data (cookie/token required)
   getUserAnalytics(): Promise<AnalyticsWithTimeSeries>;
   getUserBookmarks(): Promise<Tweet[]>;

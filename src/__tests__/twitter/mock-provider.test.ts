@@ -68,6 +68,70 @@ describe("MockTwitterProvider", () => {
   });
 
   // ===========================================================================
+  // User content endpoints (API Key only)
+  // ===========================================================================
+
+  test("getUserTimeline returns timeline tweets", async () => {
+    const tweets = await provider.getUserTimeline("testuser");
+    expect(tweets.length).toBeGreaterThan(0);
+    for (const tweet of tweets) {
+      expect(tweet.id).toContain("timeline");
+      expect(tweet.author.username).toBe("testuser");
+      expect(tweet.text).toContain("testuser");
+    }
+  });
+
+  test("getUserReplies returns user reply tweets", async () => {
+    const replies = await provider.getUserReplies("testuser");
+    expect(replies.length).toBeGreaterThan(0);
+    for (const reply of replies) {
+      expect(reply.is_reply).toBe(true);
+      expect(reply.reply_to_id).toBeDefined();
+      expect(reply.author.username).toBe("testuser");
+    }
+  });
+
+  test("getUserHighlights returns highlighted tweets", async () => {
+    const highlights = await provider.getUserHighlights("testuser");
+    expect(highlights.length).toBeGreaterThan(0);
+    expect(highlights[0].id).toContain("highlight");
+    expect(highlights[0].author.username).toBe("testuser");
+  });
+
+  // ===========================================================================
+  // User connections endpoints (API Key only)
+  // ===========================================================================
+
+  test("getUserFollowers returns follower user infos", async () => {
+    const followers = await provider.getUserFollowers("testuser");
+    expect(followers.length).toBeGreaterThan(0);
+    for (const follower of followers) {
+      expect(follower.username).toContain("follower");
+      expect(follower.id).toBeDefined();
+      expect(follower.profile_image_url).toBeDefined();
+      expect(follower.followers_count).toBeGreaterThan(0);
+    }
+  });
+
+  test("getUserFollowing returns following user infos", async () => {
+    const following = await provider.getUserFollowing("testuser");
+    expect(following.length).toBeGreaterThan(0);
+    for (const user of following) {
+      expect(user.username).toContain("following");
+      expect(user.id).toBeDefined();
+    }
+  });
+
+  test("getUserAffiliates returns affiliated user infos", async () => {
+    const affiliates = await provider.getUserAffiliates("testuser");
+    expect(affiliates.length).toBeGreaterThan(0);
+    for (const affiliate of affiliates) {
+      expect(affiliate.username).toContain("affiliate");
+      expect(affiliate.id).toBeDefined();
+    }
+  });
+
+  // ===========================================================================
   // Authenticated endpoints
   // ===========================================================================
 

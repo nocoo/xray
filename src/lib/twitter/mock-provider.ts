@@ -88,6 +88,62 @@ export class MockTwitterProvider implements ITwitterProvider {
     ];
   }
 
+  // ---------------------------------------------------------------------------
+  // User content endpoints (API Key only)
+  // ---------------------------------------------------------------------------
+
+  async getUserTimeline(username: string): Promise<Tweet[]> {
+    return Array.from({ length: 3 }, (_, i) =>
+      createMockTweet({
+        id: `mock-timeline-${username}-${i + 1}`,
+        text: `Mock timeline tweet ${i + 1} from @${username}`,
+        authorUsername: username,
+      }),
+    );
+  }
+
+  async getUserReplies(username: string): Promise<Tweet[]> {
+    return Array.from({ length: 2 }, (_, i) =>
+      createMockTweet({
+        id: `mock-user-reply-${username}-${i + 1}`,
+        text: `Mock reply ${i + 1} by @${username}`,
+        authorUsername: username,
+        isReply: true,
+        replyToId: `original-tweet-${i + 1}`,
+      }),
+    );
+  }
+
+  async getUserHighlights(username: string): Promise<Tweet[]> {
+    return [
+      createMockTweet({
+        id: `mock-highlight-${username}-1`,
+        text: `Mock highlighted tweet from @${username}`,
+        authorUsername: username,
+      }),
+    ];
+  }
+
+  // ---------------------------------------------------------------------------
+  // User connections endpoints (API Key only)
+  // ---------------------------------------------------------------------------
+
+  async getUserFollowers(username: string): Promise<UserInfo[]> {
+    return Array.from({ length: 3 }, (_, i) =>
+      createMockUserInfo(`${username}_follower_${i + 1}`),
+    );
+  }
+
+  async getUserFollowing(username: string): Promise<UserInfo[]> {
+    return Array.from({ length: 2 }, (_, i) =>
+      createMockUserInfo(`${username}_following_${i + 1}`),
+    );
+  }
+
+  async getUserAffiliates(username: string): Promise<UserInfo[]> {
+    return [createMockUserInfo(`${username}_affiliate_1`)];
+  }
+
   async getUserAnalytics(): Promise<AnalyticsWithTimeSeries> {
     return {
       impressions: 10000,

@@ -28,6 +28,7 @@ import type {
   TweAPIUserInfoResponse,
   TweAPIListsResponse,
   TweAPIAnalyticsResponse,
+  TweAPIUserListResponse,
 } from "./api-types";
 
 import {
@@ -204,6 +205,68 @@ export class TweAPIProvider implements ITwitterProvider {
     );
     if (!data.data?.list) return [];
     return data.data.list.map((tweet) => normalizeTweet(tweet));
+  }
+
+  // ---------------------------------------------------------------------------
+  // User content endpoints (API Key only)
+  // ---------------------------------------------------------------------------
+
+  async getUserTimeline(username: string): Promise<Tweet[]> {
+    const data = await this.request<TweAPIResponse>(
+      "/v1/twitter/user/timeline",
+      { url: `https://x.com/${username}` },
+    );
+    if (!data.data?.list) return [];
+    return data.data.list.map((tweet) => normalizeTweet(tweet));
+  }
+
+  async getUserReplies(username: string): Promise<Tweet[]> {
+    const data = await this.request<TweAPIResponse>(
+      "/v1/twitter/user/replies",
+      { url: `https://x.com/${username}` },
+    );
+    if (!data.data?.list) return [];
+    return data.data.list.map((tweet) => normalizeTweet(tweet));
+  }
+
+  async getUserHighlights(username: string): Promise<Tweet[]> {
+    const data = await this.request<TweAPIResponse>(
+      "/v1/twitter/user/highLights",
+      { url: `https://x.com/${username}` },
+    );
+    if (!data.data?.list) return [];
+    return data.data.list.map((tweet) => normalizeTweet(tweet));
+  }
+
+  // ---------------------------------------------------------------------------
+  // User connections endpoints (API Key only)
+  // ---------------------------------------------------------------------------
+
+  async getUserFollowers(username: string): Promise<UserInfo[]> {
+    const data = await this.request<TweAPIUserListResponse>(
+      "/v1/twitter/user/follower",
+      { url: `https://x.com/${username}` },
+    );
+    if (!data.data?.list) return [];
+    return data.data.list.map((user) => normalizeUserInfo(user));
+  }
+
+  async getUserFollowing(username: string): Promise<UserInfo[]> {
+    const data = await this.request<TweAPIUserListResponse>(
+      "/v1/twitter/user/following",
+      { url: `https://x.com/${username}` },
+    );
+    if (!data.data?.list) return [];
+    return data.data.list.map((user) => normalizeUserInfo(user));
+  }
+
+  async getUserAffiliates(username: string): Promise<UserInfo[]> {
+    const data = await this.request<TweAPIUserListResponse>(
+      "/v1/twitter/user/affiliates",
+      { url: `https://x.com/${username}` },
+    );
+    if (!data.data?.list) return [];
+    return data.data.list.map((user) => normalizeUserInfo(user));
   }
 
   // ---------------------------------------------------------------------------
