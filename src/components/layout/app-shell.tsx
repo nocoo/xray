@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { Menu, Github } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { SidebarProvider, useSidebar } from "./sidebar-context";
 import { ThemeToggle } from "./theme-toggle";
@@ -76,6 +76,15 @@ function AppShellInner({ children, breadcrumbs = [] }: AppShellProps) {
             />
           </div>
           <div className="flex items-center gap-1">
+            <a
+              href="https://github.com/nocoo/xray"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="GitHub repository"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <Github className="h-[18px] w-[18px]" aria-hidden="true" strokeWidth={1.5} />
+            </a>
             <ThemeToggle />
           </div>
         </header>

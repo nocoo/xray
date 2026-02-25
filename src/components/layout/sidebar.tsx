@@ -112,7 +112,7 @@ export function Sidebar() {
            * ================================================================ */
           <div className="flex h-screen w-[68px] flex-col items-center">
             {/* Logo */}
-            <div className="flex h-14 w-full items-center justify-start pl-5 pr-3">
+            <div className="flex h-14 w-full items-center justify-start pl-6 pr-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/logo-24.png"
