@@ -6,7 +6,9 @@ import { AppShell } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UserCard } from "@/components/twitter/user-card";
+import { ErrorBanner, EmptyState } from "@/components/ui/feedback";
 import { Search, Loader2 } from "lucide-react";
+import { useSearch } from "@/hooks/use-api";
 
 import type { UserInfo } from "../../../shared/types";
 
@@ -17,10 +19,7 @@ import type { UserInfo } from "../../../shared/types";
 export default function UsersPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
-  const [user, setUser] = useState<UserInfo | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [searched, setSearched] = useState(false);
+  const { data: user, loading, error, searched, execute } = useSearch<UserInfo>("User lookup failed");
 
   const handleSearch = useCallback(
     async (e?: React.FormEvent) => {
@@ -28,36 +27,14 @@ export default function UsersPage() {
       const u = username.trim().replace(/^@/, "");
       if (!u) return;
 
-      setLoading(true);
-      setError(null);
-      setSearched(true);
-
-      try {
-        const res = await fetch(
-          `/api/explore/users?username=${encodeURIComponent(u)}`,
-        );
-        const data = await res.json();
-
-        if (!res.ok || !data.success) {
-          setError(data.error ?? "User lookup failed");
-          setUser(null);
-        } else {
-          setUser(data.data ?? null);
-        }
-      } catch {
-        setError("Network error — could not reach API");
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
+      await execute(`/api/explore/users?username=${encodeURIComponent(u)}`);
     },
-    [username],
+    [username, execute],
   );
 
   return (
     <AppShell breadcrumbs={[{ label: "Users" }]}>
       <div className="space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -86,14 +63,8 @@ export default function UsersPage() {
           </Button>
         </form>
 
-        {/* Error state */}
-        {error && (
-          <div className="rounded-card bg-destructive/10 p-4 text-sm text-destructive">
-            {error}
-          </div>
-        )}
+        {error && <ErrorBanner error={error} />}
 
-        {/* User result */}
         {user && (
           <UserCard
             user={user}
@@ -101,24 +72,18 @@ export default function UsersPage() {
           />
         )}
 
-        {/* No result */}
         {searched && !loading && !error && !user && (
           <div className="rounded-card bg-secondary p-8 text-center text-muted-foreground">
             No user found for &quot;{username}&quot;
           </div>
         )}
 
-        {/* Initial empty state */}
         {!searched && (
-          <div className="rounded-card bg-secondary p-12 text-center">
-            <Search className="mx-auto h-10 w-10 text-muted-foreground/40 mb-4" />
-            <p className="text-muted-foreground">
-              Enter a username to view their profile.
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground/70">
-              You can enter with or without the @ symbol.
-            </p>
-          </div>
+          <EmptyState
+            icon={Search}
+            title="Enter a username to view their profile."
+            subtitle="You can enter with or without the @ symbol."
+          />
         )}
       </div>
     </AppShell>
