@@ -5,7 +5,9 @@ import { AppShell } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TweetCard } from "@/components/twitter/tweet-card";
+import { ErrorBanner, EmptyState } from "@/components/ui/feedback";
 import { Search, ArrowUpDown, Loader2 } from "lucide-react";
+import { useSearch } from "@/hooks/use-api";
 
 import type { Tweet } from "../../../shared/types";
 
@@ -15,11 +17,8 @@ import type { Tweet } from "../../../shared/types";
 
 export default function TweetsPage() {
   const [query, setQuery] = useState("");
-  const [tweets, setTweets] = useState<Tweet[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [sortByTop, setSortByTop] = useState(true);
-  const [searched, setSearched] = useState(false);
+  const { data: tweets, loading, error, searched, execute } = useSearch<Tweet[]>("Search failed");
 
   const handleSearch = useCallback(
     async (e?: React.FormEvent) => {
@@ -27,39 +26,19 @@ export default function TweetsPage() {
       const q = query.trim();
       if (!q) return;
 
-      setLoading(true);
-      setError(null);
-      setSearched(true);
-
-      try {
-        const params = new URLSearchParams({
-          q,
-          count: "20",
-          sort_by_top: String(sortByTop),
-        });
-        const res = await fetch(`/api/explore/tweets?${params}`);
-        const data = await res.json();
-
-        if (!res.ok || !data.success) {
-          setError(data.error ?? "Search failed");
-          setTweets([]);
-        } else {
-          setTweets(data.data ?? []);
-        }
-      } catch {
-        setError("Network error — could not reach API");
-        setTweets([]);
-      } finally {
-        setLoading(false);
-      }
+      const params = new URLSearchParams({
+        q,
+        count: "20",
+        sort_by_top: String(sortByTop),
+      });
+      await execute(`/api/explore/tweets?${params}`);
     },
-    [query, sortByTop],
+    [query, sortByTop, execute],
   );
 
   return (
     <AppShell breadcrumbs={[{ label: "Tweets" }]}>
       <div className="space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Tweets</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -100,22 +79,15 @@ export default function TweetsPage() {
           </Button>
         </form>
 
-        {/* Error state */}
-        {error && (
-          <div className="rounded-card bg-destructive/10 p-4 text-sm text-destructive">
-            {error}
-          </div>
-        )}
+        {error && <ErrorBanner error={error} />}
 
-        {/* Empty results */}
-        {searched && !loading && !error && tweets.length === 0 && (
+        {searched && !loading && !error && (!tweets || tweets.length === 0) && (
           <div className="rounded-card bg-secondary p-8 text-center text-muted-foreground">
             No tweets found for &quot;{query}&quot;
           </div>
         )}
 
-        {/* Results */}
-        {tweets.length > 0 && (
+        {tweets && tweets.length > 0 && (
           <div className="space-y-3">
             <div className="text-sm text-muted-foreground">
               {tweets.length} result{tweets.length !== 1 ? "s" : ""}
@@ -126,20 +98,12 @@ export default function TweetsPage() {
           </div>
         )}
 
-        {/* Initial empty state */}
         {!searched && (
-          <div className="rounded-card bg-secondary p-12 text-center">
-            <Search className="mx-auto h-10 w-10 text-muted-foreground/40 mb-4" />
-            <p className="text-muted-foreground">
-              Enter a search query to discover tweets.
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground/70">
-              Tip: Use operators like{" "}
-              <code className="rounded bg-muted px-1">from:username</code>,{" "}
-              <code className="rounded bg-muted px-1">min_likes:100</code>,{" "}
-              <code className="rounded bg-muted px-1">lang:en</code>
-            </p>
-          </div>
+          <EmptyState
+            icon={Search}
+            title="Enter a search query to discover tweets."
+            subtitle='Tip: Use operators like from:username, min_likes:100, lang:en'
+          />
         )}
       </div>
     </AppShell>
