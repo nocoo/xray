@@ -16,6 +16,8 @@ import type {
   Message,
   Conversation,
   InboxItem,
+  Credits,
+  CreditsUsageRecord,
 } from "../../../shared/types";
 
 import type {
@@ -25,6 +27,8 @@ import type {
   TweAPIAnalytics,
   TweAPIMessage,
   TweAPIInboxItem,
+  TweAPICreditsResponse,
+  TweAPICreditsUsageResponse,
 } from "./api-types";
 
 // =============================================================================
@@ -263,4 +267,28 @@ export function normalizeConversation(data: {
     messages: data.messages.map((m) => normalizeMessage(m)),
     participants: data.participants.map((p) => normalizeUserInfo(p)),
   };
+}
+
+// =============================================================================
+// Credits normalization
+// =============================================================================
+
+export function normalizeCredits(apiCredits: TweAPICreditsResponse): Credits {
+  return {
+    remaining: apiCredits.data?.remaining ?? 0,
+    total: apiCredits.data?.total ?? 0,
+    expires_at: apiCredits.data?.expiresAt,
+  };
+}
+
+export function normalizeCreditsUsage(
+  apiUsage: TweAPICreditsUsageResponse,
+): CreditsUsageRecord[] {
+  if (!apiUsage.data?.list) return [];
+  return apiUsage.data.list.map((item) => ({
+    date: item.date,
+    endpoint: item.endpoint,
+    credits_used: item.creditsUsed,
+    request_count: item.requestCount,
+  }));
 }

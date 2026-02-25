@@ -46,6 +46,8 @@ import {
   normalizeAnalyticsWithTimeSeries,
   normalizeInboxItem,
   normalizeConversation,
+  normalizeCredits,
+  normalizeCreditsUsage,
 } from "./normalizer";
 
 export interface TweAPIConfig {
@@ -415,23 +417,13 @@ export class TweAPIProvider implements ITwitterProvider {
     const data = await this.requestGet<TweAPICreditsResponse>(
       "/v1/credits",
     );
-    return {
-      remaining: data.data?.remaining ?? 0,
-      total: data.data?.total ?? 0,
-      expires_at: data.data?.expiresAt,
-    };
+    return normalizeCredits(data);
   }
 
   async getCreditsUsage(): Promise<CreditsUsageRecord[]> {
     const data = await this.requestGet<TweAPICreditsUsageResponse>(
       "/v1/credits/usage",
     );
-    if (!data.data?.list) return [];
-    return data.data.list.map((item) => ({
-      date: item.date,
-      endpoint: item.endpoint,
-      credits_used: item.creditsUsed,
-      request_count: item.requestCount,
-    }));
+    return normalizeCreditsUsage(data);
   }
 }
