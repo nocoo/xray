@@ -1,6 +1,6 @@
 import { join } from "path";
 import { existsSync, mkdirSync } from "fs";
-import type { Config, RawTweetsFile, ClassifiedFile, ReportFile } from "./types";
+import type { Config, RawTweetsFile, ClassifiedFile, ReportFile, Tweet } from "./types";
 
 // =============================================================================
 // Path Constants
@@ -32,6 +32,8 @@ export async function writeJsonFile<T>(path: string, data: T): Promise<void> {
 export async function fileExists(path: string): Promise<boolean> {
   return await Bun.file(path).exists();
 }
+
+export type { Tweet } from "./types";
 
 // =============================================================================
 // Config Helpers
@@ -179,8 +181,6 @@ export function normalizeUsername(input: string): string {
 // =============================================================================
 // Tweet Helpers
 // =============================================================================
-
-import type { Tweet } from "./types";
 
 export function formatTweetOutput(tweet: Tweet): string {
   const engagement = `❤️ ${tweet.metrics.like_count} | 🔁 ${tweet.metrics.retweet_count} | 💬 ${tweet.metrics.reply_count} | 👁 ${tweet.metrics.view_count}`;
