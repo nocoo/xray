@@ -648,11 +648,11 @@ function MemberCard({
         <img
           src={`https://unavatar.io/x/${member.twitterUsername}`}
           alt={member.twitterUsername}
-          className="h-14 w-14 rounded-full bg-muted mb-2"
+          className="h-[90px] w-[90px] rounded-full bg-muted mb-2"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
             target.style.display = "none";
-            target.parentElement!.innerHTML = `<div class="flex h-14 w-14 items-center justify-center rounded-full bg-muted text-lg font-medium">${member.twitterUsername[0]?.toUpperCase() ?? "?"}</div>`;
+            target.parentElement!.innerHTML = `<div class="flex h-[90px] w-[90px] items-center justify-center rounded-full bg-muted text-2xl font-medium">${member.twitterUsername[0]?.toUpperCase() ?? "?"}</div>`;
           }}
         />
       </a>
