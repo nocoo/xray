@@ -128,54 +128,57 @@ export function TweetCard({
         >
           {tweet.media.map((m) => {
             const isSingle = tweet.media!.length === 1;
+            const containerClass = isSingle
+              ? "overflow-hidden rounded-lg bg-muted"
+              : "relative shrink-0 overflow-hidden rounded-lg bg-muted";
+            const mediaClass = isSingle
+              ? "w-full rounded-lg"
+              : "h-40 w-auto max-w-[280px] object-cover";
 
-            if (m.type === "PHOTO" || m.type === "GIF") {
-              // GIFs from Twitter are just animated images — render as <img>
+            if (m.type === "PHOTO") {
               return (
-                <div
-                  key={m.id}
-                  className={
-                    isSingle
-                      ? "overflow-hidden rounded-lg bg-muted"
-                      : "relative shrink-0 overflow-hidden rounded-lg bg-muted"
-                  }
-                >
+                <div key={m.id} className={containerClass}>
                   <img
                     src={m.url}
                     alt=""
-                    className={
-                      isSingle
-                        ? "w-full rounded-lg"
-                        : "h-40 w-auto max-w-[280px] object-cover"
-                    }
+                    className={mediaClass}
                     loading="lazy"
                   />
                 </div>
               );
             }
 
-            // VIDEO: render as <video> element with controls
+            // Twitter GIFs are actually silent looping .mp4 files
+            if (m.type === "GIF") {
+              return (
+                <div key={m.id} className={containerClass}>
+                  <video
+                    src={m.url}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className={mediaClass}
+                  />
+                </div>
+              );
+            }
+
+            // VIDEO: render with controls, click stops propagation to parent Link
             if (m.type === "VIDEO") {
               return (
                 <div
                   key={m.id}
-                  className={
-                    isSingle
-                      ? "overflow-hidden rounded-lg bg-muted"
-                      : "relative shrink-0 overflow-hidden rounded-lg bg-muted"
-                  }
+                  className={containerClass}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <video
                     src={m.url}
                     poster={m.thumbnail_url}
                     controls
                     playsInline
-                    preload="metadata"
-                    className={
-                      isSingle
-                        ? "w-full rounded-lg"
-                        : "h-40 w-auto max-w-[280px] object-cover"
-                    }
+                    preload="none"
+                    className={mediaClass}
                   />
                 </div>
               );
