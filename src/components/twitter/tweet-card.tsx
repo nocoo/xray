@@ -249,8 +249,15 @@ export function TweetCard({
         </div>
       )}
 
-      {/* Metrics row */}
-      <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+      {/* Metrics row — overflow hidden with fade-out mask on the right */}
+      <div
+        className="mt-3 flex items-center gap-4 text-xs text-muted-foreground overflow-hidden"
+        style={{
+          maskImage: "linear-gradient(to right, black 80%, transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to right, black 80%, transparent 100%)",
+        }}
+      >
         <MetricItem
           icon={<MessageCircle className="h-3.5 w-3.5" />}
           value={tweet.metrics.reply_count}
@@ -301,7 +308,7 @@ function MetricItem({
   value: number;
 }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex shrink-0 items-center gap-1">
       {icon}
       <span className="font-display">{formatCount(value)}</span>
     </div>
