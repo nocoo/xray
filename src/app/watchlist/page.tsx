@@ -130,8 +130,7 @@ export default function WatchlistPage() {
   // Tab state: "members" or "posts"
   const [activeTab, setActiveTab] = useState<"members" | "posts">("members");
 
-  // Global language toggle for posts: "zh" shows translation, "en" shows original
-  const [postsLang, setPostsLang] = useState<"zh" | "en">("zh");
+  // Default language for new posts (each card manages its own toggle now)
 
   // ── Data loading ──
 
@@ -527,21 +526,6 @@ export default function WatchlistPage() {
         {/* Posts tab */}
         {activeTab === "posts" && (
           <div>
-            {/* Language toggle */}
-            {posts.length > 0 && (
-              <div className="flex justify-end mb-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPostsLang((l) => (l === "zh" ? "en" : "zh"))}
-                  title={postsLang === "zh" ? "Show original English" : "Show Chinese translation"}
-                >
-                  <ArrowLeftRight className="h-4 w-4" />
-                  {postsLang === "zh" ? "中文" : "EN"}
-                </Button>
-              </div>
-            )}
-
             {postsLoading && <LoadingSpinner />}
 
             {!postsLoading && posts.length === 0 && (
@@ -556,7 +540,7 @@ export default function WatchlistPage() {
               <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-3 [column-fill:balance]">
                 {posts.map((post) => (
                   <div key={post.id} className="mb-3 break-inside-avoid">
-                    <WatchlistPostCard post={post} lang={postsLang} />
+                    <WatchlistPostCard post={post} />
                   </div>
                 ))}
               </div>
@@ -603,11 +587,15 @@ export default function WatchlistPage() {
 // WatchlistPostCard — TweetCard + translation overlay
 // =============================================================================
 
-function WatchlistPostCard({ post, lang }: { post: FetchedPostData; lang: "zh" | "en" }) {
+function WatchlistPostCard({ post }: { post: FetchedPostData }) {
+  const [lang, setLang] = useState<"zh" | "en">("zh");
+
+  const hasTranslation = !!post.translatedText;
+
   // When lang=zh and translation is available, swap the tweet text inline
   const displayTweet =
-    lang === "zh" && post.translatedText
-      ? { ...post.tweet, text: post.translatedText }
+    lang === "zh" && hasTranslation
+      ? { ...post.tweet, text: post.translatedText! }
       : post.tweet;
 
   const showComment = lang === "zh" && post.commentText;
@@ -616,13 +604,26 @@ function WatchlistPostCard({ post, lang }: { post: FetchedPostData; lang: "zh" |
     <div className="space-y-0">
       <TweetCard tweet={displayTweet} linkToDetail={false} />
       {showComment && (
-        <div className="bg-amber-50 dark:bg-amber-950/30 border border-t-0 border-amber-200 dark:border-amber-800 rounded-b-lg px-3 py-2 -mt-1">
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-t-0 border-amber-200 dark:border-amber-800 px-3 py-2 -mt-1">
           <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
             <span className="font-semibold mr-1">锐评</span>
             {post.commentText}
           </p>
         </div>
       )}
+      {/* Per-card language toggle + action bar */}
+      <div className={`flex items-center gap-1 px-2 py-1.5 border border-t-0 rounded-b-lg bg-card ${showComment ? "" : "-mt-1"}`}>
+        {hasTranslation && (
+          <button
+            onClick={() => setLang((l) => (l === "zh" ? "en" : "zh"))}
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title={lang === "zh" ? "Show original" : "Show translation"}
+          >
+            <ArrowLeftRight className="h-3 w-3" />
+            {lang === "zh" ? "中文" : "EN"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
