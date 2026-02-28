@@ -6,7 +6,7 @@
  * for the same user.
  */
 
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { eq, and, isNull, desc, lt } from "drizzle-orm";
 import { db } from "@/db";
 import {
   fetchedPosts,
@@ -173,4 +173,24 @@ export function countUntranslated(userId: string): number {
     )
     .all();
   return rows.length;
+}
+
+/**
+ * Delete posts whose tweetCreatedAt is older than `cutoffIso`.
+ * Used for retention policy — purge tweets beyond the max window.
+ * @param userId - Scope deletion to this user
+ * @param cutoffIso - ISO 8601 string; posts created before this are deleted
+ * @returns Number of deleted rows
+ */
+export function purgeOlderThan(userId: string, cutoffIso: string): number {
+  const result = db
+    .delete(fetchedPosts)
+    .where(
+      and(
+        eq(fetchedPosts.userId, userId),
+        lt(fetchedPosts.tweetCreatedAt, cutoffIso),
+      ),
+    )
+    .run();
+  return result.changes;
 }
