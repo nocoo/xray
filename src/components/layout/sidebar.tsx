@@ -17,6 +17,7 @@ import {
   Heart,
   List,
   Eye,
+  Webhook,
 } from "lucide-react";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/version";
@@ -75,6 +76,7 @@ const navSections: NavSection[] = [
     title: null,
     items: [
       { href: "/usage", label: "Usage", icon: BarChart3 },
+      { href: "/webhooks", label: "Webhooks", icon: Webhook },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },
