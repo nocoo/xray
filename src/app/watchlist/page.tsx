@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout";
 import {
@@ -69,6 +69,37 @@ interface FetchedPostData {
 }
 
 // =============================================================================
+// useColumns — responsive column count via matchMedia
+// =============================================================================
+
+const BREAKPOINTS = [
+  { query: "(min-width: 1280px)", cols: 4 }, // xl
+  { query: "(min-width: 1024px)", cols: 3 }, // lg
+  { query: "(min-width: 640px)", cols: 2 },  // sm
+];
+
+function useColumns(): number {
+  const [cols, setCols] = useState(1);
+
+  useEffect(() => {
+    function calc() {
+      for (const bp of BREAKPOINTS) {
+        if (window.matchMedia(bp.query).matches) {
+          setCols(bp.cols);
+          return;
+        }
+      }
+      setCols(1);
+    }
+    calc();
+    window.addEventListener("resize", calc);
+    return () => window.removeEventListener("resize", calc);
+  }, []);
+
+  return cols;
+}
+
+// =============================================================================
 // Constants
 // =============================================================================
 
@@ -131,6 +162,14 @@ export default function WatchlistPage() {
   const [activeTab, setActiveTab] = useState<"members" | "posts">("members");
 
   // Default language for new posts (each card manages its own toggle now)
+
+  // Row-first masonry: distribute posts round-robin into columns
+  const columnCount = useColumns();
+  const postColumns = useMemo(() => {
+    const cols: FetchedPostData[][] = Array.from({ length: columnCount }, () => []);
+    posts.forEach((post, i) => cols[i % columnCount]!.push(post));
+    return cols;
+  }, [posts, columnCount]);
 
   // ── Data loading ──
 
@@ -601,10 +640,12 @@ export default function WatchlistPage() {
             )}
 
             {!postsLoading && posts.length > 0 && (
-              <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-3 [column-fill:balance]">
-                {posts.map((post) => (
-                  <div key={post.id} className="mb-3 break-inside-avoid">
-                    <WatchlistPostCard post={post} />
+              <div className="flex gap-3 items-start">
+                {postColumns.map((col, colIdx) => (
+                  <div key={colIdx} className="flex-1 min-w-0 flex flex-col gap-3">
+                    {col.map((post) => (
+                      <WatchlistPostCard key={post.id} post={post} />
+                    ))}
                   </div>
                 ))}
               </div>
