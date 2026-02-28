@@ -17,11 +17,14 @@ import { setupE2E, teardownE2E, getBaseUrl, apiRequest } from "./setup";
 
 interface WatchlistSettingsData {
   fetchIntervalMinutes: number;
+  retentionDays: number;
 }
 
 interface FetchResultData {
   fetched: number;
   newPosts: number;
+  skippedOld: number;
+  purged: number;
   errors: string[];
 }
 
@@ -76,13 +79,14 @@ describe("e2e: auto-fetch lifecycle", () => {
   // ===========================================================================
 
   describe("settings", () => {
-    test("GET /api/watchlist/settings returns default 0", async () => {
+    test("GET /api/watchlist/settings returns defaults (interval=0, retention=1)", async () => {
       const { status, data } = await apiRequest<ApiSuccess<WatchlistSettingsData>>(
         "/api/watchlist/settings",
       );
       expect(status).toBe(200);
       expect(data.success).toBe(true);
       expect(data.data.fetchIntervalMinutes).toBe(0);
+      expect(data.data.retentionDays).toBe(1);
     });
 
     test("PUT /api/watchlist/settings sets interval to 15", async () => {
@@ -97,6 +101,18 @@ describe("e2e: auto-fetch lifecycle", () => {
       expect(data.data.fetchIntervalMinutes).toBe(15);
     });
 
+    test("PUT /api/watchlist/settings sets retention to 7 days", async () => {
+      const { status, data } = await apiRequest<ApiSuccess<WatchlistSettingsData>>(
+        "/api/watchlist/settings",
+        {
+          method: "PUT",
+          body: JSON.stringify({ retentionDays: 7 }),
+        },
+      );
+      expect(status).toBe(200);
+      expect(data.data.retentionDays).toBe(7);
+    });
+
     test("PUT /api/watchlist/settings rejects invalid interval", async () => {
       const { status, data } = await apiRequest<ApiError>(
         "/api/watchlist/settings",
@@ -109,11 +125,24 @@ describe("e2e: auto-fetch lifecycle", () => {
       expect(data.error).toContain("Invalid interval");
     });
 
-    test("GET /api/watchlist/settings reflects updated value", async () => {
+    test("PUT /api/watchlist/settings rejects invalid retention", async () => {
+      const { status, data } = await apiRequest<ApiError>(
+        "/api/watchlist/settings",
+        {
+          method: "PUT",
+          body: JSON.stringify({ retentionDays: 5 }),
+        },
+      );
+      expect(status).toBe(400);
+      expect(data.error).toContain("Invalid retention");
+    });
+
+    test("GET /api/watchlist/settings reflects updated values", async () => {
       const { data } = await apiRequest<ApiSuccess<WatchlistSettingsData>>(
         "/api/watchlist/settings",
       );
       expect(data.data.fetchIntervalMinutes).toBe(15);
+      expect(data.data.retentionDays).toBe(7);
     });
   });
 
@@ -167,6 +196,8 @@ describe("e2e: auto-fetch lifecycle", () => {
       expect(data.data.fetched).toBe(2); // alice + bob
       expect(data.data.newPosts).toBeGreaterThan(0);
       expect(data.data.errors).toEqual([]);
+      expect(data.data.skippedOld).toBe(0); // mock tweets are "now"
+      expect(data.data.purged).toBe(0); // no old posts to purge
     });
 
     test("POST /api/watchlist/fetch deduplicates on second call", async () => {
