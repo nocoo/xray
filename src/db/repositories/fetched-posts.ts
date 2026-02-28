@@ -32,6 +32,15 @@ export function findByUserId(
     .all();
 }
 
+/** Find a single post by ID. */
+export function findById(id: number): FetchedPost | undefined {
+  return db
+    .select()
+    .from(fetchedPosts)
+    .where(eq(fetchedPosts.id, id))
+    .get();
+}
+
 /** Find posts for a specific watchlist member, newest tweet first. */
 export function findByMemberId(
   memberId: number,

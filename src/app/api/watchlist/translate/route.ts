@@ -1,11 +1,13 @@
 /**
  * POST /api/watchlist/translate
  *
- * Translate all untranslated fetched posts for the current user.
+ * Translate fetched posts for the current user.
  * Uses the user's configured AI provider. Each post is translated independently;
  * failures don't block other translations.
  *
- * Optional body: { limit?: number } — max posts to translate (default 20).
+ * Body options:
+ *   - { postId: number }          — translate a single post by ID
+ *   - { limit?: number }          — translate up to `limit` untranslated posts (default 20)
  */
 
 import { NextResponse } from "next/server";
@@ -21,8 +23,12 @@ export async function POST(request: Request) {
   if (error) return error;
 
   let limit = 20;
+  let singlePostId: number | null = null;
   try {
     const body = await request.json();
+    if (body.postId && Number.isInteger(body.postId)) {
+      singlePostId = body.postId;
+    }
     if (body.limit && Number.isInteger(body.limit) && body.limit > 0) {
       limit = Math.min(body.limit, 50);
     }
@@ -30,16 +36,28 @@ export async function POST(request: Request) {
     // Empty body is fine, use defaults
   }
 
-  const untranslated = fetchedPostsRepo.findUntranslated(user.id, limit);
-  if (untranslated.length === 0) {
-    return NextResponse.json({
-      success: true,
-      data: { translated: 0, errors: [], remaining: 0 },
-    });
+  let postsToTranslate: { id: number; text: string }[];
+
+  if (singlePostId !== null) {
+    // Single-post mode: translate (or re-translate) a specific post
+    const post = fetchedPostsRepo.findById(singlePostId);
+    if (!post || post.userId !== user.id) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+    postsToTranslate = [{ id: post.id, text: post.text }];
+  } else {
+    // Batch mode: translate untranslated posts
+    const untranslated = fetchedPostsRepo.findUntranslated(user.id, limit);
+    if (untranslated.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: { translated: 0, errors: [], remaining: 0 },
+      });
+    }
+    postsToTranslate = untranslated.map((p) => ({ id: p.id, text: p.text }));
   }
 
-  const posts = untranslated.map((p) => ({ id: p.id, text: p.text }));
-  const result = await translateBatch(user.id, posts);
+  const result = await translateBatch(user.id, postsToTranslate);
 
   // Persist successful translations
   for (const t of result.translated) {
@@ -54,13 +72,28 @@ export async function POST(request: Request) {
   fetchLogsRepo.insert({
     userId: user.id,
     type: "translate",
-    attempted: untranslated.length,
+    attempted: postsToTranslate.length,
     succeeded: result.translated.length,
     skipped: 0,
     purged: 0,
     errorCount: result.errors.length,
     errors: result.errors.length > 0 ? JSON.stringify(errorMessages) : null,
   });
+
+  // For single-post mode, include the updated post data
+  if (singlePostId !== null && result.translated.length > 0) {
+    const translated = result.translated[0]!;
+    return NextResponse.json({
+      success: true,
+      data: {
+        translated: 1,
+        errors: errorMessages,
+        remaining,
+        translatedText: translated.translatedText,
+        commentText: translated.commentText,
+      },
+    });
+  }
 
   return NextResponse.json({
     success: true,

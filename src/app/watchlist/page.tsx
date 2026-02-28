@@ -589,16 +589,39 @@ export default function WatchlistPage() {
 
 function WatchlistPostCard({ post }: { post: FetchedPostData }) {
   const [lang, setLang] = useState<"zh" | "en">("zh");
+  const [translatedText, setTranslatedText] = useState(post.translatedText);
+  const [commentText, setCommentText] = useState(post.commentText);
+  const [translating, setTranslating] = useState(false);
 
-  const hasTranslation = !!post.translatedText;
+  const hasTranslation = !!translatedText;
 
   // When lang=zh and translation is available, swap the tweet text inline
   const displayTweet =
     lang === "zh" && hasTranslation
-      ? { ...post.tweet, text: post.translatedText! }
+      ? { ...post.tweet, text: translatedText! }
       : post.tweet;
 
-  const showComment = lang === "zh" && post.commentText;
+  const showComment = lang === "zh" && commentText;
+
+  const handleTranslate = async () => {
+    setTranslating(true);
+    try {
+      const res = await fetch("/api/watchlist/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: post.id }),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.success && json.data.translatedText) {
+        setTranslatedText(json.data.translatedText);
+        setCommentText(json.data.commentText ?? null);
+      }
+    } catch {
+      // silent
+    } finally {
+      setTranslating(false);
+    }
+  };
 
   return (
     <div className="space-y-0">
@@ -607,13 +630,13 @@ function WatchlistPostCard({ post }: { post: FetchedPostData }) {
         <div className="bg-amber-50 dark:bg-amber-950/30 border border-t-0 border-amber-200 dark:border-amber-800 px-3 py-2 -mt-1">
           <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
             <span className="font-semibold mr-1">锐评</span>
-            {post.commentText}
+            {commentText}
           </p>
         </div>
       )}
-      {/* Per-card language toggle + action bar */}
+      {/* Per-card action bar */}
       <div className={`flex items-center gap-1 px-2 py-1.5 border border-t-0 rounded-b-lg bg-card ${showComment ? "" : "-mt-1"}`}>
-        {hasTranslation && (
+        {hasTranslation ? (
           <button
             onClick={() => setLang((l) => (l === "zh" ? "en" : "zh"))}
             className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
@@ -621,6 +644,20 @@ function WatchlistPostCard({ post }: { post: FetchedPostData }) {
           >
             <ArrowLeftRight className="h-3 w-3" />
             {lang === "zh" ? "中文" : "EN"}
+          </button>
+        ) : (
+          <button
+            onClick={handleTranslate}
+            disabled={translating}
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+            title="Translate this post"
+          >
+            {translating ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Languages className="h-3 w-3" />
+            )}
+            {translating ? "翻译中..." : "翻译"}
           </button>
         )}
       </div>
