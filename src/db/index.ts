@@ -178,7 +178,8 @@ export function initSchema(): void {
       user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
       twitter_username TEXT NOT NULL,
       note TEXT,
-      added_at INTEGER NOT NULL
+      added_at INTEGER NOT NULL,
+      fetch_interval_minutes INTEGER
     );
 
     CREATE TABLE IF NOT EXISTS tags (
@@ -201,6 +202,21 @@ export function initSchema(): void {
       value TEXT NOT NULL,
       updated_at INTEGER NOT NULL,
       PRIMARY KEY (user_id, key)
+    );
+
+    -- Fetched posts (auto-fetch cache with translation)
+    CREATE TABLE IF NOT EXISTS fetched_posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      member_id INTEGER NOT NULL REFERENCES watchlist_members(id) ON DELETE CASCADE,
+      tweet_id TEXT NOT NULL,
+      twitter_username TEXT NOT NULL,
+      text TEXT NOT NULL,
+      tweet_json TEXT NOT NULL,
+      tweet_created_at TEXT NOT NULL,
+      fetched_at INTEGER NOT NULL,
+      translated_text TEXT,
+      translated_at INTEGER
     );
   `);
 }
@@ -249,6 +265,7 @@ export function resetTestDb(): void {
   initSchema();
 
   sqlite!.exec(`
+    DELETE FROM fetched_posts;
     DELETE FROM watchlist_member_tags;
     DELETE FROM watchlist_members;
     DELETE FROM tags;
