@@ -78,6 +78,7 @@ async function parseSSE(res: Response): Promise<{ event: string; data: unknown }
 }
 
 /** Extract the "done" event payload from an SSE response. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function parseDoneEvent(res: Response) {
   const events = await parseSSE(res);
   const done = events.find((e) => e.event === "done");

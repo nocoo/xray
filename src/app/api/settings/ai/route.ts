@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 // ── AI settings keys stored in the KV table ──
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const AI_KEYS = [
   "ai.provider",
   "ai.apiKey",
