@@ -16,6 +16,7 @@ import {
   Bookmark,
   Heart,
   List,
+  Eye,
 } from "lucide-react";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/version";
@@ -63,6 +64,7 @@ const navSections: NavSection[] = [
     title: "My Account",
     items: [
       { href: "/analytics", label: "Analytics", icon: TrendingUp },
+      { href: "/watchlist", label: "Watchlist", icon: Eye },
       { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
       { href: "/likes", label: "Likes", icon: Heart },
       { href: "/lists", label: "Lists", icon: List },

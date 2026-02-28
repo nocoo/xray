@@ -171,6 +171,28 @@ export function initSchema(): void {
       last_used_at INTEGER,
       date TEXT NOT NULL
     );
+
+    -- Watchlist tables
+    CREATE TABLE IF NOT EXISTS watchlist_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      twitter_username TEXT NOT NULL,
+      note TEXT,
+      added_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      color TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS watchlist_member_tags (
+      member_id INTEGER NOT NULL REFERENCES watchlist_members(id) ON DELETE CASCADE,
+      tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      PRIMARY KEY (member_id, tag_id)
+    );
   `);
 }
 
@@ -218,6 +240,9 @@ export function resetTestDb(): void {
   initSchema();
 
   sqlite!.exec(`
+    DELETE FROM watchlist_member_tags;
+    DELETE FROM watchlist_members;
+    DELETE FROM tags;
     DELETE FROM usage_stats;
     DELETE FROM webhooks;
     DELETE FROM api_credentials;

@@ -112,6 +112,48 @@ export const usageStats = sqliteTable("usage_stats", {
 });
 
 // ============================================================================
+// Watchlist — user-curated interest list
+// ============================================================================
+
+export const watchlistMembers = sqliteTable("watchlist_members", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  twitterUsername: text("twitter_username").notNull(),
+  note: text("note"),
+  addedAt: integer("added_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const tags = sqliteTable("tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  color: text("color").notNull(),
+});
+
+export const watchlistMemberTags = sqliteTable(
+  "watchlist_member_tags",
+  {
+    memberId: integer("member_id")
+      .notNull()
+      .references(() => watchlistMembers.id, { onDelete: "cascade" }),
+    tagId: integer("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
+  },
+  (t) => ({
+    compositePk: primaryKey({
+      columns: [t.memberId, t.tagId],
+    }),
+  })
+);
+
+// ============================================================================
 // Type exports
 // ============================================================================
 
@@ -125,3 +167,9 @@ export type Webhook = typeof webhooks.$inferSelect;
 export type NewWebhook = typeof webhooks.$inferInsert;
 export type UsageStat = typeof usageStats.$inferSelect;
 export type NewUsageStat = typeof usageStats.$inferInsert;
+export type WatchlistMember = typeof watchlistMembers.$inferSelect;
+export type NewWatchlistMember = typeof watchlistMembers.$inferInsert;
+export type Tag = typeof tags.$inferSelect;
+export type NewTag = typeof tags.$inferInsert;
+export type WatchlistMemberTag = typeof watchlistMemberTags.$inferSelect;
+export type NewWatchlistMemberTag = typeof watchlistMemberTags.$inferInsert;

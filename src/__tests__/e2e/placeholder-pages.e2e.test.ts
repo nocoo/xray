@@ -92,6 +92,13 @@ describe("e2e: placeholder pages", () => {
       expect(html).not.toContain("Coming Soon");
     });
 
+    test("GET /watchlist returns 200 with watchlist page", async () => {
+      const { status, html } = await fetchPage("/watchlist");
+      expect(status).toBe(200);
+      expect(html).toContain("Watchlist");
+      expect(html).not.toContain("Coming Soon");
+    });
+
     test("GET /messages returns 200 with functional inbox", async () => {
       const { status, html } = await fetchPage("/messages");
       expect(status).toBe(200);
