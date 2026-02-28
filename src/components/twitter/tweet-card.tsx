@@ -119,29 +119,83 @@ export function TweetCard({
 
       {/* Media preview */}
       {tweet.media && tweet.media.length > 0 && (
-        <div className="mt-3 flex gap-2 overflow-x-auto">
-          {tweet.media.map((m) => (
-            <div
-              key={m.id}
-              className="relative shrink-0 overflow-hidden rounded-lg bg-muted"
-            >
-              {m.type === "PHOTO" ? (
-                <img
-                  src={m.url}
-                  alt=""
-                  className="h-40 w-auto max-w-[280px] object-cover"
-                  loading="lazy"
-                />
-              ) : (
+        <div
+          className={
+            tweet.media.length === 1
+              ? "mt-3"
+              : "mt-3 flex gap-2 overflow-x-auto"
+          }
+        >
+          {tweet.media.map((m) => {
+            const isSingle = tweet.media!.length === 1;
+
+            if (m.type === "PHOTO" || m.type === "GIF") {
+              // GIFs from Twitter are just animated images — render as <img>
+              return (
+                <div
+                  key={m.id}
+                  className={
+                    isSingle
+                      ? "overflow-hidden rounded-lg bg-muted"
+                      : "relative shrink-0 overflow-hidden rounded-lg bg-muted"
+                  }
+                >
+                  <img
+                    src={m.url}
+                    alt=""
+                    className={
+                      isSingle
+                        ? "w-full rounded-lg"
+                        : "h-40 w-auto max-w-[280px] object-cover"
+                    }
+                    loading="lazy"
+                  />
+                </div>
+              );
+            }
+
+            // VIDEO: render as <video> element with controls
+            if (m.type === "VIDEO") {
+              return (
+                <div
+                  key={m.id}
+                  className={
+                    isSingle
+                      ? "overflow-hidden rounded-lg bg-muted"
+                      : "relative shrink-0 overflow-hidden rounded-lg bg-muted"
+                  }
+                >
+                  <video
+                    src={m.url}
+                    poster={m.thumbnail_url}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className={
+                      isSingle
+                        ? "w-full rounded-lg"
+                        : "h-40 w-auto max-w-[280px] object-cover"
+                    }
+                  />
+                </div>
+              );
+            }
+
+            // Fallback for unknown media types
+            return (
+              <div
+                key={m.id}
+                className="relative shrink-0 overflow-hidden rounded-lg bg-muted"
+              >
                 <div className="flex h-40 w-40 items-center justify-center">
                   <ImageIcon className="h-8 w-8 text-muted-foreground" />
                   <span className="ml-1 text-xs text-muted-foreground">
                     {m.type}
                   </span>
                 </div>
-              )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
       )}
 
