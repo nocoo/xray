@@ -188,9 +188,10 @@ export default function WatchlistPage() {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    loadPosts(); // Pre-load posts so cached data is ready when switching tabs
+  }, [loadData, loadPosts]);
 
-  // Load posts when switching to posts tab
+  // Refresh posts when switching to posts tab (picks up new fetches/translations)
   useEffect(() => {
     if (activeTab === "posts") {
       loadPosts();

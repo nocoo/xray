@@ -223,6 +223,17 @@ export function initSchema(): void {
     CREATE UNIQUE INDEX IF NOT EXISTS fetched_posts_user_tweet_uniq
       ON fetched_posts (user_id, tweet_id);
 
+    -- Safe column migration: add comment_text if missing (for pre-existing DBs)
+    -- SQLite doesn't support ADD COLUMN IF NOT EXISTS, so we catch the error.
+  `);
+
+  try {
+    sqlite!.exec(`ALTER TABLE fetched_posts ADD COLUMN comment_text TEXT`);
+  } catch {
+    // Column already exists — ignore
+  }
+
+  sqlite!.exec(`
     -- Fetch logs (persistent fetch/translate history)
     CREATE TABLE IF NOT EXISTS fetch_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
