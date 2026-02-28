@@ -32,6 +32,7 @@ config/
 .env
 .env.local
 .env.production.local
+.env.e2e
 
 # Claude settings
 .claude/settings.local.json
