@@ -221,6 +221,20 @@ export function initSchema(): void {
 
     CREATE UNIQUE INDEX IF NOT EXISTS fetched_posts_user_tweet_uniq
       ON fetched_posts (user_id, tweet_id);
+
+    -- Fetch logs (persistent fetch/translate history)
+    CREATE TABLE IF NOT EXISTS fetch_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      attempted INTEGER NOT NULL DEFAULT 0,
+      succeeded INTEGER NOT NULL DEFAULT 0,
+      skipped INTEGER NOT NULL DEFAULT 0,
+      purged INTEGER NOT NULL DEFAULT 0,
+      error_count INTEGER NOT NULL DEFAULT 0,
+      errors TEXT,
+      created_at INTEGER NOT NULL
+    );
   `);
 }
 
@@ -268,6 +282,7 @@ export function resetTestDb(): void {
   initSchema();
 
   sqlite!.exec(`
+    DELETE FROM fetch_logs;
     DELETE FROM fetched_posts;
     DELETE FROM watchlist_member_tags;
     DELETE FROM watchlist_members;

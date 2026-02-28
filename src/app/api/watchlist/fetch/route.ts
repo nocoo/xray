@@ -14,6 +14,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import * as watchlistRepo from "@/db/repositories/watchlist";
 import * as fetchedPostsRepo from "@/db/repositories/fetched-posts";
+import * as fetchLogsRepo from "@/db/repositories/fetch-logs";
 import * as settingsRepo from "@/db/repositories/settings";
 import { createProviderForUser } from "@/lib/twitter/provider-factory";
 
@@ -97,6 +98,18 @@ export async function POST() {
       errors.push(`@${member.twitterUsername}: ${message}`);
     }
   }
+
+  // Persist log entry
+  fetchLogsRepo.insert({
+    userId: user.id,
+    type: "fetch",
+    attempted: members.length,
+    succeeded: totalNew,
+    skipped: totalSkipped,
+    purged,
+    errorCount: errors.length,
+    errors: errors.length > 0 ? JSON.stringify(errors) : null,
+  });
 
   return NextResponse.json({
     success: true,

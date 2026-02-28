@@ -198,6 +198,35 @@ export const fetchedPosts = sqliteTable(
 );
 
 // ============================================================================
+// Fetch Logs — persistent history of fetch/translate runs
+// ============================================================================
+
+export const fetchLogs = sqliteTable("fetch_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  /** "fetch" or "translate" */
+  type: text("type").notNull(),
+  /** Total members/posts attempted */
+  attempted: integer("attempted").notNull().default(0),
+  /** Successfully processed count (new posts / translated) */
+  succeeded: integer("succeeded").notNull().default(0),
+  /** Skipped (too old) */
+  skipped: integer("skipped").notNull().default(0),
+  /** Purged old posts */
+  purged: integer("purged").notNull().default(0),
+  /** Number of errors */
+  errorCount: integer("error_count").notNull().default(0),
+  /** JSON array of error detail strings */
+  errors: text("errors"),
+  /** When this run started */
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// ============================================================================
 // Settings — generic key-value store (per user)
 // ============================================================================
 
@@ -240,5 +269,7 @@ export type WatchlistMemberTag = typeof watchlistMemberTags.$inferSelect;
 export type NewWatchlistMemberTag = typeof watchlistMemberTags.$inferInsert;
 export type FetchedPost = typeof fetchedPosts.$inferSelect;
 export type NewFetchedPost = typeof fetchedPosts.$inferInsert;
+export type FetchLog = typeof fetchLogs.$inferSelect;
+export type NewFetchLog = typeof fetchLogs.$inferInsert;
 export type Setting = typeof settings.$inferSelect;
 export type NewSetting = typeof settings.$inferInsert;

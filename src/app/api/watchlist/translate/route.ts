@@ -11,6 +11,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import * as fetchedPostsRepo from "@/db/repositories/fetched-posts";
+import * as fetchLogsRepo from "@/db/repositories/fetch-logs";
 import { translateBatch } from "@/services/translation";
 
 export const dynamic = "force-dynamic";
@@ -47,11 +48,25 @@ export async function POST(request: Request) {
 
   const remaining = fetchedPostsRepo.countUntranslated(user.id);
 
+  const errorMessages = result.errors.map((e) => e.error);
+
+  // Persist log entry
+  fetchLogsRepo.insert({
+    userId: user.id,
+    type: "translate",
+    attempted: untranslated.length,
+    succeeded: result.translated.length,
+    skipped: 0,
+    purged: 0,
+    errorCount: result.errors.length,
+    errors: result.errors.length > 0 ? JSON.stringify(errorMessages) : null,
+  });
+
   return NextResponse.json({
     success: true,
     data: {
       translated: result.translated.length,
-      errors: result.errors.map((e) => e.error),
+      errors: errorMessages,
       remaining,
     },
   });
