@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import { AppShell } from "@/components/layout";
 import {
   LoadingSpinner,
@@ -22,16 +23,15 @@ import {
   Plus,
   Pencil,
   Trash2,
-  ExternalLink,
   Tag,
   X,
-  StickyNote,
   RefreshCw,
   Languages,
   Clock,
   Loader2,
   CalendarClock,
   ArrowLeftRight,
+  ScrollText,
 } from "lucide-react";
 import { TweetCard } from "@/components/twitter/tweet-card";
 import type { Tweet } from "../../../shared/types";
@@ -397,6 +397,12 @@ export default function WatchlistPage() {
                 )}
                 {translating ? "Translating..." : `Translate${untranslatedCount > 0 ? ` (${untranslatedCount})` : ""}`}
               </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/watchlist/logs">
+                  <ScrollText className="h-4 w-4" />
+                  Logs
+                </Link>
+              </Button>
             </div>
           </div>
           {fetchStatus && (
@@ -427,7 +433,7 @@ export default function WatchlistPage() {
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            Fetched Posts
+            Posts
             {posts.length > 0 && (
               <span className="ml-1.5 text-xs text-muted-foreground">
                 ({posts.length})
@@ -438,10 +444,10 @@ export default function WatchlistPage() {
 
         {/* Members tab */}
         {activeTab === "members" && (
-          <div className="mx-auto max-w-2xl">
+          <div>
             {/* Tag filter bar */}
             {allTags.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 mb-4">
                 <span className="text-xs text-muted-foreground mr-1">Filter:</span>
                 <button
                   onClick={() => setFilterTagId(null)}
@@ -476,9 +482,9 @@ export default function WatchlistPage() {
             {error && <ErrorBanner error={error} />}
 
             {!loading && !error && filtered.length > 0 && (
-              <div className="space-y-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {filtered.map((member) => (
-                  <MemberRow
+                  <MemberCard
                     key={member.id}
                     member={member}
                     onEdit={() => setEditMember(member)}
@@ -511,7 +517,7 @@ export default function WatchlistPage() {
 
         {/* Posts tab */}
         {activeTab === "posts" && (
-          <div className="mx-auto max-w-2xl">
+          <div>
             {/* Language toggle */}
             {posts.length > 0 && (
               <div className="flex justify-end mb-3">
@@ -538,9 +544,11 @@ export default function WatchlistPage() {
             )}
 
             {!postsLoading && posts.length > 0 && (
-              <div className="space-y-3">
+              <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-3 [column-fill:balance]">
                 {posts.map((post) => (
-                  <WatchlistPostCard key={post.id} post={post} lang={postsLang} />
+                  <div key={post.id} className="mb-3 break-inside-avoid">
+                    <WatchlistPostCard post={post} lang={postsLang} />
+                  </div>
                 ))}
               </div>
             )}
@@ -601,10 +609,10 @@ function WatchlistPostCard({ post, lang }: { post: FetchedPostData; lang: "zh" |
 }
 
 // =============================================================================
-// MemberRow — single watchlist member display
+// MemberCard — avatar-on-top card for grid layout
 // =============================================================================
 
-function MemberRow({
+function MemberCard({
   member,
   onEdit,
   onDelete,
@@ -614,68 +622,11 @@ function MemberRow({
   onDelete: () => void;
 }) {
   return (
-    <div className="rounded-card bg-card border p-4 flex items-center gap-4 group">
-      {/* Avatar placeholder — first letter */}
-      <a
-        href={`https://x.com/${member.twitterUsername}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="shrink-0"
-      >
-        <img
-          src={`https://unavatar.io/x/${member.twitterUsername}`}
-          alt={member.twitterUsername}
-          className="h-10 w-10 rounded-full bg-muted"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.style.display = "none";
-            target.parentElement!.innerHTML = `<div class="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-medium">${member.twitterUsername[0]?.toUpperCase() ?? "?"}</div>`;
-          }}
-        />
-      </a>
-
-      {/* Name + note + tags */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <a
-            href={`https://x.com/${member.twitterUsername}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium hover:underline"
-          >
-            @{member.twitterUsername}
-          </a>
-          <ExternalLink className="h-3 w-3 text-muted-foreground" />
-        </div>
-
-        {/* Tags */}
-        {member.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1">
-            {member.tags.map((tag) => (
-              <span
-                key={tag.id}
-                className="rounded-full px-2 py-0.5 text-[11px] font-medium text-white"
-                style={{ backgroundColor: tag.color }}
-              >
-                {tag.name}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Note */}
-        {member.note && (
-          <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
-            <StickyNote className="h-3 w-3 mt-0.5 shrink-0" />
-            <span className="line-clamp-2">{member.note}</span>
-          </p>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+    <div className="rounded-card bg-card border p-4 flex flex-col items-center text-center group relative">
+      {/* Hover actions — top-right corner */}
+      <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <Button variant="ghost" size="icon-xs" onClick={onEdit} title="Edit">
-          <Pencil className="h-3.5 w-3.5" />
+          <Pencil className="h-3 w-3" />
         </Button>
         <Button
           variant="ghost"
@@ -684,9 +635,59 @@ function MemberRow({
           title="Remove"
           className="text-destructive hover:text-destructive"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-3 w-3" />
         </Button>
       </div>
+
+      {/* Avatar */}
+      <a
+        href={`https://x.com/${member.twitterUsername}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <img
+          src={`https://unavatar.io/x/${member.twitterUsername}`}
+          alt={member.twitterUsername}
+          className="h-14 w-14 rounded-full bg-muted mb-2"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.style.display = "none";
+            target.parentElement!.innerHTML = `<div class="flex h-14 w-14 items-center justify-center rounded-full bg-muted text-lg font-medium">${member.twitterUsername[0]?.toUpperCase() ?? "?"}</div>`;
+          }}
+        />
+      </a>
+
+      {/* Username */}
+      <a
+        href={`https://x.com/${member.twitterUsername}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm font-medium hover:underline truncate max-w-full"
+      >
+        @{member.twitterUsername}
+      </a>
+
+      {/* Tags */}
+      {member.tags.length > 0 && (
+        <div className="flex flex-wrap justify-center gap-1 mt-1.5">
+          {member.tags.map((tag) => (
+            <span
+              key={tag.id}
+              className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+              style={{ backgroundColor: tag.color }}
+            >
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Note */}
+      {member.note && (
+        <p className="text-[11px] text-muted-foreground mt-1.5 line-clamp-2">
+          {member.note}
+        </p>
+      )}
     </div>
   );
 }
