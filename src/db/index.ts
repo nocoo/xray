@@ -227,11 +227,13 @@ export function initSchema(): void {
     -- SQLite doesn't support ADD COLUMN IF NOT EXISTS, so we catch the error.
   `);
 
-  try {
-    sqlite!.exec(`ALTER TABLE fetched_posts ADD COLUMN comment_text TEXT`);
-  } catch {
-    // Column already exists — ignore
-  }
+  // Safe column migrations for pre-existing databases.
+  // Each ALTER TABLE is wrapped in try/catch because SQLite lacks ADD COLUMN IF NOT EXISTS.
+  const safeAddColumn = (sql: string) => {
+    try { sqlite!.exec(sql); } catch { /* column already exists */ }
+  };
+  safeAddColumn(`ALTER TABLE watchlist_members ADD COLUMN fetch_interval_minutes INTEGER`);
+  safeAddColumn(`ALTER TABLE fetched_posts ADD COLUMN comment_text TEXT`);
 
   sqlite!.exec(`
     -- Fetch logs (persistent fetch/translate history)
