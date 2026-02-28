@@ -25,3 +25,5 @@ README.md
 11. **vinext `next/font/google` shim only exports ~20 common fonts** — Named imports like `import { DM_Sans } from "next/font/google"` fail because Rollup can't statically resolve names not explicitly exported. Fix: use default import `import googleFonts from "next/font/google"` then `const DM_Sans = googleFonts.DM_Sans` — the shim's Proxy default export handles any font name at runtime.
 
 12. **vinext route handlers don't provide `nextUrl` on Request** — `next-auth` v5 expects `NextRequest` with a `nextUrl` property. vinext's route handlers pass plain `Request` objects. Fix: wrap handlers to convert `Request` to `NextRequest` before passing to next-auth.
+
+13. **`CREATE TABLE IF NOT EXISTS` won't add columns to existing tables** — When adding new columns (e.g., `comment_text`) to `initSchema()`'s DDL, pre-existing SQLite databases silently skip the entire CREATE statement. Fix: add an explicit `ALTER TABLE ... ADD COLUMN` wrapped in try/catch after the CREATE block. SQLite lacks `ADD COLUMN IF NOT EXISTS`, so catching the "duplicate column" error is the standard pattern.
