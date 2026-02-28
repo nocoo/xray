@@ -35,12 +35,12 @@ function generateTagColor(name: string): string {
 const USER_ID = "1610a911-12db-4750-b7a8-567d3d1ec42a";
 
 const TAGS = [
-  "AI 研究员",
-  "AI 创业者",
-  "AI 公司",
-  "AI 教育",
-  "AI 评论",
-  "AI 工程师",
+  "研究员",
+  "创业者",
+  "公司",
+  "教育",
+  "评论",
+  "工程师",
   "内容创作者",
 ] as const;
 
@@ -56,77 +56,77 @@ const SEED_USERS: SeedUser[] = [
   {
     username: "rasbt",
     note: "ML/AI 研究工程师，统计学前教授，《从零构建大语言模型》作者",
-    tags: ["AI 研究员", "AI 教育"],
+    tags: ["研究员", "教育"],
   },
   {
     username: "demi_guo_",
     note: "Pika Labs 联合创始人兼CEO，AI视频生成",
-    tags: ["AI 创业者"],
+    tags: ["创业者"],
   },
   {
     username: "KirkDBorne",
     note: "数据科学/AI 顶级意见领袖，天体物理学博士（加州理工），全球演讲者",
-    tags: ["AI 评论", "内容创作者"],
+    tags: ["评论", "内容创作者"],
   },
   {
     username: "tunguz",
     note: "前 Nvidia ML 工程师，Kaggle 大师，XGBoost 创作者，斯坦福校友",
-    tags: ["AI 研究员", "AI 工程师"],
+    tags: ["研究员", "工程师"],
   },
   {
     username: "EMostaque",
     note: "Stability AI 创始人，开源主权AI倡导者",
-    tags: ["AI 创业者"],
+    tags: ["创业者"],
   },
   {
     username: "bcherny",
     note: "Anthropic Claude Code 工程师",
-    tags: ["AI 工程师"],
+    tags: ["工程师"],
   },
   {
     username: "GaryMarcus",
     note: "AI 知名批评家与评论者，被《纽约客》引述为AI温和批评代表",
-    tags: ["AI 评论", "AI 研究员"],
+    tags: ["评论", "研究员"],
   },
   {
     username: "jeremyphoward",
     note: "Answer.AI / fast.ai 联合创始人，Kaggle 创始主席，斯坦福研究员",
-    tags: ["AI 创业者", "AI 教育", "AI 研究员"],
+    tags: ["创业者", "教育", "研究员"],
   },
   {
     username: "NVIDIAAI",
     note: "NVIDIA AI 官方账号，前沿AI突破与商业应用动态",
-    tags: ["AI 公司"],
+    tags: ["公司"],
   },
   {
     username: "JeffDean",
     note: "Google DeepMind 首席科学家，Gemini 负责人，TensorFlow/MapReduce/Bigtable 作者",
-    tags: ["AI 研究员", "AI 公司"],
+    tags: ["研究员", "公司"],
   },
   {
     username: "DeepLearningAI",
     note: "吴恩达创办的AI教育平台，致力于全球AI社区建设",
-    tags: ["AI 教育", "AI 公司"],
+    tags: ["教育", "公司"],
   },
   {
     username: "DotCSV",
     note: "西班牙语AI科普创作者 Carlos Santana，YouTube/TikTok/Instagram 多平台",
-    tags: ["内容创作者", "AI 教育"],
+    tags: ["内容创作者", "教育"],
   },
   {
     username: "AIatMeta",
     note: "Meta AI 官方账号，推动开源AI科学研究",
-    tags: ["AI 公司"],
+    tags: ["公司"],
   },
   {
     username: "AndrewYNg",
     note: "吴恩达，Coursera 联合创始人，斯坦福教授，前百度AI/Google Brain负责人",
-    tags: ["AI 研究员", "AI 教育", "AI 创业者"],
+    tags: ["研究员", "教育", "创业者"],
   },
   {
     username: "chelseabfinn",
     note: "斯坦福CS/EE助理教授，Physical Intelligence联合创始人，MIT/Berkeley背景",
-    tags: ["AI 研究员", "AI 创业者"],
+    tags: ["研究员", "创业者"],
   },
 ];
 
