@@ -19,7 +19,7 @@ export function findByUserId(userId: string, limit = 50): FetchLog[] {
     .select()
     .from(fetchLogs)
     .where(eq(fetchLogs.userId, userId))
-    .orderBy(desc(fetchLogs.createdAt))
+    .orderBy(desc(fetchLogs.createdAt), desc(fetchLogs.id))
     .limit(limit)
     .all();
 }
