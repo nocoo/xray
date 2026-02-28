@@ -31,6 +31,7 @@ import {
   Clock,
   Loader2,
   CalendarClock,
+  ArrowLeftRight,
 } from "lucide-react";
 import { TweetCard } from "@/components/twitter/tweet-card";
 import type { Tweet } from "../../../shared/types";
@@ -126,6 +127,9 @@ export default function WatchlistPage() {
 
   // Tab state: "members" or "posts"
   const [activeTab, setActiveTab] = useState<"members" | "posts">("members");
+
+  // Global language toggle for posts: "zh" shows translation, "en" shows original
+  const [postsLang, setPostsLang] = useState<"zh" | "en">("zh");
 
   // ── Data loading ──
 
@@ -434,7 +438,7 @@ export default function WatchlistPage() {
 
         {/* Members tab */}
         {activeTab === "members" && (
-          <>
+          <div className="mx-auto max-w-2xl">
             {/* Tag filter bar */}
             {allTags.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
@@ -502,12 +506,27 @@ export default function WatchlistPage() {
                   </p>
                 </div>
               )}
-          </>
+          </div>
         )}
 
         {/* Posts tab */}
         {activeTab === "posts" && (
-          <>
+          <div className="mx-auto max-w-2xl">
+            {/* Language toggle */}
+            {posts.length > 0 && (
+              <div className="flex justify-end mb-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPostsLang((l) => (l === "zh" ? "en" : "zh"))}
+                  title={postsLang === "zh" ? "Show original English" : "Show Chinese translation"}
+                >
+                  <ArrowLeftRight className="h-4 w-4" />
+                  {postsLang === "zh" ? "中文" : "EN"}
+                </Button>
+              </div>
+            )}
+
             {postsLoading && <LoadingSpinner />}
 
             {!postsLoading && posts.length === 0 && (
@@ -521,11 +540,11 @@ export default function WatchlistPage() {
             {!postsLoading && posts.length > 0 && (
               <div className="space-y-3">
                 {posts.map((post) => (
-                  <WatchlistPostCard key={post.id} post={post} />
+                  <WatchlistPostCard key={post.id} post={post} lang={postsLang} />
                 ))}
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 
@@ -567,21 +586,16 @@ export default function WatchlistPage() {
 // WatchlistPostCard — TweetCard + translation overlay
 // =============================================================================
 
-function WatchlistPostCard({ post }: { post: FetchedPostData }) {
+function WatchlistPostCard({ post, lang }: { post: FetchedPostData; lang: "zh" | "en" }) {
+  // When lang=zh and translation is available, swap the tweet text inline
+  const displayTweet =
+    lang === "zh" && post.translatedText
+      ? { ...post.tweet, text: post.translatedText }
+      : post.tweet;
+
   return (
     <div className="space-y-0">
-      <TweetCard tweet={post.tweet} linkToDetail={false} />
-      {post.translatedText && (
-        <div className="bg-muted/50 rounded-b-card px-4 py-3 border border-t-0 border-blue-400/30">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <Languages className="h-3.5 w-3.5 text-blue-500" />
-            <span className="text-xs text-blue-500 font-medium">Translation</span>
-          </div>
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">
-            {post.translatedText}
-          </p>
-        </div>
-      )}
+      <TweetCard tweet={displayTweet} linkToDetail={false} />
     </div>
   );
 }
