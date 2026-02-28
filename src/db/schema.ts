@@ -125,6 +125,8 @@ export const watchlistMembers = sqliteTable("watchlist_members", {
   addedAt: integer("added_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
+  /** Auto-fetch interval in minutes. null = disabled. */
+  fetchIntervalMinutes: integer("fetch_interval_minutes"),
 });
 
 export const tags = sqliteTable("tags", {
@@ -152,6 +154,37 @@ export const watchlistMemberTags = sqliteTable(
     }),
   })
 );
+
+// ============================================================================
+// Fetched Posts — cached tweets from auto-fetch, with translation
+// ============================================================================
+
+export const fetchedPosts = sqliteTable("fetched_posts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  memberId: integer("member_id")
+    .notNull()
+    .references(() => watchlistMembers.id, { onDelete: "cascade" }),
+  /** Twitter tweet ID — unique per user to prevent duplicates. */
+  tweetId: text("tweet_id").notNull(),
+  twitterUsername: text("twitter_username").notNull(),
+  /** Raw tweet text. */
+  text: text("text").notNull(),
+  /** Full tweet JSON (author, metrics, media, entities, etc.). */
+  tweetJson: text("tweet_json").notNull(),
+  /** ISO 8601 timestamp of the original tweet. */
+  tweetCreatedAt: text("tweet_created_at").notNull(),
+  /** When we fetched this tweet. */
+  fetchedAt: integer("fetched_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  /** Translated text (null = not yet translated). */
+  translatedText: text("translated_text"),
+  /** When the translation was completed. */
+  translatedAt: integer("translated_at", { mode: "timestamp" }),
+});
 
 // ============================================================================
 // Settings — generic key-value store (per user)
@@ -194,5 +227,7 @@ export type Tag = typeof tags.$inferSelect;
 export type NewTag = typeof tags.$inferInsert;
 export type WatchlistMemberTag = typeof watchlistMemberTags.$inferSelect;
 export type NewWatchlistMemberTag = typeof watchlistMemberTags.$inferInsert;
+export type FetchedPost = typeof fetchedPosts.$inferSelect;
+export type NewFetchedPost = typeof fetchedPosts.$inferInsert;
 export type Setting = typeof settings.$inferSelect;
 export type NewSetting = typeof settings.$inferInsert;
