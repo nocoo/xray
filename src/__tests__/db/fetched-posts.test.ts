@@ -344,4 +344,89 @@ describe("repositories/fetched-posts", () => {
       expect(fetchedPostsRepo.countUntranslated("u1")).toBe(1);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // purgeOlderThan
+  // ---------------------------------------------------------------------------
+
+  describe("purgeOlderThan", () => {
+    test("deletes posts with tweetCreatedAt before cutoff", () => {
+      const member = seedMember("u1");
+
+      // Insert posts with different created_at dates
+      fetchedPostsRepo.insertIfNew({
+        ...makePostData("u1", member.id, "old-tweet"),
+        tweetCreatedAt: "2026-01-01T00:00:00.000Z",
+      });
+      fetchedPostsRepo.insertIfNew({
+        ...makePostData("u1", member.id, "recent-tweet"),
+        tweetCreatedAt: "2026-02-27T00:00:00.000Z",
+      });
+
+      expect(fetchedPostsRepo.countByUserId("u1")).toBe(2);
+
+      // Purge posts older than Feb 1
+      const purged = fetchedPostsRepo.purgeOlderThan("u1", "2026-02-01T00:00:00.000Z");
+      expect(purged).toBe(1);
+      expect(fetchedPostsRepo.countByUserId("u1")).toBe(1);
+
+      // The remaining post should be the recent one
+      const remaining = fetchedPostsRepo.findByUserId("u1");
+      expect(remaining[0]!.tweetId).toBe("recent-tweet");
+    });
+
+    test("returns 0 when no posts match cutoff", () => {
+      const member = seedMember("u1");
+      fetchedPostsRepo.insertIfNew({
+        ...makePostData("u1", member.id, "recent"),
+        tweetCreatedAt: "2026-02-27T00:00:00.000Z",
+      });
+
+      const purged = fetchedPostsRepo.purgeOlderThan("u1", "2026-01-01T00:00:00.000Z");
+      expect(purged).toBe(0);
+      expect(fetchedPostsRepo.countByUserId("u1")).toBe(1);
+    });
+
+    test("returns 0 when no posts exist", () => {
+      const purged = fetchedPostsRepo.purgeOlderThan("u1", "2026-02-28T00:00:00.000Z");
+      expect(purged).toBe(0);
+    });
+
+    test("is scoped to user", () => {
+      seedUser("u2");
+      const m1 = seedMember("u1", "user1");
+      const m2 = seedMember("u2", "user2");
+
+      fetchedPostsRepo.insertIfNew({
+        ...makePostData("u1", m1.id, "old1", "user1"),
+        tweetCreatedAt: "2026-01-01T00:00:00.000Z",
+      });
+      fetchedPostsRepo.insertIfNew({
+        ...makePostData("u2", m2.id, "old2", "user2"),
+        tweetCreatedAt: "2026-01-01T00:00:00.000Z",
+      });
+
+      // Purge only u1's posts
+      const purged = fetchedPostsRepo.purgeOlderThan("u1", "2026-02-01T00:00:00.000Z");
+      expect(purged).toBe(1);
+      expect(fetchedPostsRepo.countByUserId("u1")).toBe(0);
+      expect(fetchedPostsRepo.countByUserId("u2")).toBe(1);
+    });
+
+    test("purges all posts when cutoff is in the future", () => {
+      const member = seedMember("u1");
+      fetchedPostsRepo.insertIfNew({
+        ...makePostData("u1", member.id, "t1"),
+        tweetCreatedAt: "2026-02-27T00:00:00.000Z",
+      });
+      fetchedPostsRepo.insertIfNew({
+        ...makePostData("u1", member.id, "t2"),
+        tweetCreatedAt: "2026-02-28T00:00:00.000Z",
+      });
+
+      const purged = fetchedPostsRepo.purgeOlderThan("u1", "2026-12-31T00:00:00.000Z");
+      expect(purged).toBe(2);
+      expect(fetchedPostsRepo.countByUserId("u1")).toBe(0);
+    });
+  });
 });
