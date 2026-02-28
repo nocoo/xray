@@ -32,6 +32,7 @@ import {
   CalendarClock,
   ArrowLeftRight,
   ScrollText,
+  ChevronDown,
 } from "lucide-react";
 import { TweetCard } from "@/components/twitter/tweet-card";
 import type { Tweet } from "../../../shared/types";
@@ -337,37 +338,43 @@ export default function WatchlistPage() {
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4 flex-wrap">
               {/* Interval selector */}
-              <div className="flex items-center gap-2">
+              <div className="relative flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">Interval:</span>
-                <select
-                  value={fetchInterval}
-                  onChange={(e) => handleIntervalChange(Number(e.target.value))}
-                  className="h-8 rounded-md border bg-background pl-2 pr-6 text-sm"
-                >
-                  {INTERVAL_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={fetchInterval}
+                    onChange={(e) => handleIntervalChange(Number(e.target.value))}
+                    className="h-8 rounded-md border bg-background pl-2 pr-7 text-sm appearance-none cursor-pointer"
+                  >
+                    {INTERVAL_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                </div>
               </div>
 
               {/* Retention selector */}
-              <div className="flex items-center gap-2">
+              <div className="relative flex items-center gap-2">
                 <CalendarClock className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">Retention:</span>
-                <select
-                  value={retentionDays}
-                  onChange={(e) => handleRetentionChange(Number(e.target.value))}
-                  className="h-8 rounded-md border bg-background pl-2 pr-6 text-sm"
-                >
-                  {RETENTION_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={retentionDays}
+                    onChange={(e) => handleRetentionChange(Number(e.target.value))}
+                    className="h-8 rounded-md border bg-background pl-2 pr-7 text-sm appearance-none cursor-pointer"
+                  >
+                    {RETENTION_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                </div>
               </div>
             </div>
 
