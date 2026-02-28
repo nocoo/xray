@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -93,9 +94,16 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 export function Sidebar() {
-  const pathname = usePathname();
+  const rawPathname = usePathname();
   const { collapsed, toggle } = useSidebar();
   const { data: session } = useSession();
+
+  // Defer pathname to avoid hydration mismatch — vinext SSR may return a
+  // different pathname than the client, causing className diff on active links.
+  const [pathname, setPathname] = useState("");
+  useEffect(() => {
+    setPathname(rawPathname);
+  }, [rawPathname]);
 
   const userName = session?.user?.name ?? "User";
   const userEmail = session?.user?.email ?? "";
