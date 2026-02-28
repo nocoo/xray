@@ -23,6 +23,7 @@ export interface TranslationResult {
   postId: number;
   translatedText: string;
   commentText: string;
+  quotedTranslatedText?: string;
 }
 
 export interface TranslationError {
@@ -76,27 +77,76 @@ const TRANSLATION_PROMPT = `你是一位兼具"信达雅"功力的翻译家，�
 推文内容：
 `;
 
+const TRANSLATION_WITH_QUOTE_PROMPT = `你是一位兼具"信达雅"功力的翻译家，同时也是一位对世界充满好奇心的顶级报刊编辑。
+
+以下推文引用了另一条推文。请对两条推文都进行翻译，并给出一段综合锐评。
+
+## 任务一：翻译推文正文
+以"信达雅"标准将推文正文翻译为简体中文。
+- 保留技术术语、专有名词和 @提及原文不译。
+- 保留 #话题标签 原文不译。
+- 若推文本身已是中文，原样返回。
+- 保持原文的语气和风格。
+
+## 任务二：翻译引用原文
+以同样标准翻译被引用的推文。
+
+## 任务三：锐评
+用1-2句中文写一段编辑锐评——以顶级报刊编辑的视角，结合推文正文和引用原文的上下文，点评这条推文为什么值得关注、背后有什么有趣的信号或洞察。要求犀利、有信息增量、不浮夸。
+
+## 输出格式（严格遵守，不要添加任何额外文字）
+
+[翻译]
+{推文正文的翻译}
+
+[引用翻译]
+{被引用推文的翻译}
+
+[锐评]
+{锐评内容}
+
+推文正文：
+`;
+
 // ── Response parser ──
 
 export interface ParsedTranslation {
   translatedText: string;
   commentText: string;
+  quotedTranslatedText?: string;
 }
 
 /**
  * Parse the structured AI response into translation and comment sections.
+ * Supports optional [引用翻译] section for quoted tweets.
  * Falls back gracefully: if markers are missing, treat entire text as translation.
  */
 export function parseTranslationResponse(raw: string): ParsedTranslation {
   const trimmed = raw.trim();
 
   const translateMarker = "[翻译]";
+  const quotedMarker = "[引用翻译]";
   const commentMarker = "[锐评]";
 
   const translateIdx = trimmed.indexOf(translateMarker);
+  const quotedIdx = trimmed.indexOf(quotedMarker);
   const commentIdx = trimmed.indexOf(commentMarker);
 
-  // Both markers present — extract sections
+  // All three markers present — quote tweet translation included
+  if (translateIdx !== -1 && quotedIdx !== -1 && commentIdx !== -1) {
+    const translatedText = trimmed
+      .substring(translateIdx + translateMarker.length, quotedIdx)
+      .trim();
+    const quotedTranslatedText = trimmed
+      .substring(quotedIdx + quotedMarker.length, commentIdx)
+      .trim();
+    const commentText = trimmed
+      .substring(commentIdx + commentMarker.length)
+      .trim();
+    return { translatedText, commentText, quotedTranslatedText };
+  }
+
+  // Both translate + comment markers (no quoted) — original format
   if (translateIdx !== -1 && commentIdx !== -1) {
     const translatedText = trimmed
       .substring(translateIdx + translateMarker.length, commentIdx)
@@ -123,12 +173,14 @@ export function parseTranslationResponse(raw: string): ParsedTranslation {
 
 /**
  * Translate a single text using the user's AI configuration.
- * Returns structured result with both translation and editorial comment.
+ * If quotedText is provided, uses a combined prompt that translates both.
+ * Returns structured result with translation, editorial comment, and optional quoted translation.
  * Throws if AI is not configured or the call fails.
  */
 export async function translateText(
   userId: string,
   text: string,
+  quotedText?: string,
 ): Promise<ParsedTranslation> {
   const settings = loadAiSettingsForUser(userId);
 
@@ -146,10 +198,17 @@ export async function translateText(
 
   const client = createAiClient(config);
 
+  let prompt: string;
+  if (quotedText) {
+    prompt = TRANSLATION_WITH_QUOTE_PROMPT + text + "\n\n引用原文：\n" + quotedText;
+  } else {
+    prompt = TRANSLATION_PROMPT + text;
+  }
+
   const { text: rawResponse } = await generateText({
     model: client(config.model),
-    prompt: TRANSLATION_PROMPT + text,
-    maxOutputTokens: 1024,
+    prompt,
+    maxOutputTokens: 2048,
   });
 
   return parseTranslationResponse(rawResponse);
@@ -158,21 +217,23 @@ export async function translateText(
 /**
  * Translate multiple posts in batch.
  * Each post is translated independently — failures don't block others.
+ * If a post has quotedText, both the main and quoted text are translated together.
  */
 export async function translateBatch(
   userId: string,
-  posts: { id: number; text: string }[],
+  posts: { id: number; text: string; quotedText?: string }[],
 ): Promise<BatchTranslationResult> {
   const translated: TranslationResult[] = [];
   const errors: TranslationError[] = [];
 
   for (const post of posts) {
     try {
-      const result = await translateText(userId, post.text);
+      const result = await translateText(userId, post.text, post.quotedText);
       translated.push({
         postId: post.id,
         translatedText: result.translatedText,
         commentText: result.commentText,
+        quotedTranslatedText: result.quotedTranslatedText,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

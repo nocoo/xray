@@ -232,20 +232,107 @@ export function TweetCard({
           </div>
         )}
 
-      {/* Quoted tweet */}
+      {/* Quoted tweet — rendered as a compact nested card */}
       {tweet.quoted_tweet && (
         <div className="mt-3 rounded-lg border border-border p-3 bg-card/50">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-medium">
+          {/* Quoted author row */}
+          <div className="flex items-center gap-2">
+            {tweet.quoted_tweet.author.profile_image_url ? (
+              <img
+                src={tweet.quoted_tweet.author.profile_image_url}
+                alt={tweet.quoted_tweet.author.name}
+                className="h-5 w-5 shrink-0 rounded-full"
+              />
+            ) : (
+              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
+                {tweet.quoted_tweet.author.name[0]}
+              </div>
+            )}
+            <span className="text-xs font-medium truncate">
               {tweet.quoted_tweet.author.name}
             </span>
-            <span className="text-xs text-muted-foreground">
+            {tweet.quoted_tweet.author.is_verified && (
+              <Badge variant="default" className="h-3.5 px-1 text-[9px]">V</Badge>
+            )}
+            <span className="text-xs text-muted-foreground truncate">
               @{tweet.quoted_tweet.author.username}
             </span>
+            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground shrink-0">
+              {formatTimeAgo(tweet.quoted_tweet.created_at)}
+            </span>
           </div>
-          <p className="text-xs text-muted-foreground line-clamp-2">
+
+          {/* Quoted text */}
+          <p className="mt-2 text-xs leading-relaxed whitespace-pre-wrap">
             {tweet.quoted_tweet.text}
           </p>
+
+          {/* Quoted media */}
+          {tweet.quoted_tweet.media && tweet.quoted_tweet.media.length > 0 && (
+            <div
+              className={
+                tweet.quoted_tweet.media.length === 1
+                  ? "mt-2"
+                  : "mt-2 flex gap-1.5 overflow-x-auto"
+              }
+            >
+              {tweet.quoted_tweet.media.map((m) => {
+                const isSingle = tweet.quoted_tweet!.media!.length === 1;
+                const containerClass = isSingle
+                  ? "overflow-hidden rounded-md bg-muted"
+                  : "relative shrink-0 overflow-hidden rounded-md bg-muted";
+                const mediaClass = isSingle
+                  ? "w-full max-h-60 object-cover rounded-md"
+                  : "h-28 w-auto max-w-[200px] object-cover";
+
+                if (m.type === "PHOTO") {
+                  return (
+                    <div key={m.id} className={containerClass}>
+                      <img src={m.url} alt="" className={mediaClass} loading="lazy" />
+                    </div>
+                  );
+                }
+                if (m.type === "GIF") {
+                  return (
+                    <div key={m.id} className={containerClass}>
+                      <video
+                        src={proxyUrl(m.url)}
+                        autoPlay loop muted playsInline
+                        className={mediaClass}
+                      />
+                    </div>
+                  );
+                }
+                if (m.type === "VIDEO") {
+                  return (
+                    <div key={m.id} className={containerClass} onClick={(e) => e.stopPropagation()}>
+                      <video
+                        src={proxyUrl(m.url)}
+                        poster={m.thumbnail_url ? proxyUrl(m.thumbnail_url) : undefined}
+                        controls playsInline preload="none"
+                        className={mediaClass}
+                      />
+                    </div>
+                  );
+                }
+                return null;
+              })}
+            </div>
+          )}
+
+          {/* Quoted metrics */}
+          <div className="mt-2 flex items-center gap-3 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-0.5">
+              <Heart className="h-3 w-3" /> {formatCount(tweet.quoted_tweet.metrics.like_count)}
+            </span>
+            <span className="flex items-center gap-0.5">
+              <Repeat2 className="h-3 w-3" /> {formatCount(tweet.quoted_tweet.metrics.retweet_count)}
+            </span>
+            <span className="flex items-center gap-0.5">
+              <Eye className="h-3 w-3" /> {formatCount(tweet.quoted_tweet.metrics.view_count)}
+            </span>
+          </div>
         </div>
       )}
 

@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
     text: p.text,
     translatedText: p.translatedText,
     commentText: p.commentText,
+    quotedTranslatedText: p.quotedTranslatedText,
     translatedAt: p.translatedAt,
     tweetCreatedAt: p.tweetCreatedAt,
     fetchedAt: p.fetchedAt,

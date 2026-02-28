@@ -234,6 +234,7 @@ export function initSchema(): void {
   };
   safeAddColumn(`ALTER TABLE watchlist_members ADD COLUMN fetch_interval_minutes INTEGER`);
   safeAddColumn(`ALTER TABLE fetched_posts ADD COLUMN comment_text TEXT`);
+  safeAddColumn(`ALTER TABLE fetched_posts ADD COLUMN quoted_translated_text TEXT`);
 
   sqlite!.exec(`
     -- Fetch logs (persistent fetch/translate history)

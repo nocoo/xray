@@ -94,6 +94,30 @@ describe("services/translation", () => {
       expect(result.translatedText).toBe("翻译内容");
       expect(result.commentText).toBe("锐评内容");
     });
+
+    test("parses response with quoted translation marker", () => {
+      const raw = "[翻译]\n主推文翻译\n\n[引用翻译]\n引用推文翻译\n\n[锐评]\n综合锐评内容";
+      const result = parseTranslationResponse(raw);
+      expect(result.translatedText).toBe("主推文翻译");
+      expect(result.quotedTranslatedText).toBe("引用推文翻译");
+      expect(result.commentText).toBe("综合锐评内容");
+    });
+
+    test("parses response with multiline quoted translation", () => {
+      const raw = "[翻译]\n第一行\n第二行\n\n[引用翻译]\n引用第一行\n引用第二行\n\n[锐评]\n锐评";
+      const result = parseTranslationResponse(raw);
+      expect(result.translatedText).toBe("第一行\n第二行");
+      expect(result.quotedTranslatedText).toBe("引用第一行\n引用第二行");
+      expect(result.commentText).toBe("锐评");
+    });
+
+    test("returns no quotedTranslatedText when marker is absent", () => {
+      const raw = "[翻译]\n翻译\n\n[锐评]\n锐评";
+      const result = parseTranslationResponse(raw);
+      expect(result.translatedText).toBe("翻译");
+      expect(result.commentText).toBe("锐评");
+      expect(result.quotedTranslatedText).toBeUndefined();
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -113,7 +137,7 @@ describe("services/translation", () => {
       expect(calls.length).toBeGreaterThan(0);
       const call = (calls[0] as unknown[])[0] as Record<string, unknown>;
       expect(call.prompt).toContain("Hello world");
-      expect(call.maxOutputTokens).toBe(1024);
+      expect(call.maxOutputTokens).toBe(2048);
     });
 
     test("throws when AI provider is not configured", async () => {
@@ -152,6 +176,24 @@ describe("services/translation", () => {
       await expect(translateText("u1", "Hello")).rejects.toThrow(
         "Rate limit exceeded",
       );
+    });
+
+    test("uses quote prompt and includes quoted text when provided", async () => {
+      seedAiSettings("u1");
+      mockGenerateText.mockImplementation(() =>
+        Promise.resolve({ text: "[翻译]\n主翻译\n\n[引用翻译]\n引用翻译\n\n[锐评]\n综合锐评" }),
+      );
+
+      const result = await translateText("u1", "My comment", "Original quoted tweet");
+      expect(result.translatedText).toBe("主翻译");
+      expect(result.quotedTranslatedText).toBe("引用翻译");
+      expect(result.commentText).toBe("综合锐评");
+
+      const calls = mockGenerateText.mock.calls;
+      const call = (calls[0] as unknown[])[0] as Record<string, unknown>;
+      expect(call.prompt).toContain("My comment");
+      expect(call.prompt).toContain("Original quoted tweet");
+      expect(call.prompt).toContain("引用原文");
     });
   });
 
@@ -216,6 +258,24 @@ describe("services/translation", () => {
       const result = await translateBatch("u1", []);
       expect(result.translated).toHaveLength(0);
       expect(result.errors).toHaveLength(0);
+    });
+
+    test("passes quotedText through and returns quotedTranslatedText", async () => {
+      seedAiSettings("u1");
+      mockGenerateText.mockImplementation(() =>
+        Promise.resolve({ text: "[翻译]\n主翻译\n\n[引用翻译]\n引用翻译\n\n[锐评]\n锐评" }),
+      );
+
+      const posts = [
+        { id: 1, text: "Commentary", quotedText: "Original post" },
+        { id: 2, text: "No quote" },
+      ];
+
+      const result = await translateBatch("u1", posts);
+      expect(result.translated).toHaveLength(2);
+      expect(result.translated[0]!.quotedTranslatedText).toBe("引用翻译");
+      // Post without quotedText — still parses the mock response which has the marker
+      expect(result.translated[1]!.quotedTranslatedText).toBe("引用翻译");
     });
   });
 });

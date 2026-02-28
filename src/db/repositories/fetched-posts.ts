@@ -121,12 +121,14 @@ export function updateTranslation(
   id: number,
   translatedText: string,
   commentText: string,
+  quotedTranslatedText?: string | null,
 ): FetchedPost | undefined {
   return db
     .update(fetchedPosts)
     .set({
       translatedText,
       commentText,
+      quotedTranslatedText: quotedTranslatedText ?? null,
       translatedAt: new Date(),
     })
     .where(eq(fetchedPosts.id, id))

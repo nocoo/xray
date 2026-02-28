@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     // Empty body is fine, use defaults
   }
 
-  let postsToTranslate: { id: number; text: string }[];
+  let postsToTranslate: { id: number; text: string; quotedText?: string }[];
 
   if (singlePostId !== null) {
     // Single-post mode: translate (or re-translate) a specific post
@@ -44,7 +44,9 @@ export async function POST(request: Request) {
     if (!post || post.userId !== user.id) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
-    postsToTranslate = [{ id: post.id, text: post.text }];
+    const tweet = JSON.parse(post.tweetJson);
+    const quotedText = tweet.quoted_tweet?.text as string | undefined;
+    postsToTranslate = [{ id: post.id, text: post.text, quotedText }];
   } else {
     // Batch mode: translate untranslated posts
     const untranslated = fetchedPostsRepo.findUntranslated(user.id, limit);
@@ -54,14 +56,23 @@ export async function POST(request: Request) {
         data: { translated: 0, errors: [], remaining: 0 },
       });
     }
-    postsToTranslate = untranslated.map((p) => ({ id: p.id, text: p.text }));
+    postsToTranslate = untranslated.map((p) => {
+      const tweet = JSON.parse(p.tweetJson);
+      const quotedText = tweet.quoted_tweet?.text as string | undefined;
+      return { id: p.id, text: p.text, quotedText };
+    });
   }
 
   const result = await translateBatch(user.id, postsToTranslate);
 
   // Persist successful translations
   for (const t of result.translated) {
-    fetchedPostsRepo.updateTranslation(t.postId, t.translatedText, t.commentText);
+    fetchedPostsRepo.updateTranslation(
+      t.postId,
+      t.translatedText,
+      t.commentText,
+      t.quotedTranslatedText,
+    );
   }
 
   const remaining = fetchedPostsRepo.countUntranslated(user.id);
@@ -91,6 +102,7 @@ export async function POST(request: Request) {
         remaining,
         translatedText: translated.translatedText,
         commentText: translated.commentText,
+        quotedTranslatedText: translated.quotedTranslatedText ?? null,
       },
     });
   }

@@ -187,6 +187,8 @@ export const fetchedPosts = sqliteTable(
     translatedText: text("translated_text"),
     /** AI editorial comment (null = not yet generated). */
     commentText: text("comment_text"),
+    /** Translated text for the quoted tweet (null if no quoted tweet or not yet translated). */
+    quotedTranslatedText: text("quoted_translated_text"),
     /** When the translation was completed. */
     translatedAt: integer("translated_at", { mode: "timestamp" }),
   },

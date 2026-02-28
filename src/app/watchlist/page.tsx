@@ -62,6 +62,7 @@ interface FetchedPostData {
   text: string;
   translatedText: string | null;
   commentText: string | null;
+  quotedTranslatedText: string | null;
   translatedAt: string | null;
   tweetCreatedAt: string;
   fetchedAt: string;
@@ -696,15 +697,21 @@ function WatchlistPostCard({ post }: { post: FetchedPostData }) {
   const [lang, setLang] = useState<"zh" | "en">("zh");
   const [translatedText, setTranslatedText] = useState(post.translatedText);
   const [commentText, setCommentText] = useState(post.commentText);
+  const [quotedTranslatedText, setQuotedTranslatedText] = useState(post.quotedTranslatedText);
   const [translating, setTranslating] = useState(false);
 
   const hasTranslation = !!translatedText;
 
   // When lang=zh and translation is available, swap the tweet text inline
-  const displayTweet =
-    lang === "zh" && hasTranslation
-      ? { ...post.tweet, text: translatedText! }
-      : post.tweet;
+  // Also swap quoted tweet text if available
+  const displayTweet = (() => {
+    if (lang !== "zh" || !hasTranslation) return post.tweet;
+    const t = { ...post.tweet, text: translatedText! };
+    if (t.quoted_tweet && quotedTranslatedText) {
+      t.quoted_tweet = { ...t.quoted_tweet, text: quotedTranslatedText };
+    }
+    return t;
+  })();
 
   const showComment = lang === "zh" && commentText;
 
@@ -720,6 +727,7 @@ function WatchlistPostCard({ post }: { post: FetchedPostData }) {
       if (res.ok && json?.success && json.data.translatedText) {
         setTranslatedText(json.data.translatedText);
         setCommentText(json.data.commentText ?? null);
+        setQuotedTranslatedText(json.data.quotedTranslatedText ?? null);
       }
     } catch {
       // silent
