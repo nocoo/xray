@@ -30,7 +30,10 @@ import {
   Languages,
   Clock,
   Loader2,
+  CalendarClock,
 } from "lucide-react";
+import { TweetCard } from "@/components/twitter/tweet-card";
+import type { Tweet } from "../../../shared/types";
 
 // =============================================================================
 // Types (mirroring API response shapes)
@@ -59,11 +62,7 @@ interface FetchedPostData {
   translatedAt: string | null;
   tweetCreatedAt: string;
   fetchedAt: string;
-  tweet: {
-    author?: { name?: string; profile_image_url?: string };
-    metrics?: { like_count?: number; retweet_count?: number; view_count?: number };
-    url?: string;
-  };
+  tweet: Tweet;
 }
 
 // =============================================================================
@@ -81,6 +80,12 @@ const INTERVAL_OPTIONS = [
   { value: 360, label: "6 hours" },
   { value: 720, label: "12 hours" },
   { value: 1440, label: "24 hours" },
+];
+
+const RETENTION_OPTIONS = [
+  { value: 1, label: "1 day" },
+  { value: 3, label: "3 days" },
+  { value: 7, label: "7 days" },
 ];
 
 // =============================================================================
@@ -105,6 +110,7 @@ export default function WatchlistPage() {
 
   // Auto-fetch state
   const [fetchInterval, setFetchInterval] = useState(0);
+  const [retentionDays, setRetentionDays] = useState(1);
   const [fetching, setFetching] = useState(false);
   const [fetchStatus, setFetchStatus] = useState<string | null>(null);
   const fetchTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -149,6 +155,7 @@ export default function WatchlistPage() {
       setAllTags(tagsJson.data ?? []);
       if (settingsJson?.success) {
         setFetchInterval(settingsJson.data.fetchIntervalMinutes ?? 0);
+        setRetentionDays(settingsJson.data.retentionDays ?? 1);
       }
     } catch {
       setError("Network error — could not reach API");
@@ -195,10 +202,13 @@ export default function WatchlistPage() {
       const json = await res.json().catch(() => null);
       if (res.ok && json?.success) {
         const d = json.data;
-        setFetchStatus(
-          `Fetched ${d.newPosts} new post${d.newPosts !== 1 ? "s" : ""} from ${d.fetched} user${d.fetched !== 1 ? "s" : ""}` +
-            (d.errors?.length ? ` (${d.errors.length} errors)` : "")
-        );
+        const parts = [
+          `Fetched ${d.newPosts} new post${d.newPosts !== 1 ? "s" : ""} from ${d.fetched} user${d.fetched !== 1 ? "s" : ""}`,
+        ];
+        if (d.skippedOld > 0) parts.push(`${d.skippedOld} skipped (too old)`);
+        if (d.purged > 0) parts.push(`${d.purged} purged`);
+        if (d.errors?.length) parts.push(`${d.errors.length} errors`);
+        setFetchStatus(parts.join(" · "));
         // Auto-trigger translate after fetch if there are new posts
         if (d.newPosts > 0) {
           doTranslate();
@@ -265,7 +275,7 @@ export default function WatchlistPage() {
     };
   }, [fetchInterval, doFetch]);
 
-  // ── Interval change handler ──
+  // ── Settings change handlers ──
 
   const handleIntervalChange = async (minutes: number) => {
     setFetchInterval(minutes);
@@ -274,6 +284,19 @@ export default function WatchlistPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fetchIntervalMinutes: minutes }),
+      });
+    } catch {
+      // silent — local state already updated
+    }
+  };
+
+  const handleRetentionChange = async (days: number) => {
+    setRetentionDays(days);
+    try {
+      await fetch("/api/watchlist/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ retentionDays: days }),
       });
     } catch {
       // silent — local state already updated
@@ -307,21 +330,42 @@ export default function WatchlistPage() {
         {/* Auto-fetch controls */}
         <div className="rounded-card bg-card border p-4 space-y-3">
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Auto-fetch interval:</span>
-              <select
-                value={fetchInterval}
-                onChange={(e) => handleIntervalChange(Number(e.target.value))}
-                className="h-8 rounded-md border bg-background px-2 text-sm"
-              >
-                {INTERVAL_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Interval selector */}
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Interval:</span>
+                <select
+                  value={fetchInterval}
+                  onChange={(e) => handleIntervalChange(Number(e.target.value))}
+                  className="h-8 rounded-md border bg-background px-2 text-sm"
+                >
+                  {INTERVAL_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Retention selector */}
+              <div className="flex items-center gap-2">
+                <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Retention:</span>
+                <select
+                  value={retentionDays}
+                  onChange={(e) => handleRetentionChange(Number(e.target.value))}
+                  className="h-8 rounded-md border bg-background px-2 text-sm"
+                >
+                  {RETENTION_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -477,7 +521,7 @@ export default function WatchlistPage() {
             {!postsLoading && posts.length > 0 && (
               <div className="space-y-3">
                 {posts.map((post) => (
-                  <PostCard key={post.id} post={post} />
+                  <WatchlistPostCard key={post.id} post={post} />
                 ))}
               </div>
             )}
@@ -520,76 +564,22 @@ export default function WatchlistPage() {
 }
 
 // =============================================================================
-// PostCard — displays a fetched tweet with optional translation
+// WatchlistPostCard — TweetCard + translation overlay
 // =============================================================================
 
-function PostCard({ post }: { post: FetchedPostData }) {
-  const tweetDate = new Date(post.tweetCreatedAt);
-  const timeAgo = formatTimeAgo(tweetDate);
-
+function WatchlistPostCard({ post }: { post: FetchedPostData }) {
   return (
-    <div className="rounded-card bg-card border p-4 space-y-2">
-      {/* Header: avatar + username + time */}
-      <div className="flex items-center gap-3">
-        <img
-          src={`https://unavatar.io/x/${post.twitterUsername}`}
-          alt={post.twitterUsername}
-          className="h-8 w-8 rounded-full bg-muted"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.style.display = "none";
-            target.parentElement!.innerHTML = `<div class="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-medium">${post.twitterUsername[0]?.toUpperCase() ?? "?"}</div>`;
-          }}
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-sm">
-              {post.tweet.author?.name ?? `@${post.twitterUsername}`}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              @{post.twitterUsername}
-            </span>
-            <span className="text-xs text-muted-foreground">{timeAgo}</span>
-          </div>
-        </div>
-        {post.tweet.url && (
-          <a
-            href={post.tweet.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 text-muted-foreground hover:text-foreground"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        )}
-      </div>
-
-      {/* Original text */}
-      <p className="text-sm whitespace-pre-wrap">{post.text}</p>
-
-      {/* Translation */}
+    <div className="space-y-0">
+      <TweetCard tweet={post.tweet} linkToDetail={false} />
       {post.translatedText && (
-        <div className="bg-muted/50 rounded-md px-3 py-2 border-l-2 border-blue-400">
-          <div className="flex items-center gap-1 mb-1">
-            <Languages className="h-3 w-3 text-blue-500" />
-            <span className="text-[11px] text-blue-500 font-medium">Translation</span>
+        <div className="bg-muted/50 rounded-b-card px-4 py-3 border border-t-0 border-blue-400/30">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <Languages className="h-3.5 w-3.5 text-blue-500" />
+            <span className="text-xs text-blue-500 font-medium">Translation</span>
           </div>
-          <p className="text-sm whitespace-pre-wrap">{post.translatedText}</p>
-        </div>
-      )}
-
-      {/* Metrics */}
-      {post.tweet.metrics && (
-        <div className="flex gap-4 text-xs text-muted-foreground">
-          {post.tweet.metrics.view_count != null && (
-            <span>{formatNumber(post.tweet.metrics.view_count)} views</span>
-          )}
-          {post.tweet.metrics.like_count != null && (
-            <span>{formatNumber(post.tweet.metrics.like_count)} likes</span>
-          )}
-          {post.tweet.metrics.retweet_count != null && (
-            <span>{formatNumber(post.tweet.metrics.retweet_count)} retweets</span>
-          )}
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+            {post.translatedText}
+          </p>
         </div>
       )}
     </div>
@@ -1108,27 +1098,4 @@ function DeleteMemberDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-// =============================================================================
-// Utility functions
-// =============================================================================
-
-function formatTimeAgo(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60_000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
-  const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 30) return `${diffDay}d ago`;
-  return date.toLocaleDateString();
-}
-
-function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
 }
