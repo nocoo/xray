@@ -97,6 +97,52 @@ export async function apiRequest<T>(
   return { status: res.status, data };
 }
 
+/**
+ * Make an API request that returns SSE (text/event-stream).
+ * Collects all events and returns them as an array.
+ */
+export async function apiRequestSSE(
+  path: string,
+  options?: RequestInit,
+): Promise<{ status: number; events: { event: string; data: unknown }[] }> {
+  const url = `${getBaseUrl()}${path}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
+  });
+
+  const contentType = res.headers.get("content-type") ?? "";
+
+  // If server returned JSON (e.g. empty watchlist or error), wrap it as a synthetic "done" event
+  if (contentType.includes("application/json")) {
+    const json = await res.json();
+    return {
+      status: res.status,
+      events: [{ event: "done", data: (json as { data?: unknown }).data ?? json }],
+    };
+  }
+
+  // Parse SSE text
+  const text = await res.text();
+  const events: { event: string; data: unknown }[] = [];
+  for (const block of text.split("\n\n")) {
+    if (!block.trim()) continue;
+    let event = "";
+    let data = "";
+    for (const line of block.split("\n")) {
+      if (line.startsWith("event: ")) event = line.slice(7);
+      else if (line.startsWith("data: ")) data = line.slice(6);
+    }
+    if (event && data) {
+      events.push({ event, data: JSON.parse(data) });
+    }
+  }
+  return { status: res.status, events };
+}
+
 /** Poll the server until it responds or timeout. */
 async function waitForServer(
   baseUrl: string,

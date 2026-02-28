@@ -58,6 +58,38 @@ function seedPost(memberId: number, tweetId: string, username: string) {
   }]);
 }
 
+/** Parse all SSE events from a text/event-stream Response body. */
+async function parseSSE(res: Response): Promise<{ event: string; data: unknown }[]> {
+  const text = await res.text();
+  const events: { event: string; data: unknown }[] = [];
+  for (const block of text.split("\n\n")) {
+    if (!block.trim()) continue;
+    let event = "";
+    let data = "";
+    for (const line of block.split("\n")) {
+      if (line.startsWith("event: ")) event = line.slice(7);
+      else if (line.startsWith("data: ")) data = line.slice(6);
+    }
+    if (event && data) {
+      events.push({ event, data: JSON.parse(data) });
+    }
+  }
+  return events;
+}
+
+/** Extract the "done" event payload from an SSE response. */
+async function parseDoneEvent(res: Response) {
+  const events = await parseSSE(res);
+  const done = events.find((e) => e.event === "done");
+  return done?.data as {
+    fetched: number;
+    newPosts: number;
+    skippedOld: number;
+    purged: number;
+    errors: string[];
+  } | undefined;
+}
+
 // =============================================================================
 // POST /api/watchlist/fetch
 // =============================================================================
@@ -75,45 +107,64 @@ describe("POST /api/watchlist/fetch", () => {
     expect(body.data.purged).toBe(0);
   });
 
-  test("fetches tweets for watchlist members", async () => {
+  test("fetches tweets for watchlist members (SSE stream)", async () => {
     seedMember("testuser1");
     seedMember("testuser2");
 
     const { POST } = await import("@/app/api/watchlist/fetch/route");
     const res = await POST();
     expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/event-stream");
 
-    const body = await res.json();
-    expect(body.success).toBe(true);
-    expect(body.data.fetched).toBe(2);
-    expect(body.data.newPosts).toBeGreaterThan(0);
-    expect(body.data.errors).toEqual([]);
-    expect(body.data.skippedOld).toBe(0); // mock tweets are "now"
-    expect(body.data.purged).toBe(0);
+    const events = await parseSSE(res);
+
+    // Should have 2 progress events + 1 done event
+    const progressEvents = events.filter((e) => e.event === "progress");
+    expect(progressEvents).toHaveLength(2);
+
+    // Progress events carry per-member info
+    const p1 = progressEvents[0]!.data as { current: number; total: number; username: string };
+    expect(p1.current).toBe(1);
+    expect(p1.total).toBe(2);
+
+    const p2 = progressEvents[1]!.data as { current: number; total: number; username: string };
+    expect(p2.current).toBe(2);
+    expect(p2.total).toBe(2);
+
+    // Done event
+    const doneEvent = events.find((e) => e.event === "done");
+    expect(doneEvent).toBeDefined();
+    const d = doneEvent!.data as { fetched: number; newPosts: number; errors: string[]; skippedOld: number; purged: number };
+    expect(d.fetched).toBe(2);
+    expect(d.newPosts).toBeGreaterThan(0);
+    expect(d.errors).toEqual([]);
+    expect(d.skippedOld).toBe(0); // mock tweets are "now"
+    expect(d.purged).toBe(0);
 
     // Verify posts were stored
     const posts = fetchedPostsRepo.findByUserId(USER_ID);
     expect(posts.length).toBeGreaterThan(0);
   });
 
-  test("deduplicates on second fetch", async () => {
+  test("deduplicates on second fetch (SSE stream)", async () => {
     seedMember("testuser1");
 
     const { POST } = await import("@/app/api/watchlist/fetch/route");
 
     // First fetch
     const res1 = await POST();
-    const body1 = await res1.json();
-    const firstCount = body1.data.newPosts;
-    expect(firstCount).toBeGreaterThan(0);
+    const events1 = await parseSSE(res1);
+    const done1 = events1.find((e) => e.event === "done")!.data as { newPosts: number };
+    expect(done1.newPosts).toBeGreaterThan(0);
 
     // Second fetch — same tweets, should be deduped
     const res2 = await POST();
-    const body2 = await res2.json();
-    expect(body2.data.newPosts).toBe(0);
+    const events2 = await parseSSE(res2);
+    const done2 = events2.find((e) => e.event === "done")!.data as { newPosts: number };
+    expect(done2.newPosts).toBe(0);
   });
 
-  test("purges old posts during fetch", async () => {
+  test("purges old posts during fetch (SSE stream)", async () => {
     const member = seedMember("testuser1");
 
     // Pre-seed an old post (older than 7 days max retention)
@@ -131,10 +182,10 @@ describe("POST /api/watchlist/fetch", () => {
 
     const { POST } = await import("@/app/api/watchlist/fetch/route");
     const res = await POST();
-    const body = await res.json();
+    const events = await parseSSE(res);
+    const done = events.find((e) => e.event === "done")!.data as { purged: number };
 
-    expect(body.success).toBe(true);
-    expect(body.data.purged).toBe(1);
+    expect(done.purged).toBe(1);
   });
 });
 

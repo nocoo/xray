@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { setupE2E, teardownE2E, getBaseUrl, apiRequest } from "./setup";
+import { setupE2E, teardownE2E, getBaseUrl, apiRequest, apiRequestSSE } from "./setup";
 
 // =============================================================================
 // E2E Tests — Auto-Fetch & Translation Lifecycle
@@ -186,27 +186,33 @@ describe("e2e: auto-fetch lifecycle", () => {
   // ===========================================================================
 
   describe("fetch tweets", () => {
-    test("POST /api/watchlist/fetch retrieves tweets for all members", async () => {
-      const { status, data } = await apiRequest<ApiSuccess<FetchResultData>>(
+    test("POST /api/watchlist/fetch retrieves tweets for all members (SSE)", async () => {
+      const { status, events } = await apiRequestSSE(
         "/api/watchlist/fetch",
         { method: "POST" },
       );
       expect(status).toBe(200);
-      expect(data.success).toBe(true);
-      expect(data.data.fetched).toBe(2); // alice + bob
-      expect(data.data.newPosts).toBeGreaterThan(0);
-      expect(data.data.errors).toEqual([]);
-      expect(data.data.skippedOld).toBe(0); // mock tweets are "now"
-      expect(data.data.purged).toBe(0); // no old posts to purge
+
+      // Should have progress events + done event
+      const progressEvents = events.filter((e) => e.event === "progress");
+      expect(progressEvents.length).toBe(2); // alice + bob
+
+      const done = events.find((e) => e.event === "done")!.data as FetchResultData;
+      expect(done.fetched).toBe(2); // alice + bob
+      expect(done.newPosts).toBeGreaterThan(0);
+      expect(done.errors).toEqual([]);
+      expect(done.skippedOld).toBe(0); // mock tweets are "now"
+      expect(done.purged).toBe(0); // no old posts to purge
     });
 
-    test("POST /api/watchlist/fetch deduplicates on second call", async () => {
-      const { data } = await apiRequest<ApiSuccess<FetchResultData>>(
+    test("POST /api/watchlist/fetch deduplicates on second call (SSE)", async () => {
+      const { events } = await apiRequestSSE(
         "/api/watchlist/fetch",
         { method: "POST" },
       );
+      const done = events.find((e) => e.event === "done")!.data as FetchResultData;
       // Mock provider returns deterministic IDs, so second fetch = 0 new
-      expect(data.data.newPosts).toBe(0);
+      expect(done.newPosts).toBe(0);
     });
   });
 

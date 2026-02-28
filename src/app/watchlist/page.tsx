@@ -205,26 +205,90 @@ export default function WatchlistPage() {
     setFetchStatus(null);
     try {
       const res = await fetch("/api/watchlist/fetch", { method: "POST" });
-      const json = await res.json().catch(() => null);
-      if (res.ok && json?.success) {
-        const d = json.data;
-        const parts = [
-          `Fetched ${d.newPosts} new post${d.newPosts !== 1 ? "s" : ""} from ${d.fetched} user${d.fetched !== 1 ? "s" : ""}`,
-        ];
-        if (d.skippedOld > 0) parts.push(`${d.skippedOld} skipped (too old)`);
-        if (d.purged > 0) parts.push(`${d.purged} purged`);
-        if (d.errors?.length) parts.push(`${d.errors.length} errors`);
-        setFetchStatus(parts.join(" · "));
-        // Auto-trigger translate after fetch if there are new posts
-        if (d.newPosts > 0) {
-          doTranslate();
+
+      // Non-SSE responses (errors or empty watchlist) come as JSON
+      const contentType = res.headers.get("content-type") ?? "";
+      if (contentType.includes("application/json")) {
+        const json = await res.json().catch(() => null);
+        if (res.ok && json?.success) {
+          const d = json.data;
+          setFetchStatus(
+            `Fetched ${d.newPosts} new post${d.newPosts !== 1 ? "s" : ""} from ${d.fetched} user${d.fetched !== 1 ? "s" : ""}`,
+          );
+        } else {
+          setFetchStatus(json?.error ?? "Fetch failed");
         }
-        // Refresh posts if on posts tab
-        if (activeTab === "posts") {
-          loadPosts();
+        return;
+      }
+
+      // SSE stream: read line by line
+      if (!res.body) {
+        setFetchStatus("Fetch failed — no response body");
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done: streamDone, value } = await reader.read();
+        if (value) buffer += decoder.decode(value, { stream: true });
+
+        // Process complete SSE messages (delimited by double newline)
+        let boundary: number;
+        while ((boundary = buffer.indexOf("\n\n")) !== -1) {
+          const raw = buffer.slice(0, boundary);
+          buffer = buffer.slice(boundary + 2);
+
+          // Parse "event: <type>\ndata: <json>"
+          let eventType = "";
+          let eventData = "";
+          for (const line of raw.split("\n")) {
+            if (line.startsWith("event: ")) eventType = line.slice(7);
+            else if (line.startsWith("data: ")) eventData = line.slice(6);
+          }
+
+          if (eventType === "progress") {
+            try {
+              const p = JSON.parse(eventData);
+              const status = `Fetching @${p.username} (${p.current}/${p.total})`;
+              const detail = p.error
+                ? ` — error`
+                : p.newPosts > 0
+                  ? ` — ${p.newPosts} new`
+                  : "";
+              setFetchStatus(status + detail);
+            } catch {
+              // skip malformed progress events
+            }
+          } else if (eventType === "done") {
+            try {
+              const d = JSON.parse(eventData);
+              const parts = [
+                `Fetched ${d.newPosts} new post${d.newPosts !== 1 ? "s" : ""} from ${d.fetched} user${d.fetched !== 1 ? "s" : ""}`,
+              ];
+              if (d.skippedOld > 0)
+                parts.push(`${d.skippedOld} skipped (too old)`);
+              if (d.purged > 0) parts.push(`${d.purged} purged`);
+              if (d.errors?.length)
+                parts.push(`${d.errors.length} errors`);
+              setFetchStatus(parts.join(" · "));
+              // Auto-trigger translate after fetch if there are new posts
+              if (d.newPosts > 0) {
+                doTranslate();
+              }
+              // Refresh posts if on posts tab
+              if (activeTab === "posts") {
+                loadPosts();
+              }
+            } catch {
+              // skip malformed done events
+            }
+          }
         }
-      } else {
-        setFetchStatus(json?.error ?? "Fetch failed");
+
+        if (streamDone) break;
       }
     } catch {
       setFetchStatus("Network error during fetch");
