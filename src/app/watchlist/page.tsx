@@ -688,10 +688,14 @@ function WatchlistPostCard({ post }: { post: FetchedPostData }) {
   };
 
   return (
-    <div className="space-y-0">
-      <TweetCard tweet={displayTweet} linkToDetail={false} />
+    <div className="shadow-[0_1px_4px_rgba(0,0,0,0.06)] rounded-card">
+      <TweetCard
+        tweet={displayTweet}
+        linkToDetail={false}
+        className="border border-border rounded-b-none"
+      />
       {showComment && (
-        <div className="bg-amber-50 dark:bg-amber-950/30 border border-t-0 border-amber-200 dark:border-amber-800 px-3 py-2 -mt-1">
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-t-0 border-amber-200 dark:border-amber-800 px-3 py-2">
           <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
             <span className="font-semibold mr-1">锐评</span>
             {commentText}
@@ -699,7 +703,7 @@ function WatchlistPostCard({ post }: { post: FetchedPostData }) {
         </div>
       )}
       {/* Per-card action bar */}
-      <div className={`flex items-center gap-1 px-2 py-1.5 border border-t-0 rounded-b-lg bg-card ${showComment ? "" : "-mt-1"}`}>
+      <div className={`flex items-center gap-1 px-2 py-1.5 border border-t-0 rounded-b-[14px] bg-card`}>
         {hasTranslation ? (
           <button
             onClick={() => setLang((l) => (l === "zh" ? "en" : "zh"))}

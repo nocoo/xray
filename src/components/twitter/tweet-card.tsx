@@ -28,12 +28,14 @@ import type { Tweet } from "../../../shared/types";
 export function TweetCard({
   tweet,
   linkToDetail = true,
+  className,
 }: {
   tweet: Tweet;
   linkToDetail?: boolean;
+  className?: string;
 }) {
   const card = (
-    <div className="rounded-card bg-secondary p-4 transition-colors hover:bg-secondary/80">
+    <div className={`rounded-card bg-secondary p-4 transition-colors hover:bg-secondary/80 ${className ?? ""}`}>
       {/* Author row */}
       <div className="flex items-start gap-3">
         {tweet.author.profile_image_url ? (
