@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-28
+
+### Added
+
+- **Watchlist feature** — full CRUD for watchlist members with tag-based grouping, seed script with 15 AI/ML Twitter accounts, and comprehensive test coverage
+- **AI settings** — provider registry (OpenAI, Anthropic, Google, GLM, DeepSeek, Grok, Ollama), settings page with sidebar nav, KV table for config persistence
+- **Fetched posts pipeline** — POST `/api/watchlist/fetch` route with tweet dedup via UNIQUE index on `(user_id, tweet_id)`, batch insert with `onConflictDoNothing`, SQL `count()`
+- **SSE streaming** — real-time fetch progress via Server-Sent Events with per-member status updates
+- **AI translation** — 信达雅-style Chinese translation with editorial comment (锐评) from a world-class editor's perspective; per-card translate button for on-demand single-post translation
+- **Quoted tweet support** — full quoted tweet display (avatar, verified badge, timestamp, text, media, metrics) and translation with `[引用翻译]` section; new `quoted_translated_text` DB column
+- **Media proxy** — server-side proxy at `/api/media/proxy` to bypass Twitter CDN hotlink protection (Referer/Origin blocking)
+- **Retention system** — `retentionDays` setting with auto-purge in fetch route, `purgeOlderThan` repository method
+- **Fetch logs** — `fetch_logs` table with DB persistence, API route, and logs page
+- **Test coverage** — translation service unit tests, fetched-posts repository tests, fetch-logs repository tests, API route tests (fetch, settings, posts, translate), E2E tests for auto-fetch lifecycle and media proxy endpoint, real LLM round-trip E2E tests for AI settings via GLM
+
+### Changed
+
+- **Row-first masonry layout** — replaced CSS `columns` (column-first fill) with `useColumns()` hook using `matchMedia` for responsive breakpoints (1/2/3/4 cols) and round-robin distribution
+- **Posts tab** — renamed from previous tab name, constrained post cards to `max-w-2xl`, replaced translation overlay with inline text swap and zh/en toggle
+- **Member card avatars** enlarged to 1.6x (90px)
+- **Language toggle** moved from global to per-post card button; default post language is `zh`
+- Posts sorted by `tweetCreatedAt` (newest tweet first) instead of `fetchedAt`
+- Webhooks and AI prompt extracted into dedicated `/webhooks` page
+- GLM model updated from `glm-4.5` to `glm-4.7`
+
+### Fixed
+
+- Twitter GIFs rendered as looping `<video>` instead of broken `<img>` tags; VIDEO click propagation fixed
+- Card border unified across tweet/comment/action bar with subtle shadow
+- Fade-out mask on metrics row when card width is narrow
+- Sidebar pathname deferred to avoid SSR hydration mismatch
+- Select dropdowns use `appearance-none` with custom chevron icon; padding adjusted to prevent arrow clipping
+- Safe `ALTER TABLE` migrations for `fetch_interval_minutes`, `comment_text`, and `quoted_translated_text` columns on pre-existing databases
+- vinext compatibility: use plain `Request` instead of `NextRequest` in route handlers (`new URL(req.url).searchParams`)
+- Redundant AI prefix removed from watchlist tag names
+- Tweet author and metrics corrected in watchlist report
+- Stale `eslint-disable` comments for missing `react-hooks` plugin removed
+- Husky hooks updated to include missing test files
+
 ## [1.1.0] - 2026-02-26
 
 ### Added
