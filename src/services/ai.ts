@@ -79,7 +79,7 @@ export const AI_PROVIDERS: Record<
     label: "GLM (Zhipu)",
     baseURL: "https://open.bigmodel.cn/api/anthropic/v1",
     sdkType: "anthropic",
-    models: ["glm-5", "glm-4.5"],
+    models: ["glm-5", "glm-4.7"],
     defaultModel: "glm-5",
   },
   aihubmix: {

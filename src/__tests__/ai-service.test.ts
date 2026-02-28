@@ -63,7 +63,7 @@ describe("AI_PROVIDERS", () => {
     expect(AI_PROVIDERS.minimax.models).toContain("MiniMax-M2.5");
     expect(AI_PROVIDERS.minimax.models).toContain("MiniMax-M2.1");
     expect(AI_PROVIDERS.glm.models).toContain("glm-5");
-    expect(AI_PROVIDERS.glm.models).toContain("glm-4.5");
+    expect(AI_PROVIDERS.glm.models).toContain("glm-4.7");
     expect(AI_PROVIDERS.aihubmix.models).toContain("gpt-4o-mini");
     expect(AI_PROVIDERS.aihubmix.models).toContain("gpt-5-nano");
   });
