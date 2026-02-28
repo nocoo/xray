@@ -218,6 +218,9 @@ export function initSchema(): void {
       translated_text TEXT,
       translated_at INTEGER
     );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS fetched_posts_user_tweet_uniq
+      ON fetched_posts (user_id, tweet_id);
   `);
 }
 

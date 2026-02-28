@@ -43,7 +43,7 @@ function seedMember(username: string) {
 }
 
 function seedPost(memberId: number, tweetId: string, username: string) {
-  return fetchedPostsRepo.insertIfNew({
+  fetchedPostsRepo.insertMany([{
     userId: USER_ID,
     memberId,
     tweetId,
@@ -55,7 +55,7 @@ function seedPost(memberId: number, tweetId: string, username: string) {
       created_at: "2026-01-15T12:00:00.000Z",
     }),
     tweetCreatedAt: "2026-01-15T12:00:00.000Z",
-  });
+  }]);
 }
 
 // =============================================================================
@@ -117,7 +117,7 @@ describe("POST /api/watchlist/fetch", () => {
     const member = seedMember("testuser1");
 
     // Pre-seed an old post (older than 7 days max retention)
-    fetchedPostsRepo.insertIfNew({
+    fetchedPostsRepo.insertMany([{
       userId: USER_ID,
       memberId: member.id,
       tweetId: "very-old-tweet",
@@ -125,7 +125,7 @@ describe("POST /api/watchlist/fetch", () => {
       text: "Old tweet content",
       tweetJson: JSON.stringify({ id: "very-old-tweet", text: "Old tweet content" }),
       tweetCreatedAt: "2025-01-01T00:00:00.000Z",
-    });
+    }]);
 
     expect(fetchedPostsRepo.countByUserId(USER_ID)).toBe(1);
 

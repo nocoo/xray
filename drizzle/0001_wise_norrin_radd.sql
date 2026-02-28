@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `fetched_posts_user_tweet_uniq` ON `fetched_posts` (`user_id`,`tweet_id`);

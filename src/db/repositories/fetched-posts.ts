@@ -2,11 +2,11 @@
  * Fetched Posts repository.
  *
  * Manages cached tweets from auto-fetch with deduplication and translation state.
- * Deduplication is based on (user_id, tweet_id) — same tweet won't be stored twice
- * for the same user.
+ * Deduplication is enforced at the DB level via a UNIQUE index on (user_id, tweet_id)
+ * combined with INSERT ... ON CONFLICT DO NOTHING for race-safe batch inserts.
  */
 
-import { eq, and, isNull, desc, lt } from "drizzle-orm";
+import { eq, and, isNull, desc, lt, count } from "drizzle-orm";
 import { db } from "@/db";
 import {
   fetchedPosts,
@@ -46,24 +46,6 @@ export function findByMemberId(
     .all();
 }
 
-/** Check if a tweet already exists for this user (dedup). */
-export function existsByTweetId(
-  userId: string,
-  tweetId: string,
-): boolean {
-  const row = db
-    .select({ id: fetchedPosts.id })
-    .from(fetchedPosts)
-    .where(
-      and(
-        eq(fetchedPosts.userId, userId),
-        eq(fetchedPosts.tweetId, tweetId),
-      ),
-    )
-    .get();
-  return !!row;
-}
-
 /** Find all posts that haven't been translated yet. */
 export function findUntranslated(
   userId: string,
@@ -88,40 +70,40 @@ export function findUntranslated(
 // =============================================================================
 
 /**
- * Insert a fetched post if it doesn't already exist (dedup by tweet_id + user_id).
- * Returns the inserted post, or null if it was a duplicate.
- */
-export function insertIfNew(
-  data: Omit<NewFetchedPost, "id" | "fetchedAt" | "translatedText" | "translatedAt">,
-): FetchedPost | null {
-  if (existsByTweetId(data.userId, data.tweetId)) {
-    return null;
-  }
-
-  return db
-    .insert(fetchedPosts)
-    .values({
-      ...data,
-      fetchedAt: new Date(),
-      translatedText: null,
-      translatedAt: null,
-    })
-    .returning()
-    .get();
-}
-
-/**
- * Insert multiple posts, skipping duplicates.
- * Returns count of newly inserted posts.
+ * Batch-insert posts, silently skipping duplicates via ON CONFLICT DO NOTHING.
+ * The UNIQUE index on (user_id, tweet_id) ensures no duplicates regardless of
+ * concurrent requests. Returns the count of newly inserted rows.
  */
 export function insertMany(
   posts: Omit<NewFetchedPost, "id" | "fetchedAt" | "translatedText" | "translatedAt">[],
 ): number {
+  if (posts.length === 0) return 0;
+
+  const now = new Date();
   let inserted = 0;
-  for (const post of posts) {
-    const result = insertIfNew(post);
-    if (result) inserted++;
+
+  // SQLite has a variable limit (~999), so batch in chunks of 50 to be safe
+  // (each row has ~10 columns → 50 rows = 500 variables)
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < posts.length; i += BATCH_SIZE) {
+    const batch = posts.slice(i, i + BATCH_SIZE);
+    const result = db
+      .insert(fetchedPosts)
+      .values(
+        batch.map((p) => ({
+          ...p,
+          fetchedAt: now,
+          translatedText: null,
+          translatedAt: null,
+        })),
+      )
+      .onConflictDoNothing({
+        target: [fetchedPosts.userId, fetchedPosts.tweetId],
+      })
+      .run();
+    inserted += result.changes;
   }
+
   return inserted;
 }
 
@@ -153,17 +135,17 @@ export function deleteByUserId(userId: string): number {
 /** Count all fetched posts for a user. */
 export function countByUserId(userId: string): number {
   const row = db
-    .select({ id: fetchedPosts.id })
+    .select({ total: count() })
     .from(fetchedPosts)
     .where(eq(fetchedPosts.userId, userId))
-    .all();
-  return row.length;
+    .get();
+  return row?.total ?? 0;
 }
 
 /** Count untranslated posts for a user. */
 export function countUntranslated(userId: string): number {
-  const rows = db
-    .select({ id: fetchedPosts.id })
+  const row = db
+    .select({ total: count() })
     .from(fetchedPosts)
     .where(
       and(
@@ -171,8 +153,8 @@ export function countUntranslated(userId: string): number {
         isNull(fetchedPosts.translatedText),
       ),
     )
-    .all();
-  return rows.length;
+    .get();
+  return row?.total ?? 0;
 }
 
 /**

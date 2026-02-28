@@ -3,6 +3,7 @@ import {
   text,
   integer,
   primaryKey,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import type { AdapterAccountType } from "@auth/core/adapters";
 
@@ -159,32 +160,42 @@ export const watchlistMemberTags = sqliteTable(
 // Fetched Posts — cached tweets from auto-fetch, with translation
 // ============================================================================
 
-export const fetchedPosts = sqliteTable("fetched_posts", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  memberId: integer("member_id")
-    .notNull()
-    .references(() => watchlistMembers.id, { onDelete: "cascade" }),
-  /** Twitter tweet ID — unique per user to prevent duplicates. */
-  tweetId: text("tweet_id").notNull(),
-  twitterUsername: text("twitter_username").notNull(),
-  /** Raw tweet text. */
-  text: text("text").notNull(),
-  /** Full tweet JSON (author, metrics, media, entities, etc.). */
-  tweetJson: text("tweet_json").notNull(),
-  /** ISO 8601 timestamp of the original tweet. */
-  tweetCreatedAt: text("tweet_created_at").notNull(),
-  /** When we fetched this tweet. */
-  fetchedAt: integer("fetched_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  /** Translated text (null = not yet translated). */
-  translatedText: text("translated_text"),
-  /** When the translation was completed. */
-  translatedAt: integer("translated_at", { mode: "timestamp" }),
-});
+export const fetchedPosts = sqliteTable(
+  "fetched_posts",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    memberId: integer("member_id")
+      .notNull()
+      .references(() => watchlistMembers.id, { onDelete: "cascade" }),
+    /** Twitter tweet ID — unique per user to prevent duplicates. */
+    tweetId: text("tweet_id").notNull(),
+    twitterUsername: text("twitter_username").notNull(),
+    /** Raw tweet text. */
+    text: text("text").notNull(),
+    /** Full tweet JSON (author, metrics, media, entities, etc.). */
+    tweetJson: text("tweet_json").notNull(),
+    /** ISO 8601 timestamp of the original tweet. */
+    tweetCreatedAt: text("tweet_created_at").notNull(),
+    /** When we fetched this tweet. */
+    fetchedAt: integer("fetched_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    /** Translated text (null = not yet translated). */
+    translatedText: text("translated_text"),
+    /** When the translation was completed. */
+    translatedAt: integer("translated_at", { mode: "timestamp" }),
+  },
+  (t) => ({
+    /** Prevent duplicate tweets per user — enables onConflictDoNothing. */
+    uniqUserTweet: uniqueIndex("fetched_posts_user_tweet_uniq").on(
+      t.userId,
+      t.tweetId,
+    ),
+  }),
+);
 
 // ============================================================================
 // Settings — generic key-value store (per user)

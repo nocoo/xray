@@ -43,6 +43,19 @@ function makePostData(
   };
 }
 
+/** Insert a single post via insertMany, return the first matching row. */
+function insertOne(
+  userId: string,
+  memberId: number,
+  tweetId: string,
+  username = "elonmusk",
+) {
+  const data = makePostData(userId, memberId, tweetId, username);
+  fetchedPostsRepo.insertMany([data]);
+  const posts = fetchedPostsRepo.findByUserId(userId);
+  return posts.find((p) => p.tweetId === tweetId)!;
+}
+
 // =============================================================================
 // Tests
 // =============================================================================
@@ -58,31 +71,36 @@ describe("repositories/fetched-posts", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // insertIfNew & deduplication
+  // insertMany & deduplication
   // ---------------------------------------------------------------------------
 
-  describe("insertIfNew", () => {
-    test("inserts a new post and returns it", () => {
+  describe("insertMany", () => {
+    test("inserts a new post", () => {
       const member = seedMember("u1");
       const data = makePostData("u1", member.id, "tweet-001");
 
-      const result = fetchedPostsRepo.insertIfNew(data);
-      expect(result).not.toBeNull();
-      expect(result!.id).toBeGreaterThan(0);
-      expect(result!.tweetId).toBe("tweet-001");
-      expect(result!.text).toBe("Tweet tweet-001 content");
-      expect(result!.translatedText).toBeNull();
-      expect(result!.translatedAt).toBeNull();
-      expect(result!.fetchedAt).toBeInstanceOf(Date);
+      const count = fetchedPostsRepo.insertMany([data]);
+      expect(count).toBe(1);
+
+      const posts = fetchedPostsRepo.findByUserId("u1");
+      expect(posts).toHaveLength(1);
+      expect(posts[0]!.tweetId).toBe("tweet-001");
+      expect(posts[0]!.text).toBe("Tweet tweet-001 content");
+      expect(posts[0]!.translatedText).toBeNull();
+      expect(posts[0]!.translatedAt).toBeNull();
+      expect(posts[0]!.fetchedAt).toBeInstanceOf(Date);
     });
 
-    test("returns null for duplicate tweet (same user + tweetId)", () => {
+    test("skips duplicate tweet (same user + tweetId)", () => {
       const member = seedMember("u1");
       const data = makePostData("u1", member.id, "tweet-001");
 
-      fetchedPostsRepo.insertIfNew(data);
-      const dup = fetchedPostsRepo.insertIfNew(data);
-      expect(dup).toBeNull();
+      fetchedPostsRepo.insertMany([data]);
+      const count = fetchedPostsRepo.insertMany([data]);
+      expect(count).toBe(0);
+
+      // Still only one row
+      expect(fetchedPostsRepo.countByUserId("u1")).toBe(1);
     });
 
     test("allows same tweetId for different users", () => {
@@ -90,19 +108,13 @@ describe("repositories/fetched-posts", () => {
       const m1 = seedMember("u1", "user1");
       const m2 = seedMember("u2", "user2");
 
-      const r1 = fetchedPostsRepo.insertIfNew(makePostData("u1", m1.id, "tweet-001", "user1"));
-      const r2 = fetchedPostsRepo.insertIfNew(makePostData("u2", m2.id, "tweet-001", "user2"));
+      const c1 = fetchedPostsRepo.insertMany([makePostData("u1", m1.id, "tweet-001", "user1")]);
+      const c2 = fetchedPostsRepo.insertMany([makePostData("u2", m2.id, "tweet-001", "user2")]);
 
-      expect(r1).not.toBeNull();
-      expect(r2).not.toBeNull();
+      expect(c1).toBe(1);
+      expect(c2).toBe(1);
     });
-  });
 
-  // ---------------------------------------------------------------------------
-  // insertMany
-  // ---------------------------------------------------------------------------
-
-  describe("insertMany", () => {
     test("inserts multiple posts, returns count of new inserts", () => {
       const member = seedMember("u1");
       const posts = [
@@ -118,7 +130,7 @@ describe("repositories/fetched-posts", () => {
     test("skips duplicates in batch", () => {
       const member = seedMember("u1");
       // Insert one first
-      fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "t1"));
+      fetchedPostsRepo.insertMany([makePostData("u1", member.id, "t1")]);
 
       const posts = [
         makePostData("u1", member.id, "t1"), // dup
@@ -135,31 +147,6 @@ describe("repositories/fetched-posts", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // existsByTweetId
-  // ---------------------------------------------------------------------------
-
-  describe("existsByTweetId", () => {
-    test("returns false when no posts exist", () => {
-      expect(fetchedPostsRepo.existsByTweetId("u1", "tweet-001")).toBe(false);
-    });
-
-    test("returns true after inserting", () => {
-      const member = seedMember("u1");
-      fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "tweet-001"));
-      expect(fetchedPostsRepo.existsByTweetId("u1", "tweet-001")).toBe(true);
-    });
-
-    test("scoped to user", () => {
-      seedUser("u2");
-      const m1 = seedMember("u1", "user1");
-      fetchedPostsRepo.insertIfNew(makePostData("u1", m1.id, "tweet-001", "user1"));
-
-      expect(fetchedPostsRepo.existsByTweetId("u1", "tweet-001")).toBe(true);
-      expect(fetchedPostsRepo.existsByTweetId("u2", "tweet-001")).toBe(false);
-    });
-  });
-
-  // ---------------------------------------------------------------------------
   // findByUserId
   // ---------------------------------------------------------------------------
 
@@ -168,32 +155,39 @@ describe("repositories/fetched-posts", () => {
       expect(fetchedPostsRepo.findByUserId("u1")).toEqual([]);
     });
 
-    test("returns posts ordered by fetchedAt desc", () => {
+    test("returns posts ordered by tweetCreatedAt desc", () => {
       const member = seedMember("u1");
-      fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "t1"));
-      fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "t2"));
-      fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "t3"));
+      fetchedPostsRepo.insertMany([
+        { ...makePostData("u1", member.id, "t1"), tweetCreatedAt: "2026-01-10T00:00:00Z" },
+        { ...makePostData("u1", member.id, "t2"), tweetCreatedAt: "2026-01-15T00:00:00Z" },
+        { ...makePostData("u1", member.id, "t3"), tweetCreatedAt: "2026-01-12T00:00:00Z" },
+      ]);
 
       const posts = fetchedPostsRepo.findByUserId("u1");
       expect(posts).toHaveLength(3);
+      // Newest tweet first
+      expect(posts[0]!.tweetId).toBe("t2");
+      expect(posts[1]!.tweetId).toBe("t3");
+      expect(posts[2]!.tweetId).toBe("t1");
     });
 
     test("respects limit parameter", () => {
       const member = seedMember("u1");
-      for (let i = 0; i < 5; i++) {
-        fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, `t${i}`));
-      }
+      const posts = Array.from({ length: 5 }, (_, i) =>
+        makePostData("u1", member.id, `t${i}`),
+      );
+      fetchedPostsRepo.insertMany(posts);
 
-      const posts = fetchedPostsRepo.findByUserId("u1", 2);
-      expect(posts).toHaveLength(2);
+      const result = fetchedPostsRepo.findByUserId("u1", 2);
+      expect(result).toHaveLength(2);
     });
 
     test("scoped to user", () => {
       seedUser("u2");
       const m1 = seedMember("u1", "user1");
       const m2 = seedMember("u2", "user2");
-      fetchedPostsRepo.insertIfNew(makePostData("u1", m1.id, "t1", "user1"));
-      fetchedPostsRepo.insertIfNew(makePostData("u2", m2.id, "t2", "user2"));
+      fetchedPostsRepo.insertMany([makePostData("u1", m1.id, "t1", "user1")]);
+      fetchedPostsRepo.insertMany([makePostData("u2", m2.id, "t2", "user2")]);
 
       expect(fetchedPostsRepo.findByUserId("u1")).toHaveLength(1);
       expect(fetchedPostsRepo.findByUserId("u2")).toHaveLength(1);
@@ -209,8 +203,10 @@ describe("repositories/fetched-posts", () => {
       const m1 = seedMember("u1", "user1");
       const m2 = seedMember("u1", "user2");
 
-      fetchedPostsRepo.insertIfNew(makePostData("u1", m1.id, "t1", "user1"));
-      fetchedPostsRepo.insertIfNew(makePostData("u1", m2.id, "t2", "user2"));
+      fetchedPostsRepo.insertMany([
+        makePostData("u1", m1.id, "t1", "user1"),
+        makePostData("u1", m2.id, "t2", "user2"),
+      ]);
 
       const posts = fetchedPostsRepo.findByMemberId(m1.id);
       expect(posts).toHaveLength(1);
@@ -229,8 +225,10 @@ describe("repositories/fetched-posts", () => {
   describe("findUntranslated", () => {
     test("returns posts with null translatedText", () => {
       const member = seedMember("u1");
-      fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "t1"));
-      fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "t2"));
+      fetchedPostsRepo.insertMany([
+        makePostData("u1", member.id, "t1"),
+        makePostData("u1", member.id, "t2"),
+      ]);
 
       const untranslated = fetchedPostsRepo.findUntranslated("u1");
       expect(untranslated).toHaveLength(2);
@@ -238,8 +236,11 @@ describe("repositories/fetched-posts", () => {
 
     test("excludes translated posts", () => {
       const member = seedMember("u1");
-      const post = fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "t1"))!;
-      fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "t2"));
+      fetchedPostsRepo.insertMany([
+        makePostData("u1", member.id, "t1"),
+        makePostData("u1", member.id, "t2"),
+      ]);
+      const post = fetchedPostsRepo.findByUserId("u1").find((p) => p.tweetId === "t1")!;
 
       // Translate one
       fetchedPostsRepo.updateTranslation(post.id, "翻译后的文本");
@@ -251,9 +252,10 @@ describe("repositories/fetched-posts", () => {
 
     test("respects limit", () => {
       const member = seedMember("u1");
-      for (let i = 0; i < 5; i++) {
-        fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, `t${i}`));
-      }
+      const posts = Array.from({ length: 5 }, (_, i) =>
+        makePostData("u1", member.id, `t${i}`),
+      );
+      fetchedPostsRepo.insertMany(posts);
 
       const untranslated = fetchedPostsRepo.findUntranslated("u1", 2);
       expect(untranslated).toHaveLength(2);
@@ -267,7 +269,7 @@ describe("repositories/fetched-posts", () => {
   describe("updateTranslation", () => {
     test("updates translatedText and translatedAt", () => {
       const member = seedMember("u1");
-      const post = fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "t1"))!;
+      const post = insertOne("u1", member.id, "t1");
 
       const updated = fetchedPostsRepo.updateTranslation(post.id, "这是翻译");
       expect(updated).toBeDefined();
@@ -288,8 +290,10 @@ describe("repositories/fetched-posts", () => {
   describe("deleteByUserId", () => {
     test("deletes all posts for a user", () => {
       const member = seedMember("u1");
-      fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "t1"));
-      fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "t2"));
+      fetchedPostsRepo.insertMany([
+        makePostData("u1", member.id, "t1"),
+        makePostData("u1", member.id, "t2"),
+      ]);
 
       const deleted = fetchedPostsRepo.deleteByUserId("u1");
       expect(deleted).toBe(2);
@@ -304,8 +308,8 @@ describe("repositories/fetched-posts", () => {
       seedUser("u2");
       const m1 = seedMember("u1", "user1");
       const m2 = seedMember("u2", "user2");
-      fetchedPostsRepo.insertIfNew(makePostData("u1", m1.id, "t1", "user1"));
-      fetchedPostsRepo.insertIfNew(makePostData("u2", m2.id, "t2", "user2"));
+      fetchedPostsRepo.insertMany([makePostData("u1", m1.id, "t1", "user1")]);
+      fetchedPostsRepo.insertMany([makePostData("u2", m2.id, "t2", "user2")]);
 
       fetchedPostsRepo.deleteByUserId("u1");
       expect(fetchedPostsRepo.findByUserId("u2")).toHaveLength(1);
@@ -323,8 +327,10 @@ describe("repositories/fetched-posts", () => {
 
     test("returns correct count", () => {
       const member = seedMember("u1");
-      fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "t1"));
-      fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "t2"));
+      fetchedPostsRepo.insertMany([
+        makePostData("u1", member.id, "t1"),
+        makePostData("u1", member.id, "t2"),
+      ]);
       expect(fetchedPostsRepo.countByUserId("u1")).toBe(2);
     });
   });
@@ -336,8 +342,11 @@ describe("repositories/fetched-posts", () => {
 
     test("returns correct count excluding translated", () => {
       const member = seedMember("u1");
-      const p1 = fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "t1"))!;
-      fetchedPostsRepo.insertIfNew(makePostData("u1", member.id, "t2"));
+      fetchedPostsRepo.insertMany([
+        makePostData("u1", member.id, "t1"),
+        makePostData("u1", member.id, "t2"),
+      ]);
+      const p1 = fetchedPostsRepo.findByUserId("u1").find((p) => p.tweetId === "t1")!;
 
       fetchedPostsRepo.updateTranslation(p1.id, "翻译");
 
@@ -353,15 +362,10 @@ describe("repositories/fetched-posts", () => {
     test("deletes posts with tweetCreatedAt before cutoff", () => {
       const member = seedMember("u1");
 
-      // Insert posts with different created_at dates
-      fetchedPostsRepo.insertIfNew({
-        ...makePostData("u1", member.id, "old-tweet"),
-        tweetCreatedAt: "2026-01-01T00:00:00.000Z",
-      });
-      fetchedPostsRepo.insertIfNew({
-        ...makePostData("u1", member.id, "recent-tweet"),
-        tweetCreatedAt: "2026-02-27T00:00:00.000Z",
-      });
+      fetchedPostsRepo.insertMany([
+        { ...makePostData("u1", member.id, "old-tweet"), tweetCreatedAt: "2026-01-01T00:00:00.000Z" },
+        { ...makePostData("u1", member.id, "recent-tweet"), tweetCreatedAt: "2026-02-27T00:00:00.000Z" },
+      ]);
 
       expect(fetchedPostsRepo.countByUserId("u1")).toBe(2);
 
@@ -377,10 +381,9 @@ describe("repositories/fetched-posts", () => {
 
     test("returns 0 when no posts match cutoff", () => {
       const member = seedMember("u1");
-      fetchedPostsRepo.insertIfNew({
-        ...makePostData("u1", member.id, "recent"),
-        tweetCreatedAt: "2026-02-27T00:00:00.000Z",
-      });
+      fetchedPostsRepo.insertMany([
+        { ...makePostData("u1", member.id, "recent"), tweetCreatedAt: "2026-02-27T00:00:00.000Z" },
+      ]);
 
       const purged = fetchedPostsRepo.purgeOlderThan("u1", "2026-01-01T00:00:00.000Z");
       expect(purged).toBe(0);
@@ -397,14 +400,12 @@ describe("repositories/fetched-posts", () => {
       const m1 = seedMember("u1", "user1");
       const m2 = seedMember("u2", "user2");
 
-      fetchedPostsRepo.insertIfNew({
-        ...makePostData("u1", m1.id, "old1", "user1"),
-        tweetCreatedAt: "2026-01-01T00:00:00.000Z",
-      });
-      fetchedPostsRepo.insertIfNew({
-        ...makePostData("u2", m2.id, "old2", "user2"),
-        tweetCreatedAt: "2026-01-01T00:00:00.000Z",
-      });
+      fetchedPostsRepo.insertMany([
+        { ...makePostData("u1", m1.id, "old1", "user1"), tweetCreatedAt: "2026-01-01T00:00:00.000Z" },
+      ]);
+      fetchedPostsRepo.insertMany([
+        { ...makePostData("u2", m2.id, "old2", "user2"), tweetCreatedAt: "2026-01-01T00:00:00.000Z" },
+      ]);
 
       // Purge only u1's posts
       const purged = fetchedPostsRepo.purgeOlderThan("u1", "2026-02-01T00:00:00.000Z");
@@ -415,14 +416,10 @@ describe("repositories/fetched-posts", () => {
 
     test("purges all posts when cutoff is in the future", () => {
       const member = seedMember("u1");
-      fetchedPostsRepo.insertIfNew({
-        ...makePostData("u1", member.id, "t1"),
-        tweetCreatedAt: "2026-02-27T00:00:00.000Z",
-      });
-      fetchedPostsRepo.insertIfNew({
-        ...makePostData("u1", member.id, "t2"),
-        tweetCreatedAt: "2026-02-28T00:00:00.000Z",
-      });
+      fetchedPostsRepo.insertMany([
+        { ...makePostData("u1", member.id, "t1"), tweetCreatedAt: "2026-02-27T00:00:00.000Z" },
+        { ...makePostData("u1", member.id, "t2"), tweetCreatedAt: "2026-02-28T00:00:00.000Z" },
+      ]);
 
       const purged = fetchedPostsRepo.purgeOlderThan("u1", "2026-12-31T00:00:00.000Z");
       expect(purged).toBe(2);
