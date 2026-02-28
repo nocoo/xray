@@ -154,6 +154,27 @@ export const watchlistMemberTags = sqliteTable(
 );
 
 // ============================================================================
+// Settings — generic key-value store (per user)
+// ============================================================================
+
+export const settings = sqliteTable(
+  "settings",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    value: text("value").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => ({
+    compositePk: primaryKey({
+      columns: [t.userId, t.key],
+    }),
+  })
+);
+
+// ============================================================================
 // Type exports
 // ============================================================================
 
@@ -173,3 +194,5 @@ export type Tag = typeof tags.$inferSelect;
 export type NewTag = typeof tags.$inferInsert;
 export type WatchlistMemberTag = typeof watchlistMemberTags.$inferSelect;
 export type NewWatchlistMemberTag = typeof watchlistMemberTags.$inferInsert;
+export type Setting = typeof settings.$inferSelect;
+export type NewSetting = typeof settings.$inferInsert;

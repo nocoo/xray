@@ -193,6 +193,15 @@ export function initSchema(): void {
       tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
       PRIMARY KEY (member_id, tag_id)
     );
+
+    -- Settings key-value store
+    CREATE TABLE IF NOT EXISTS settings (
+      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (user_id, key)
+    );
   `);
 }
 
@@ -246,6 +255,7 @@ export function resetTestDb(): void {
     DELETE FROM usage_stats;
     DELETE FROM webhooks;
     DELETE FROM api_credentials;
+    DELETE FROM settings;
     DELETE FROM session;
     DELETE FROM account;
     DELETE FROM user;
