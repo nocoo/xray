@@ -45,6 +45,7 @@ describe("sidebar navigation", () => {
       expect(navSections[3]!.items.map((i) => i.label)).toEqual([
         "Usage",
         "Webhooks",
+        "AI Settings",
         "Settings",
       ]);
     });
@@ -96,6 +97,7 @@ describe("sidebar navigation", () => {
       expect(labels).toContain("Messages");
       expect(labels).toContain("Usage");
       expect(labels).toContain("Webhooks");
+      expect(labels).toContain("AI Settings");
       expect(labels).toContain("Settings");
     });
   });
