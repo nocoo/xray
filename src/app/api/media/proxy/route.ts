@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 // Whitelist of allowed Twitter CDN hostnames to prevent open-proxy abuse
 const ALLOWED_HOSTS = new Set([
@@ -10,8 +10,10 @@ const ALLOWED_HOSTS = new Set([
 // Cache duration: 1 hour browser, 1 day CDN (Twitter media URLs are immutable)
 const CACHE_CONTROL = "public, max-age=3600, s-maxage=86400, immutable";
 
-export async function GET(req: NextRequest) {
-  const url = req.nextUrl.searchParams.get("url");
+export async function GET(req: Request) {
+  // vinext passes plain Request (no nextUrl), so parse searchParams from req.url
+  const { searchParams } = new URL(req.url);
+  const url = searchParams.get("url");
 
   if (!url) {
     return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });

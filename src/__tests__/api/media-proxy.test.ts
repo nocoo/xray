@@ -1,5 +1,4 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { NextRequest } from "next/server";
 
 // Store original fetch so we can restore it
 const originalFetch = globalThis.fetch;
@@ -9,16 +8,16 @@ function mockFetch(impl: (...args: any[]) => any) {
   globalThis.fetch = mock(impl) as unknown as typeof fetch;
 }
 
-function makeReq(params: Record<string, string> = {}): NextRequest {
+function makeReq(params: Record<string, string> = {}): Request {
   const url = new URL("http://localhost/api/media/proxy");
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
   }
-  return new NextRequest(url);
+  return new Request(url);
 }
 
 describe("GET /api/media/proxy", () => {
-  let GET: (req: NextRequest) => Promise<Response>;
+  let GET: (req: Request) => Promise<Response>;
 
   beforeEach(async () => {
     const mod = await import("@/app/api/media/proxy/route");
