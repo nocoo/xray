@@ -1,0 +1,1 @@
+ALTER TABLE `fetched_posts` ADD `comment_text` text;

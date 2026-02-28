@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
     twitterUsername: p.twitterUsername,
     text: p.text,
     translatedText: p.translatedText,
+    commentText: p.commentText,
     translatedAt: p.translatedAt,
     tweetCreatedAt: p.tweetCreatedAt,
     fetchedAt: p.fetchedAt,

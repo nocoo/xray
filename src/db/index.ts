@@ -216,6 +216,7 @@ export function initSchema(): void {
       tweet_created_at TEXT NOT NULL,
       fetched_at INTEGER NOT NULL,
       translated_text TEXT,
+      comment_text TEXT,
       translated_at INTEGER
     );
 

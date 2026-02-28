@@ -107,15 +107,17 @@ export function insertMany(
   return inserted;
 }
 
-/** Update the translation for a post. */
+/** Update the translation and comment for a post. */
 export function updateTranslation(
   id: number,
   translatedText: string,
+  commentText: string,
 ): FetchedPost | undefined {
   return db
     .update(fetchedPosts)
     .set({
       translatedText,
+      commentText,
       translatedAt: new Date(),
     })
     .where(eq(fetchedPosts.id, id))

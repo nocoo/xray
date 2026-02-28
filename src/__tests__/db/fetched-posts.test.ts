@@ -243,7 +243,7 @@ describe("repositories/fetched-posts", () => {
       const post = fetchedPostsRepo.findByUserId("u1").find((p) => p.tweetId === "t1")!;
 
       // Translate one
-      fetchedPostsRepo.updateTranslation(post.id, "翻译后的文本");
+      fetchedPostsRepo.updateTranslation(post.id, "翻译后的文本", "锐评文本");
 
       const untranslated = fetchedPostsRepo.findUntranslated("u1");
       expect(untranslated).toHaveLength(1);
@@ -271,14 +271,15 @@ describe("repositories/fetched-posts", () => {
       const member = seedMember("u1");
       const post = insertOne("u1", member.id, "t1");
 
-      const updated = fetchedPostsRepo.updateTranslation(post.id, "这是翻译");
+      const updated = fetchedPostsRepo.updateTranslation(post.id, "这是翻译", "这是锐评");
       expect(updated).toBeDefined();
       expect(updated!.translatedText).toBe("这是翻译");
+      expect(updated!.commentText).toBe("这是锐评");
       expect(updated!.translatedAt).toBeInstanceOf(Date);
     });
 
     test("returns undefined for non-existent post", () => {
-      const updated = fetchedPostsRepo.updateTranslation(999, "text");
+      const updated = fetchedPostsRepo.updateTranslation(999, "text", "comment");
       expect(updated).toBeUndefined();
     });
   });
@@ -348,7 +349,7 @@ describe("repositories/fetched-posts", () => {
       ]);
       const p1 = fetchedPostsRepo.findByUserId("u1").find((p) => p.tweetId === "t1")!;
 
-      fetchedPostsRepo.updateTranslation(p1.id, "翻译");
+      fetchedPostsRepo.updateTranslation(p1.id, "翻译", "锐评");
 
       expect(fetchedPostsRepo.countUntranslated("u1")).toBe(1);
     });

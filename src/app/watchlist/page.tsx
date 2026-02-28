@@ -60,6 +60,7 @@ interface FetchedPostData {
   twitterUsername: string;
   text: string;
   translatedText: string | null;
+  commentText: string | null;
   translatedAt: string | null;
   tweetCreatedAt: string;
   fetchedAt: string;
@@ -601,9 +602,19 @@ function WatchlistPostCard({ post, lang }: { post: FetchedPostData; lang: "zh" |
       ? { ...post.tweet, text: post.translatedText }
       : post.tweet;
 
+  const showComment = lang === "zh" && post.commentText;
+
   return (
     <div className="space-y-0">
       <TweetCard tweet={displayTweet} linkToDetail={false} />
+      {showComment && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-t-0 border-amber-200 dark:border-amber-800 rounded-b-lg px-3 py-2 -mt-1">
+          <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+            <span className="font-semibold mr-1">锐评</span>
+            {post.commentText}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

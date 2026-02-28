@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
   // Persist successful translations
   for (const t of result.translated) {
-    fetchedPostsRepo.updateTranslation(t.postId, t.translatedText);
+    fetchedPostsRepo.updateTranslation(t.postId, t.translatedText, t.commentText);
   }
 
   const remaining = fetchedPostsRepo.countUntranslated(user.id);

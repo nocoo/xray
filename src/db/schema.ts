@@ -185,6 +185,8 @@ export const fetchedPosts = sqliteTable(
       .$defaultFn(() => new Date()),
     /** Translated text (null = not yet translated). */
     translatedText: text("translated_text"),
+    /** AI editorial comment (null = not yet generated). */
+    commentText: text("comment_text"),
     /** When the translation was completed. */
     translatedAt: integer("translated_at", { mode: "timestamp" }),
   },

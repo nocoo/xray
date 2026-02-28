@@ -8,7 +8,7 @@ import * as settingsRepo from "@/db/repositories/settings";
 // =============================================================================
 
 const mockGenerateText = mock(() =>
-  Promise.resolve({ text: "模拟翻译结果" }),
+  Promise.resolve({ text: "[翻译]\n模拟翻译结果\n\n[锐评]\n这是一条锐评" }),
 );
 
 // Mock the `ai` module
@@ -17,7 +17,7 @@ mock.module("ai", () => ({
 }));
 
 // Import AFTER mocking
-const { translateText, translateBatch } = await import(
+const { translateText, translateBatch, parseTranslationResponse } = await import(
   "@/services/translation"
 );
 
@@ -47,7 +47,7 @@ describe("services/translation", () => {
     seedUser("u1");
     mockGenerateText.mockClear();
     mockGenerateText.mockImplementation(() =>
-      Promise.resolve({ text: "模拟翻译结果" }),
+      Promise.resolve({ text: "[翻译]\n模拟翻译结果\n\n[锐评]\n这是一条锐评" }),
     );
   });
 
@@ -56,15 +56,57 @@ describe("services/translation", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // parseTranslationResponse
+  // ---------------------------------------------------------------------------
+
+  describe("parseTranslationResponse", () => {
+    test("parses response with both markers", () => {
+      const raw = "[翻译]\n你好世界\n\n[锐评]\n很有意思的一条推文";
+      const result = parseTranslationResponse(raw);
+      expect(result.translatedText).toBe("你好世界");
+      expect(result.commentText).toBe("很有意思的一条推文");
+    });
+
+    test("parses response with only translate marker", () => {
+      const raw = "[翻译]\n你好世界";
+      const result = parseTranslationResponse(raw);
+      expect(result.translatedText).toBe("你好世界");
+      expect(result.commentText).toBe("");
+    });
+
+    test("falls back to entire text as translation when no markers", () => {
+      const raw = "这是一段没有标记的翻译";
+      const result = parseTranslationResponse(raw);
+      expect(result.translatedText).toBe("这是一段没有标记的翻译");
+      expect(result.commentText).toBe("");
+    });
+
+    test("handles multiline content in both sections", () => {
+      const raw = "[翻译]\n第一行\n第二行\n\n[锐评]\n锐评第一行\n锐评第二行";
+      const result = parseTranslationResponse(raw);
+      expect(result.translatedText).toBe("第一行\n第二行");
+      expect(result.commentText).toBe("锐评第一行\n锐评第二行");
+    });
+
+    test("handles extra whitespace around markers", () => {
+      const raw = "  [翻译]  \n  翻译内容  \n\n  [锐评]  \n  锐评内容  ";
+      const result = parseTranslationResponse(raw);
+      expect(result.translatedText).toBe("翻译内容");
+      expect(result.commentText).toBe("锐评内容");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // translateText
   // ---------------------------------------------------------------------------
 
   describe("translateText", () => {
-    test("translates text using AI config from settings", async () => {
+    test("translates text and returns parsed result", async () => {
       seedAiSettings("u1");
 
       const result = await translateText("u1", "Hello world");
-      expect(result).toBe("模拟翻译结果");
+      expect(result.translatedText).toBe("模拟翻译结果");
+      expect(result.commentText).toBe("这是一条锐评");
       expect(mockGenerateText).toHaveBeenCalledTimes(1);
 
       const calls = mockGenerateText.mock.calls;
@@ -90,14 +132,15 @@ describe("services/translation", () => {
       );
     });
 
-    test("trims whitespace from translation result", async () => {
+    test("handles response without markers gracefully", async () => {
       seedAiSettings("u1");
       mockGenerateText.mockImplementation(() =>
-        Promise.resolve({ text: "  翻译结果有空格  \n" }),
+        Promise.resolve({ text: "  纯翻译结果无标记  \n" }),
       );
 
       const result = await translateText("u1", "Hello");
-      expect(result).toBe("翻译结果有空格");
+      expect(result.translatedText).toBe("纯翻译结果无标记");
+      expect(result.commentText).toBe("");
     });
 
     test("propagates AI SDK errors", async () => {
@@ -117,7 +160,7 @@ describe("services/translation", () => {
   // ---------------------------------------------------------------------------
 
   describe("translateBatch", () => {
-    test("translates multiple posts", async () => {
+    test("translates multiple posts with translation and comment", async () => {
       seedAiSettings("u1");
 
       const posts = [
@@ -133,6 +176,7 @@ describe("services/translation", () => {
 
       for (const t of result.translated) {
         expect(t.translatedText).toBe("模拟翻译结果");
+        expect(t.commentText).toBe("这是一条锐评");
       }
       expect(result.translated.map((t) => t.postId)).toEqual([1, 2, 3]);
     });
@@ -146,7 +190,7 @@ describe("services/translation", () => {
         if (callCount === 2) {
           return Promise.reject(new Error("AI error on post 2"));
         }
-        return Promise.resolve({ text: "翻译OK" });
+        return Promise.resolve({ text: "[翻译]\n翻译OK\n\n[锐评]\n评论OK" });
       });
 
       const posts = [
@@ -160,6 +204,11 @@ describe("services/translation", () => {
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0]!.postId).toBe(20);
       expect(result.errors[0]!.error).toBe("AI error on post 2");
+
+      for (const t of result.translated) {
+        expect(t.translatedText).toBe("翻译OK");
+        expect(t.commentText).toBe("评论OK");
+      }
     });
 
     test("returns empty results for empty input", async () => {
