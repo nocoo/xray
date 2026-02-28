@@ -8,14 +8,18 @@ import {
 import { setupE2E, teardownE2E, apiRequest } from "./setup";
 
 // =============================================================================
-// E2E Tests — AI Settings CRUD
+// E2E Tests — AI Settings CRUD + Real LLM Communication
 //
 // Tests the full lifecycle of AI settings via HTTP API:
 // GET (empty) → PUT (configure) → GET (verify, key masked) →
-// PUT (partial update) → GET (verify) → PUT (clear) → GET (empty)
+// PUT (partial update) → GET (verify) → PUT (custom) →
+// validation errors → PUT (clear) → precondition check
 //
-// Test Connection is NOT tested here — it requires a real AI API key.
+// When GLM_API_KEY is set, also tests a real LLM round-trip:
+// PUT (save real key) → POST /test (real generateText call) → verify response
 // =============================================================================
+
+const GLM_API_KEY = process.env.GLM_API_KEY;
 
 describe("e2e: ai settings", () => {
   beforeAll(async () => {
@@ -239,5 +243,91 @@ describe("e2e: ai settings", () => {
 
     expect(status).toBe(400);
     expect(data.error).toContain("must be configured");
+  });
+
+  // ===========================================================================
+  // Real LLM Communication (requires GLM_API_KEY env var)
+  //
+  // Full round-trip: save real credentials → POST /test (real generateText
+  // call to GLM/Zhipu via Anthropic SDK pathway) → verify AI response → clean up
+  // ===========================================================================
+
+  const llmTest = GLM_API_KEY ? test : test.skip;
+
+  llmTest("PUT /api/settings/ai saves real GLM provider config", async () => {
+    const { status, data } = await apiRequest<{
+      provider: string;
+      model: string;
+      hasApiKey: boolean;
+    }>("/api/settings/ai", {
+      method: "PUT",
+      body: JSON.stringify({
+        provider: "glm",
+        apiKey: GLM_API_KEY,
+        model: "glm-4.7",
+      }),
+    });
+
+    expect(status).toBe(200);
+    expect(data.provider).toBe("glm");
+    expect(data.model).toBe("glm-4.7");
+    expect(data.hasApiKey).toBe(true);
+  });
+
+  llmTest(
+    "POST /api/settings/ai/test completes real LLM round-trip via GLM",
+    async () => {
+      const { status, data } = await apiRequest<{
+        success: boolean;
+        response: string;
+        model: string;
+        provider: string;
+      }>("/api/settings/ai/test", { method: "POST" });
+
+      expect(status).toBe(200);
+      expect(data.success).toBe(true);
+      // The prompt asks "Reply with exactly: OK" — LLM should respond with "OK"
+      expect(data.response.toUpperCase()).toContain("OK");
+      expect(data.model).toBe("glm-4.7");
+      expect(data.provider).toBe("glm");
+    },
+    30_000, // generous timeout for real API call
+  );
+
+  llmTest("GET /api/settings/ai returns persisted real GLM config", async () => {
+    const { status, data } = await apiRequest<{
+      provider: string;
+      model: string;
+      hasApiKey: boolean;
+      apiKey: string;
+    }>("/api/settings/ai");
+
+    expect(status).toBe(200);
+    expect(data.provider).toBe("glm");
+    expect(data.model).toBe("glm-4.7");
+    expect(data.hasApiKey).toBe(true);
+    // Key must be masked (not the raw key)
+    expect(data.apiKey).toContain("*");
+    expect(data.apiKey).not.toBe(GLM_API_KEY);
+  });
+
+  llmTest("PUT /api/settings/ai clears real config after LLM test", async () => {
+    const { status, data } = await apiRequest<{
+      provider: string;
+      hasApiKey: boolean;
+    }>("/api/settings/ai", {
+      method: "PUT",
+      body: JSON.stringify({
+        provider: "",
+        apiKey: "",
+        model: "",
+        baseURL: "",
+        sdkType: "",
+      }),
+    });
+
+    expect(status).toBe(200);
+    expect(data.provider).toBe("");
+    expect(data.hasApiKey).toBe(false);
   });
 });
