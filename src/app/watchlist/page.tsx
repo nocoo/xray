@@ -343,7 +343,7 @@ export default function WatchlistPage() {
                 <select
                   value={fetchInterval}
                   onChange={(e) => handleIntervalChange(Number(e.target.value))}
-                  className="h-8 rounded-md border bg-background px-2 text-sm"
+                  className="h-8 rounded-md border bg-background pl-2 pr-6 text-sm"
                 >
                   {INTERVAL_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -360,7 +360,7 @@ export default function WatchlistPage() {
                 <select
                   value={retentionDays}
                   onChange={(e) => handleRetentionChange(Number(e.target.value))}
-                  className="h-8 rounded-md border bg-background px-2 text-sm"
+                  className="h-8 rounded-md border bg-background pl-2 pr-6 text-sm"
                 >
                   {RETENTION_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
