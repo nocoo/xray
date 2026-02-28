@@ -18,7 +18,7 @@ import {
 // Queries
 // =============================================================================
 
-/** Find all fetched posts for a user, newest first. */
+/** Find all fetched posts for a user, newest tweet first. */
 export function findByUserId(
   userId: string,
   limit = 200,
@@ -27,12 +27,12 @@ export function findByUserId(
     .select()
     .from(fetchedPosts)
     .where(eq(fetchedPosts.userId, userId))
-    .orderBy(desc(fetchedPosts.fetchedAt))
+    .orderBy(desc(fetchedPosts.tweetCreatedAt))
     .limit(limit)
     .all();
 }
 
-/** Find posts for a specific watchlist member. */
+/** Find posts for a specific watchlist member, newest tweet first. */
 export function findByMemberId(
   memberId: number,
   limit = 100,
@@ -41,7 +41,7 @@ export function findByMemberId(
     .select()
     .from(fetchedPosts)
     .where(eq(fetchedPosts.memberId, memberId))
-    .orderBy(desc(fetchedPosts.fetchedAt))
+    .orderBy(desc(fetchedPosts.tweetCreatedAt))
     .limit(limit)
     .all();
 }
