@@ -155,7 +155,7 @@ export function TweetCard({
               return (
                 <div key={m.id} className={containerClass}>
                   <video
-                    src={m.url}
+                    src={proxyUrl(m.url)}
                     autoPlay
                     loop
                     muted
@@ -175,8 +175,8 @@ export function TweetCard({
                   onClick={(e) => e.stopPropagation()}
                 >
                   <video
-                    src={m.url}
-                    poster={m.thumbnail_url}
+                    src={proxyUrl(m.url)}
+                    poster={m.thumbnail_url ? proxyUrl(m.thumbnail_url) : undefined}
                     controls
                     playsInline
                     preload="none"
@@ -294,6 +294,15 @@ export function TweetCard({
   }
 
   return card;
+}
+
+// =============================================================================
+// Media proxy helper — routes Twitter video/GIF URLs through our server-side
+// proxy to avoid 403 from Twitter CDN's Referer-based hotlink protection
+// =============================================================================
+
+function proxyUrl(url: string): string {
+  return `/api/media/proxy?url=${encodeURIComponent(url)}`;
 }
 
 // =============================================================================
