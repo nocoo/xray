@@ -71,6 +71,8 @@ describe("POST /api/watchlist/fetch", () => {
     expect(body.success).toBe(true);
     expect(body.data.fetched).toBe(0);
     expect(body.data.newPosts).toBe(0);
+    expect(body.data.skippedOld).toBe(0);
+    expect(body.data.purged).toBe(0);
   });
 
   test("fetches tweets for watchlist members", async () => {
@@ -86,6 +88,8 @@ describe("POST /api/watchlist/fetch", () => {
     expect(body.data.fetched).toBe(2);
     expect(body.data.newPosts).toBeGreaterThan(0);
     expect(body.data.errors).toEqual([]);
+    expect(body.data.skippedOld).toBe(0); // mock tweets are "now"
+    expect(body.data.purged).toBe(0);
 
     // Verify posts were stored
     const posts = fetchedPostsRepo.findByUserId(USER_ID);
@@ -108,6 +112,30 @@ describe("POST /api/watchlist/fetch", () => {
     const body2 = await res2.json();
     expect(body2.data.newPosts).toBe(0);
   });
+
+  test("purges old posts during fetch", async () => {
+    const member = seedMember("testuser1");
+
+    // Pre-seed an old post (older than 7 days max retention)
+    fetchedPostsRepo.insertIfNew({
+      userId: USER_ID,
+      memberId: member.id,
+      tweetId: "very-old-tweet",
+      twitterUsername: "testuser1",
+      text: "Old tweet content",
+      tweetJson: JSON.stringify({ id: "very-old-tweet", text: "Old tweet content" }),
+      tweetCreatedAt: "2025-01-01T00:00:00.000Z",
+    });
+
+    expect(fetchedPostsRepo.countByUserId(USER_ID)).toBe(1);
+
+    const { POST } = await import("@/app/api/watchlist/fetch/route");
+    const res = await POST();
+    const body = await res.json();
+
+    expect(body.success).toBe(true);
+    expect(body.data.purged).toBe(1);
+  });
 });
 
 // =============================================================================
@@ -115,7 +143,7 @@ describe("POST /api/watchlist/fetch", () => {
 // =============================================================================
 
 describe("GET /api/watchlist/settings", () => {
-  test("returns default interval of 0", async () => {
+  test("returns default interval of 0 and retention of 1", async () => {
     const { GET } = await import("@/app/api/watchlist/settings/route");
     const res = await GET();
     expect(res.status).toBe(200);
@@ -123,22 +151,24 @@ describe("GET /api/watchlist/settings", () => {
     const body = await res.json();
     expect(body.success).toBe(true);
     expect(body.data.fetchIntervalMinutes).toBe(0);
+    expect(body.data.retentionDays).toBe(1);
   });
 
-  test("returns saved interval after PUT", async () => {
+  test("returns saved settings after PUT", async () => {
     const { PUT, GET } = await import("@/app/api/watchlist/settings/route");
 
     await PUT(
       new Request("http://localhost/api/watchlist/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fetchIntervalMinutes: 30 }),
+        body: JSON.stringify({ fetchIntervalMinutes: 30, retentionDays: 7 }),
       }),
     );
 
     const res = await GET();
     const body = await res.json();
     expect(body.data.fetchIntervalMinutes).toBe(30);
+    expect(body.data.retentionDays).toBe(7);
   });
 });
 
@@ -163,6 +193,22 @@ describe("PUT /api/watchlist/settings", () => {
     expect(body.data.fetchIntervalMinutes).toBe(60);
   });
 
+  test("sets a valid retention", async () => {
+    const { PUT } = await import("@/app/api/watchlist/settings/route");
+    const res = await PUT(
+      new Request("http://localhost/api/watchlist/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ retentionDays: 3 }),
+      }),
+    );
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.data.retentionDays).toBe(3);
+  });
+
   test("rejects invalid interval", async () => {
     const { PUT } = await import("@/app/api/watchlist/settings/route");
     const res = await PUT(
@@ -178,7 +224,22 @@ describe("PUT /api/watchlist/settings", () => {
     expect(body.error).toContain("Invalid interval");
   });
 
-  test("rejects missing fetchIntervalMinutes", async () => {
+  test("rejects invalid retention", async () => {
+    const { PUT } = await import("@/app/api/watchlist/settings/route");
+    const res = await PUT(
+      new Request("http://localhost/api/watchlist/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ retentionDays: 5 }),
+      }),
+    );
+    expect(res.status).toBe(400);
+
+    const body = await res.json();
+    expect(body.error).toContain("Invalid retention");
+  });
+
+  test("rejects when no fields provided", async () => {
     const { PUT } = await import("@/app/api/watchlist/settings/route");
     const res = await PUT(
       new Request("http://localhost/api/watchlist/settings", {
@@ -189,7 +250,7 @@ describe("PUT /api/watchlist/settings", () => {
     );
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toContain("fetchIntervalMinutes is required");
+    expect(body.error).toContain("At least one of");
   });
 
   test("rejects invalid JSON", async () => {
