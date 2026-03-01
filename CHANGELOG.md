@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-03-01
+
+### Security
+
+- **Cross-tenant data leak** — `findByMemberId` now scoped to `watchlistId`, preventing member posts from leaking across watchlists
+- **Cross-watchlist access** — member update/delete and single-post translate routes now validate `watchlistId` ownership
+- **SQL injection** — `seedUser()` switched from string interpolation to parameterized queries
+- **Tag ownership bypass** — tag assignment on member create/update now validates tags belong to the authenticated user
+
+### Added
+
+- **Auto-translate toggle** — watchlist create/edit dialogs include a `translateEnabled` switch; fetch pipeline respects this setting and skips translation when disabled
+- **Page Visibility API** — polling timer pauses when the browser tab is hidden and resumes on focus
+- **AbortController** — all in-flight `fetch()` requests are cancelled on component unmount, preventing state updates on destroyed components
+- **Settings error feedback** — interval and retention save failures now revert the optimistic UI update and show a 3-second error banner
+- **SSE disconnect detection** — fetch and translate SSE streams detect client disconnection and abort expensive server work early
+- **Database indexes** — added performance indexes on `fetched_posts(member_id, user_id, tweet_created_at)`, `watchlist_members(user_id, watchlist_id)`, and `fetch_logs(watchlist_id)`
+- **Unique constraint** — `(watchlist_id, twitter_username)` uniqueness enforced at DB level to prevent duplicate members
+
+### Fixed
+
+- **Infinite re-render loop** — stabilized `useRouter()` and `members` refs to break `useCallback` → `useEffect` dependency cascade (vinext compatibility)
+- **N+1 tag queries** — replaced per-member `getTagsForMember()` with batch `batchGetTagsForMembers()` using `inArray()`
+- **JSON.parse crashes** — wrapped 5 locations parsing `tweetJson`/`errors` fields in try-catch to prevent 500 on corrupted data
+- **Transaction atomicity** — `setTags()` (delete+insert) and `insertMany()` (batch insert) now wrapped in SQLite transactions
+- **Schema ordering** — `fetch_logs` table creation moved before `safeAddColumn` and `migrateToMultiWatchlist` to prevent "no such table" errors on fresh databases
+- **safeAddColumn** — non-duplicate-column errors are now surfaced via `console.error` instead of silently swallowed
+- Stale `eslint-disable` comments removed; unused variables cleaned up
+- Husky hooks updated to include `ui/` test directory
+
+### Changed
+
+- E2E tests rewritten for multi-watchlist API routes
+- Watchlist monolith decomposed into listing, detail, and logs pages
+- API routes migrated to `/api/watchlists/[id]/*` nested structure
+- Dynamic watchlist group added to sidebar with icon picker (24 curated Lucide icons)
+- Repository layer migrated to `watchlistId` scoping
+
 ## [1.2.0] - 2026-02-28
 
 ### Added
