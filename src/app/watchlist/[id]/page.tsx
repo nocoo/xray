@@ -68,6 +68,15 @@ export default function WatchlistDetailPage() {
   const [allTags, setAllTags] = useState<TagData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const settingsErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Flash a brief settings error that auto-clears after 3 seconds */
+  const flashSettingsError = (msg: string) => {
+    setSettingsError(msg);
+    if (settingsErrorTimerRef.current) clearTimeout(settingsErrorTimerRef.current);
+    settingsErrorTimerRef.current = setTimeout(() => setSettingsError(null), 3000);
+  };
 
   // Keep refs in sync
   useEffect(() => { membersRef.current = members; }, [members]);
@@ -471,30 +480,38 @@ export default function WatchlistDetailPage() {
   // ── Settings change handlers ──
 
   const handleIntervalChange = async (minutes: number) => {
+    const prev = fetchInterval;
     setFetchInterval(minutes);
     try {
-      await fetch(`${api}/settings`, {
+      const res = await fetch(`${api}/settings`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fetchIntervalMinutes: minutes }),
         signal: abortRef.current.signal,
       });
-    } catch {
-      // silent
+      if (!res.ok) throw new Error("Failed to save");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setFetchInterval(prev);
+      flashSettingsError("Failed to save interval setting");
     }
   };
 
   const handleRetentionChange = async (days: number) => {
+    const prev = retentionDays;
     setRetentionDays(days);
     try {
-      await fetch(`${api}/settings`, {
+      const res = await fetch(`${api}/settings`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ retentionDays: days }),
         signal: abortRef.current.signal,
       });
-    } catch {
-      // silent
+      if (!res.ok) throw new Error("Failed to save");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setRetentionDays(prev);
+      flashSettingsError("Failed to save retention setting");
     }
   };
 
@@ -707,6 +724,13 @@ export default function WatchlistDetailPage() {
             </div>
           )}
         </div>
+
+        {/* Settings save error (auto-dismisses) */}
+        {settingsError && (
+          <div className="rounded-md border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950 px-4 py-2 text-sm text-red-700 dark:text-red-300">
+            {settingsError}
+          </div>
+        )}
 
         {/* Tab bar */}
         <div className="flex border-b">
