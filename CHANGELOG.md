@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-03-02
+
+### Added
+
+- **Translation concurrency pool** — batch translation now processes up to 3 posts concurrently via `Promise.allSettled`, applied to both SSE stream and `translateBatch()` paths
+- **Load-more pagination** — posts page renders 100 posts initially with a "load more" button, reducing DOM bloat and scroll jank on large watchlists
+- **Wide-screen column layout** — `useColumns()` hook supports 5 columns (≥1536px) and 6 columns (≥1920px), with a height bonus (+1 col on ≥1200px tall screens, capped at 6)
+
+### Fixed
+
+- **Auto-translate on JSON fallback** — `translateEnabledRef` now synced immediately in `loadData()` (not deferred to useEffect); JSON fallback path in `doFetch` also triggers auto-translate
+- **Infinite re-render under vinext** — watchlist list page uses `routerRef` pattern to prevent `useRouter()` instability from causing re-render loops
+- **SSE mid-stream loadPosts** — `loadPosts()` deferred until SSE stream completes instead of firing during cleanup
+- **25k redundant renders during SSE** — `WatchlistPostCard`, `TweetCard`, and `MemberCard` wrapped in `React.memo`; `displayTweet` IIFE replaced with `useMemo` for referential equality
+- **Polling timer rebuilds** — removed `doFetch` from polling timer deps to prevent unnecessary timer teardown/setup
+- **useColumns resize overhead** — switched from `resize` event listener to `matchMedia` change listeners for fewer callbacks
+- **Filtered members recomputation** — memoized filtered members array to avoid re-computing on unrelated state changes
+- **Font size inconsistency** — unified quoted tweets and AI insight to `text-sm`
+- **Legacy DB migration** — moved `watchlist_id`-dependent indexes after `safeAddColumn` to fix missing-column errors on pre-existing databases
+- **fetch_logs DDL** — removed premature `watchlist_id` from CREATE TABLE and relocated its index after `safeAddColumn`
+
+### Changed
+
+- **Shortest-column masonry layout** — replaced round-robin distribution with shortest-column-first algorithm using estimated card heights for visually balanced columns
+- Removed diagnostic `console.log` statements from `initSchema`
+
 ## [1.2.1] - 2026-03-01
 
 ### Security
