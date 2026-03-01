@@ -213,13 +213,13 @@ describe("repositories/fetched-posts", () => {
         makePostData("u1", wlId, m2.id, "t2", "user2"),
       ]);
 
-      const posts = fetchedPostsRepo.findByMemberId(m1.id);
+      const posts = fetchedPostsRepo.findByMemberId(m1.id, wlId);
       expect(posts).toHaveLength(1);
       expect(posts[0]!.twitterUsername).toBe("user1");
     });
 
     test("returns empty for non-existent member", () => {
-      expect(fetchedPostsRepo.findByMemberId(999)).toEqual([]);
+      expect(fetchedPostsRepo.findByMemberId(999, wlId)).toEqual([]);
     });
   });
 

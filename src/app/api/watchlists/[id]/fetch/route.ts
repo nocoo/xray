@@ -174,7 +174,7 @@ export async function POST(_request: Request, ctx: RouteContext) {
 
         // Emit newly inserted posts so the client can render them in real-time
         if (memberNew > 0) {
-          const recentPosts = fetchedPostsRepo.findByMemberId(member.id, memberNew);
+          const recentPosts = fetchedPostsRepo.findByMemberId(member.id, watchlistId, memberNew);
           const postsData = recentPosts.map((p) => ({
             id: p.id,
             tweetId: p.tweetId,

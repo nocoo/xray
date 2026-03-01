@@ -37,7 +37,7 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
         { status: 400 },
       );
     }
-    posts = fetchedPostsRepo.findByMemberId(memberId, limit);
+    posts = fetchedPostsRepo.findByMemberId(memberId, watchlistId, limit);
   } else {
     posts = fetchedPostsRepo.findByWatchlistId(watchlistId, limit);
   }

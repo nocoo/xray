@@ -55,15 +55,21 @@ export function findById(id: number): FetchedPost | undefined {
     .get();
 }
 
-/** Find posts for a specific watchlist member, newest tweet first. */
+/** Find posts for a specific watchlist member, scoped to a watchlist for security. */
 export function findByMemberId(
   memberId: number,
+  watchlistId: number,
   limit = 100,
 ): FetchedPost[] {
   return db
     .select()
     .from(fetchedPosts)
-    .where(eq(fetchedPosts.memberId, memberId))
+    .where(
+      and(
+        eq(fetchedPosts.memberId, memberId),
+        eq(fetchedPosts.watchlistId, watchlistId),
+      ),
+    )
     .orderBy(desc(fetchedPosts.tweetCreatedAt))
     .limit(limit)
     .all();
