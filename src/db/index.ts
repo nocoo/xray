@@ -307,28 +307,15 @@ export function initSchema(): void {
       translated_at INTEGER
     );
 
-    CREATE UNIQUE INDEX IF NOT EXISTS fetched_posts_watchlist_tweet_uniq
-      ON fetched_posts (watchlist_id, tweet_id);
-
-    CREATE UNIQUE INDEX IF NOT EXISTS watchlist_members_wl_username_uniq
-      ON watchlist_members (watchlist_id, twitter_username);
-
-    -- Performance indexes for fetched_posts
+    -- Performance indexes that DON'T depend on watchlist_id (safe for legacy DBs)
     CREATE INDEX IF NOT EXISTS fetched_posts_member_id_idx
       ON fetched_posts (member_id);
     CREATE INDEX IF NOT EXISTS fetched_posts_user_id_idx
       ON fetched_posts (user_id);
     CREATE INDEX IF NOT EXISTS fetched_posts_tweet_created_at_idx
       ON fetched_posts (tweet_created_at);
-
-    -- Performance indexes for watchlist_members
     CREATE INDEX IF NOT EXISTS watchlist_members_user_id_idx
       ON watchlist_members (user_id);
-    CREATE INDEX IF NOT EXISTS watchlist_members_watchlist_id_idx
-      ON watchlist_members (watchlist_id);
-
-    -- Safe column migration: add comment_text if missing (for pre-existing DBs)
-    -- SQLite doesn't support ADD COLUMN IF NOT EXISTS, so we catch the error.
   `);
   console.log("[db] initSchema() main exec block done");
 
@@ -376,7 +363,19 @@ export function initSchema(): void {
   safeAddColumn(`ALTER TABLE fetched_posts ADD COLUMN quoted_translated_text TEXT`);
   safeAddColumn(`ALTER TABLE fetched_posts ADD COLUMN watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE`);
   safeAddColumn(`ALTER TABLE fetch_logs ADD COLUMN watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE`);
-  console.log("[db] initSchema() safeAddColumn block done, starting migration...");
+  console.log("[db] initSchema() safeAddColumn block done");
+
+  // Indexes that depend on watchlist_id — MUST run AFTER safeAddColumn adds the column.
+  // For fresh DBs the column exists from CREATE TABLE; for legacy DBs safeAddColumn just added it.
+  sqlite!.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS fetched_posts_watchlist_tweet_uniq
+      ON fetched_posts (watchlist_id, tweet_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS watchlist_members_wl_username_uniq
+      ON watchlist_members (watchlist_id, twitter_username);
+    CREATE INDEX IF NOT EXISTS watchlist_members_watchlist_id_idx
+      ON watchlist_members (watchlist_id);
+  `);
+  console.log("[db] initSchema() watchlist_id indexes created, starting migration...");
 
   // --------------------------------------------------------------------------
   // Data migration: create "Default" watchlists for existing users and backfill
