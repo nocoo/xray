@@ -33,6 +33,7 @@ import {
   ArrowLeftRight,
   ScrollText,
   ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { TweetCard } from "@/components/twitter/tweet-card";
 import type { Tweet } from "../../../shared/types";
@@ -67,6 +68,26 @@ interface FetchedPostData {
   tweetCreatedAt: string;
   fetchedAt: string;
   tweet: Tweet;
+}
+
+// =============================================================================
+// Fetch progress detail types
+// =============================================================================
+
+interface MemberProgress {
+  username: string;
+  status: "pending" | "fetching" | "done" | "error";
+  tweetsReceived?: number;
+  filtered?: number;
+  newPosts?: number;
+  error?: string;
+}
+
+interface TranslateProgress {
+  current: number;
+  total: number;
+  lastPostId?: number;
+  errors: number;
 }
 
 // =============================================================================
@@ -124,6 +145,32 @@ const RETENTION_OPTIONS = [
 ];
 
 // =============================================================================
+// SSE parser helper
+// =============================================================================
+
+function parseSSEBuffer(
+  buffer: string,
+  onEvent: (eventType: string, data: string) => void,
+): string {
+  let remaining = buffer;
+  let boundary: number;
+  while ((boundary = remaining.indexOf("\n\n")) !== -1) {
+    const raw = remaining.slice(0, boundary);
+    remaining = remaining.slice(boundary + 2);
+    let eventType = "";
+    let eventData = "";
+    for (const line of raw.split("\n")) {
+      if (line.startsWith("event: ")) eventType = line.slice(7);
+      else if (line.startsWith("data: ")) eventData = line.slice(6);
+    }
+    if (eventType && eventData) {
+      onEvent(eventType, eventData);
+    }
+  }
+  return remaining;
+}
+
+// =============================================================================
 // Watchlist Page
 // =============================================================================
 
@@ -147,22 +194,23 @@ export default function WatchlistPage() {
   const [fetchInterval, setFetchInterval] = useState(0);
   const [retentionDays, setRetentionDays] = useState(1);
   const [fetching, setFetching] = useState(false);
-  const [fetchStatus, setFetchStatus] = useState<string | null>(null);
   const fetchTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Translate state
-  const [translating, setTranslating] = useState(false);
-  const [translateStatus, setTranslateStatus] = useState<string | null>(null);
+  // Fetch + translate progress panel
+  const [progressExpanded, setProgressExpanded] = useState(false);
+  const [memberProgress, setMemberProgress] = useState<MemberProgress[]>([]);
+  const [cleanupInfo, setCleanupInfo] = useState<{ purgedExpired: number; purgedOrphans: number } | null>(null);
+  const [fetchSummary, setFetchSummary] = useState<string | null>(null);
+  const [translateProgress, setTranslateProgress] = useState<TranslateProgress | null>(null);
+  const [translateSummary, setTranslateSummary] = useState<string | null>(null);
+  const [pipelinePhase, setPipelinePhase] = useState<"idle" | "fetching" | "translating" | "done">("idle");
 
   // Fetched posts
   const [posts, setPosts] = useState<FetchedPostData[]>([]);
-  const [untranslatedCount, setUntranslatedCount] = useState(0);
   const [postsLoading, setPostsLoading] = useState(false);
 
   // Tab state: "members" or "posts"
   const [activeTab, setActiveTab] = useState<"members" | "posts">("members");
-
-  // Default language for new posts (each card manages its own toggle now)
 
   // Row-first masonry: distribute posts round-robin into columns
   const columnCount = useColumns();
@@ -212,11 +260,10 @@ export default function WatchlistPage() {
   const loadPosts = useCallback(async () => {
     setPostsLoading(true);
     try {
-      const res = await fetch("/api/watchlist/posts?limit=200");
+      const res = await fetch("/api/watchlist/posts?limit=500");
       const json = await res.json().catch(() => null);
       if (res.ok && json?.success) {
         setPosts(json.data ?? []);
-        setUntranslatedCount(json.meta?.untranslatedCount ?? 0);
       }
     } catch {
       // silent
@@ -227,43 +274,45 @@ export default function WatchlistPage() {
 
   useEffect(() => {
     loadData();
-    loadPosts(); // Pre-load posts so cached data is ready when switching tabs
+    loadPosts();
   }, [loadData, loadPosts]);
 
-  // Refresh posts when switching to posts tab (picks up new fetches/translations)
+  // Refresh posts when switching to posts tab
   useEffect(() => {
     if (activeTab === "posts") {
       loadPosts();
     }
   }, [activeTab, loadPosts]);
 
-  // ── Auto-fetch polling ──
+  // ── Auto-translate via SSE stream ──
 
-  const doFetch = useCallback(async () => {
-    if (fetching) return;
-    setFetching(true);
-    setFetchStatus(null);
+  const doStreamTranslate = useCallback(async () => {
+    setPipelinePhase("translating");
+    setTranslateProgress({ current: 0, total: 0, errors: 0 });
+    setTranslateSummary(null);
+
     try {
-      const res = await fetch("/api/watchlist/fetch", { method: "POST" });
+      const res = await fetch("/api/watchlist/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit: 50, stream: true }),
+      });
 
-      // Non-SSE responses (errors or empty watchlist) come as JSON
       const contentType = res.headers.get("content-type") ?? "";
       if (contentType.includes("application/json")) {
+        // No untranslated posts or error
         const json = await res.json().catch(() => null);
-        if (res.ok && json?.success) {
-          const d = json.data;
-          setFetchStatus(
-            `Fetched ${d.newPosts} new post${d.newPosts !== 1 ? "s" : ""} from ${d.fetched} user${d.fetched !== 1 ? "s" : ""}`,
+        if (json?.success) {
+          setTranslateSummary(
+            json.data.translated === 0 ? "No posts to translate" : `Translated ${json.data.translated}`
           );
-        } else {
-          setFetchStatus(json?.error ?? "Fetch failed");
         }
+        setPipelinePhase("done");
         return;
       }
 
-      // SSE stream: read line by line
       if (!res.body) {
-        setFetchStatus("Fetch failed — no response body");
+        setPipelinePhase("done");
         return;
       }
 
@@ -275,99 +324,183 @@ export default function WatchlistPage() {
         const { done: streamDone, value } = await reader.read();
         if (value) buffer += decoder.decode(value, { stream: true });
 
-        // Process complete SSE messages (delimited by double newline)
-        let boundary: number;
-        while ((boundary = buffer.indexOf("\n\n")) !== -1) {
-          const raw = buffer.slice(0, boundary);
-          buffer = buffer.slice(boundary + 2);
-
-          // Parse "event: <type>\ndata: <json>"
-          let eventType = "";
-          let eventData = "";
-          for (const line of raw.split("\n")) {
-            if (line.startsWith("event: ")) eventType = line.slice(7);
-            else if (line.startsWith("data: ")) eventData = line.slice(6);
-          }
-
-          if (eventType === "progress") {
-            try {
-              const p = JSON.parse(eventData);
-              const status = `Fetching @${p.username} (${p.current}/${p.total})`;
-              const detail = p.error
-                ? ` — error`
-                : p.newPosts > 0
-                  ? ` — ${p.newPosts} new`
-                  : "";
-              setFetchStatus(status + detail);
-            } catch {
-              // skip malformed progress events
+        buffer = parseSSEBuffer(buffer, (eventType, eventData) => {
+          try {
+            const d = JSON.parse(eventData);
+            if (eventType === "translated") {
+              setTranslateProgress((prev) => ({
+                current: d.current,
+                total: d.total,
+                lastPostId: d.postId,
+                errors: prev?.errors ?? 0,
+              }));
+              // Update the post in-place with translation
+              setPosts((prev) =>
+                prev.map((p) =>
+                  p.id === d.postId
+                    ? {
+                        ...p,
+                        translatedText: d.translatedText,
+                        commentText: d.commentText,
+                        quotedTranslatedText: d.quotedTranslatedText,
+                        translatedAt: new Date().toISOString(),
+                      }
+                    : p
+                )
+              );
+            } else if (eventType === "error") {
+              setTranslateProgress((prev) => ({
+                current: d.current,
+                total: d.total,
+                errors: (prev?.errors ?? 0) + 1,
+              }));
+            } else if (eventType === "done") {
+              setTranslateSummary(
+                `Translated ${d.translated} post${d.translated !== 1 ? "s" : ""}` +
+                  (d.remaining > 0 ? ` · ${d.remaining} remaining` : "") +
+                  (d.errors?.length ? ` · ${d.errors.length} errors` : "")
+              );
             }
-          } else if (eventType === "done") {
-            try {
-              const d = JSON.parse(eventData);
-              const parts = [
-                `Fetched ${d.newPosts} new post${d.newPosts !== 1 ? "s" : ""} from ${d.fetched} user${d.fetched !== 1 ? "s" : ""}`,
-              ];
-              if (d.skippedOld > 0)
-                parts.push(`${d.skippedOld} skipped (too old)`);
-              if (d.purged > 0) parts.push(`${d.purged} purged`);
-              if (d.errors?.length)
-                parts.push(`${d.errors.length} errors`);
-              setFetchStatus(parts.join(" · "));
-              // Auto-trigger translate after fetch if there are new posts
-              if (d.newPosts > 0) {
-                doTranslate();
-              }
-              // Refresh posts if on posts tab
-              if (activeTab === "posts") {
-                loadPosts();
-              }
-            } catch {
-              // skip malformed done events
-            }
+          } catch {
+            // skip malformed
           }
-        }
+        });
 
         if (streamDone) break;
       }
     } catch {
-      setFetchStatus("Network error during fetch");
+      setTranslateSummary("Network error during translation");
     } finally {
-      setFetching(false);
+      setPipelinePhase("done");
     }
-  }, [fetching, activeTab, loadPosts]);
+  }, []);
 
-  const doTranslate = useCallback(async () => {
-    if (translating) return;
-    setTranslating(true);
-    setTranslateStatus(null);
+  // ── Fetch via SSE with real-time post injection + auto-translate ──
+
+  const doFetch = useCallback(async () => {
+    if (fetching) return;
+    setFetching(true);
+    setPipelinePhase("fetching");
+    setProgressExpanded(true);
+    setCleanupInfo(null);
+    setFetchSummary(null);
+    setTranslateProgress(null);
+    setTranslateSummary(null);
+
+    // Initialize member progress from current members
+    setMemberProgress(
+      members.map((m) => ({ username: m.twitterUsername, status: "pending" as const }))
+    );
+
     try {
-      const res = await fetch("/api/watchlist/translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ limit: 20 }),
-      });
-      const json = await res.json().catch(() => null);
-      if (res.ok && json?.success) {
-        const d = json.data;
-        setTranslateStatus(
-          `Translated ${d.translated} post${d.translated !== 1 ? "s" : ""}` +
-            (d.remaining > 0 ? ` (${d.remaining} remaining)` : "") +
-            (d.errors?.length ? ` — ${d.errors.length} errors` : "")
-        );
-        setUntranslatedCount(d.remaining);
-        if (activeTab === "posts") {
-          loadPosts();
+      const res = await fetch("/api/watchlist/fetch", { method: "POST" });
+
+      const contentType = res.headers.get("content-type") ?? "";
+      if (contentType.includes("application/json")) {
+        const json = await res.json().catch(() => null);
+        if (res.ok && json?.success) {
+          setFetchSummary(
+            `Fetched ${json.data.newPosts} new post${json.data.newPosts !== 1 ? "s" : ""} from ${json.data.fetched} user${json.data.fetched !== 1 ? "s" : ""}`,
+          );
+        } else {
+          setFetchSummary(json?.error ?? "Fetch failed");
         }
+        setPipelinePhase("done");
+        setFetching(false);
+        return;
+      }
+
+      if (!res.body) {
+        setFetchSummary("Fetch failed — no response body");
+        setPipelinePhase("done");
+        setFetching(false);
+        return;
+      }
+
+      // Switch to posts tab so user sees cards appearing
+      setActiveTab("posts");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let totalNewPosts = 0;
+
+      while (true) {
+        const { done: streamDone, value } = await reader.read();
+        if (value) buffer += decoder.decode(value, { stream: true });
+
+        buffer = parseSSEBuffer(buffer, (eventType, eventData) => {
+          try {
+            const d = JSON.parse(eventData);
+
+            if (eventType === "cleanup") {
+              setCleanupInfo({ purgedExpired: d.purgedExpired, purgedOrphans: d.purgedOrphans });
+              // Remove purged posts from local state
+              if (d.purgedExpired > 0 || d.purgedOrphans > 0) {
+                // Reload posts to reflect cleanup
+                loadPosts();
+              }
+            } else if (eventType === "progress") {
+              // Update the specific member's progress
+              setMemberProgress((prev) => {
+                const updated = [...prev];
+                const idx = d.current - 1;
+                if (idx >= 0 && idx < updated.length) {
+                  updated[idx] = {
+                    username: d.username,
+                    status: d.error ? "error" : "done",
+                    tweetsReceived: d.tweetsReceived,
+                    filtered: d.filtered,
+                    newPosts: d.newPosts,
+                    error: d.error,
+                  };
+                }
+                // Mark next member as "fetching"
+                if (d.current < updated.length) {
+                  updated[d.current] = { ...updated[d.current]!, status: "fetching" };
+                }
+                return updated;
+              });
+            } else if (eventType === "posts") {
+              // Real-time: insert new posts at the beginning
+              const newPosts: FetchedPostData[] = d.posts;
+              setPosts((prev) => {
+                const existingIds = new Set(prev.map((p) => p.id));
+                const uniqueNew = newPosts.filter((p) => !existingIds.has(p.id));
+                return [...uniqueNew, ...prev];
+              });
+            } else if (eventType === "done") {
+              totalNewPosts = d.newPosts;
+              const parts = [
+                `${d.newPosts} new post${d.newPosts !== 1 ? "s" : ""} from ${d.fetched} user${d.fetched !== 1 ? "s" : ""}`,
+              ];
+              if (d.skippedOld > 0) parts.push(`${d.skippedOld} skipped`);
+              if (d.purged > 0) parts.push(`${d.purged} purged`);
+              if (d.errors?.length) parts.push(`${d.errors.length} errors`);
+              setFetchSummary(parts.join(" · "));
+            }
+          } catch {
+            // skip malformed
+          }
+        });
+
+        if (streamDone) break;
+      }
+
+      setFetching(false);
+
+      // Auto-trigger translate if new posts were fetched
+      if (totalNewPosts > 0) {
+        await doStreamTranslate();
       } else {
-        setTranslateStatus(json?.error ?? "Translation failed");
+        setPipelinePhase("done");
       }
     } catch {
-      setTranslateStatus("Network error during translation");
-    } finally {
-      setTranslating(false);
+      setFetchSummary("Network error during fetch");
+      setPipelinePhase("done");
+      setFetching(false);
     }
-  }, [translating, activeTab, loadPosts]);
+  }, [fetching, members, loadPosts, doStreamTranslate]);
 
   // Set up polling timer
   useEffect(() => {
@@ -396,7 +529,7 @@ export default function WatchlistPage() {
         body: JSON.stringify({ fetchIntervalMinutes: minutes }),
       });
     } catch {
-      // silent — local state already updated
+      // silent
     }
   };
 
@@ -409,13 +542,22 @@ export default function WatchlistPage() {
         body: JSON.stringify({ retentionDays: days }),
       });
     } catch {
-      // silent — local state already updated
+      // silent
     }
   };
 
   const filtered = filterTagId
     ? members.filter((m) => m.tags.some((t) => t.id === filterTagId))
     : members;
+
+  // Phase label for the progress panel header
+  const phaseLabel = pipelinePhase === "fetching"
+    ? "Fetching..."
+    : pipelinePhase === "translating"
+      ? "Translating..."
+      : pipelinePhase === "done"
+        ? "Done"
+        : null;
 
   return (
     <AppShell breadcrumbs={[{ label: "Watchlist" }]}>
@@ -437,7 +579,7 @@ export default function WatchlistPage() {
           </div>
         </div>
 
-        {/* Auto-fetch controls */}
+        {/* Controls bar */}
         <div className="rounded-card bg-card border p-4 space-y-3">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4 flex-wrap">
@@ -487,7 +629,7 @@ export default function WatchlistPage() {
                 variant="outline"
                 size="sm"
                 onClick={doFetch}
-                disabled={fetching || members.length === 0}
+                disabled={fetching || pipelinePhase === "translating" || members.length === 0}
               >
                 {fetching ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -495,19 +637,6 @@ export default function WatchlistPage() {
                   <RefreshCw className="h-4 w-4" />
                 )}
                 {fetching ? "Fetching..." : "Fetch Now"}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={doTranslate}
-                disabled={translating || untranslatedCount === 0}
-              >
-                {translating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Languages className="h-4 w-4" />
-                )}
-                {translating ? "Translating..." : `Translate${untranslatedCount > 0 ? ` (${untranslatedCount})` : ""}`}
               </Button>
               <Button variant="ghost" size="sm" asChild>
                 <Link href="/watchlist/logs">
@@ -517,11 +646,106 @@ export default function WatchlistPage() {
               </Button>
             </div>
           </div>
-          {fetchStatus && (
-            <p className="text-xs text-muted-foreground">{fetchStatus}</p>
-          )}
-          {translateStatus && (
-            <p className="text-xs text-muted-foreground">{translateStatus}</p>
+
+          {/* ── Expandable Progress Panel ── */}
+          {pipelinePhase !== "idle" && (
+            <div className="border rounded-lg overflow-hidden bg-background">
+              {/* Header — always visible, clickable to expand/collapse */}
+              <button
+                onClick={() => setProgressExpanded((p) => !p)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent/50 transition-colors"
+              >
+                {pipelinePhase === "done" ? (
+                  <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${progressExpanded ? "rotate-90" : ""}`} />
+                ) : (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                )}
+                <span className="font-medium">{phaseLabel}</span>
+                {fetchSummary && pipelinePhase !== "fetching" && (
+                  <span className="text-muted-foreground ml-1">— {fetchSummary}</span>
+                )}
+                {pipelinePhase === "translating" && translateProgress && (
+                  <span className="text-muted-foreground ml-1">
+                    — {translateProgress.current}/{translateProgress.total}
+                  </span>
+                )}
+                {translateSummary && pipelinePhase === "done" && (
+                  <span className="text-muted-foreground ml-1">· {translateSummary}</span>
+                )}
+              </button>
+
+              {/* Detail — expanded */}
+              {progressExpanded && (
+                <div className="border-t px-3 py-2 space-y-2 text-xs">
+                  {/* Cleanup info */}
+                  {cleanupInfo && (cleanupInfo.purgedExpired > 0 || cleanupInfo.purgedOrphans > 0) && (
+                    <div className="text-muted-foreground">
+                      Cleanup: {cleanupInfo.purgedExpired > 0 && `${cleanupInfo.purgedExpired} expired`}
+                      {cleanupInfo.purgedExpired > 0 && cleanupInfo.purgedOrphans > 0 && ", "}
+                      {cleanupInfo.purgedOrphans > 0 && `${cleanupInfo.purgedOrphans} orphaned`}
+                    </div>
+                  )}
+
+                  {/* Per-member progress */}
+                  {memberProgress.length > 0 && (
+                    <div className="space-y-1">
+                      {memberProgress.map((mp, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="w-4 text-right text-muted-foreground">{idx + 1}.</span>
+                          {mp.status === "pending" && (
+                            <span className="text-muted-foreground/50">@{mp.username}</span>
+                          )}
+                          {mp.status === "fetching" && (
+                            <>
+                              <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
+                              <span className="text-blue-600 dark:text-blue-400">@{mp.username}</span>
+                              <span className="text-muted-foreground">requesting...</span>
+                            </>
+                          )}
+                          {mp.status === "done" && (
+                            <>
+                              <span className="text-green-600 dark:text-green-400">@{mp.username}</span>
+                              <span className="text-muted-foreground">
+                                {mp.tweetsReceived} received
+                                {(mp.filtered ?? 0) > 0 && `, ${mp.filtered} filtered`}
+                                , {mp.newPosts} new
+                              </span>
+                            </>
+                          )}
+                          {mp.status === "error" && (
+                            <>
+                              <span className="text-red-600 dark:text-red-400">@{mp.username}</span>
+                              <span className="text-red-500 truncate">{mp.error}</span>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Translate progress */}
+                  {(pipelinePhase === "translating" || (pipelinePhase === "done" && translateSummary)) && (
+                    <div className="pt-1 border-t">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Languages className="h-3 w-3" />
+                        <span className="font-medium">Translation</span>
+                        {pipelinePhase === "translating" && translateProgress && (
+                          <>
+                            <span>{translateProgress.current}/{translateProgress.total}</span>
+                            {translateProgress.errors > 0 && (
+                              <span className="text-red-500">{translateProgress.errors} errors</span>
+                            )}
+                          </>
+                        )}
+                        {pipelinePhase === "done" && translateSummary && (
+                          <span>{translateSummary}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
@@ -630,7 +854,7 @@ export default function WatchlistPage() {
         {/* Posts tab */}
         {activeTab === "posts" && (
           <div>
-            {postsLoading && <LoadingSpinner />}
+            {postsLoading && posts.length === 0 && <LoadingSpinner />}
 
             {!postsLoading && posts.length === 0 && (
               <EmptyState
@@ -640,7 +864,7 @@ export default function WatchlistPage() {
               />
             )}
 
-            {!postsLoading && posts.length > 0 && (
+            {posts.length > 0 && (
               <div className="flex gap-3 items-start">
                 {postColumns.map((col, colIdx) => (
                   <div key={colIdx} className="flex-1 min-w-0 flex flex-col gap-3">
@@ -690,20 +914,28 @@ export default function WatchlistPage() {
 }
 
 // =============================================================================
-// WatchlistPostCard — TweetCard + translation overlay
+// WatchlistPostCard — TweetCard + auto-translate flow
 // =============================================================================
 
 function WatchlistPostCard({ post }: { post: FetchedPostData }) {
-  const [lang, setLang] = useState<"zh" | "en">("zh");
+  const [lang, setLang] = useState<"zh" | "en">(post.translatedText ? "zh" : "en");
   const [translatedText, setTranslatedText] = useState(post.translatedText);
   const [commentText, setCommentText] = useState(post.commentText);
   const [quotedTranslatedText, setQuotedTranslatedText] = useState(post.quotedTranslatedText);
   const [translating, setTranslating] = useState(false);
 
+  // Sync from parent when translation arrives via SSE
+  useEffect(() => {
+    if (post.translatedText && !translatedText) {
+      setTranslatedText(post.translatedText);
+      setCommentText(post.commentText);
+      setQuotedTranslatedText(post.quotedTranslatedText);
+      setLang("zh");
+    }
+  }, [post.translatedText, post.commentText, post.quotedTranslatedText, translatedText]);
+
   const hasTranslation = !!translatedText;
 
-  // When lang=zh and translation is available, swap the tweet text inline
-  // Also swap quoted tweet text if available
   const displayTweet = (() => {
     if (lang !== "zh" || !hasTranslation) return post.tweet;
     const t = { ...post.tweet, text: translatedText! };
@@ -728,6 +960,7 @@ function WatchlistPostCard({ post }: { post: FetchedPostData }) {
         setTranslatedText(json.data.translatedText);
         setCommentText(json.data.commentText ?? null);
         setQuotedTranslatedText(json.data.quotedTranslatedText ?? null);
+        setLang("zh");
       }
     } catch {
       // silent
@@ -737,7 +970,7 @@ function WatchlistPostCard({ post }: { post: FetchedPostData }) {
   };
 
   return (
-    <div className="shadow-[0_1px_4px_rgba(0,0,0,0.06)] rounded-card">
+    <div className="shadow-[0_1px_4px_rgba(0,0,0,0.06)] rounded-card animate-in fade-in slide-in-from-top-2 duration-300">
       <TweetCard
         tweet={displayTweet}
         linkToDetail={false}
