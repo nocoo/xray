@@ -204,7 +204,11 @@ export default function WatchlistDetailPage() {
         const wl = watchlistsJson.data.find((w: { id: number }) => w.id === watchlistId);
         if (wl) {
           setWatchlistName(wl.name);
-          setTranslateEnabled(!!wl.translateEnabled);
+          const enabled = !!wl.translateEnabled;
+          setTranslateEnabled(enabled);
+          // Sync ref immediately — the useEffect sync runs next render cycle,
+          // which can be too late if doFetch fires before the re-render.
+          translateEnabledRef.current = enabled;
         }
       }
     } catch (err) {
@@ -364,9 +368,16 @@ export default function WatchlistDetailPage() {
       if (contentType.includes("application/json")) {
         const json = await res.json().catch(() => null);
         if (res.ok && json?.success) {
+          const newPosts = json.data.newPosts ?? 0;
           setFetchSummary(
-            `Fetched ${json.data.newPosts} new post${json.data.newPosts !== 1 ? "s" : ""} from ${json.data.fetched} user${json.data.fetched !== 1 ? "s" : ""}`,
+            `Fetched ${newPosts} new post${newPosts !== 1 ? "s" : ""} from ${json.data.fetched} user${json.data.fetched !== 1 ? "s" : ""}`,
           );
+          // Auto-translate even on JSON fallback (e.g. zero-member watchlist edge case)
+          if (newPosts > 0 && translateEnabledRef.current) {
+            setFetching(false);
+            await doStreamTranslate();
+            return;
+          }
         } else {
           setFetchSummary(json?.error ?? "Fetch failed");
         }
