@@ -89,7 +89,7 @@ export const WatchlistPostCard = memo(function WatchlistPostCard({
               <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-600/80 dark:text-violet-400/80">
                 AI Insight
               </span>
-              <p className="mt-0.5 text-xs text-foreground/80 leading-relaxed">
+              <p className="mt-0.5 text-sm text-foreground/80 leading-relaxed">
                 {commentText}
               </p>
             </div>

@@ -265,7 +265,7 @@ export const TweetCard = memo(function TweetCard({
           </div>
 
           {/* Quoted text */}
-          <p className="mt-2 text-xs leading-relaxed whitespace-pre-wrap">
+          <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">
             {tweet.quoted_tweet.text}
           </p>
 
