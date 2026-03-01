@@ -1,5 +1,5 @@
 import { eq, and } from "drizzle-orm";
-import { db } from "@/db";
+import { db, getRawSqlite } from "@/db";
 import {
   watchlistMembers,
   watchlistMemberTags,
@@ -157,19 +157,22 @@ function getTagsForMember(memberId: number): Tag[] {
   return rows.map((r: { tag: Tag }) => r.tag);
 }
 
-/** Set tags for a member (replace all existing). */
+/** Set tags for a member (replace all existing). Wrapped in a transaction for atomicity. */
 export function setTags(memberId: number, tagIds: number[]): void {
-  // Remove all existing
-  db.delete(watchlistMemberTags)
-    .where(eq(watchlistMemberTags.memberId, memberId))
-    .run();
-
-  // Insert new associations
-  for (const tagId of tagIds) {
-    db.insert(watchlistMemberTags)
-      .values({ memberId, tagId })
+  const run = getRawSqlite().transaction(() => {
+    // Remove all existing
+    db.delete(watchlistMemberTags)
+      .where(eq(watchlistMemberTags.memberId, memberId))
       .run();
-  }
+
+    // Insert new associations
+    for (const tagId of tagIds) {
+      db.insert(watchlistMemberTags)
+        .values({ memberId, tagId })
+        .run();
+    }
+  });
+  run();
 }
 
 /** Add a single tag to a member. */

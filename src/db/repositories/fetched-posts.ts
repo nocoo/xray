@@ -7,7 +7,7 @@
  */
 
 import { eq, and, isNull, desc, lt, count, notInArray } from "drizzle-orm";
-import { db } from "@/db";
+import { db, getRawSqlite } from "@/db";
 import {
   fetchedPosts,
   type FetchedPost,
@@ -101,7 +101,8 @@ export function findUntranslated(
 /**
  * Batch-insert posts, silently skipping duplicates via ON CONFLICT DO NOTHING.
  * The UNIQUE index on (watchlist_id, tweet_id) ensures no duplicates regardless of
- * concurrent requests. Returns the count of newly inserted rows.
+ * concurrent requests. All batches are wrapped in a single transaction for atomicity.
+ * Returns the count of newly inserted rows.
  */
 export function insertMany(
   posts: Omit<NewFetchedPost, "id" | "fetchedAt" | "translatedText" | "translatedAt">[],
@@ -109,31 +110,35 @@ export function insertMany(
   if (posts.length === 0) return 0;
 
   const now = new Date();
-  let inserted = 0;
 
   // SQLite has a variable limit (~999), so batch in chunks of 50 to be safe
   // (each row has ~10 columns → 50 rows = 500 variables)
   const BATCH_SIZE = 50;
-  for (let i = 0; i < posts.length; i += BATCH_SIZE) {
-    const batch = posts.slice(i, i + BATCH_SIZE);
-    const result = db
-      .insert(fetchedPosts)
-      .values(
-        batch.map((p) => ({
-          ...p,
-          fetchedAt: now,
-          translatedText: null,
-          translatedAt: null,
-        })),
-      )
-      .onConflictDoNothing({
-        target: [fetchedPosts.watchlistId, fetchedPosts.tweetId],
-      })
-      .run();
-    inserted += result.changes;
-  }
 
-  return inserted;
+  const run = getRawSqlite().transaction(() => {
+    let inserted = 0;
+    for (let i = 0; i < posts.length; i += BATCH_SIZE) {
+      const batch = posts.slice(i, i + BATCH_SIZE);
+      const result = db
+        .insert(fetchedPosts)
+        .values(
+          batch.map((p) => ({
+            ...p,
+            fetchedAt: now,
+            translatedText: null,
+            translatedAt: null,
+          })),
+        )
+        .onConflictDoNothing({
+          target: [fetchedPosts.watchlistId, fetchedPosts.tweetId],
+        })
+        .run();
+      inserted += result.changes;
+    }
+    return inserted;
+  });
+
+  return run();
 }
 
 /** Update the translation and comment for a post. */
