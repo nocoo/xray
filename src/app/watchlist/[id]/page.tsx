@@ -51,6 +51,14 @@ export default function WatchlistDetailPage() {
   const router = useRouter();
   const watchlistId = Number(params.id);
 
+  // Stable refs to avoid re-creating useCallbacks on every render.
+  // vinext's useRouter() may return a new object each render, and members
+  // changes after every loadData — both would cascade through useCallback
+  // deps → useEffect deps → infinite fetch loops → ERR_INSUFFICIENT_RESOURCES.
+  const routerRef = useRef(router);
+  routerRef.current = router;
+  const membersRef = useRef<WatchlistMember[]>([]);
+
   // Watchlist metadata
   const [watchlistName, setWatchlistName] = useState<string>("");
 
@@ -58,6 +66,9 @@ export default function WatchlistDetailPage() {
   const [allTags, setAllTags] = useState<TagData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Keep membersRef in sync
+  useEffect(() => { membersRef.current = members; }, [members]);
 
   // Dialog states
   const [addOpen, setAddOpen] = useState(false);
@@ -71,6 +82,8 @@ export default function WatchlistDetailPage() {
   const [fetchInterval, setFetchInterval] = useState(0);
   const [retentionDays, setRetentionDays] = useState(1);
   const [fetching, setFetching] = useState(false);
+  const fetchingRef = useRef(false);
+  useEffect(() => { fetchingRef.current = fetching; }, [fetching]);
   const fetchTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch + translate progress panel
@@ -120,7 +133,7 @@ export default function WatchlistDetailPage() {
       if (!membersRes.ok || !membersJson?.success) {
         // Watchlist might not exist — redirect to listing
         if (membersRes.status === 404) {
-          router.replace("/watchlist");
+          routerRef.current.replace("/watchlist");
           return;
         }
         setError(membersJson?.error ?? "Failed to load watchlist");
@@ -148,7 +161,7 @@ export default function WatchlistDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [api, watchlistId, router]);
+  }, [api, watchlistId]);
 
   const loadPosts = useCallback(async () => {
     setPostsLoading(true);
@@ -167,12 +180,13 @@ export default function WatchlistDetailPage() {
 
   useEffect(() => {
     if (!watchlistId || isNaN(watchlistId)) {
-      router.replace("/watchlist");
+      routerRef.current.replace("/watchlist");
       return;
     }
     loadData();
     loadPosts();
-  }, [watchlistId, loadData, loadPosts, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when watchlistId changes
+  }, [watchlistId]);
 
   // Refresh posts when switching to posts tab
   useEffect(() => {
@@ -274,7 +288,7 @@ export default function WatchlistDetailPage() {
   // ── Fetch via SSE with real-time post injection + auto-translate ──
 
   const doFetch = useCallback(async () => {
-    if (fetching) return;
+    if (fetchingRef.current) return;
     setFetching(true);
     setPipelinePhase("fetching");
     setProgressExpanded(true);
@@ -283,9 +297,9 @@ export default function WatchlistDetailPage() {
     setTranslateProgress(null);
     setTranslateSummary(null);
 
-    // Initialize member progress from current members
+    // Initialize member progress from current members (via ref to avoid dep)
     setMemberProgress(
-      members.map((m) => ({ username: m.twitterUsername, status: "pending" as const }))
+      membersRef.current.map((m) => ({ username: m.twitterUsername, status: "pending" as const }))
     );
 
     try {
@@ -396,7 +410,7 @@ export default function WatchlistDetailPage() {
       setPipelinePhase("done");
       setFetching(false);
     }
-  }, [fetching, members, api, loadPosts, doStreamTranslate]);
+  }, [api, loadPosts, doStreamTranslate]);
 
   // Set up polling timer
   useEffect(() => {
