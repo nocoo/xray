@@ -360,6 +360,7 @@ export default function WatchlistDetailPage() {
       const decoder = new TextDecoder();
       let buffer = "";
       let totalNewPosts = 0;
+      let hadCleanup = false;
 
       while (true) {
         const { done: streamDone, value } = await reader.read();
@@ -372,7 +373,7 @@ export default function WatchlistDetailPage() {
             if (eventType === "cleanup") {
               setCleanupInfo({ purgedExpired: d.purgedExpired, purgedOrphans: d.purgedOrphans });
               if (d.purgedExpired > 0 || d.purgedOrphans > 0) {
-                loadPosts();
+                hadCleanup = true;
               }
             } else if (eventType === "progress") {
               setMemberProgress((prev) => {
@@ -424,6 +425,11 @@ export default function WatchlistDetailPage() {
       }
 
       setFetching(false);
+
+      // Re-fetch full post list if cleanup purged stale entries during the stream
+      if (hadCleanup) {
+        loadPosts();
+      }
 
       // Auto-trigger translate if new posts were fetched and translation is enabled
       if (totalNewPosts > 0 && translateEnabledRef.current) {
