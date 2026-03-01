@@ -8,5 +8,5 @@ bun test tests/ --timeout 30000
 bun test src/__tests__/auth.test.ts src/__tests__/crypto.test.ts src/__tests__/version.test.ts \
   src/__tests__/utils.test.ts src/__tests__/ai-service.test.ts \
   src/__tests__/db/ src/__tests__/api/ src/__tests__/twitter/ src/__tests__/components/ \
-  src/__tests__/services/ \
+  src/__tests__/services/ src/__tests__/ui/ \
   --timeout 30000
