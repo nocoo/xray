@@ -89,6 +89,12 @@ export default function WatchlistDetailPage() {
   useEffect(() => { fetchingRef.current = fetching; }, [fetching]);
   const fetchTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // AbortController — aborted on unmount to cancel all in-flight requests
+  const abortRef = useRef<AbortController>(new AbortController());
+  useEffect(() => {
+    return () => { abortRef.current.abort(); };
+  }, []);
+
   // Fetch + translate progress panel
   const [progressExpanded, setProgressExpanded] = useState(false);
   const [memberProgress, setMemberProgress] = useState<MemberProgress[]>([]);
@@ -121,12 +127,13 @@ export default function WatchlistDetailPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
+    const signal = abortRef.current.signal;
     try {
       const [membersRes, tagsRes, settingsRes, watchlistRes] = await Promise.all([
-        fetch(`${api}/members`),
-        fetch("/api/tags"),
-        fetch(`${api}/settings`),
-        fetch("/api/watchlists"),
+        fetch(`${api}/members`, { signal }),
+        fetch("/api/tags", { signal }),
+        fetch(`${api}/settings`, { signal }),
+        fetch("/api/watchlists", { signal }),
       ]);
       const membersJson = await membersRes.json().catch(() => null);
       const tagsJson = await tagsRes.json().catch(() => null);
@@ -162,7 +169,8 @@ export default function WatchlistDetailPage() {
           setTranslateEnabled(!!wl.translateEnabled);
         }
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError("Network error — could not reach API");
     } finally {
       setLoading(false);
@@ -172,12 +180,13 @@ export default function WatchlistDetailPage() {
   const loadPosts = useCallback(async () => {
     setPostsLoading(true);
     try {
-      const res = await fetch(`${api}/posts?limit=500`);
+      const res = await fetch(`${api}/posts?limit=500`, { signal: abortRef.current.signal });
       const json = await res.json().catch(() => null);
       if (res.ok && json?.success) {
         setPosts(json.data ?? []);
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       // silent
     } finally {
       setPostsLoading(false);
@@ -213,6 +222,7 @@ export default function WatchlistDetailPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ limit: 50, stream: true }),
+        signal: abortRef.current.signal,
       });
 
       const contentType = res.headers.get("content-type") ?? "";
@@ -284,7 +294,8 @@ export default function WatchlistDetailPage() {
 
         if (streamDone) break;
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setTranslateSummary("Network error during translation");
     } finally {
       setPipelinePhase("done");
@@ -309,7 +320,7 @@ export default function WatchlistDetailPage() {
     );
 
     try {
-      const res = await fetch(`${api}/fetch`, { method: "POST" });
+      const res = await fetch(`${api}/fetch`, { method: "POST", signal: abortRef.current.signal });
 
       const contentType = res.headers.get("content-type") ?? "";
       if (contentType.includes("application/json")) {
@@ -411,7 +422,8 @@ export default function WatchlistDetailPage() {
       } else {
         setPipelinePhase("done");
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setFetchSummary("Network error during fetch");
       setPipelinePhase("done");
       setFetching(false);
@@ -465,6 +477,7 @@ export default function WatchlistDetailPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fetchIntervalMinutes: minutes }),
+        signal: abortRef.current.signal,
       });
     } catch {
       // silent
@@ -478,6 +491,7 @@ export default function WatchlistDetailPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ retentionDays: days }),
+        signal: abortRef.current.signal,
       });
     } catch {
       // silent
