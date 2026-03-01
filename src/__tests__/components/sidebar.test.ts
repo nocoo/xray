@@ -31,8 +31,8 @@ describe("sidebar navigation", () => {
     it("section 2 is My Account", () => {
       expect(navSections[2]!.title).toBe("My Account");
       expect(navSections[2]!.items.map((i) => i.label)).toEqual([
+        "Watchlists",
         "Analytics",
-        "Watchlist",
         "Bookmarks",
         "Likes",
         "Lists",
