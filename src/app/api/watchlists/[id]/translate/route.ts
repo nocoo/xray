@@ -120,6 +120,8 @@ export async function POST(request: Request, ctx: RouteContext) {
   // ── Stream mode: SSE per-post progress ──
   if (streamMode) {
     const encoder = new TextEncoder();
+    let aborted = false;
+
     const stream = new ReadableStream({
       async start(controller) {
         let translatedCount = 0;
@@ -127,6 +129,8 @@ export async function POST(request: Request, ctx: RouteContext) {
         const total = postsToTranslate.length;
 
         for (let i = 0; i < total; i++) {
+          if (aborted) break;
+
           const post = postsToTranslate[i]!;
           try {
             const result = await translateText(user.id, post.text, post.quotedText);
@@ -138,19 +142,22 @@ export async function POST(request: Request, ctx: RouteContext) {
             );
             translatedCount++;
 
-            controller.enqueue(
-              encoder.encode(
-                sseMessage("translated", {
-                  postId: post.id,
-                  translatedText: result.translatedText,
-                  commentText: result.commentText,
-                  quotedTranslatedText: result.quotedTranslatedText ?? null,
-                  current: i + 1,
-                  total,
-                }),
-              ),
-            );
+            if (!aborted) {
+              controller.enqueue(
+                encoder.encode(
+                  sseMessage("translated", {
+                    postId: post.id,
+                    translatedText: result.translatedText,
+                    commentText: result.commentText,
+                    quotedTranslatedText: result.quotedTranslatedText ?? null,
+                    current: i + 1,
+                    total,
+                  }),
+                ),
+              );
+            }
           } catch (err) {
+            if (aborted) break;
             const message = err instanceof Error ? err.message : String(err);
             errorMessages.push(message);
             controller.enqueue(
@@ -180,17 +187,23 @@ export async function POST(request: Request, ctx: RouteContext) {
           errors: errorMessages.length > 0 ? JSON.stringify(errorMessages) : null,
         });
 
-        controller.enqueue(
-          encoder.encode(
-            sseMessage("done", {
-              translated: translatedCount,
-              errors: errorMessages,
-              remaining,
-            }),
-          ),
-        );
+        if (!aborted) {
+          controller.enqueue(
+            encoder.encode(
+              sseMessage("done", {
+                translated: translatedCount,
+                errors: errorMessages,
+                remaining,
+              }),
+            ),
+          );
+        }
 
         controller.close();
+      },
+      cancel() {
+        // Called when the client disconnects — stops the translate loop early
+        aborted = true;
       },
     });
 

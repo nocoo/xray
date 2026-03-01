@@ -95,9 +95,14 @@ export async function POST(_request: Request, ctx: RouteContext) {
   const purgedOrphans = fetchedPostsRepo.purgeOrphaned(watchlistId, activeMemberIds);
 
   const encoder = new TextEncoder();
+  let aborted = false;
 
   const stream = new ReadableStream({
     async start(controller) {
+      const checkAborted = () => {
+        if (aborted) throw new Error("Client disconnected");
+      };
+
       // Emit cleanup event so the client knows stale posts were removed
       if (purged > 0 || purgedOrphans > 0) {
         controller.enqueue(
@@ -115,6 +120,8 @@ export async function POST(_request: Request, ctx: RouteContext) {
       const errors: string[] = [];
 
       for (let i = 0; i < members.length; i++) {
+        checkAborted();
+
         const member = members[i]!;
         let memberNew = 0;
         let memberError: string | undefined;
@@ -151,11 +158,14 @@ export async function POST(_request: Request, ctx: RouteContext) {
           memberNew = inserted;
           totalNew += inserted;
         } catch (err) {
+          if (aborted) break;
           const message =
             err instanceof Error ? err.message : String(err);
           memberError = message;
           errors.push(`@${member.twitterUsername}: ${message}`);
         }
+
+        if (aborted) break;
 
         // Emit progress event after each member
         controller.enqueue(
@@ -209,20 +219,26 @@ export async function POST(_request: Request, ctx: RouteContext) {
         errors: errors.length > 0 ? JSON.stringify(errors) : null,
       });
 
-      // Emit final summary
-      controller.enqueue(
-        encoder.encode(
-          sseMessage("done", {
-            fetched: members.length,
-            newPosts: totalNew,
-            skippedOld: totalSkipped,
-            purged: purged + purgedOrphans,
-            errors,
-          }),
-        ),
-      );
+      if (!aborted) {
+        // Emit final summary
+        controller.enqueue(
+          encoder.encode(
+            sseMessage("done", {
+              fetched: members.length,
+              newPosts: totalNew,
+              skippedOld: totalSkipped,
+              purged: purged + purgedOrphans,
+              errors,
+            }),
+          ),
+        );
+      }
 
       controller.close();
+    },
+    cancel() {
+      // Called when the client disconnects — stops the fetch loop early
+      aborted = true;
     },
   });
 
