@@ -481,7 +481,7 @@ export default function WatchlistDetailPage() {
       stopTimer();
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [fetchInterval, doFetch]);
+  }, [fetchInterval]); // doFetch accessed via doFetchRef — no need in deps
 
   // ── Settings change handlers ──
 
