@@ -53,7 +53,12 @@ export async function POST(request: Request, ctx: RouteContext) {
     if (!post || post.userId !== user.id || post.watchlistId !== watchlistId) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
-    const tweet = JSON.parse(post.tweetJson);
+    let tweet;
+    try {
+      tweet = JSON.parse(post.tweetJson);
+    } catch {
+      tweet = {};
+    }
     const quotedText = tweet.quoted_tweet?.text as string | undefined;
     const postsToTranslate = [{ id: post.id, text: post.text, quotedText }];
 
@@ -112,7 +117,12 @@ export async function POST(request: Request, ctx: RouteContext) {
   }
 
   const postsToTranslate = untranslated.map((p) => {
-    const tweet = JSON.parse(p.tweetJson);
+    let tweet;
+    try {
+      tweet = JSON.parse(p.tweetJson);
+    } catch {
+      tweet = {};
+    }
     const quotedText = tweet.quoted_tweet?.text as string | undefined;
     return { id: p.id, text: p.text, quotedText };
   });

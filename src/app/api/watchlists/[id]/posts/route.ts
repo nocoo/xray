@@ -43,19 +43,27 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
   }
 
   // Return posts with parsed tweetJson for convenience
-  const data = posts.map((p) => ({
-    id: p.id,
-    tweetId: p.tweetId,
-    twitterUsername: p.twitterUsername,
-    text: p.text,
-    translatedText: p.translatedText,
-    commentText: p.commentText,
-    quotedTranslatedText: p.quotedTranslatedText,
-    translatedAt: p.translatedAt,
-    tweetCreatedAt: p.tweetCreatedAt,
-    fetchedAt: p.fetchedAt,
-    tweet: JSON.parse(p.tweetJson),
-  }));
+  const data = posts.map((p) => {
+    let tweet;
+    try {
+      tweet = JSON.parse(p.tweetJson);
+    } catch {
+      tweet = null;
+    }
+    return {
+      id: p.id,
+      tweetId: p.tweetId,
+      twitterUsername: p.twitterUsername,
+      text: p.text,
+      translatedText: p.translatedText,
+      commentText: p.commentText,
+      quotedTranslatedText: p.quotedTranslatedText,
+      translatedAt: p.translatedAt,
+      tweetCreatedAt: p.tweetCreatedAt,
+      fetchedAt: p.fetchedAt,
+      tweet,
+    };
+  });
 
   const untranslatedCount = fetchedPostsRepo.countUntranslated(watchlistId);
 

@@ -30,17 +30,27 @@ export async function GET(request: Request, ctx: RouteContext) {
   const logs = fetchLogsRepo.findByWatchlistId(watchlistId, limit);
 
   // Parse the JSON errors string back to arrays for the client
-  const data = logs.map((log) => ({
-    id: log.id,
-    type: log.type,
-    attempted: log.attempted,
-    succeeded: log.succeeded,
-    skipped: log.skipped,
-    purged: log.purged,
-    errorCount: log.errorCount,
-    errors: log.errors ? JSON.parse(log.errors) : [],
-    createdAt: log.createdAt instanceof Date ? log.createdAt.toISOString() : log.createdAt,
-  }));
+  const data = logs.map((log) => {
+    let errors: string[] = [];
+    if (log.errors) {
+      try {
+        errors = JSON.parse(log.errors);
+      } catch {
+        errors = [log.errors];
+      }
+    }
+    return {
+      id: log.id,
+      type: log.type,
+      attempted: log.attempted,
+      succeeded: log.succeeded,
+      skipped: log.skipped,
+      purged: log.purged,
+      errorCount: log.errorCount,
+      errors,
+      createdAt: log.createdAt instanceof Date ? log.createdAt.toISOString() : log.createdAt,
+    };
+  });
 
   return NextResponse.json({ success: true, data });
 }

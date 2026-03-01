@@ -185,19 +185,27 @@ export async function POST(_request: Request, ctx: RouteContext) {
         // Emit newly inserted posts so the client can render them in real-time
         if (memberNew > 0) {
           const recentPosts = fetchedPostsRepo.findByMemberId(member.id, watchlistId, memberNew);
-          const postsData = recentPosts.map((p) => ({
-            id: p.id,
-            tweetId: p.tweetId,
-            twitterUsername: p.twitterUsername,
-            text: p.text,
-            translatedText: p.translatedText,
-            commentText: p.commentText,
-            quotedTranslatedText: p.quotedTranslatedText,
-            translatedAt: p.translatedAt,
-            tweetCreatedAt: p.tweetCreatedAt,
-            fetchedAt: p.fetchedAt,
-            tweet: JSON.parse(p.tweetJson),
-          }));
+          const postsData = recentPosts.map((p) => {
+            let tweet;
+            try {
+              tweet = JSON.parse(p.tweetJson);
+            } catch {
+              tweet = null;
+            }
+            return {
+              id: p.id,
+              tweetId: p.tweetId,
+              twitterUsername: p.twitterUsername,
+              text: p.text,
+              translatedText: p.translatedText,
+              commentText: p.commentText,
+              quotedTranslatedText: p.quotedTranslatedText,
+              translatedAt: p.translatedAt,
+              tweetCreatedAt: p.tweetCreatedAt,
+              fetchedAt: p.fetchedAt,
+              tweet,
+            };
+          });
           controller.enqueue(
             encoder.encode(
               sseMessage("posts", { posts: postsData }),
