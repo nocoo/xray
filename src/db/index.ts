@@ -102,6 +102,77 @@ function createDatabase(filename: string): DbInstance {
 }
 
 /**
+ * Migrate legacy single-watchlist data to multi-watchlist model.
+ * For each user_id that has watchlist_members with NULL watchlist_id,
+ * create a "Default" watchlist and backfill all FK references.
+ * Idempotent — skips users that already have watchlists.
+ */
+function migrateToMultiWatchlist(): void {
+  // Find user_ids that have members without a watchlist_id
+  const rows = sqlite!.prepare(
+    `SELECT DISTINCT user_id FROM watchlist_members WHERE watchlist_id IS NULL`
+  ).all() as Array<{ user_id: string }>;
+
+  if (rows.length === 0) return;
+
+  const now = Math.floor(Date.now() / 1000);
+  const insertWl = sqlite!.prepare(
+    `INSERT INTO watchlists (user_id, name, icon, translate_enabled, created_at) VALUES (?, 'Default', 'eye', 1, ?)`
+  );
+  const updateMembers = sqlite!.prepare(
+    `UPDATE watchlist_members SET watchlist_id = ? WHERE user_id = ? AND watchlist_id IS NULL`
+  );
+  const updatePosts = sqlite!.prepare(
+    `UPDATE fetched_posts SET watchlist_id = ? WHERE user_id = ? AND watchlist_id IS NULL`
+  );
+  const updateLogs = sqlite!.prepare(
+    `UPDATE fetch_logs SET watchlist_id = ? WHERE user_id = ? AND watchlist_id IS NULL`
+  );
+
+  // Also migrate settings keys: watchlist.X → watchlist.{id}.X
+  const readSettings = sqlite!.prepare(
+    `SELECT key, value FROM settings WHERE user_id = ? AND key LIKE 'watchlist.%' AND key NOT LIKE 'watchlist.%.%'`
+  );
+  const deleteOldSetting = sqlite!.prepare(
+    `DELETE FROM settings WHERE user_id = ? AND key = ?`
+  );
+  const insertNewSetting = sqlite!.prepare(
+    `INSERT OR REPLACE INTO settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)`
+  );
+
+  for (const row of rows) {
+    const userId = row.user_id;
+    insertWl.run(userId, now);
+    // Get the auto-generated watchlist id
+    const wl = sqlite!.prepare(
+      `SELECT id FROM watchlists WHERE user_id = ? ORDER BY id DESC LIMIT 1`
+    ).get(userId) as { id: number };
+    const wlId = wl.id;
+
+    updateMembers.run(wlId, userId);
+    updatePosts.run(wlId, userId);
+    updateLogs.run(wlId, userId);
+
+    // Migrate settings keys
+    const settingsRows = readSettings.all(userId) as Array<{ key: string; value: string }>;
+    for (const s of settingsRows) {
+      // e.g. "watchlist.retentionDays" → "watchlist.{wlId}.retentionDays"
+      const suffix = s.key.replace("watchlist.", "");
+      const newKey = `watchlist.${wlId}.${suffix}`;
+      insertNewSetting.run(userId, newKey, s.value, now);
+      deleteOldSetting.run(userId, s.key);
+    }
+  }
+
+  // Drop the old unique index and recreate with watchlist_id scope.
+  // This is idempotent: IF EXISTS handles first run, subsequent runs are no-ops.
+  try {
+    sqlite!.exec(`DROP INDEX IF EXISTS fetched_posts_user_tweet_uniq`);
+  } catch { /* index may not exist */ }
+  // The new index is created by the CREATE UNIQUE INDEX IF NOT EXISTS above.
+}
+
+/**
  * Initialize all tables using CREATE TABLE IF NOT EXISTS.
  * Idempotent — safe to call multiple times.
  */
@@ -173,9 +244,20 @@ export function initSchema(): void {
     );
 
     -- Watchlist tables
+    CREATE TABLE IF NOT EXISTS watchlists (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      description TEXT,
+      icon TEXT NOT NULL DEFAULT 'eye',
+      translate_enabled INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS watchlist_members (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      watchlist_id INTEGER NOT NULL REFERENCES watchlists(id) ON DELETE CASCADE,
       twitter_username TEXT NOT NULL,
       note TEXT,
       added_at INTEGER NOT NULL,
@@ -208,6 +290,7 @@ export function initSchema(): void {
     CREATE TABLE IF NOT EXISTS fetched_posts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      watchlist_id INTEGER NOT NULL REFERENCES watchlists(id) ON DELETE CASCADE,
       member_id INTEGER NOT NULL REFERENCES watchlist_members(id) ON DELETE CASCADE,
       tweet_id TEXT NOT NULL,
       twitter_username TEXT NOT NULL,
@@ -220,8 +303,8 @@ export function initSchema(): void {
       translated_at INTEGER
     );
 
-    CREATE UNIQUE INDEX IF NOT EXISTS fetched_posts_user_tweet_uniq
-      ON fetched_posts (user_id, tweet_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS fetched_posts_watchlist_tweet_uniq
+      ON fetched_posts (watchlist_id, tweet_id);
 
     -- Safe column migration: add comment_text if missing (for pre-existing DBs)
     -- SQLite doesn't support ADD COLUMN IF NOT EXISTS, so we catch the error.
@@ -233,14 +316,24 @@ export function initSchema(): void {
     try { sqlite!.exec(sql); } catch { /* column already exists */ }
   };
   safeAddColumn(`ALTER TABLE watchlist_members ADD COLUMN fetch_interval_minutes INTEGER`);
+  safeAddColumn(`ALTER TABLE watchlist_members ADD COLUMN watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE`);
   safeAddColumn(`ALTER TABLE fetched_posts ADD COLUMN comment_text TEXT`);
   safeAddColumn(`ALTER TABLE fetched_posts ADD COLUMN quoted_translated_text TEXT`);
+  safeAddColumn(`ALTER TABLE fetched_posts ADD COLUMN watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE`);
+  safeAddColumn(`ALTER TABLE fetch_logs ADD COLUMN watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE`);
+
+  // --------------------------------------------------------------------------
+  // Data migration: create "Default" watchlists for existing users and backfill
+  // watchlist_id on watchlist_members, fetched_posts, and fetch_logs.
+  // --------------------------------------------------------------------------
+  migrateToMultiWatchlist();
 
   sqlite!.exec(`
     -- Fetch logs (persistent fetch/translate history)
     CREATE TABLE IF NOT EXISTS fetch_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE,
       type TEXT NOT NULL,
       attempted INTEGER NOT NULL DEFAULT 0,
       succeeded INTEGER NOT NULL DEFAULT 0,
@@ -301,6 +394,7 @@ export function resetTestDb(): void {
     DELETE FROM fetched_posts;
     DELETE FROM watchlist_member_tags;
     DELETE FROM watchlist_members;
+    DELETE FROM watchlists;
     DELETE FROM tags;
     DELETE FROM usage_stats;
     DELETE FROM webhooks;

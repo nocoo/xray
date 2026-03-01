@@ -113,7 +113,27 @@ export const usageStats = sqliteTable("usage_stats", {
 });
 
 // ============================================================================
-// Watchlist — user-curated interest list
+// Watchlists — named, icon-tagged collections of Twitter users
+// ============================================================================
+
+export const watchlists = sqliteTable("watchlists", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  /** Lucide icon name (e.g. "eye", "radar", "brain"). */
+  icon: text("icon").notNull().default("eye"),
+  /** Whether to auto-translate + comment after fetching. 1 = on, 0 = off. */
+  translateEnabled: integer("translate_enabled").notNull().default(1),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// ============================================================================
+// Watchlist Members — users tracked within a watchlist
 // ============================================================================
 
 export const watchlistMembers = sqliteTable("watchlist_members", {
@@ -121,6 +141,10 @@ export const watchlistMembers = sqliteTable("watchlist_members", {
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
+  /** Which watchlist this member belongs to. */
+  watchlistId: integer("watchlist_id")
+    .notNull()
+    .references(() => watchlists.id, { onDelete: "cascade" }),
   twitterUsername: text("twitter_username").notNull(),
   note: text("note"),
   addedAt: integer("added_at", { mode: "timestamp" })
@@ -167,10 +191,14 @@ export const fetchedPosts = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    /** Which watchlist this post belongs to. */
+    watchlistId: integer("watchlist_id")
+      .notNull()
+      .references(() => watchlists.id, { onDelete: "cascade" }),
     memberId: integer("member_id")
       .notNull()
       .references(() => watchlistMembers.id, { onDelete: "cascade" }),
-    /** Twitter tweet ID — unique per user to prevent duplicates. */
+    /** Twitter tweet ID — unique per watchlist to prevent duplicates. */
     tweetId: text("tweet_id").notNull(),
     twitterUsername: text("twitter_username").notNull(),
     /** Raw tweet text. */
@@ -193,9 +221,9 @@ export const fetchedPosts = sqliteTable(
     translatedAt: integer("translated_at", { mode: "timestamp" }),
   },
   (t) => ({
-    /** Prevent duplicate tweets per user — enables onConflictDoNothing. */
-    uniqUserTweet: uniqueIndex("fetched_posts_user_tweet_uniq").on(
-      t.userId,
+    /** Prevent duplicate tweets per watchlist — enables onConflictDoNothing. */
+    uniqWatchlistTweet: uniqueIndex("fetched_posts_watchlist_tweet_uniq").on(
+      t.watchlistId,
       t.tweetId,
     ),
   }),
@@ -210,6 +238,9 @@ export const fetchLogs = sqliteTable("fetch_logs", {
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
+  /** Which watchlist this log entry belongs to (nullable for legacy logs). */
+  watchlistId: integer("watchlist_id")
+    .references(() => watchlists.id, { onDelete: "cascade" }),
   /** "fetch" or "translate" */
   type: text("type").notNull(),
   /** Total members/posts attempted */
@@ -265,6 +296,8 @@ export type Webhook = typeof webhooks.$inferSelect;
 export type NewWebhook = typeof webhooks.$inferInsert;
 export type UsageStat = typeof usageStats.$inferSelect;
 export type NewUsageStat = typeof usageStats.$inferInsert;
+export type Watchlist = typeof watchlists.$inferSelect;
+export type NewWatchlist = typeof watchlists.$inferInsert;
 export type WatchlistMember = typeof watchlistMembers.$inferSelect;
 export type NewWatchlistMember = typeof watchlistMembers.$inferInsert;
 export type Tag = typeof tags.$inferSelect;
