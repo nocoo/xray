@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/layout";
@@ -39,6 +39,8 @@ interface WatchlistSummary {
 
 export default function WatchlistListPage() {
   const router = useRouter();
+  const routerRef = useRef(router);
+  routerRef.current = router;
   const searchParams = useSearchParams();
   const [watchlists, setWatchlists] = useState<WatchlistSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,12 +72,12 @@ export default function WatchlistListPage() {
     if (searchParams.get("new") === "1") {
       setCreateOpen(true);
       // Clean URL without full navigation
-      router.replace("/watchlist", { scroll: false });
+      routerRef.current.replace("/watchlist", { scroll: false });
     }
-  }, [searchParams, router]);
+  }, [searchParams]);
 
   const handleCreated = (id: number) => {
-    router.push(`/watchlist/${id}`);
+    routerRef.current.push(`/watchlist/${id}`);
   };
 
   return (
