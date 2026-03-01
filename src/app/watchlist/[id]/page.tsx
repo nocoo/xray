@@ -120,13 +120,19 @@ export default function WatchlistDetailPage() {
   // Tab state: "members" or "posts"
   const [activeTab, setActiveTab] = useState<"members" | "posts">("members");
 
-  // Row-first masonry: distribute posts round-robin into columns
+  // Pagination: show posts incrementally to avoid DOM bloat
+  const PAGE_SIZE = 100;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  // Row-first masonry: distribute visible posts round-robin into columns
   const columnCount = useColumns();
+  const visiblePosts = useMemo(() => posts.slice(0, visibleCount), [posts, visibleCount]);
+  const hasMore = posts.length > visibleCount;
   const postColumns = useMemo(() => {
     const cols: FetchedPostData[][] = Array.from({ length: columnCount }, () => []);
-    posts.forEach((post, i) => cols[i % columnCount]!.push(post));
+    visiblePosts.forEach((post, i) => cols[i % columnCount]!.push(post));
     return cols;
-  }, [posts, columnCount]);
+  }, [visiblePosts, columnCount]);
 
   // Base URL for API calls scoped to this watchlist
   const api = `/api/watchlists/${watchlistId}`;
@@ -859,19 +865,32 @@ export default function WatchlistDetailPage() {
             )}
 
             {posts.length > 0 && (
-              <div className="flex gap-3 items-start">
-                {postColumns.map((col, colIdx) => (
-                  <div key={colIdx} className="flex-1 min-w-0 flex flex-col gap-3">
-                    {col.map((post) => (
-                      <WatchlistPostCard
-                        key={post.id}
-                        post={post}
-                        watchlistId={watchlistId}
-                      />
-                    ))}
+              <>
+                <div className="flex gap-3 items-start">
+                  {postColumns.map((col, colIdx) => (
+                    <div key={colIdx} className="flex-1 min-w-0 flex flex-col gap-3">
+                      {col.map((post) => (
+                        <WatchlistPostCard
+                          key={post.id}
+                          post={post}
+                          watchlistId={watchlistId}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+                {hasMore && (
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                    >
+                      Load More ({posts.length - visibleCount} remaining)
+                    </Button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </div>
         )}
