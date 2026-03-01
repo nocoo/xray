@@ -93,7 +93,6 @@ function createDatabase(filename: string): DbInstance {
   }
 
   currentDbFile = resolvedPath;
-  console.log(`[db] Opening database: ${resolvedPath} (isBun=${isBun})`);
 
   sqlite = new DatabaseConstructor(resolvedPath);
   // Enable foreign key enforcement — SQLite defaults to OFF.
@@ -180,7 +179,6 @@ function migrateToMultiWatchlist(): void {
  * Idempotent — safe to call multiple times.
  */
 export function initSchema(): void {
-  console.log("[db] initSchema() starting...");
   sqlite!.exec(`
     -- NextAuth tables
     CREATE TABLE IF NOT EXISTS user (
@@ -317,7 +315,6 @@ export function initSchema(): void {
     CREATE INDEX IF NOT EXISTS watchlist_members_user_id_idx
       ON watchlist_members (user_id);
   `);
-  console.log("[db] initSchema() main exec block done");
 
   // Create fetch_logs table early so safeAddColumn and migrateToMultiWatchlist can reference it.
   sqlite!.exec(`
@@ -334,21 +331,17 @@ export function initSchema(): void {
       created_at INTEGER NOT NULL
     );
   `);
-  console.log("[db] initSchema() fetch_logs block done");
 
   // Safe column migrations for pre-existing databases.
   // Each ALTER TABLE is wrapped in try/catch because SQLite lacks ADD COLUMN IF NOT EXISTS.
   const safeAddColumn = (sql: string) => {
     try {
       sqlite!.exec(sql);
-      console.log(`[db] safeAddColumn OK: ${sql.slice(0, 80)}`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       // Only silence "duplicate column" errors; surface anything else.
       if (!msg.includes("duplicate column")) {
         console.error(`[db] safeAddColumn failed: ${msg}\n  SQL: ${sql}`);
-      } else {
-        console.log(`[db] safeAddColumn skipped (duplicate): ${sql.slice(0, 80)}`);
       }
     }
   };
@@ -358,7 +351,6 @@ export function initSchema(): void {
   safeAddColumn(`ALTER TABLE fetched_posts ADD COLUMN quoted_translated_text TEXT`);
   safeAddColumn(`ALTER TABLE fetched_posts ADD COLUMN watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE`);
   safeAddColumn(`ALTER TABLE fetch_logs ADD COLUMN watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE`);
-  console.log("[db] initSchema() safeAddColumn block done");
 
   // Indexes that depend on watchlist_id — MUST run AFTER safeAddColumn adds the column.
   // For fresh DBs the column exists from CREATE TABLE; for legacy DBs safeAddColumn just added it.
@@ -372,14 +364,12 @@ export function initSchema(): void {
     CREATE INDEX IF NOT EXISTS fetch_logs_watchlist_id_idx
       ON fetch_logs (watchlist_id);
   `);
-  console.log("[db] initSchema() watchlist_id indexes created, starting migration...");
 
   // --------------------------------------------------------------------------
   // Data migration: create "Default" watchlists for existing users and backfill
   // watchlist_id on watchlist_members, fetched_posts, and fetch_logs.
   // --------------------------------------------------------------------------
   migrateToMultiWatchlist();
-  console.log("[db] initSchema() complete");
 }
 
 /** Get or create the database instance based on XRAY_DB env var. */
