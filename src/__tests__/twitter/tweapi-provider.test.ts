@@ -253,6 +253,77 @@ describe("TweAPIProvider", () => {
       const body = JSON.parse(mockFetch.mock.calls[0]![1].body);
       expect(body.count).toBe(20);
     });
+
+    test("falls back to userRecent20Tweets on 400 from filter endpoint", async () => {
+      let callCount = 0;
+      mockFetch.mockImplementation((_url: string) => {
+        callCount++;
+        if (callCount === 1) {
+          // First call to userRecentTweetsByFilter → HTTP 400
+          return Promise.resolve(
+            new Response("Bad Request", { status: 400, statusText: "Bad Request" }),
+          );
+        }
+        // Second call to userRecent20Tweets → success
+        return Promise.resolve(
+          jsonResponse({
+            code: 201,
+            msg: "ok",
+            data: { list: [MOCK_TWEET] },
+          }),
+        );
+      });
+
+      const tweets = await provider.fetchUserTweets("rasbt", { count: 30 });
+      expect(tweets).toHaveLength(1);
+      expect(tweets[0]!.id).toBe("tweet-1");
+
+      // Should have made 2 calls
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+
+      // First call: filter endpoint
+      const [url1] = mockFetch.mock.calls[0]!;
+      expect(url1).toContain("userRecentTweetsByFilter");
+
+      // Second call: fallback endpoint
+      const [url2, init2] = mockFetch.mock.calls[1]!;
+      expect(url2).toContain("userRecent20Tweets");
+      const body2 = JSON.parse(init2.body);
+      expect(body2.url).toBe("https://x.com/rasbt");
+      // Fallback endpoint should NOT have filter params
+      expect(body2.showPost).toBeUndefined();
+      expect(body2.count).toBeUndefined();
+    });
+
+    test("does not fallback on non-400 errors", async () => {
+      mockFetch.mockImplementation(() =>
+        Promise.resolve(
+          new Response("Server Error", { status: 500, statusText: "Internal Server Error" }),
+        ),
+      );
+
+      await expect(provider.fetchUserTweets("testuser")).rejects.toThrow(UpstreamError);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    test("propagates fallback endpoint errors", async () => {
+      let callCount = 0;
+      mockFetch.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve(
+            new Response("Bad Request", { status: 400, statusText: "Bad Request" }),
+          );
+        }
+        // Fallback also fails
+        return Promise.resolve(
+          new Response("Server Error", { status: 500, statusText: "Internal Server Error" }),
+        );
+      });
+
+      await expect(provider.fetchUserTweets("testuser")).rejects.toThrow(UpstreamError);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe("searchTweets", () => {
