@@ -439,9 +439,9 @@ export function seedUser(
   name = "Test User",
   email?: string
 ): void {
-  sqlite!.exec(
-    `INSERT OR IGNORE INTO user (id, name, email) VALUES ('${id}', '${name}', ${email ? `'${email}'` : "NULL"})`
-  );
+  sqlite!.prepare(
+    `INSERT OR IGNORE INTO user (id, name, email) VALUES (?, ?, ?)`
+  ).run(id, name, email ?? null);
 }
 
 /** Close the current database connection. */
