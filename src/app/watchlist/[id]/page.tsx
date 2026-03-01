@@ -61,14 +61,17 @@ export default function WatchlistDetailPage() {
 
   // Watchlist metadata
   const [watchlistName, setWatchlistName] = useState<string>("");
+  const [translateEnabled, setTranslateEnabled] = useState(true);
+  const translateEnabledRef = useRef(true);
 
   const [members, setMembers] = useState<WatchlistMember[]>([]);
   const [allTags, setAllTags] = useState<TagData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Keep membersRef in sync
+  // Keep refs in sync
   useEffect(() => { membersRef.current = members; }, [members]);
+  useEffect(() => { translateEnabledRef.current = translateEnabled; }, [translateEnabled]);
 
   // Dialog states
   const [addOpen, setAddOpen] = useState(false);
@@ -151,10 +154,13 @@ export default function WatchlistDetailPage() {
         setRetentionDays(settingsJson.data.retentionDays ?? 1);
       }
 
-      // Extract watchlist name for breadcrumbs
+      // Extract watchlist name + translateEnabled for breadcrumbs and auto-translate gating
       if (watchlistsJson?.success && Array.isArray(watchlistsJson.data)) {
         const wl = watchlistsJson.data.find((w: { id: number }) => w.id === watchlistId);
-        if (wl) setWatchlistName(wl.name);
+        if (wl) {
+          setWatchlistName(wl.name);
+          setTranslateEnabled(!!wl.translateEnabled);
+        }
       }
     } catch {
       setError("Network error — could not reach API");
@@ -399,8 +405,8 @@ export default function WatchlistDetailPage() {
 
       setFetching(false);
 
-      // Auto-trigger translate if new posts were fetched
-      if (totalNewPosts > 0) {
+      // Auto-trigger translate if new posts were fetched and translation is enabled
+      if (totalNewPosts > 0 && translateEnabledRef.current) {
         await doStreamTranslate();
       } else {
         setPipelinePhase("done");
