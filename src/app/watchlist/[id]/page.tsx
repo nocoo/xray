@@ -527,9 +527,12 @@ export default function WatchlistDetailPage() {
     }
   };
 
-  const filtered = filterTagId
-    ? members.filter((m) => m.tags.some((t) => t.id === filterTagId))
-    : members;
+  const filtered = useMemo(
+    () => filterTagId
+      ? members.filter((m) => m.tags.some((t) => t.id === filterTagId))
+      : members,
+    [members, filterTagId],
+  );
 
   // Phase label for the progress panel header
   const phaseLabel = pipelinePhase === "fetching"
