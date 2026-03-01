@@ -50,7 +50,7 @@ export async function POST(request: Request, ctx: RouteContext) {
   // ── Single-post mode (always JSON) ──
   if (singlePostId !== null) {
     const post = fetchedPostsRepo.findById(singlePostId);
-    if (!post || post.userId !== user.id) {
+    if (!post || post.userId !== user.id || post.watchlistId !== watchlistId) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
     const tweet = JSON.parse(post.tweetJson);
