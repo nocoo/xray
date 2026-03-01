@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,7 +26,7 @@ import type { Tweet } from "../../../shared/types";
 // TweetCard — reusable tweet display component
 // =============================================================================
 
-export function TweetCard({
+export const TweetCard = memo(function TweetCard({
   tweet,
   linkToDetail = true,
   className,
@@ -381,7 +382,7 @@ export function TweetCard({
   }
 
   return card;
-}
+});
 
 // =============================================================================
 // Media proxy helper — routes Twitter video/GIF URLs through our server-side
