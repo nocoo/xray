@@ -427,4 +427,97 @@ describe("repositories/fetched-posts", () => {
       expect(fetchedPostsRepo.countByUserId("u1")).toBe(0);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // purgeOrphaned
+  // ---------------------------------------------------------------------------
+
+  describe("purgeOrphaned", () => {
+    test("deletes posts whose memberId is not in activeMemberIds", () => {
+      const m1 = seedMember("u1", "user1");
+      const m2 = seedMember("u1", "user2");
+
+      fetchedPostsRepo.insertMany([
+        makePostData("u1", m1.id, "t1", "user1"),
+        makePostData("u1", m2.id, "t2", "user2"),
+      ]);
+      expect(fetchedPostsRepo.countByUserId("u1")).toBe(2);
+
+      // Only m1 is still active — m2's posts should be purged
+      const purged = fetchedPostsRepo.purgeOrphaned("u1", [m1.id]);
+      expect(purged).toBe(1);
+
+      const remaining = fetchedPostsRepo.findByUserId("u1");
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0]!.twitterUsername).toBe("user1");
+    });
+
+    test("deletes all posts when activeMemberIds is empty", () => {
+      const m1 = seedMember("u1", "user1");
+      fetchedPostsRepo.insertMany([
+        makePostData("u1", m1.id, "t1", "user1"),
+        makePostData("u1", m1.id, "t2", "user1"),
+      ]);
+      expect(fetchedPostsRepo.countByUserId("u1")).toBe(2);
+
+      const purged = fetchedPostsRepo.purgeOrphaned("u1", []);
+      expect(purged).toBe(2);
+      expect(fetchedPostsRepo.countByUserId("u1")).toBe(0);
+    });
+
+    test("returns 0 when all posts belong to active members", () => {
+      const m1 = seedMember("u1", "user1");
+      const m2 = seedMember("u1", "user2");
+
+      fetchedPostsRepo.insertMany([
+        makePostData("u1", m1.id, "t1", "user1"),
+        makePostData("u1", m2.id, "t2", "user2"),
+      ]);
+
+      const purged = fetchedPostsRepo.purgeOrphaned("u1", [m1.id, m2.id]);
+      expect(purged).toBe(0);
+      expect(fetchedPostsRepo.countByUserId("u1")).toBe(2);
+    });
+
+    test("returns 0 when no posts exist", () => {
+      const purged = fetchedPostsRepo.purgeOrphaned("u1", [1, 2]);
+      expect(purged).toBe(0);
+    });
+
+    test("is scoped to user — does not delete other user's orphans", () => {
+      seedUser("u2");
+      const m1 = seedMember("u1", "user1");
+      const m2 = seedMember("u2", "user2");
+
+      fetchedPostsRepo.insertMany([makePostData("u1", m1.id, "t1", "user1")]);
+      fetchedPostsRepo.insertMany([makePostData("u2", m2.id, "t2", "user2")]);
+
+      // Purge u1 with empty active list (delete all u1 posts)
+      const purged = fetchedPostsRepo.purgeOrphaned("u1", []);
+      expect(purged).toBe(1);
+      expect(fetchedPostsRepo.countByUserId("u1")).toBe(0);
+      // u2's posts unaffected
+      expect(fetchedPostsRepo.countByUserId("u2")).toBe(1);
+    });
+
+    test("handles multiple orphaned members correctly", () => {
+      const m1 = seedMember("u1", "user1");
+      const m2 = seedMember("u1", "user2");
+      const m3 = seedMember("u1", "user3");
+
+      fetchedPostsRepo.insertMany([
+        makePostData("u1", m1.id, "t1", "user1"),
+        makePostData("u1", m2.id, "t2", "user2"),
+        makePostData("u1", m2.id, "t3", "user2"),
+        makePostData("u1", m3.id, "t4", "user3"),
+        makePostData("u1", m3.id, "t5", "user3"),
+      ]);
+      expect(fetchedPostsRepo.countByUserId("u1")).toBe(5);
+
+      // Only m1 is active — m2 and m3 posts (4 posts) should be purged
+      const purged = fetchedPostsRepo.purgeOrphaned("u1", [m1.id]);
+      expect(purged).toBe(4);
+      expect(fetchedPostsRepo.countByUserId("u1")).toBe(1);
+    });
+  });
 });

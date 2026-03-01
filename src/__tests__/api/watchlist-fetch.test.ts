@@ -507,4 +507,228 @@ describe("POST /api/watchlist/translate", () => {
     expect(body.data.translated).toBe(2);
     expect(body.data.remaining).toBe(3);
   });
+
+  // ---------------------------------------------------------------------------
+  // Single-post mode
+  // ---------------------------------------------------------------------------
+
+  test("translates a single post by postId", async () => {
+    settingsRepo.upsert(USER_ID, "ai.provider", "minimax");
+    settingsRepo.upsert(USER_ID, "ai.apiKey", "test-key");
+    settingsRepo.upsert(USER_ID, "ai.model", "MiniMax-M2.5");
+
+    const member = seedMember("testuser");
+    seedPost(member.id, "t1", "testuser");
+    seedPost(member.id, "t2", "testuser");
+
+    const posts = fetchedPostsRepo.findByUserId(USER_ID);
+    const targetPost = posts.find((p) => p.tweetId === "t1")!;
+
+    const { POST } = await import("@/app/api/watchlist/translate/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlist/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: targetPost.id }),
+      }),
+    );
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.data.translated).toBe(1);
+    expect(body.data.remaining).toBe(1); // t2 still untranslated
+    expect(body.data.translatedText).toBe("模拟翻译");
+
+    // Verify persisted
+    const updated = fetchedPostsRepo.findById(targetPost.id)!;
+    expect(updated.translatedText).toBe("模拟翻译");
+    expect(updated.translatedAt).not.toBeNull();
+  });
+
+  test("returns 404 for non-existent postId", async () => {
+    const { POST } = await import("@/app/api/watchlist/translate/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlist/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: 99999 }),
+      }),
+    );
+    expect(res.status).toBe(404);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Stream mode
+  // ---------------------------------------------------------------------------
+
+  test("stream mode returns SSE with per-post translation events", async () => {
+    settingsRepo.upsert(USER_ID, "ai.provider", "minimax");
+    settingsRepo.upsert(USER_ID, "ai.apiKey", "test-key");
+    settingsRepo.upsert(USER_ID, "ai.model", "MiniMax-M2.5");
+
+    const member = seedMember("testuser");
+    seedPost(member.id, "t1", "testuser");
+    seedPost(member.id, "t2", "testuser");
+
+    const { POST } = await import("@/app/api/watchlist/translate/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlist/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stream: true }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/event-stream");
+
+    const events = await parseSSE(res);
+
+    // Should have 2 translated events + 1 done event
+    const translatedEvents = events.filter((e) => e.event === "translated");
+    expect(translatedEvents).toHaveLength(2);
+
+    // Each translated event has postId, translatedText, current, total
+    for (const te of translatedEvents) {
+      const d = te.data as {
+        postId: number;
+        translatedText: string;
+        commentText: string;
+        current: number;
+        total: number;
+      };
+      expect(d.postId).toBeGreaterThan(0);
+      expect(d.translatedText).toBe("模拟翻译");
+      expect(d.commentText).toBe(""); // mock has no markers, fallback = empty
+      expect(d.total).toBe(2);
+    }
+
+    // Verify current increments
+    const t1 = translatedEvents[0]!.data as { current: number };
+    const t2 = translatedEvents[1]!.data as { current: number };
+    expect(t1.current).toBe(1);
+    expect(t2.current).toBe(2);
+
+    // Done event
+    const doneEvent = events.find((e) => e.event === "done");
+    expect(doneEvent).toBeDefined();
+    const d = doneEvent!.data as {
+      translated: number;
+      errors: string[];
+      remaining: number;
+    };
+    expect(d.translated).toBe(2);
+    expect(d.errors).toEqual([]);
+    expect(d.remaining).toBe(0);
+
+    // Verify translations are persisted in DB
+    const posts = fetchedPostsRepo.findByUserId(USER_ID);
+    for (const post of posts) {
+      expect(post.translatedText).toBe("模拟翻译");
+      expect(post.translatedAt).not.toBeNull();
+    }
+  });
+
+  test("stream mode returns JSON when no untranslated posts", async () => {
+    const { POST } = await import("@/app/api/watchlist/translate/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlist/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stream: true }),
+      }),
+    );
+    expect(res.status).toBe(200);
+
+    // Empty case returns JSON even in stream mode
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.data.translated).toBe(0);
+  });
+
+  test("stream mode emits error events for failed translations", async () => {
+    settingsRepo.upsert(USER_ID, "ai.provider", "minimax");
+    settingsRepo.upsert(USER_ID, "ai.apiKey", "test-key");
+    settingsRepo.upsert(USER_ID, "ai.model", "MiniMax-M2.5");
+
+    const member = seedMember("testuser");
+    seedPost(member.id, "t1", "testuser");
+
+    // Make generateText fail
+    mockGenerateText.mockImplementation(() =>
+      Promise.reject(new Error("API rate limit exceeded")),
+    );
+
+    const { POST } = await import("@/app/api/watchlist/translate/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlist/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stream: true }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/event-stream");
+
+    const events = await parseSSE(res);
+
+    // Should have 1 error event + 1 done event
+    const errorEvents = events.filter((e) => e.event === "error");
+    expect(errorEvents).toHaveLength(1);
+
+    const errData = errorEvents[0]!.data as {
+      postId: number;
+      error: string;
+      current: number;
+      total: number;
+    };
+    expect(errData.error).toContain("API rate limit exceeded");
+    expect(errData.current).toBe(1);
+    expect(errData.total).toBe(1);
+
+    // Done event reflects the error
+    const doneEvent = events.find((e) => e.event === "done");
+    const d = doneEvent!.data as {
+      translated: number;
+      errors: string[];
+      remaining: number;
+    };
+    expect(d.translated).toBe(0);
+    expect(d.errors).toHaveLength(1);
+    expect(d.remaining).toBe(1); // still untranslated
+
+    // Verify post was NOT updated in DB
+    const posts = fetchedPostsRepo.findByUserId(USER_ID);
+    expect(posts[0]!.translatedText).toBeNull();
+  });
+
+  test("stream mode respects limit parameter", async () => {
+    settingsRepo.upsert(USER_ID, "ai.provider", "minimax");
+    settingsRepo.upsert(USER_ID, "ai.apiKey", "test-key");
+    settingsRepo.upsert(USER_ID, "ai.model", "MiniMax-M2.5");
+
+    const member = seedMember("testuser");
+    for (let i = 0; i < 5; i++) {
+      seedPost(member.id, `t${i}`, "testuser");
+    }
+
+    const { POST } = await import("@/app/api/watchlist/translate/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlist/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stream: true, limit: 2 }),
+      }),
+    );
+    expect(res.status).toBe(200);
+
+    const events = await parseSSE(res);
+    const translatedEvents = events.filter((e) => e.event === "translated");
+    expect(translatedEvents).toHaveLength(2);
+
+    const doneEvent = events.find((e) => e.event === "done");
+    const d = doneEvent!.data as { translated: number; remaining: number };
+    expect(d.translated).toBe(2);
+    expect(d.remaining).toBe(3);
+  });
 });
