@@ -462,12 +462,17 @@ export default function WatchlistPage() {
                 return updated;
               });
             } else if (eventType === "posts") {
-              // Real-time: insert new posts at the beginning
+              // Real-time: merge new posts and maintain chronological order (newest first)
               const newPosts: FetchedPostData[] = d.posts;
               setPosts((prev) => {
                 const existingIds = new Set(prev.map((p) => p.id));
                 const uniqueNew = newPosts.filter((p) => !existingIds.has(p.id));
-                return [...uniqueNew, ...prev];
+                if (uniqueNew.length === 0) return prev;
+                const merged = [...uniqueNew, ...prev];
+                merged.sort((a, b) =>
+                  b.tweetCreatedAt.localeCompare(a.tweetCreatedAt)
+                );
+                return merged;
               });
             } else if (eventType === "done") {
               totalNewPosts = d.newPosts;
@@ -760,6 +765,11 @@ export default function WatchlistPage() {
             }`}
           >
             Members
+            {members.length > 0 && (
+              <span className="ml-1.5 text-xs text-muted-foreground">
+                ({members.length})
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("posts")}
