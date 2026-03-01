@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { createTestDb, closeDb, initSchema } from "@/db";
+import { createTestDb, closeDb, initSchema, seedUser } from "@/db";
 import * as webhooksRepo from "@/db/repositories/webhooks";
 import { generateWebhookKey, hashWebhookKey, getKeyPrefix } from "@/lib/crypto";
 import { authenticateWebhookKey } from "@/lib/twitter/webhook-auth";
@@ -13,6 +13,9 @@ const TEST_USER_ID = "test-user-webhook-auth";
 beforeEach(() => {
   createTestDb();
   initSchema();
+  seedUser(TEST_USER_ID);
+  seedUser("user-1");
+  seedUser("user-2");
 });
 
 afterEach(() => {

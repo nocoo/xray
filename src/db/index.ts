@@ -420,6 +420,22 @@ export function getRawSqlite(): any {
   return sqlite;
 }
 
+/**
+ * Seed a user row into the database. Required before inserting into any table
+ * with a REFERENCES user(id) FK when PRAGMA foreign_keys = ON.
+ *
+ * Idempotent — uses INSERT OR IGNORE so repeated calls with the same id are safe.
+ */
+export function seedUser(
+  id: string,
+  name = "Test User",
+  email?: string
+): void {
+  sqlite!.exec(
+    `INSERT OR IGNORE INTO user (id, name, email) VALUES ('${id}', '${name}', ${email ? `'${email}'` : "NULL"})`
+  );
+}
+
 /** Close the current database connection. */
 export function closeDb(): void {
   if (sqlite) {

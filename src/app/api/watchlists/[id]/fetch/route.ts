@@ -1,7 +1,7 @@
 /**
- * POST /api/watchlist/fetch
+ * POST /api/watchlists/[id]/fetch
  *
- * Trigger a fetch for all watchlist members of the current user.
+ * Trigger a fetch for all members of a specific watchlist.
  * Returns a Server-Sent Events (SSE) stream with per-member progress.
  *
  * Event types:
@@ -9,14 +9,9 @@
  *   - progress: { current, total, username, tweetsReceived, filtered, newPosts, error? }
  *   - posts:    { posts: FetchedPostData[] }   — newly inserted posts for real-time rendering
  *   - done:     { fetched, newPosts, skippedOld, purged, errors }
- *
- * Retention policy:
- * - Tweets older than the user's retentionDays setting are NOT saved.
- * - Posts older than 7 days (max retention window) are purged on every fetch.
- * - Posts for removed watchlist members (orphans) are purged on every fetch.
  */
 
-import { requireAuth } from "@/lib/api-helpers";
+import { requireAuthWithWatchlist } from "@/lib/api-helpers";
 import * as watchlistRepo from "@/db/repositories/watchlist";
 import * as fetchedPostsRepo from "@/db/repositories/fetched-posts";
 import * as fetchLogsRepo from "@/db/repositories/fetch-logs";
@@ -28,7 +23,15 @@ export const dynamic = "force-dynamic";
 const DEFAULT_RETENTION_DAYS = 1;
 const MAX_RETENTION_DAYS = 7;
 
-function getRetentionDays(userId: string): number {
+type RouteContext = { params: Promise<{ id: string }> };
+
+function getRetentionDays(userId: string, watchlistId: number): number {
+  // Try per-watchlist setting first, fall back to global
+  const perWl = settingsRepo.findByKey(userId, `watchlist.${watchlistId}.retentionDays`);
+  if (perWl) {
+    const days = parseInt(perWl.value, 10);
+    if (!isNaN(days)) return days;
+  }
   const row = settingsRepo.findByKey(userId, "watchlist.retentionDays");
   if (!row) return DEFAULT_RETENTION_DAYS;
   const days = parseInt(row.value, 10);
@@ -46,8 +49,8 @@ function sseMessage(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
-export async function POST() {
-  const { user, error } = await requireAuth();
+export async function POST(_request: Request, ctx: RouteContext) {
+  const { user, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   // Create Twitter provider for this user
@@ -62,7 +65,7 @@ export async function POST() {
     );
   }
 
-  const members = watchlistRepo.findByUserId(user.id);
+  const members = watchlistRepo.findByWatchlistId(watchlistId);
   if (members.length === 0) {
     return new Response(
       JSON.stringify({
@@ -80,16 +83,16 @@ export async function POST() {
   }
 
   // Retention: compute cutoff for filtering incoming tweets
-  const retentionDays = getRetentionDays(user.id);
+  const retentionDays = getRetentionDays(user.id, watchlistId);
   const retentionCutoff = daysAgoIso(retentionDays);
 
   // Purge: always remove posts older than the max retention (7 days)
   const purgeCutoff = daysAgoIso(MAX_RETENTION_DAYS);
-  const purged = fetchedPostsRepo.purgeOlderThan(user.id, purgeCutoff);
+  const purged = fetchedPostsRepo.purgeOlderThan(watchlistId, purgeCutoff);
 
   // Purge orphaned posts (from members no longer in the watchlist)
   const activeMemberIds = members.map((m) => m.id);
-  const purgedOrphans = fetchedPostsRepo.purgeOrphaned(user.id, activeMemberIds);
+  const purgedOrphans = fetchedPostsRepo.purgeOrphaned(watchlistId, activeMemberIds);
 
   const encoder = new TextEncoder();
 
@@ -134,6 +137,7 @@ export async function POST() {
             }
             posts.push({
               userId: user.id,
+              watchlistId,
               memberId: member.id,
               tweetId: tweet.id,
               twitterUsername: member.twitterUsername,
@@ -195,6 +199,7 @@ export async function POST() {
       // Persist log entry
       fetchLogsRepo.insert({
         userId: user.id,
+        watchlistId,
         type: "fetch",
         attempted: members.length,
         succeeded: totalNew,

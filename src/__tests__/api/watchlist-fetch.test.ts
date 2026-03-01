@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
 import { createTestDb, closeDb, db } from "@/db";
 import { users, watchlistMembers } from "@/db/schema";
+import * as watchlistsRepo from "@/db/repositories/watchlists";
 import * as fetchedPostsRepo from "@/db/repositories/fetched-posts";
 import * as settingsRepo from "@/db/repositories/settings";
 
@@ -9,6 +10,11 @@ import * as settingsRepo from "@/db/repositories/settings";
 // =============================================================================
 
 const USER_ID = "e2e-test-user";
+let watchlistId: number;
+
+function ctx(id?: number) {
+  return { params: Promise.resolve({ id: String(id ?? watchlistId) }) };
+}
 
 beforeEach(() => {
   createTestDb();
@@ -17,6 +23,9 @@ beforeEach(() => {
   db.insert(users)
     .values({ id: USER_ID, name: "E2E Test User", email: "e2e@test.com" })
     .run();
+  // Create a default watchlist for all tests
+  const wl = watchlistsRepo.create({ userId: USER_ID, name: "Test WL" });
+  watchlistId = wl.id;
 });
 
 afterEach(() => {
@@ -34,6 +43,7 @@ function seedMember(username: string) {
     .insert(watchlistMembers)
     .values({
       userId: USER_ID,
+      watchlistId,
       twitterUsername: username,
       note: null,
       addedAt: new Date(),
@@ -45,6 +55,7 @@ function seedMember(username: string) {
 function seedPost(memberId: number, tweetId: string, username: string) {
   fetchedPostsRepo.insertMany([{
     userId: USER_ID,
+    watchlistId,
     memberId,
     tweetId,
     twitterUsername: username,
@@ -77,28 +88,14 @@ async function parseSSE(res: Response): Promise<{ event: string; data: unknown }
   return events;
 }
 
-/** Extract the "done" event payload from an SSE response. */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function parseDoneEvent(res: Response) {
-  const events = await parseSSE(res);
-  const done = events.find((e) => e.event === "done");
-  return done?.data as {
-    fetched: number;
-    newPosts: number;
-    skippedOld: number;
-    purged: number;
-    errors: string[];
-  } | undefined;
-}
-
 // =============================================================================
-// POST /api/watchlist/fetch
+// POST /api/watchlists/[id]/fetch
 // =============================================================================
 
-describe("POST /api/watchlist/fetch", () => {
+describe("POST /api/watchlists/[id]/fetch", () => {
   test("returns 0 when no watchlist members", async () => {
-    const { POST } = await import("@/app/api/watchlist/fetch/route");
-    const res = await POST();
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
@@ -112,14 +109,14 @@ describe("POST /api/watchlist/fetch", () => {
     seedMember("testuser1");
     seedMember("testuser2");
 
-    const { POST } = await import("@/app/api/watchlist/fetch/route");
-    const res = await POST();
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("text/event-stream");
 
     const events = await parseSSE(res);
 
-    // Should have 2 progress events + 1 done event
+    // Should have 2 progress events + 1 done event (plus possible posts events)
     const progressEvents = events.filter((e) => e.event === "progress");
     expect(progressEvents).toHaveLength(2);
 
@@ -143,23 +140,23 @@ describe("POST /api/watchlist/fetch", () => {
     expect(d.purged).toBe(0);
 
     // Verify posts were stored
-    const posts = fetchedPostsRepo.findByUserId(USER_ID);
+    const posts = fetchedPostsRepo.findByWatchlistId(watchlistId);
     expect(posts.length).toBeGreaterThan(0);
   });
 
   test("deduplicates on second fetch (SSE stream)", async () => {
     seedMember("testuser1");
 
-    const { POST } = await import("@/app/api/watchlist/fetch/route");
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
 
     // First fetch
-    const res1 = await POST();
+    const res1 = await POST(new Request("http://localhost", { method: "POST" }), ctx());
     const events1 = await parseSSE(res1);
     const done1 = events1.find((e) => e.event === "done")!.data as { newPosts: number };
     expect(done1.newPosts).toBeGreaterThan(0);
 
     // Second fetch — same tweets, should be deduped
-    const res2 = await POST();
+    const res2 = await POST(new Request("http://localhost", { method: "POST" }), ctx());
     const events2 = await parseSSE(res2);
     const done2 = events2.find((e) => e.event === "done")!.data as { newPosts: number };
     expect(done2.newPosts).toBe(0);
@@ -171,6 +168,7 @@ describe("POST /api/watchlist/fetch", () => {
     // Pre-seed an old post (older than 7 days max retention)
     fetchedPostsRepo.insertMany([{
       userId: USER_ID,
+      watchlistId,
       memberId: member.id,
       tweetId: "very-old-tweet",
       twitterUsername: "testuser1",
@@ -179,10 +177,10 @@ describe("POST /api/watchlist/fetch", () => {
       tweetCreatedAt: "2025-01-01T00:00:00.000Z",
     }]);
 
-    expect(fetchedPostsRepo.countByUserId(USER_ID)).toBe(1);
+    expect(fetchedPostsRepo.countByWatchlistId(watchlistId)).toBe(1);
 
-    const { POST } = await import("@/app/api/watchlist/fetch/route");
-    const res = await POST();
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
     const events = await parseSSE(res);
     const done = events.find((e) => e.event === "done")!.data as { purged: number };
 
@@ -191,13 +189,13 @@ describe("POST /api/watchlist/fetch", () => {
 });
 
 // =============================================================================
-// GET /api/watchlist/settings
+// GET /api/watchlists/[id]/settings
 // =============================================================================
 
-describe("GET /api/watchlist/settings", () => {
+describe("GET /api/watchlists/[id]/settings", () => {
   test("returns default interval of 0 and retention of 1", async () => {
-    const { GET } = await import("@/app/api/watchlist/settings/route");
-    const res = await GET();
+    const { GET } = await import("@/app/api/watchlists/[id]/settings/route");
+    const res = await GET(new Request("http://localhost"), ctx());
     expect(res.status).toBe(200);
 
     const body = await res.json();
@@ -207,17 +205,18 @@ describe("GET /api/watchlist/settings", () => {
   });
 
   test("returns saved settings after PUT", async () => {
-    const { PUT, GET } = await import("@/app/api/watchlist/settings/route");
+    const { PUT, GET } = await import("@/app/api/watchlists/[id]/settings/route");
 
     await PUT(
-      new Request("http://localhost/api/watchlist/settings", {
+      new Request("http://localhost/api/watchlists/1/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fetchIntervalMinutes: 30, retentionDays: 7 }),
       }),
+      ctx(),
     );
 
-    const res = await GET();
+    const res = await GET(new Request("http://localhost"), ctx());
     const body = await res.json();
     expect(body.data.fetchIntervalMinutes).toBe(30);
     expect(body.data.retentionDays).toBe(7);
@@ -225,18 +224,19 @@ describe("GET /api/watchlist/settings", () => {
 });
 
 // =============================================================================
-// PUT /api/watchlist/settings
+// PUT /api/watchlists/[id]/settings
 // =============================================================================
 
-describe("PUT /api/watchlist/settings", () => {
+describe("PUT /api/watchlists/[id]/settings", () => {
   test("sets a valid interval", async () => {
-    const { PUT } = await import("@/app/api/watchlist/settings/route");
+    const { PUT } = await import("@/app/api/watchlists/[id]/settings/route");
     const res = await PUT(
-      new Request("http://localhost/api/watchlist/settings", {
+      new Request("http://localhost/api/watchlists/1/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fetchIntervalMinutes: 60 }),
       }),
+      ctx(),
     );
     expect(res.status).toBe(200);
 
@@ -246,13 +246,14 @@ describe("PUT /api/watchlist/settings", () => {
   });
 
   test("sets a valid retention", async () => {
-    const { PUT } = await import("@/app/api/watchlist/settings/route");
+    const { PUT } = await import("@/app/api/watchlists/[id]/settings/route");
     const res = await PUT(
-      new Request("http://localhost/api/watchlist/settings", {
+      new Request("http://localhost/api/watchlists/1/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ retentionDays: 3 }),
       }),
+      ctx(),
     );
     expect(res.status).toBe(200);
 
@@ -262,13 +263,14 @@ describe("PUT /api/watchlist/settings", () => {
   });
 
   test("rejects invalid interval", async () => {
-    const { PUT } = await import("@/app/api/watchlist/settings/route");
+    const { PUT } = await import("@/app/api/watchlists/[id]/settings/route");
     const res = await PUT(
-      new Request("http://localhost/api/watchlist/settings", {
+      new Request("http://localhost/api/watchlists/1/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fetchIntervalMinutes: 7 }),
       }),
+      ctx(),
     );
     expect(res.status).toBe(400);
 
@@ -277,13 +279,14 @@ describe("PUT /api/watchlist/settings", () => {
   });
 
   test("rejects invalid retention", async () => {
-    const { PUT } = await import("@/app/api/watchlist/settings/route");
+    const { PUT } = await import("@/app/api/watchlists/[id]/settings/route");
     const res = await PUT(
-      new Request("http://localhost/api/watchlist/settings", {
+      new Request("http://localhost/api/watchlists/1/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ retentionDays: 5 }),
       }),
+      ctx(),
     );
     expect(res.status).toBe(400);
 
@@ -292,13 +295,14 @@ describe("PUT /api/watchlist/settings", () => {
   });
 
   test("rejects when no fields provided", async () => {
-    const { PUT } = await import("@/app/api/watchlist/settings/route");
+    const { PUT } = await import("@/app/api/watchlists/[id]/settings/route");
     const res = await PUT(
-      new Request("http://localhost/api/watchlist/settings", {
+      new Request("http://localhost/api/watchlists/1/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       }),
+      ctx(),
     );
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -306,25 +310,27 @@ describe("PUT /api/watchlist/settings", () => {
   });
 
   test("rejects invalid JSON", async () => {
-    const { PUT } = await import("@/app/api/watchlist/settings/route");
+    const { PUT } = await import("@/app/api/watchlists/[id]/settings/route");
     const res = await PUT(
-      new Request("http://localhost/api/watchlist/settings", {
+      new Request("http://localhost/api/watchlists/1/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: "not json",
       }),
+      ctx(),
     );
     expect(res.status).toBe(400);
   });
 
   test("accepts 0 to disable auto-fetch", async () => {
-    const { PUT } = await import("@/app/api/watchlist/settings/route");
+    const { PUT } = await import("@/app/api/watchlists/[id]/settings/route");
     const res = await PUT(
-      new Request("http://localhost/api/watchlist/settings", {
+      new Request("http://localhost/api/watchlists/1/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fetchIntervalMinutes: 0 }),
       }),
+      ctx(),
     );
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -333,16 +339,17 @@ describe("PUT /api/watchlist/settings", () => {
 });
 
 // =============================================================================
-// GET /api/watchlist/posts
+// GET /api/watchlists/[id]/posts
 // =============================================================================
 
-describe("GET /api/watchlist/posts", () => {
+describe("GET /api/watchlists/[id]/posts", () => {
   test("returns empty list when no posts", async () => {
-    const { GET } = await import("@/app/api/watchlist/posts/route");
-    const req = new Request("http://localhost/api/watchlist/posts");
-    // NextRequest needs to be constructed properly
+    const { GET } = await import("@/app/api/watchlists/[id]/posts/route");
     const { NextRequest } = await import("next/server");
-    const res = await GET(new NextRequest(req.url));
+    const res = await GET(
+      new NextRequest("http://localhost/api/watchlists/1/posts"),
+      ctx(),
+    );
     expect(res.status).toBe(200);
 
     const body = await res.json();
@@ -357,9 +364,12 @@ describe("GET /api/watchlist/posts", () => {
     seedPost(member.id, "t1", "testuser");
     seedPost(member.id, "t2", "testuser");
 
-    const { GET } = await import("@/app/api/watchlist/posts/route");
+    const { GET } = await import("@/app/api/watchlists/[id]/posts/route");
     const { NextRequest } = await import("next/server");
-    const res = await GET(new NextRequest("http://localhost/api/watchlist/posts"));
+    const res = await GET(
+      new NextRequest("http://localhost/api/watchlists/1/posts"),
+      ctx(),
+    );
     expect(res.status).toBe(200);
 
     const body = await res.json();
@@ -378,10 +388,11 @@ describe("GET /api/watchlist/posts", () => {
     seedPost(m1.id, "t1", "user1");
     seedPost(m2.id, "t2", "user2");
 
-    const { GET } = await import("@/app/api/watchlist/posts/route");
+    const { GET } = await import("@/app/api/watchlists/[id]/posts/route");
     const { NextRequest } = await import("next/server");
     const res = await GET(
-      new NextRequest(`http://localhost/api/watchlist/posts?memberId=${m1.id}`),
+      new NextRequest(`http://localhost/api/watchlists/1/posts?memberId=${m1.id}`),
+      ctx(),
     );
     expect(res.status).toBe(200);
 
@@ -396,10 +407,11 @@ describe("GET /api/watchlist/posts", () => {
       seedPost(member.id, `t${i}`, "testuser");
     }
 
-    const { GET } = await import("@/app/api/watchlist/posts/route");
+    const { GET } = await import("@/app/api/watchlists/[id]/posts/route");
     const { NextRequest } = await import("next/server");
     const res = await GET(
-      new NextRequest("http://localhost/api/watchlist/posts?limit=2"),
+      new NextRequest("http://localhost/api/watchlists/1/posts?limit=2"),
+      ctx(),
     );
 
     const body = await res.json();
@@ -407,17 +419,18 @@ describe("GET /api/watchlist/posts", () => {
   });
 
   test("returns 400 for invalid memberId", async () => {
-    const { GET } = await import("@/app/api/watchlist/posts/route");
+    const { GET } = await import("@/app/api/watchlists/[id]/posts/route");
     const { NextRequest } = await import("next/server");
     const res = await GET(
-      new NextRequest("http://localhost/api/watchlist/posts?memberId=abc"),
+      new NextRequest("http://localhost/api/watchlists/1/posts?memberId=abc"),
+      ctx(),
     );
     expect(res.status).toBe(400);
   });
 });
 
 // =============================================================================
-// POST /api/watchlist/translate
+// POST /api/watchlists/[id]/translate
 // =============================================================================
 
 // Mock generateText for translate route tests
@@ -428,7 +441,7 @@ mock.module("ai", () => ({
   generateText: mockGenerateText,
 }));
 
-describe("POST /api/watchlist/translate", () => {
+describe("POST /api/watchlists/[id]/translate", () => {
   beforeEach(() => {
     mockGenerateText.mockClear();
     mockGenerateText.mockImplementation(() =>
@@ -437,11 +450,12 @@ describe("POST /api/watchlist/translate", () => {
   });
 
   test("returns 0 when no untranslated posts", async () => {
-    const { POST } = await import("@/app/api/watchlist/translate/route");
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
     const res = await POST(
-      new Request("http://localhost/api/watchlist/translate", {
+      new Request("http://localhost/api/watchlists/1/translate", {
         method: "POST",
       }),
+      ctx(),
     );
     expect(res.status).toBe(200);
 
@@ -461,13 +475,14 @@ describe("POST /api/watchlist/translate", () => {
     seedPost(member.id, "t1", "testuser");
     seedPost(member.id, "t2", "testuser");
 
-    const { POST } = await import("@/app/api/watchlist/translate/route");
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
     const res = await POST(
-      new Request("http://localhost/api/watchlist/translate", {
+      new Request("http://localhost/api/watchlists/1/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       }),
+      ctx(),
     );
     expect(res.status).toBe(200);
 
@@ -477,7 +492,7 @@ describe("POST /api/watchlist/translate", () => {
     expect(body.data.remaining).toBe(0);
 
     // Verify translations are persisted
-    const posts = fetchedPostsRepo.findByUserId(USER_ID);
+    const posts = fetchedPostsRepo.findByWatchlistId(watchlistId);
     for (const post of posts) {
       expect(post.translatedText).toBe("模拟翻译");
       expect(post.translatedAt).not.toBeNull();
@@ -494,13 +509,14 @@ describe("POST /api/watchlist/translate", () => {
       seedPost(member.id, `t${i}`, "testuser");
     }
 
-    const { POST } = await import("@/app/api/watchlist/translate/route");
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
     const res = await POST(
-      new Request("http://localhost/api/watchlist/translate", {
+      new Request("http://localhost/api/watchlists/1/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ limit: 2 }),
       }),
+      ctx(),
     );
 
     const body = await res.json();
@@ -521,16 +537,17 @@ describe("POST /api/watchlist/translate", () => {
     seedPost(member.id, "t1", "testuser");
     seedPost(member.id, "t2", "testuser");
 
-    const posts = fetchedPostsRepo.findByUserId(USER_ID);
+    const posts = fetchedPostsRepo.findByWatchlistId(watchlistId);
     const targetPost = posts.find((p) => p.tweetId === "t1")!;
 
-    const { POST } = await import("@/app/api/watchlist/translate/route");
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
     const res = await POST(
-      new Request("http://localhost/api/watchlist/translate", {
+      new Request("http://localhost/api/watchlists/1/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ postId: targetPost.id }),
       }),
+      ctx(),
     );
     expect(res.status).toBe(200);
 
@@ -547,13 +564,14 @@ describe("POST /api/watchlist/translate", () => {
   });
 
   test("returns 404 for non-existent postId", async () => {
-    const { POST } = await import("@/app/api/watchlist/translate/route");
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
     const res = await POST(
-      new Request("http://localhost/api/watchlist/translate", {
+      new Request("http://localhost/api/watchlists/1/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ postId: 99999 }),
       }),
+      ctx(),
     );
     expect(res.status).toBe(404);
   });
@@ -571,13 +589,14 @@ describe("POST /api/watchlist/translate", () => {
     seedPost(member.id, "t1", "testuser");
     seedPost(member.id, "t2", "testuser");
 
-    const { POST } = await import("@/app/api/watchlist/translate/route");
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
     const res = await POST(
-      new Request("http://localhost/api/watchlist/translate", {
+      new Request("http://localhost/api/watchlists/1/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stream: true }),
       }),
+      ctx(),
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("text/event-stream");
@@ -622,7 +641,7 @@ describe("POST /api/watchlist/translate", () => {
     expect(d.remaining).toBe(0);
 
     // Verify translations are persisted in DB
-    const posts = fetchedPostsRepo.findByUserId(USER_ID);
+    const posts = fetchedPostsRepo.findByWatchlistId(watchlistId);
     for (const post of posts) {
       expect(post.translatedText).toBe("模拟翻译");
       expect(post.translatedAt).not.toBeNull();
@@ -630,13 +649,14 @@ describe("POST /api/watchlist/translate", () => {
   });
 
   test("stream mode returns JSON when no untranslated posts", async () => {
-    const { POST } = await import("@/app/api/watchlist/translate/route");
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
     const res = await POST(
-      new Request("http://localhost/api/watchlist/translate", {
+      new Request("http://localhost/api/watchlists/1/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stream: true }),
       }),
+      ctx(),
     );
     expect(res.status).toBe(200);
 
@@ -659,13 +679,14 @@ describe("POST /api/watchlist/translate", () => {
       Promise.reject(new Error("API rate limit exceeded")),
     );
 
-    const { POST } = await import("@/app/api/watchlist/translate/route");
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
     const res = await POST(
-      new Request("http://localhost/api/watchlist/translate", {
+      new Request("http://localhost/api/watchlists/1/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stream: true }),
       }),
+      ctx(),
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("text/event-stream");
@@ -698,7 +719,7 @@ describe("POST /api/watchlist/translate", () => {
     expect(d.remaining).toBe(1); // still untranslated
 
     // Verify post was NOT updated in DB
-    const posts = fetchedPostsRepo.findByUserId(USER_ID);
+    const posts = fetchedPostsRepo.findByWatchlistId(watchlistId);
     expect(posts[0]!.translatedText).toBeNull();
   });
 
@@ -712,13 +733,14 @@ describe("POST /api/watchlist/translate", () => {
       seedPost(member.id, `t${i}`, "testuser");
     }
 
-    const { POST } = await import("@/app/api/watchlist/translate/route");
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
     const res = await POST(
-      new Request("http://localhost/api/watchlist/translate", {
+      new Request("http://localhost/api/watchlists/1/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stream: true, limit: 2 }),
       }),
+      ctx(),
     );
     expect(res.status).toBe(200);
 

@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { createTestDb, closeDb, initSchema } from "@/db";
+import { createTestDb, closeDb, initSchema, seedUser } from "@/db";
 import * as webhooksRepo from "@/db/repositories/webhooks";
 import { generateWebhookKey, hashWebhookKey, getKeyPrefix } from "@/lib/crypto";
 import { NextRequest } from "next/server";
@@ -14,6 +14,7 @@ let webhookKey: string;
 beforeEach(() => {
   createTestDb();
   initSchema();
+  seedUser(TEST_USER_ID);
   process.env.MOCK_PROVIDER = "true";
 
   webhookKey = generateWebhookKey();

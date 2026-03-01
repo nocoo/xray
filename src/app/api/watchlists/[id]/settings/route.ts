@@ -1,30 +1,41 @@
 /**
- * GET  /api/watchlist/settings — Read watchlist auto-fetch settings
- * PUT  /api/watchlist/settings — Update watchlist auto-fetch settings
+ * GET  /api/watchlists/[id]/settings — Read per-watchlist settings
+ * PUT  /api/watchlists/[id]/settings — Update per-watchlist settings
  *
- * Settings stored in the generic settings KV table:
- * - watchlist.fetchIntervalMinutes: auto-fetch interval (0 = disabled)
- * - watchlist.retentionDays: retention window for fetched posts (1, 3, 7)
+ * Settings stored in the generic settings KV table with per-watchlist key namespacing:
+ * - watchlist.{id}.fetchIntervalMinutes: auto-fetch interval (0 = disabled)
+ * - watchlist.{id}.retentionDays: retention window for fetched posts (1, 3, 7)
+ *
+ * Falls back to global settings if per-watchlist settings are not set.
  */
 
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-helpers";
+import { requireAuthWithWatchlist } from "@/lib/api-helpers";
 import * as settingsRepo from "@/db/repositories/settings";
 
 export const dynamic = "force-dynamic";
 
-const KEY_FETCH_INTERVAL = "watchlist.fetchIntervalMinutes";
-const KEY_RETENTION_DAYS = "watchlist.retentionDays";
+type RouteContext = { params: Promise<{ id: string }> };
 
 const VALID_INTERVALS = [0, 5, 10, 15, 30, 60, 120, 360, 720, 1440];
 const VALID_RETENTION_DAYS = [1, 3, 7];
 const DEFAULT_RETENTION_DAYS = 1;
 
-function readWatchlistSettings(userId: string) {
-  const intervalRow = settingsRepo.findByKey(userId, KEY_FETCH_INTERVAL);
+function readSettings(userId: string, watchlistId: number) {
+  // Per-watchlist keys take precedence over global keys
+  const intervalKey = `watchlist.${watchlistId}.fetchIntervalMinutes`;
+  const retentionKey = `watchlist.${watchlistId}.retentionDays`;
+
+  let intervalRow = settingsRepo.findByKey(userId, intervalKey);
+  if (!intervalRow) {
+    intervalRow = settingsRepo.findByKey(userId, "watchlist.fetchIntervalMinutes");
+  }
   const minutes = intervalRow ? parseInt(intervalRow.value, 10) : 0;
 
-  const retentionRow = settingsRepo.findByKey(userId, KEY_RETENTION_DAYS);
+  let retentionRow = settingsRepo.findByKey(userId, retentionKey);
+  if (!retentionRow) {
+    retentionRow = settingsRepo.findByKey(userId, "watchlist.retentionDays");
+  }
   const days = retentionRow ? parseInt(retentionRow.value, 10) : DEFAULT_RETENTION_DAYS;
 
   return {
@@ -33,18 +44,18 @@ function readWatchlistSettings(userId: string) {
   };
 }
 
-export async function GET() {
-  const { user, error } = await requireAuth();
+export async function GET(_request: Request, ctx: RouteContext) {
+  const { user, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   return NextResponse.json({
     success: true,
-    data: readWatchlistSettings(user.id),
+    data: readSettings(user.id, watchlistId),
   });
 }
 
-export async function PUT(request: Request) {
-  const { user, error } = await requireAuth();
+export async function PUT(request: Request, ctx: RouteContext) {
+  const { user, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   let body: { fetchIntervalMinutes?: number; retentionDays?: number };
@@ -73,7 +84,7 @@ export async function PUT(request: Request) {
         { status: 400 },
       );
     }
-    settingsRepo.upsert(user.id, KEY_FETCH_INTERVAL, String(minutes));
+    settingsRepo.upsert(user.id, `watchlist.${watchlistId}.fetchIntervalMinutes`, String(minutes));
   }
 
   // Validate and save retentionDays
@@ -87,11 +98,11 @@ export async function PUT(request: Request) {
         { status: 400 },
       );
     }
-    settingsRepo.upsert(user.id, KEY_RETENTION_DAYS, String(days));
+    settingsRepo.upsert(user.id, `watchlist.${watchlistId}.retentionDays`, String(days));
   }
 
   return NextResponse.json({
     success: true,
-    data: readWatchlistSettings(user.id),
+    data: readSettings(user.id, watchlistId),
   });
 }

@@ -1,34 +1,32 @@
 /**
- * POST /api/watchlist/translate
+ * POST /api/watchlists/[id]/translate
  *
- * Translate fetched posts for the current user.
- * Uses the user's configured AI provider. Each post is translated independently;
- * failures don't block other translations.
+ * Translate fetched posts for a specific watchlist.
+ * Uses the user's configured AI provider.
  *
  * Body options:
  *   - { postId: number }                  — translate a single post by ID (JSON response)
  *   - { limit?: number, stream?: boolean } — translate up to `limit` untranslated posts
- *     When stream=true, returns SSE with per-post translation progress:
- *       - translated: { postId, translatedText, commentText, quotedTranslatedText?, current, total }
- *       - error:      { postId, error, current, total }
- *       - done:       { translated, errors, remaining }
+ *     When stream=true, returns SSE with per-post translation progress.
  */
 
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-helpers";
+import { requireAuthWithWatchlist } from "@/lib/api-helpers";
 import * as fetchedPostsRepo from "@/db/repositories/fetched-posts";
 import * as fetchLogsRepo from "@/db/repositories/fetch-logs";
 import { translateBatch, translateText } from "@/services/translation";
 
 export const dynamic = "force-dynamic";
 
+type RouteContext = { params: Promise<{ id: string }> };
+
 /** Format an SSE message. */
 function sseMessage(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
-export async function POST(request: Request) {
-  const { user, error } = await requireAuth();
+export async function POST(request: Request, ctx: RouteContext) {
+  const { user, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   let limit = 20;
@@ -63,11 +61,12 @@ export async function POST(request: Request) {
     for (const t of result.translated) {
       fetchedPostsRepo.updateTranslation(t.postId, t.translatedText, t.commentText, t.quotedTranslatedText);
     }
-    const remaining = fetchedPostsRepo.countUntranslated(user.id);
+    const remaining = fetchedPostsRepo.countUntranslated(watchlistId);
     const errorMessages = result.errors.map((e) => e.error);
 
     fetchLogsRepo.insert({
       userId: user.id,
+      watchlistId,
       type: "translate",
       attempted: 1,
       succeeded: result.translated.length,
@@ -98,10 +97,9 @@ export async function POST(request: Request) {
   }
 
   // ── Batch mode ──
-  const untranslated = fetchedPostsRepo.findUntranslated(user.id, limit);
+  const untranslated = fetchedPostsRepo.findUntranslated(watchlistId, limit);
   if (untranslated.length === 0) {
     if (streamMode) {
-      // Even in stream mode, return JSON for empty case
       return NextResponse.json({
         success: true,
         data: { translated: 0, errors: [], remaining: 0 },
@@ -168,10 +166,11 @@ export async function POST(request: Request) {
           }
         }
 
-        const remaining = fetchedPostsRepo.countUntranslated(user.id);
+        const remaining = fetchedPostsRepo.countUntranslated(watchlistId);
 
         fetchLogsRepo.insert({
           userId: user.id,
+          watchlistId,
           type: "translate",
           attempted: total,
           succeeded: translatedCount,
@@ -209,11 +208,12 @@ export async function POST(request: Request) {
   for (const t of result.translated) {
     fetchedPostsRepo.updateTranslation(t.postId, t.translatedText, t.commentText, t.quotedTranslatedText);
   }
-  const remaining = fetchedPostsRepo.countUntranslated(user.id);
+  const remaining = fetchedPostsRepo.countUntranslated(watchlistId);
   const errorMessages = result.errors.map((e) => e.error);
 
   fetchLogsRepo.insert({
     userId: user.id,
+    watchlistId,
     type: "translate",
     attempted: postsToTranslate.length,
     succeeded: result.translated.length,

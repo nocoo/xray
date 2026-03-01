@@ -1,18 +1,20 @@
 /**
- * GET /api/watchlist/logs
+ * GET /api/watchlists/[id]/logs
  *
- * Returns fetch/translate log history for the current user.
+ * Returns fetch/translate log history for a specific watchlist.
  * Query params: ?limit=50 (default 50, max 200)
  */
 
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-helpers";
+import { requireAuthWithWatchlist } from "@/lib/api-helpers";
 import * as fetchLogsRepo from "@/db/repositories/fetch-logs";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
-  const { user, error } = await requireAuth();
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function GET(request: Request, ctx: RouteContext) {
+  const { error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   const url = new URL(request.url);
@@ -25,7 +27,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const logs = fetchLogsRepo.findByUserId(user.id, limit);
+  const logs = fetchLogsRepo.findByWatchlistId(watchlistId, limit);
 
   // Parse the JSON errors string back to arrays for the client
   const data = logs.map((log) => ({

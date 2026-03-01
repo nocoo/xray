@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { createTestDb, closeDb, initSchema } from "@/db";
+import { createTestDb, closeDb, initSchema, seedUser } from "@/db";
 import * as webhooksRepo from "@/db/repositories/webhooks";
 import * as credentialsRepo from "@/db/repositories/credentials";
 import * as usageStatsRepo from "@/db/repositories/usage-stats";
@@ -46,6 +46,7 @@ function setupUserWithWebhook(): string {
 beforeEach(() => {
   createTestDb();
   initSchema();
+  seedUser(TEST_USER_ID);
 });
 
 afterEach(() => {

@@ -1,20 +1,22 @@
 /**
- * GET /api/watchlist/posts
+ * GET /api/watchlists/[id]/posts
  *
- * List fetched posts for the current user, newest first.
+ * List fetched posts for a specific watchlist, newest first.
  * Query params:
  *   - memberId: filter by watchlist member (optional)
  *   - limit: max results (default 100, max 500)
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-helpers";
+import { requireAuthWithWatchlist } from "@/lib/api-helpers";
 import * as fetchedPostsRepo from "@/db/repositories/fetched-posts";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
-  const { user, error } = await requireAuth();
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function GET(request: NextRequest, ctx: RouteContext) {
+  const { error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   const url = new URL(request.url);
@@ -37,7 +39,7 @@ export async function GET(request: NextRequest) {
     }
     posts = fetchedPostsRepo.findByMemberId(memberId, limit);
   } else {
-    posts = fetchedPostsRepo.findByUserId(user.id, limit);
+    posts = fetchedPostsRepo.findByWatchlistId(watchlistId, limit);
   }
 
   // Return posts with parsed tweetJson for convenience
@@ -55,7 +57,7 @@ export async function GET(request: NextRequest) {
     tweet: JSON.parse(p.tweetJson),
   }));
 
-  const untranslatedCount = fetchedPostsRepo.countUntranslated(user.id);
+  const untranslatedCount = fetchedPostsRepo.countUntranslated(watchlistId);
 
   return NextResponse.json({
     success: true,

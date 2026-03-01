@@ -1,29 +1,30 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-helpers";
+import { requireAuthWithWatchlist } from "@/lib/api-helpers";
 import * as watchlistRepo from "@/db/repositories/watchlist";
 
 export const dynamic = "force-dynamic";
 
+type RouteContext = { params: Promise<{ id: string }> };
+
 /**
- * GET /api/watchlist
- * List all watchlist members for the current user (with tags).
+ * GET /api/watchlists/[id]/members
+ * List all members for a watchlist (with tags).
  */
-export async function GET() {
-  const { user, error } = await requireAuth();
+export async function GET(_request: Request, ctx: RouteContext) {
+  const { error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
-  const members = watchlistRepo.findByUserId(user.id);
-
+  const members = watchlistRepo.findByWatchlistId(watchlistId);
   return NextResponse.json({ success: true, data: members });
 }
 
 /**
- * POST /api/watchlist
+ * POST /api/watchlists/[id]/members
  * Add a new member to the watchlist.
  * Body: { twitterUsername: string, note?: string, tagIds?: number[] }
  */
-export async function POST(request: Request) {
-  const { user, error } = await requireAuth();
+export async function POST(request: Request, ctx: RouteContext) {
+  const { user, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   let body: { twitterUsername?: string; note?: string; tagIds?: number[] };
@@ -32,30 +33,31 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json(
       { error: "Invalid JSON body" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (!body.twitterUsername?.trim()) {
     return NextResponse.json(
       { error: "twitterUsername is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   const username = body.twitterUsername.trim().toLowerCase().replace(/^@/, "");
 
-  // Check for duplicates
-  const existing = watchlistRepo.findByUsernameAndUserId(username, user.id);
+  // Check for duplicates within this watchlist
+  const existing = watchlistRepo.findByUsernameAndWatchlistId(username, watchlistId);
   if (existing) {
     return NextResponse.json(
-      { error: `@${username} is already in your watchlist` },
-      { status: 409 }
+      { error: `@${username} is already in this watchlist` },
+      { status: 409 },
     );
   }
 
   const member = watchlistRepo.create({
     userId: user.id,
+    watchlistId,
     twitterUsername: username,
     note: body.note?.trim() || null,
   });
@@ -72,12 +74,12 @@ export async function POST(request: Request) {
 }
 
 /**
- * PUT /api/watchlist
+ * PUT /api/watchlists/[id]/members
  * Update a watchlist member.
  * Body: { id: number, note?: string, tagIds?: number[] }
  */
-export async function PUT(request: Request) {
-  const { user, error } = await requireAuth();
+export async function PUT(request: Request, ctx: RouteContext) {
+  const { user, error } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   let body: { id?: number; note?: string; tagIds?: number[] };
@@ -86,14 +88,14 @@ export async function PUT(request: Request) {
   } catch {
     return NextResponse.json(
       { error: "Invalid JSON body" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (!body.id) {
     return NextResponse.json(
       { error: "id is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -102,7 +104,7 @@ export async function PUT(request: Request) {
   if (!member) {
     return NextResponse.json(
       { error: "Watchlist member not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -122,11 +124,11 @@ export async function PUT(request: Request) {
 }
 
 /**
- * DELETE /api/watchlist?id=123
+ * DELETE /api/watchlists/[id]/members?id=123
  * Remove a member from the watchlist.
  */
-export async function DELETE(request: Request) {
-  const { user, error } = await requireAuth();
+export async function DELETE(request: Request, ctx: RouteContext) {
+  const { user, error } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
@@ -135,7 +137,7 @@ export async function DELETE(request: Request) {
   if (!idStr) {
     return NextResponse.json(
       { error: "Missing 'id' query parameter" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -143,7 +145,7 @@ export async function DELETE(request: Request) {
   if (isNaN(id)) {
     return NextResponse.json(
       { error: "Invalid ID" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -152,7 +154,7 @@ export async function DELETE(request: Request) {
   if (!member) {
     return NextResponse.json(
       { error: "Watchlist member not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 

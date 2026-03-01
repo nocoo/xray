@@ -1,8 +1,15 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { createTestDb, closeDb, db } from "@/db";
 import { users } from "@/db/schema";
+import * as watchlistsRepo from "@/db/repositories/watchlists";
 
 // The API routes use requireAuth() which needs E2E_SKIP_AUTH for direct testing
+let watchlistId: number;
+
+function ctx(id?: number) {
+  return { params: Promise.resolve({ id: String(id ?? watchlistId) }) };
+}
+
 beforeEach(() => {
   createTestDb();
   process.env.E2E_SKIP_AUTH = "true";
@@ -10,6 +17,9 @@ beforeEach(() => {
   db.insert(users)
     .values({ id: "e2e-test-user", name: "E2E Test User", email: "e2e@test.com" })
     .run();
+  // Create a default watchlist for member tests
+  const wl = watchlistsRepo.create({ userId: "e2e-test-user", name: "Test WL" });
+  watchlistId = wl.id;
 });
 
 afterEach(() => {
@@ -95,13 +105,13 @@ describe("DELETE /api/tags", () => {
 });
 
 // =============================================================================
-// /api/watchlist
+// /api/watchlists/[id]/members
 // =============================================================================
 
-describe("GET /api/watchlist", () => {
+describe("GET /api/watchlists/[id]/members", () => {
   test("returns empty array initially", async () => {
-    const { GET } = await import("@/app/api/watchlist/route");
-    const res = await GET();
+    const { GET } = await import("@/app/api/watchlists/[id]/members/route");
+    const res = await GET(new Request("http://localhost"), ctx());
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
@@ -109,18 +119,19 @@ describe("GET /api/watchlist", () => {
   });
 });
 
-describe("POST /api/watchlist", () => {
+describe("POST /api/watchlists/[id]/members", () => {
   test("adds a user to the watchlist", async () => {
-    const { POST } = await import("@/app/api/watchlist/route");
+    const { POST } = await import("@/app/api/watchlists/[id]/members/route");
     const res = await POST(
-      new Request("http://localhost/api/watchlist", {
+      new Request("http://localhost/api/watchlists/1/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           twitterUsername: "elonmusk",
           note: "SpaceX CEO",
         }),
-      })
+      }),
+      ctx(),
     );
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -131,40 +142,42 @@ describe("POST /api/watchlist", () => {
   });
 
   test("strips @ prefix", async () => {
-    const { POST } = await import("@/app/api/watchlist/route");
+    const { POST } = await import("@/app/api/watchlists/[id]/members/route");
     const res = await POST(
-      new Request("http://localhost/api/watchlist", {
+      new Request("http://localhost/api/watchlists/1/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ twitterUsername: "@TestUser" }),
-      })
+      }),
+      ctx(),
     );
     const body = await res.json();
     expect(body.data.twitterUsername).toBe("testuser");
   });
 
   test("returns 409 for duplicate username", async () => {
-    const { POST } = await import("@/app/api/watchlist/route");
+    const { POST } = await import("@/app/api/watchlists/[id]/members/route");
     const req = () =>
-      new Request("http://localhost/api/watchlist", {
+      new Request("http://localhost/api/watchlists/1/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ twitterUsername: "elonmusk" }),
       });
 
-    await POST(req());
-    const res = await POST(req());
+    await POST(req(), ctx());
+    const res = await POST(req(), ctx());
     expect(res.status).toBe(409);
   });
 
   test("returns 400 for missing username", async () => {
-    const { POST } = await import("@/app/api/watchlist/route");
+    const { POST } = await import("@/app/api/watchlists/[id]/members/route");
     const res = await POST(
-      new Request("http://localhost/api/watchlist", {
+      new Request("http://localhost/api/watchlists/1/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
-      })
+      }),
+      ctx(),
     );
     expect(res.status).toBe(400);
   });
@@ -182,16 +195,17 @@ describe("POST /api/watchlist", () => {
     const { data: tag } = await tagRes.json();
 
     // Add member with tag
-    const { POST } = await import("@/app/api/watchlist/route");
+    const { POST } = await import("@/app/api/watchlists/[id]/members/route");
     const res = await POST(
-      new Request("http://localhost/api/watchlist", {
+      new Request("http://localhost/api/watchlists/1/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           twitterUsername: "openai",
           tagIds: [tag.id],
         }),
-      })
+      }),
+      ctx(),
     );
     const body = await res.json();
     expect(body.data.tags).toHaveLength(1);
@@ -199,18 +213,19 @@ describe("POST /api/watchlist", () => {
   });
 });
 
-describe("PUT /api/watchlist", () => {
+describe("PUT /api/watchlists/[id]/members", () => {
   test("updates note and tags", async () => {
-    const { POST, PUT } = await import("@/app/api/watchlist/route");
+    const { POST, PUT } = await import("@/app/api/watchlists/[id]/members/route");
     const { POST: createTag } = await import("@/app/api/tags/route");
 
     // Create member
     const createRes = await POST(
-      new Request("http://localhost/api/watchlist", {
+      new Request("http://localhost/api/watchlists/1/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ twitterUsername: "user1" }),
-      })
+      }),
+      ctx(),
     );
     const { data: member } = await createRes.json();
 
@@ -226,7 +241,7 @@ describe("PUT /api/watchlist", () => {
 
     // Update
     const res = await PUT(
-      new Request("http://localhost/api/watchlist", {
+      new Request("http://localhost/api/watchlists/1/members", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -234,7 +249,8 @@ describe("PUT /api/watchlist", () => {
           note: "Updated note",
           tagIds: [tag.id],
         }),
-      })
+      }),
+      ctx(),
     );
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -243,53 +259,58 @@ describe("PUT /api/watchlist", () => {
   });
 
   test("returns 404 for non-existent member", async () => {
-    const { PUT } = await import("@/app/api/watchlist/route");
+    const { PUT } = await import("@/app/api/watchlists/[id]/members/route");
     const res = await PUT(
-      new Request("http://localhost/api/watchlist", {
+      new Request("http://localhost/api/watchlists/1/members", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: 999, note: "test" }),
-      })
+      }),
+      ctx(),
     );
     expect(res.status).toBe(404);
   });
 });
 
-describe("DELETE /api/watchlist", () => {
+describe("DELETE /api/watchlists/[id]/members", () => {
   test("deletes an existing member", async () => {
-    const { POST, DELETE: DEL } = await import("@/app/api/watchlist/route");
+    const { POST, DELETE: DEL } = await import("@/app/api/watchlists/[id]/members/route");
 
     // Create first
     const createRes = await POST(
-      new Request("http://localhost/api/watchlist", {
+      new Request("http://localhost/api/watchlists/1/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ twitterUsername: "toremove" }),
-      })
+      }),
+      ctx(),
     );
     const { data: member } = await createRes.json();
 
     // Delete
     const res = await DEL(
-      new Request(`http://localhost/api/watchlist?id=${member.id}`, {
+      new Request(`http://localhost/api/watchlists/1/members?id=${member.id}`, {
         method: "DELETE",
-      })
+      }),
+      ctx(),
     );
     expect(res.status).toBe(200);
   });
 
   test("returns 404 for non-existent member", async () => {
-    const { DELETE: DEL } = await import("@/app/api/watchlist/route");
+    const { DELETE: DEL } = await import("@/app/api/watchlists/[id]/members/route");
     const res = await DEL(
-      new Request("http://localhost/api/watchlist?id=999", { method: "DELETE" })
+      new Request("http://localhost/api/watchlists/1/members?id=999", { method: "DELETE" }),
+      ctx(),
     );
     expect(res.status).toBe(404);
   });
 
   test("returns 400 for missing id", async () => {
-    const { DELETE: DEL } = await import("@/app/api/watchlist/route");
+    const { DELETE: DEL } = await import("@/app/api/watchlists/[id]/members/route");
     const res = await DEL(
-      new Request("http://localhost/api/watchlist", { method: "DELETE" })
+      new Request("http://localhost/api/watchlists/1/members", { method: "DELETE" }),
+      ctx(),
     );
     expect(res.status).toBe(400);
   });

@@ -88,3 +88,42 @@ export async function requireAuth(): Promise<
 
   return { user };
 }
+
+/**
+ * Require authentication AND validate a watchlist ID from route params.
+ * Returns the authenticated user and watchlist, or a JSON error response.
+ */
+export async function requireAuthWithWatchlist(
+  params: Promise<{ id: string }> | { id: string },
+): Promise<
+  | { user: AuthenticatedUser; watchlistId: number; error?: never }
+  | { user?: never; watchlistId?: never; error: NextResponse }
+> {
+  const { user, error } = await requireAuth();
+  if (error) return { error };
+
+  const resolved = await params;
+  const watchlistId = parseInt(resolved.id, 10);
+  if (isNaN(watchlistId)) {
+    return {
+      error: NextResponse.json(
+        { error: "Invalid watchlist ID" },
+        { status: 400 },
+      ),
+    };
+  }
+
+  // Lazy import to avoid circular deps
+  const { findByIdAndUserId } = await import("@/db/repositories/watchlists");
+  const watchlist = findByIdAndUserId(watchlistId, user.id);
+  if (!watchlist) {
+    return {
+      error: NextResponse.json(
+        { error: "Watchlist not found" },
+        { status: 404 },
+      ),
+    };
+  }
+
+  return { user, watchlistId };
+}

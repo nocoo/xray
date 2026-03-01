@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { createTestDb, closeDb, initSchema } from "@/db";
+import { createTestDb, closeDb, initSchema, seedUser } from "@/db";
 import * as credentialsRepo from "@/db/repositories/credentials";
 import { createProviderForUser } from "@/lib/twitter/provider-factory";
 import { MockTwitterProvider } from "@/lib/twitter/mock-provider";
@@ -14,6 +14,7 @@ const TEST_USER_ID = "test-user-factory";
 beforeEach(() => {
   createTestDb();
   initSchema();
+  seedUser(TEST_USER_ID);
 });
 
 afterEach(() => {
