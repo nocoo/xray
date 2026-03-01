@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useParams } from "next/navigation";
 import { AppShell } from "@/components/layout";
 import { LoadingSpinner, ErrorBanner, EmptyState } from "@/components/ui/feedback";
 import { Button } from "@/components/ui/button";
@@ -32,10 +33,13 @@ interface FetchLogEntry {
 }
 
 // =============================================================================
-// Logs Page
+// Logs Page — /watchlist/[id]/logs
 // =============================================================================
 
 export default function WatchlistLogsPage() {
+  const params = useParams<{ id: string }>();
+  const watchlistId = Number(params.id);
+
   const [logs, setLogs] = useState<FetchLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +48,7 @@ export default function WatchlistLogsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/watchlist/logs?limit=100");
+      const res = await fetch(`/api/watchlists/${watchlistId}/logs?limit=100`);
       const json = await res.json().catch(() => null);
       if (res.ok && json?.success) {
         setLogs(json.data ?? []);
@@ -56,7 +60,7 @@ export default function WatchlistLogsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [watchlistId]);
 
   useEffect(() => {
     loadLogs();
@@ -65,7 +69,8 @@ export default function WatchlistLogsPage() {
   return (
     <AppShell
       breadcrumbs={[
-        { label: "Watchlist", href: "/watchlist" },
+        { label: "Watchlists", href: "/watchlist" },
+        { label: `#${watchlistId}`, href: `/watchlist/${watchlistId}` },
         { label: "Logs" },
       ]}
     >
@@ -82,7 +87,7 @@ export default function WatchlistLogsPage() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/watchlist">
+              <Link href={`/watchlist/${watchlistId}`}>
                 <ArrowLeft className="h-4 w-4" />
                 Watchlist
               </Link>
