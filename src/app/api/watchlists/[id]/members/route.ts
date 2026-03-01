@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
 import { requireAuthWithWatchlist } from "@/lib/api-helpers";
 import * as watchlistRepo from "@/db/repositories/watchlist";
+import * as tagsRepo from "@/db/repositories/tags";
 
 export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+/**
+ * Validate that all provided tagIds belong to the given user.
+ * Returns the list of invalid IDs (empty = all valid).
+ */
+function validateTagOwnership(tagIds: number[], userId: string): number[] {
+  return tagIds.filter((id) => !tagsRepo.findByIdAndUserId(id, userId));
+}
 
 /**
  * GET /api/watchlists/[id]/members
@@ -62,8 +71,15 @@ export async function POST(request: Request, ctx: RouteContext) {
     note: body.note?.trim() || null,
   });
 
-  // Assign tags if provided
+  // Assign tags if provided (validated for ownership)
   if (body.tagIds?.length) {
+    const invalid = validateTagOwnership(body.tagIds, user.id);
+    if (invalid.length > 0) {
+      return NextResponse.json(
+        { error: `Invalid tag IDs: ${invalid.join(", ")}` },
+        { status: 403 },
+      );
+    }
     watchlistRepo.setTags(member.id, body.tagIds);
   }
 
@@ -113,8 +129,17 @@ export async function PUT(request: Request, ctx: RouteContext) {
     watchlistRepo.updateNote(body.id, body.note?.trim() || null);
   }
 
-  // Update tags if provided
+  // Update tags if provided (validated for ownership)
   if (body.tagIds !== undefined) {
+    if (body.tagIds.length > 0) {
+      const invalid = validateTagOwnership(body.tagIds, user.id);
+      if (invalid.length > 0) {
+        return NextResponse.json(
+          { error: `Invalid tag IDs: ${invalid.join(", ")}` },
+          { status: 403 },
+        );
+      }
+    }
     watchlistRepo.setTags(body.id, body.tagIds);
   }
 
