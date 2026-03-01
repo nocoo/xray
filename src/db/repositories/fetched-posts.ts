@@ -6,7 +6,7 @@
  * combined with INSERT ... ON CONFLICT DO NOTHING for race-safe batch inserts.
  */
 
-import { eq, and, isNull, desc, lt, count } from "drizzle-orm";
+import { eq, and, isNull, desc, lt, count, notInArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   fetchedPosts,
@@ -184,6 +184,34 @@ export function purgeOlderThan(userId: string, cutoffIso: string): number {
       and(
         eq(fetchedPosts.userId, userId),
         lt(fetchedPosts.tweetCreatedAt, cutoffIso),
+      ),
+    )
+    .run();
+  return result.changes;
+}
+
+/**
+ * Delete posts for members that no longer exist in the watchlist.
+ * Uses NOT IN to find orphaned posts whose memberId references a deleted member.
+ * @param userId - Scope to this user
+ * @param activeMemberIds - IDs of current watchlist members
+ * @returns Number of deleted rows
+ */
+export function purgeOrphaned(userId: string, activeMemberIds: number[]): number {
+  if (activeMemberIds.length === 0) {
+    // No active members → delete all posts for this user
+    const result = db
+      .delete(fetchedPosts)
+      .where(eq(fetchedPosts.userId, userId))
+      .run();
+    return result.changes;
+  }
+  const result = db
+    .delete(fetchedPosts)
+    .where(
+      and(
+        eq(fetchedPosts.userId, userId),
+        notInArray(fetchedPosts.memberId, activeMemberIds),
       ),
     )
     .run();
