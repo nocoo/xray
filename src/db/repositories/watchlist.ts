@@ -63,6 +63,28 @@ export function findByIdAndUserId(
   return { ...member, tags: getTagsForMember(member.id) };
 }
 
+/** Find a watchlist member by ID, user ID, AND watchlist ID (full ownership check). */
+export function findByIdUserAndWatchlist(
+  id: number,
+  userId: string,
+  watchlistId: number,
+): WatchlistMemberWithTags | undefined {
+  const member = db
+    .select()
+    .from(watchlistMembers)
+    .where(
+      and(
+        eq(watchlistMembers.id, id),
+        eq(watchlistMembers.userId, userId),
+        eq(watchlistMembers.watchlistId, watchlistId),
+      )
+    )
+    .get();
+
+  if (!member) return undefined;
+  return { ...member, tags: getTagsForMember(member.id) };
+}
+
 /** Find a member by username within a specific watchlist (for deduplication). */
 export function findByUsernameAndWatchlistId(
   twitterUsername: string,

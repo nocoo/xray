@@ -79,7 +79,7 @@ export async function POST(request: Request, ctx: RouteContext) {
  * Body: { id: number, note?: string, tagIds?: number[] }
  */
 export async function PUT(request: Request, ctx: RouteContext) {
-  const { user, error } = await requireAuthWithWatchlist(ctx.params);
+  const { user, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   let body: { id?: number; note?: string; tagIds?: number[] };
@@ -99,8 +99,8 @@ export async function PUT(request: Request, ctx: RouteContext) {
     );
   }
 
-  // Verify ownership
-  const member = watchlistRepo.findByIdAndUserId(body.id, user.id);
+  // Verify ownership — must belong to this user AND this watchlist
+  const member = watchlistRepo.findByIdUserAndWatchlist(body.id, user.id, watchlistId);
   if (!member) {
     return NextResponse.json(
       { error: "Watchlist member not found" },
@@ -118,7 +118,7 @@ export async function PUT(request: Request, ctx: RouteContext) {
     watchlistRepo.setTags(body.id, body.tagIds);
   }
 
-  const result = watchlistRepo.findByIdAndUserId(body.id, user.id);
+  const result = watchlistRepo.findByIdUserAndWatchlist(body.id, user.id, watchlistId);
 
   return NextResponse.json({ success: true, data: result });
 }
@@ -128,7 +128,7 @@ export async function PUT(request: Request, ctx: RouteContext) {
  * Remove a member from the watchlist.
  */
 export async function DELETE(request: Request, ctx: RouteContext) {
-  const { user, error } = await requireAuthWithWatchlist(ctx.params);
+  const { user, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
@@ -149,8 +149,8 @@ export async function DELETE(request: Request, ctx: RouteContext) {
     );
   }
 
-  // Verify ownership
-  const member = watchlistRepo.findByIdAndUserId(id, user.id);
+  // Verify ownership — must belong to this user AND this watchlist
+  const member = watchlistRepo.findByIdUserAndWatchlist(id, user.id, watchlistId);
   if (!member) {
     return NextResponse.json(
       { error: "Watchlist member not found" },
