@@ -15,7 +15,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Eye, Plus, Trash2, Pencil } from "lucide-react";
+import { Eye, Plus, Trash2, Pencil, Languages } from "lucide-react";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { IconPicker, resolveIcon } from "@/components/ui/icon-picker";
 
@@ -219,6 +219,7 @@ function CreateWatchlistDialog({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [icon, setIcon] = useState("eye");
+  const [translateEnabled, setTranslateEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -226,6 +227,7 @@ function CreateWatchlistDialog({
     setName("");
     setDescription("");
     setIcon("eye");
+    setTranslateEnabled(true);
     setError(null);
   };
 
@@ -243,6 +245,7 @@ function CreateWatchlistDialog({
           name: name.trim(),
           description: description.trim() || undefined,
           icon,
+          translateEnabled: translateEnabled ? 1 : 0,
         }),
       });
       const json = await res.json().catch(() => null);
@@ -310,6 +313,36 @@ function CreateWatchlistDialog({
             </div>
           </div>
 
+          {/* Auto-translate toggle */}
+          <label className="flex items-center justify-between rounded-lg border px-3 py-2.5 cursor-pointer hover:bg-accent/50 transition-colors">
+            <div className="flex items-center gap-2">
+              <Languages className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <span className="text-sm font-medium">Auto Translate</span>
+                <p className="text-xs text-muted-foreground">
+                  Translate fetched posts to Chinese automatically
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={translateEnabled}
+              onClick={() => setTranslateEnabled((v) => !v)}
+              className={cn(
+                "relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                translateEnabled ? "bg-emerald-500" : "bg-muted",
+              )}
+            >
+              <span
+                className={cn(
+                  "pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform",
+                  translateEnabled ? "translate-x-4" : "translate-x-0",
+                )}
+              />
+            </button>
+          </label>
+
           <DialogFooter>
             <Button type="submit" disabled={!name.trim() || saving}>
               {saving ? "Creating..." : "Create"}
@@ -339,6 +372,7 @@ function EditWatchlistDialog({
   const [name, setName] = useState(watchlist.name);
   const [description, setDescription] = useState(watchlist.description ?? "");
   const [icon, setIcon] = useState(watchlist.icon);
+  const [translateEnabled, setTranslateEnabled] = useState(!!watchlist.translateEnabled);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -357,6 +391,7 @@ function EditWatchlistDialog({
           name: name.trim(),
           description: description.trim() || null,
           icon,
+          translateEnabled: translateEnabled ? 1 : 0,
         }),
       });
       const json = await res.json().catch(() => null);
@@ -416,6 +451,36 @@ function EditWatchlistDialog({
               </div>
             </div>
           </div>
+
+          {/* Auto-translate toggle */}
+          <label className="flex items-center justify-between rounded-lg border px-3 py-2.5 cursor-pointer hover:bg-accent/50 transition-colors">
+            <div className="flex items-center gap-2">
+              <Languages className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <span className="text-sm font-medium">Auto Translate</span>
+                <p className="text-xs text-muted-foreground">
+                  Translate fetched posts to Chinese automatically
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={translateEnabled}
+              onClick={() => setTranslateEnabled((v) => !v)}
+              className={cn(
+                "relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                translateEnabled ? "bg-emerald-500" : "bg-muted",
+              )}
+            >
+              <span
+                className={cn(
+                  "pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform",
+                  translateEnabled ? "translate-x-4" : "translate-x-0",
+                )}
+              />
+            </button>
+          </label>
 
           <DialogFooter>
             <Button type="submit" disabled={!name.trim() || saving}>
