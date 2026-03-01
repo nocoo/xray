@@ -315,7 +315,15 @@ export function initSchema(): void {
   // Safe column migrations for pre-existing databases.
   // Each ALTER TABLE is wrapped in try/catch because SQLite lacks ADD COLUMN IF NOT EXISTS.
   const safeAddColumn = (sql: string) => {
-    try { sqlite!.exec(sql); } catch { /* column already exists */ }
+    try {
+      sqlite!.exec(sql);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // Only silence "duplicate column" errors; surface anything else.
+      if (!msg.includes("duplicate column")) {
+        console.error(`[db] safeAddColumn failed: ${msg}\n  SQL: ${sql}`);
+      }
+    }
   };
   safeAddColumn(`ALTER TABLE watchlist_members ADD COLUMN fetch_interval_minutes INTEGER`);
   safeAddColumn(`ALTER TABLE watchlist_members ADD COLUMN watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE`);
