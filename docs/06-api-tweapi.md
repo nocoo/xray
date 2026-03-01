@@ -18,8 +18,7 @@
 ### User
 
 - `POST /v1/twitter/user/info`：用户详情
-- `POST /v1/twitter/user/timeline`：用户时间线
-- `POST /v1/twitter/user/userRecent20Tweets`：最近 20 条推文
+- `POST /v1/twitter/user/timeline`：用户时间线（也作为 `userRecentTweetsByFilter` 400 时的 fallback）
 - `POST /v1/twitter/user/analytics`：蓝 V 分析数据（需 cookie）
 - `POST /v1/twitter/user/bookmarks`：书签（需 cookie）
 - `POST /v1/twitter/user/likes`：点赞（需 cookie）

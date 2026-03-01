@@ -27,3 +27,5 @@ README.md
 12. **vinext route handlers don't provide `nextUrl` on Request** — `next-auth` v5 expects `NextRequest` with a `nextUrl` property. vinext's route handlers pass plain `Request` objects. Fix: wrap handlers to convert `Request` to `NextRequest` before passing to next-auth.
 
 13. **`CREATE TABLE IF NOT EXISTS` won't add columns to existing tables** — When adding new columns (e.g., `comment_text`) to `initSchema()`'s DDL, pre-existing SQLite databases silently skip the entire CREATE statement. Fix: add an explicit `ALTER TABLE ... ADD COLUMN` wrapped in try/catch after the CREATE block. SQLite lacks `ADD COLUMN IF NOT EXISTS`, so catching the "duplicate column" error is the standard pattern.
+
+14. **TweAPI `userRecent20Tweets` endpoint was removed (404)** — The `/v1/twitter/user/userRecent20Tweets` endpoint documented in TweAPI returns 404 Not Found. It was used as a fallback when `userRecentTweetsByFilter` returned 400 for certain users. Fix: use `/v1/twitter/user/timeline` as the fallback instead — it accepts the same `{ url }` body and is a stable endpoint.

@@ -254,7 +254,7 @@ describe("TweAPIProvider", () => {
       expect(body.count).toBe(20);
     });
 
-    test("falls back to userRecent20Tweets on 400 from filter endpoint", async () => {
+    test("falls back to timeline on 400 from filter endpoint", async () => {
       let callCount = 0;
       mockFetch.mockImplementation((_url: string) => {
         callCount++;
@@ -264,7 +264,7 @@ describe("TweAPIProvider", () => {
             new Response("Bad Request", { status: 400, statusText: "Bad Request" }),
           );
         }
-        // Second call to userRecent20Tweets → success
+        // Second call to timeline → success
         return Promise.resolve(
           jsonResponse({
             code: 201,
@@ -287,7 +287,7 @@ describe("TweAPIProvider", () => {
 
       // Second call: fallback endpoint
       const [url2, init2] = mockFetch.mock.calls[1]!;
-      expect(url2).toContain("userRecent20Tweets");
+      expect(url2).toContain("timeline");
       const body2 = JSON.parse(init2.body);
       expect(body2.url).toBe("https://x.com/rasbt");
       // Fallback endpoint should NOT have filter params

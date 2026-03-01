@@ -189,10 +189,10 @@ export class TweAPIProvider implements ITwitterProvider {
       if (!data.data?.list) return [];
       return data.data.list.map((tweet) => normalizeTweet(tweet));
     } catch (err) {
-      // Fallback: if the filter endpoint returns 400, retry with the simpler endpoint
+      // Fallback: if the filter endpoint returns 400, retry with the timeline endpoint
       if (err instanceof UpstreamError && err.statusCode === 400) {
         const data = await this.request<TweAPIResponse>(
-          "/v1/twitter/user/userRecent20Tweets",
+          "/v1/twitter/user/timeline",
           { url: `https://x.com/${username}` },
         );
         if (!data.data?.list) return [];
