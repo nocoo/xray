@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { TweetCard } from "@/components/twitter/tweet-card";
 import {
   ArrowLeftRight,
@@ -11,7 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { FetchedPostData } from "../_lib/types";
 
-export function WatchlistPostCard({
+export const WatchlistPostCard = memo(function WatchlistPostCard({
   post,
   watchlistId,
 }: {
@@ -131,4 +131,4 @@ export function WatchlistPostCard({
       </div>
     </div>
   );
-}
+});
