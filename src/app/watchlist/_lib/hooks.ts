@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 
 // =============================================================================
-// useColumns — responsive column count via matchMedia
+// useColumns — responsive column count via matchMedia change listeners
+// Only fires when a breakpoint boundary is actually crossed, not on every
+// resize pixel.
 // =============================================================================
 
 const BREAKPOINTS = [
@@ -16,18 +18,29 @@ export function useColumns(): number {
   const [cols, setCols] = useState(1);
 
   useEffect(() => {
+    const mqls = BREAKPOINTS.map((bp) => window.matchMedia(bp.query));
+
     function calc() {
-      for (const bp of BREAKPOINTS) {
-        if (window.matchMedia(bp.query).matches) {
-          setCols(bp.cols);
+      for (let i = 0; i < mqls.length; i++) {
+        if (mqls[i]!.matches) {
+          setCols(BREAKPOINTS[i]!.cols);
           return;
         }
       }
       setCols(1);
     }
+
     calc();
-    window.addEventListener("resize", calc);
-    return () => window.removeEventListener("resize", calc);
+
+    const handler = () => calc();
+    for (const mql of mqls) {
+      mql.addEventListener("change", handler);
+    }
+    return () => {
+      for (const mql of mqls) {
+        mql.removeEventListener("change", handler);
+      }
+    };
   }, []);
 
   return cols;
