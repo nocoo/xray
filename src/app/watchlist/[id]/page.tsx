@@ -124,13 +124,36 @@ export default function WatchlistDetailPage() {
   const PAGE_SIZE = 100;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  // Row-first masonry: distribute visible posts round-robin into columns
+  // Shortest-column masonry: place each post into the shortest column
+  // (estimated by text length + media/quote presence). This is more stable
+  // than round-robin because prepending new posts only affects the top of
+  // the shortest column(s) — existing posts keep their column assignment
+  // as long as the estimation is consistent.
   const columnCount = useColumns();
   const visiblePosts = useMemo(() => posts.slice(0, visibleCount), [posts, visibleCount]);
   const hasMore = posts.length > visibleCount;
   const postColumns = useMemo(() => {
     const cols: FetchedPostData[][] = Array.from({ length: columnCount }, () => []);
-    visiblePosts.forEach((post, i) => cols[i % columnCount]!.push(post));
+    const heights = new Array<number>(columnCount).fill(0);
+
+    for (const post of visiblePosts) {
+      // Estimate card height: base + text lines + media + quoted tweet
+      let h = 80; // base (author row + action bar + padding)
+      h += Math.ceil((post.text?.length ?? 0) / 60) * 20; // ~20px per line (60 chars)
+      if (post.tweet.media && post.tweet.media.length > 0) h += 200;
+      if (post.tweet.quoted_tweet) h += 120;
+      if (post.translatedText) h += 40; // AI insight bar
+      if (post.commentText) h += 50;
+
+      // Find shortest column
+      let minIdx = 0;
+      for (let c = 1; c < columnCount; c++) {
+        if (heights[c]! < heights[minIdx]!) minIdx = c;
+      }
+      cols[minIdx]!.push(post);
+      heights[minIdx]! += h;
+    }
+
     return cols;
   }, [visiblePosts, columnCount]);
 
