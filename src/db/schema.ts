@@ -237,6 +237,12 @@ export const fetchedPosts = sqliteTable(
       t.watchlistId,
       t.tweetId,
     ),
+    /** Speed up queries filtering by member. */
+    idxMemberId: index("fetched_posts_member_id_idx").on(t.memberId),
+    /** Speed up queries filtering by user. */
+    idxUserId: index("fetched_posts_user_id_idx").on(t.userId),
+    /** Speed up ordering/filtering by tweet timestamp. */
+    idxTweetCreatedAt: index("fetched_posts_tweet_created_at_idx").on(t.tweetCreatedAt),
   }),
 );
 

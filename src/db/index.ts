@@ -311,6 +311,24 @@ export function initSchema(): void {
     CREATE UNIQUE INDEX IF NOT EXISTS watchlist_members_wl_username_uniq
       ON watchlist_members (watchlist_id, twitter_username);
 
+    -- Performance indexes for fetched_posts
+    CREATE INDEX IF NOT EXISTS fetched_posts_member_id_idx
+      ON fetched_posts (member_id);
+    CREATE INDEX IF NOT EXISTS fetched_posts_user_id_idx
+      ON fetched_posts (user_id);
+    CREATE INDEX IF NOT EXISTS fetched_posts_tweet_created_at_idx
+      ON fetched_posts (tweet_created_at);
+
+    -- Performance indexes for watchlist_members
+    CREATE INDEX IF NOT EXISTS watchlist_members_user_id_idx
+      ON watchlist_members (user_id);
+    CREATE INDEX IF NOT EXISTS watchlist_members_watchlist_id_idx
+      ON watchlist_members (watchlist_id);
+
+    -- Performance indexes for fetch_logs
+    CREATE INDEX IF NOT EXISTS fetch_logs_watchlist_id_idx
+      ON fetch_logs (watchlist_id);
+
     -- Safe column migration: add comment_text if missing (for pre-existing DBs)
     -- SQLite doesn't support ADD COLUMN IF NOT EXISTS, so we catch the error.
   `);
