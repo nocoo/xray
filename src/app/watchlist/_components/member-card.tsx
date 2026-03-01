@@ -1,10 +1,11 @@
 "use client";
 
+import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2 } from "lucide-react";
 import type { WatchlistMember } from "../_lib/types";
 
-export function MemberCard({
+export const MemberCard = memo(function MemberCard({
   member,
   onEdit,
   onDelete,
@@ -82,4 +83,4 @@ export function MemberCard({
       )}
     </div>
   );
-}
+});
