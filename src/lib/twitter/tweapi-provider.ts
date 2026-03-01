@@ -101,9 +101,16 @@ export class TweAPIProvider implements ITwitterProvider {
       if (timeoutId) clearTimeout(timeoutId);
 
       if (!response.ok) {
+        let detail = response.statusText;
+        try {
+          const text = await response.text();
+          if (text) detail = text.slice(0, 200);
+        } catch {
+          // ignore body read failure
+        }
         throw new UpstreamError(
           response.status,
-          `TweAPI error: ${response.status} ${response.statusText}`,
+          `TweAPI error: ${response.status} ${response.statusText} - ${detail}`,
         );
       }
 
@@ -168,18 +175,31 @@ export class TweAPIProvider implements ITwitterProvider {
     username: string,
     options?: FetchTweetsOptions,
   ): Promise<Tweet[]> {
-    const data = await this.request<TweAPIResponse>(
-      "/v1/twitter/user/userRecentTweetsByFilter",
-      {
-        url: `https://x.com/${username}`,
-        showPost: true,
-        showReplies: false,
-        showLinks: true,
-        count: options?.count ?? 20,
-      },
-    );
-    if (!data.data?.list) return [];
-    return data.data.list.map((tweet) => normalizeTweet(tweet));
+    try {
+      const data = await this.request<TweAPIResponse>(
+        "/v1/twitter/user/userRecentTweetsByFilter",
+        {
+          url: `https://x.com/${username}`,
+          showPost: true,
+          showReplies: false,
+          showLinks: true,
+          count: options?.count ?? 20,
+        },
+      );
+      if (!data.data?.list) return [];
+      return data.data.list.map((tweet) => normalizeTweet(tweet));
+    } catch (err) {
+      // Fallback: if the filter endpoint returns 400, retry with the simpler endpoint
+      if (err instanceof UpstreamError && err.statusCode === 400) {
+        const data = await this.request<TweAPIResponse>(
+          "/v1/twitter/user/userRecent20Tweets",
+          { url: `https://x.com/${username}` },
+        );
+        if (!data.data?.list) return [];
+        return data.data.list.map((tweet) => normalizeTweet(tweet));
+      }
+      throw err;
+    }
   }
 
   async searchTweets(
