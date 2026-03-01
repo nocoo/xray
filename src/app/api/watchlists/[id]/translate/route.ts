@@ -127,32 +127,50 @@ export async function POST(request: Request, ctx: RouteContext) {
     return { id: p.id, text: p.text, quotedText };
   });
 
-  // ── Stream mode: SSE per-post progress ──
+  // ── Stream mode: SSE per-post progress with concurrency pool (max 3) ──
   if (streamMode) {
     const encoder = new TextEncoder();
     let aborted = false;
+    const CONCURRENCY = 3;
 
     const stream = new ReadableStream({
       async start(controller) {
         let translatedCount = 0;
+        let completedCount = 0;
         const errorMessages: string[] = [];
         const total = postsToTranslate.length;
 
-        for (let i = 0; i < total; i++) {
+        // Process posts in batches of CONCURRENCY
+        for (let batchStart = 0; batchStart < total; batchStart += CONCURRENCY) {
           if (aborted) break;
 
-          const post = postsToTranslate[i]!;
-          try {
-            const result = await translateText(user.id, post.text, post.quotedText);
-            fetchedPostsRepo.updateTranslation(
-              post.id,
-              result.translatedText,
-              result.commentText,
-              result.quotedTranslatedText,
-            );
-            translatedCount++;
+          const batchEnd = Math.min(batchStart + CONCURRENCY, total);
+          const batch = postsToTranslate.slice(batchStart, batchEnd);
 
-            if (!aborted) {
+          // Run batch concurrently using Promise.allSettled
+          const results = await Promise.allSettled(
+            batch.map(async (post) => {
+              if (aborted) throw new Error("Aborted");
+              const result = await translateText(user.id, post.text, post.quotedText);
+              fetchedPostsRepo.updateTranslation(
+                post.id,
+                result.translatedText,
+                result.commentText,
+                result.quotedTranslatedText,
+              );
+              return { post, result };
+            }),
+          );
+
+          // Emit SSE events for each result in batch order
+          for (let j = 0; j < results.length; j++) {
+            if (aborted) break;
+            completedCount++;
+            const settled = results[j]!;
+
+            if (settled.status === "fulfilled") {
+              translatedCount++;
+              const { post, result } = settled.value;
               controller.enqueue(
                 encoder.encode(
                   sseMessage("translated", {
@@ -160,26 +178,28 @@ export async function POST(request: Request, ctx: RouteContext) {
                     translatedText: result.translatedText,
                     commentText: result.commentText,
                     quotedTranslatedText: result.quotedTranslatedText ?? null,
-                    current: i + 1,
+                    current: completedCount,
+                    total,
+                  }),
+                ),
+              );
+            } else {
+              const post = batch[j]!;
+              const message = settled.reason instanceof Error
+                ? settled.reason.message
+                : String(settled.reason);
+              errorMessages.push(message);
+              controller.enqueue(
+                encoder.encode(
+                  sseMessage("error", {
+                    postId: post.id,
+                    error: message,
+                    current: completedCount,
                     total,
                   }),
                 ),
               );
             }
-          } catch (err) {
-            if (aborted) break;
-            const message = err instanceof Error ? err.message : String(err);
-            errorMessages.push(message);
-            controller.enqueue(
-              encoder.encode(
-                sseMessage("error", {
-                  postId: post.id,
-                  error: message,
-                  current: i + 1,
-                  total,
-                }),
-              ),
-            );
           }
         }
 

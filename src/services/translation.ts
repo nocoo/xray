@@ -215,29 +215,44 @@ export async function translateText(
 }
 
 /**
- * Translate multiple posts in batch.
+ * Translate multiple posts in batch with concurrency pool (max 3).
  * Each post is translated independently — failures don't block others.
  * If a post has quotedText, both the main and quoted text are translated together.
+ * Processes in batches of CONCURRENCY to avoid overwhelming the AI provider.
  */
 export async function translateBatch(
   userId: string,
   posts: { id: number; text: string; quotedText?: string }[],
 ): Promise<BatchTranslationResult> {
+  const CONCURRENCY = 3;
   const translated: TranslationResult[] = [];
   const errors: TranslationError[] = [];
 
-  for (const post of posts) {
-    try {
-      const result = await translateText(userId, post.text, post.quotedText);
-      translated.push({
-        postId: post.id,
-        translatedText: result.translatedText,
-        commentText: result.commentText,
-        quotedTranslatedText: result.quotedTranslatedText,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      errors.push({ postId: post.id, error: message });
+  for (let i = 0; i < posts.length; i += CONCURRENCY) {
+    const batch = posts.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map(async (post) => {
+        const result = await translateText(userId, post.text, post.quotedText);
+        return { postId: post.id, ...result };
+      }),
+    );
+
+    for (let j = 0; j < results.length; j++) {
+      const settled = results[j]!;
+      if (settled.status === "fulfilled") {
+        translated.push({
+          postId: settled.value.postId,
+          translatedText: settled.value.translatedText,
+          commentText: settled.value.commentText,
+          quotedTranslatedText: settled.value.quotedTranslatedText,
+        });
+      } else {
+        const post = batch[j]!;
+        const message = settled.reason instanceof Error
+          ? settled.reason.message
+          : String(settled.reason);
+        errors.push({ postId: post.id, error: message });
+      }
     }
   }
 
