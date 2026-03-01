@@ -256,7 +256,7 @@ describe("TweAPIProvider", () => {
 
     test("falls back to timeline on 400 from filter endpoint", async () => {
       let callCount = 0;
-      mockFetch.mockImplementation((_url: string) => {
+      mockFetch.mockImplementation(() => {
         callCount++;
         if (callCount === 1) {
           // First call to userRecentTweetsByFilter → HTTP 400

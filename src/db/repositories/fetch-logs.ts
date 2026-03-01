@@ -5,7 +5,7 @@
  * per-member error details so users can review failures.
  */
 
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, desc, count } from "drizzle-orm";
 import { db } from "@/db";
 import { fetchLogs, type FetchLog, type NewFetchLog } from "@/db/schema";
 

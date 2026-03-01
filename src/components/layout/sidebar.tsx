@@ -229,8 +229,6 @@ function WatchlistGroup({
   pathname: string;
 }) {
   const [expanded, setExpanded] = useState(true);
-  const anyWatchlistActive =
-    pathname === "/watchlist" || pathname.startsWith("/watchlist/");
 
   return (
     <div>
