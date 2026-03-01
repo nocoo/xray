@@ -325,12 +325,29 @@ export function initSchema(): void {
     CREATE INDEX IF NOT EXISTS watchlist_members_watchlist_id_idx
       ON watchlist_members (watchlist_id);
 
-    -- Performance indexes for fetch_logs
-    CREATE INDEX IF NOT EXISTS fetch_logs_watchlist_id_idx
-      ON fetch_logs (watchlist_id);
-
     -- Safe column migration: add comment_text if missing (for pre-existing DBs)
     -- SQLite doesn't support ADD COLUMN IF NOT EXISTS, so we catch the error.
+  `);
+
+  // Create fetch_logs table early so safeAddColumn and migrateToMultiWatchlist can reference it.
+  sqlite!.exec(`
+    CREATE TABLE IF NOT EXISTS fetch_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      attempted INTEGER NOT NULL DEFAULT 0,
+      succeeded INTEGER NOT NULL DEFAULT 0,
+      skipped INTEGER NOT NULL DEFAULT 0,
+      purged INTEGER NOT NULL DEFAULT 0,
+      error_count INTEGER NOT NULL DEFAULT 0,
+      errors TEXT,
+      created_at INTEGER NOT NULL
+    );
+
+    -- Performance index for fetch_logs
+    CREATE INDEX IF NOT EXISTS fetch_logs_watchlist_id_idx
+      ON fetch_logs (watchlist_id);
   `);
 
   // Safe column migrations for pre-existing databases.
@@ -358,23 +375,6 @@ export function initSchema(): void {
   // watchlist_id on watchlist_members, fetched_posts, and fetch_logs.
   // --------------------------------------------------------------------------
   migrateToMultiWatchlist();
-
-  sqlite!.exec(`
-    -- Fetch logs (persistent fetch/translate history)
-    CREATE TABLE IF NOT EXISTS fetch_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-      watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE,
-      type TEXT NOT NULL,
-      attempted INTEGER NOT NULL DEFAULT 0,
-      succeeded INTEGER NOT NULL DEFAULT 0,
-      skipped INTEGER NOT NULL DEFAULT 0,
-      purged INTEGER NOT NULL DEFAULT 0,
-      error_count INTEGER NOT NULL DEFAULT 0,
-      errors TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
 }
 
 /** Get or create the database instance based on XRAY_DB env var. */
