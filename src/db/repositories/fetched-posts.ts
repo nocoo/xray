@@ -2,7 +2,7 @@
  * Fetched Posts repository.
  *
  * Manages cached tweets from auto-fetch with deduplication and translation state.
- * Deduplication is enforced at the DB level via a UNIQUE index on (user_id, tweet_id)
+ * Deduplication is enforced at the DB level via a UNIQUE index on (watchlist_id, tweet_id)
  * combined with INSERT ... ON CONFLICT DO NOTHING for race-safe batch inserts.
  */
 
@@ -18,7 +18,21 @@ import {
 // Queries
 // =============================================================================
 
-/** Find all fetched posts for a user, newest tweet first. */
+/** Find all fetched posts for a watchlist, newest tweet first. */
+export function findByWatchlistId(
+  watchlistId: number,
+  limit = 200,
+): FetchedPost[] {
+  return db
+    .select()
+    .from(fetchedPosts)
+    .where(eq(fetchedPosts.watchlistId, watchlistId))
+    .orderBy(desc(fetchedPosts.tweetCreatedAt))
+    .limit(limit)
+    .all();
+}
+
+/** @deprecated Use findByWatchlistId instead. Kept for backward compat during migration. */
 export function findByUserId(
   userId: string,
   limit = 200,
@@ -55,9 +69,9 @@ export function findByMemberId(
     .all();
 }
 
-/** Find all posts that haven't been translated yet. */
+/** Find all posts that haven't been translated yet within a watchlist. */
 export function findUntranslated(
-  userId: string,
+  watchlistId: number,
   limit = 50,
 ): FetchedPost[] {
   return db
@@ -65,7 +79,7 @@ export function findUntranslated(
     .from(fetchedPosts)
     .where(
       and(
-        eq(fetchedPosts.userId, userId),
+        eq(fetchedPosts.watchlistId, watchlistId),
         isNull(fetchedPosts.translatedText),
       ),
     )
@@ -80,7 +94,7 @@ export function findUntranslated(
 
 /**
  * Batch-insert posts, silently skipping duplicates via ON CONFLICT DO NOTHING.
- * The UNIQUE index on (user_id, tweet_id) ensures no duplicates regardless of
+ * The UNIQUE index on (watchlist_id, tweet_id) ensures no duplicates regardless of
  * concurrent requests. Returns the count of newly inserted rows.
  */
 export function insertMany(
@@ -107,7 +121,7 @@ export function insertMany(
         })),
       )
       .onConflictDoNothing({
-        target: [fetchedPosts.userId, fetchedPosts.tweetId],
+        target: [fetchedPosts.watchlistId, fetchedPosts.tweetId],
       })
       .run();
     inserted += result.changes;
@@ -136,7 +150,16 @@ export function updateTranslation(
     .get();
 }
 
-/** Delete all fetched posts for a user. */
+/** Delete all fetched posts for a watchlist. */
+export function deleteByWatchlistId(watchlistId: number): number {
+  const result = db
+    .delete(fetchedPosts)
+    .where(eq(fetchedPosts.watchlistId, watchlistId))
+    .run();
+  return result.changes;
+}
+
+/** @deprecated Use deleteByWatchlistId instead. */
 export function deleteByUserId(userId: string): number {
   const result = db
     .delete(fetchedPosts)
@@ -145,7 +168,17 @@ export function deleteByUserId(userId: string): number {
   return result.changes;
 }
 
-/** Count all fetched posts for a user. */
+/** Count all fetched posts for a watchlist. */
+export function countByWatchlistId(watchlistId: number): number {
+  const row = db
+    .select({ total: count() })
+    .from(fetchedPosts)
+    .where(eq(fetchedPosts.watchlistId, watchlistId))
+    .get();
+  return row?.total ?? 0;
+}
+
+/** @deprecated Use countByWatchlistId instead. */
 export function countByUserId(userId: string): number {
   const row = db
     .select({ total: count() })
@@ -155,14 +188,14 @@ export function countByUserId(userId: string): number {
   return row?.total ?? 0;
 }
 
-/** Count untranslated posts for a user. */
-export function countUntranslated(userId: string): number {
+/** Count untranslated posts for a watchlist. */
+export function countUntranslated(watchlistId: number): number {
   const row = db
     .select({ total: count() })
     .from(fetchedPosts)
     .where(
       and(
-        eq(fetchedPosts.userId, userId),
+        eq(fetchedPosts.watchlistId, watchlistId),
         isNull(fetchedPosts.translatedText),
       ),
     )
@@ -173,16 +206,16 @@ export function countUntranslated(userId: string): number {
 /**
  * Delete posts whose tweetCreatedAt is older than `cutoffIso`.
  * Used for retention policy — purge tweets beyond the max window.
- * @param userId - Scope deletion to this user
+ * @param watchlistId - Scope deletion to this watchlist
  * @param cutoffIso - ISO 8601 string; posts created before this are deleted
  * @returns Number of deleted rows
  */
-export function purgeOlderThan(userId: string, cutoffIso: string): number {
+export function purgeOlderThan(watchlistId: number, cutoffIso: string): number {
   const result = db
     .delete(fetchedPosts)
     .where(
       and(
-        eq(fetchedPosts.userId, userId),
+        eq(fetchedPosts.watchlistId, watchlistId),
         lt(fetchedPosts.tweetCreatedAt, cutoffIso),
       ),
     )
@@ -193,16 +226,16 @@ export function purgeOlderThan(userId: string, cutoffIso: string): number {
 /**
  * Delete posts for members that no longer exist in the watchlist.
  * Uses NOT IN to find orphaned posts whose memberId references a deleted member.
- * @param userId - Scope to this user
+ * @param watchlistId - Scope to this watchlist
  * @param activeMemberIds - IDs of current watchlist members
  * @returns Number of deleted rows
  */
-export function purgeOrphaned(userId: string, activeMemberIds: number[]): number {
+export function purgeOrphaned(watchlistId: number, activeMemberIds: number[]): number {
   if (activeMemberIds.length === 0) {
-    // No active members → delete all posts for this user
+    // No active members → delete all posts for this watchlist
     const result = db
       .delete(fetchedPosts)
-      .where(eq(fetchedPosts.userId, userId))
+      .where(eq(fetchedPosts.watchlistId, watchlistId))
       .run();
     return result.changes;
   }
@@ -210,7 +243,7 @@ export function purgeOrphaned(userId: string, activeMemberIds: number[]): number
     .delete(fetchedPosts)
     .where(
       and(
-        eq(fetchedPosts.userId, userId),
+        eq(fetchedPosts.watchlistId, watchlistId),
         notInArray(fetchedPosts.memberId, activeMemberIds),
       ),
     )

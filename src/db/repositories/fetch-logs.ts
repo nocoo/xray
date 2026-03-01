@@ -5,7 +5,7 @@
  * per-member error details so users can review failures.
  */
 
-import { eq, desc, count } from "drizzle-orm";
+import { eq, and, desc, count } from "drizzle-orm";
 import { db } from "@/db";
 import { fetchLogs, type FetchLog, type NewFetchLog } from "@/db/schema";
 
@@ -13,7 +13,18 @@ import { fetchLogs, type FetchLog, type NewFetchLog } from "@/db/schema";
 // Queries
 // =============================================================================
 
-/** Get recent logs for a user, newest first. */
+/** Get recent logs for a watchlist, newest first. */
+export function findByWatchlistId(watchlistId: number, limit = 50): FetchLog[] {
+  return db
+    .select()
+    .from(fetchLogs)
+    .where(eq(fetchLogs.watchlistId, watchlistId))
+    .orderBy(desc(fetchLogs.createdAt), desc(fetchLogs.id))
+    .limit(limit)
+    .all();
+}
+
+/** @deprecated Use findByWatchlistId instead. Kept for backward compat during migration. */
 export function findByUserId(userId: string, limit = 50): FetchLog[] {
   return db
     .select()
@@ -33,7 +44,17 @@ export function findById(id: number): FetchLog | undefined {
     .get();
 }
 
-/** Count total logs for a user. */
+/** Count total logs for a watchlist. */
+export function countByWatchlistId(watchlistId: number): number {
+  const row = db
+    .select({ total: count() })
+    .from(fetchLogs)
+    .where(eq(fetchLogs.watchlistId, watchlistId))
+    .get();
+  return row?.total ?? 0;
+}
+
+/** @deprecated Use countByWatchlistId instead. */
 export function countByUserId(userId: string): number {
   const row = db
     .select({ total: count() })
@@ -61,7 +82,16 @@ export function insert(
     .get();
 }
 
-/** Delete all logs for a user. */
+/** Delete all logs for a watchlist. */
+export function deleteByWatchlistId(watchlistId: number): number {
+  const result = db
+    .delete(fetchLogs)
+    .where(eq(fetchLogs.watchlistId, watchlistId))
+    .run();
+  return result.changes;
+}
+
+/** @deprecated Use deleteByWatchlistId instead. */
 export function deleteByUserId(userId: string): number {
   const result = db
     .delete(fetchLogs)

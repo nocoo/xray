@@ -18,7 +18,21 @@ export interface WatchlistMemberWithTags extends WatchlistMember {
   tags: Tag[];
 }
 
-/** Find all watchlist members for a user, with their tags. */
+/** Find all members for a specific watchlist, with their tags. */
+export function findByWatchlistId(watchlistId: number): WatchlistMemberWithTags[] {
+  const members = db
+    .select()
+    .from(watchlistMembers)
+    .where(eq(watchlistMembers.watchlistId, watchlistId))
+    .all();
+
+  return members.map((m: WatchlistMember) => ({
+    ...m,
+    tags: getTagsForMember(m.id),
+  }));
+}
+
+/** Find all watchlist members for a user (across all watchlists), with their tags. */
 export function findByUserId(userId: string): WatchlistMemberWithTags[] {
   const members = db
     .select()
@@ -49,10 +63,10 @@ export function findByIdAndUserId(
   return { ...member, tags: getTagsForMember(member.id) };
 }
 
-/** Find a member by username and user ID (for deduplication). */
-export function findByUsernameAndUserId(
+/** Find a member by username within a specific watchlist (for deduplication). */
+export function findByUsernameAndWatchlistId(
   twitterUsername: string,
-  userId: string
+  watchlistId: number,
 ): WatchlistMember | undefined {
   return db
     .select()
@@ -60,20 +74,21 @@ export function findByUsernameAndUserId(
     .where(
       and(
         eq(watchlistMembers.twitterUsername, twitterUsername.toLowerCase()),
-        eq(watchlistMembers.userId, userId)
+        eq(watchlistMembers.watchlistId, watchlistId),
       )
     )
     .get();
 }
 
-/** Add a new member to the watchlist. */
+/** Add a new member to a watchlist. */
 export function create(
-  data: Pick<NewWatchlistMember, "userId" | "twitterUsername" | "note">
+  data: Pick<NewWatchlistMember, "userId" | "watchlistId" | "twitterUsername" | "note">
 ): WatchlistMember {
   return db
     .insert(watchlistMembers)
     .values({
       userId: data.userId,
+      watchlistId: data.watchlistId,
       twitterUsername: data.twitterUsername.toLowerCase().replace(/^@/, ""),
       note: data.note ?? null,
       addedAt: new Date(),
