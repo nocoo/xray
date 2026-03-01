@@ -418,19 +418,41 @@ export default function WatchlistDetailPage() {
     }
   }, [api, loadPosts, doStreamTranslate]);
 
-  // Set up polling timer
+  // Set up polling timer + pause when tab is hidden (Page Visibility API)
+  const fetchIntervalRef = useRef(fetchInterval);
+  useEffect(() => { fetchIntervalRef.current = fetchInterval; }, [fetchInterval]);
+  const doFetchRef = useRef(doFetch);
+  useEffect(() => { doFetchRef.current = doFetch; }, [doFetch]);
+
   useEffect(() => {
-    if (fetchTimerRef.current) {
-      clearInterval(fetchTimerRef.current);
+    const startTimer = () => {
+      if (fetchTimerRef.current) clearInterval(fetchTimerRef.current);
       fetchTimerRef.current = null;
-    }
-    if (fetchInterval > 0) {
-      fetchTimerRef.current = setInterval(doFetch, fetchInterval * 60 * 1000);
-    }
-    return () => {
+      if (fetchIntervalRef.current > 0) {
+        fetchTimerRef.current = setInterval(() => doFetchRef.current(), fetchIntervalRef.current * 60 * 1000);
+      }
+    };
+    const stopTimer = () => {
       if (fetchTimerRef.current) {
         clearInterval(fetchTimerRef.current);
+        fetchTimerRef.current = null;
       }
+    };
+
+    startTimer();
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        stopTimer();
+      } else {
+        startTimer();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      stopTimer();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [fetchInterval, doFetch]);
 
