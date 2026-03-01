@@ -95,6 +95,8 @@ function createDatabase(filename: string): DbInstance {
   currentDbFile = resolvedPath;
 
   sqlite = new DatabaseConstructor(resolvedPath);
+  // Enable foreign key enforcement — SQLite defaults to OFF.
+  sqlite.exec("PRAGMA foreign_keys = ON");
   dbInstance = drizzleFn(sqlite, { schema });
 
   initSchema();
