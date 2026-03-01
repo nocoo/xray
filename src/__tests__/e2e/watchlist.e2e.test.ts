@@ -2,9 +2,9 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { setupE2E, teardownE2E, getBaseUrl, apiRequest } from "./setup";
 
 // =============================================================================
-// E2E Tests — Watchlist & Tags Module
+// E2E Tests — Watchlist & Tags Module (Multi-Watchlist)
 //
-// Verifies the full CRUD lifecycle for watchlist members and tags via the
+// Verifies the full CRUD lifecycle for watchlists, members, and tags via the
 // live API, plus page-level smoke tests. Tests run sequentially because
 // later assertions depend on data created by earlier ones.
 //
@@ -16,6 +16,16 @@ interface TagData {
   name: string;
   color: string;
   userId: string;
+  createdAt: string;
+}
+
+interface WatchlistData {
+  id: number;
+  userId: string;
+  name: string;
+  description: string | null;
+  icon: string;
+  translateEnabled: number;
   createdAt: string;
 }
 
@@ -46,19 +56,87 @@ describe("e2e: watchlist & tags", () => {
   }, 15_000);
 
   // Track IDs created during the test run for sequential assertions
+  let watchlistId: number;
   let tagAlphaId: number;
   let tagBetaId: number;
   let memberElonId: number;
   let memberJackId: number;
 
+  /** Helper: member API path scoped to the test watchlist. */
+  function membersPath(query = ""): string {
+    return `/api/watchlists/${watchlistId}/members${query}`;
+  }
+
   // ===========================================================================
-  // Tags API — CRUD
+  // Watchlists API — Create the primary watchlist for subsequent tests
+  // ===========================================================================
+
+  describe("watchlists API", () => {
+    test("GET /api/watchlists returns empty list initially", async () => {
+      const { status, data } = await apiRequest<ApiSuccess<WatchlistData[]>>(
+        "/api/watchlists",
+      );
+      expect(status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.data).toBeInstanceOf(Array);
+      expect(data.data.length).toBe(0);
+    });
+
+    test("POST /api/watchlists creates a watchlist", async () => {
+      const { status, data } = await apiRequest<ApiSuccess<WatchlistData>>(
+        "/api/watchlists",
+        {
+          method: "POST",
+          body: JSON.stringify({ name: "E2E Test Watchlist", icon: "eye" }),
+        },
+      );
+      expect(status).toBe(201);
+      expect(data.success).toBe(true);
+      expect(data.data.name).toBe("E2E Test Watchlist");
+      expect(data.data.icon).toBe("eye");
+      expect(data.data.id).toBeGreaterThan(0);
+      watchlistId = data.data.id;
+    });
+
+    test("POST /api/watchlists rejects empty name", async () => {
+      const { status, data } = await apiRequest<ApiError>("/api/watchlists", {
+        method: "POST",
+        body: JSON.stringify({ name: "" }),
+      });
+      expect(status).toBe(400);
+      expect(data.error).toBeDefined();
+    });
+
+    test("PUT /api/watchlists updates name", async () => {
+      const { status, data } = await apiRequest<ApiSuccess<WatchlistData>>(
+        "/api/watchlists",
+        {
+          method: "PUT",
+          body: JSON.stringify({ id: watchlistId, name: "Renamed Watchlist" }),
+        },
+      );
+      expect(status).toBe(200);
+      expect(data.data.name).toBe("Renamed Watchlist");
+    });
+
+    test("GET /api/watchlists returns the watchlist", async () => {
+      const { status, data } = await apiRequest<ApiSuccess<WatchlistData[]>>(
+        "/api/watchlists",
+      );
+      expect(status).toBe(200);
+      expect(data.data.length).toBe(1);
+      expect(data.data[0]!.id).toBe(watchlistId);
+    });
+  });
+
+  // ===========================================================================
+  // Tags API — CRUD (tags are user-global, not watchlist-scoped)
   // ===========================================================================
 
   describe("tags API", () => {
     test("GET /api/tags returns empty list initially", async () => {
       const { status, data } = await apiRequest<ApiSuccess<TagData[]>>(
-        "/api/tags"
+        "/api/tags",
       );
       expect(status).toBe(200);
       expect(data.success).toBe(true);
@@ -72,7 +150,7 @@ describe("e2e: watchlist & tags", () => {
         {
           method: "POST",
           body: JSON.stringify({ name: "alpha" }),
-        }
+        },
       );
       expect(status).toBe(201);
       expect(data.success).toBe(true);
@@ -88,7 +166,7 @@ describe("e2e: watchlist & tags", () => {
         {
           method: "POST",
           body: JSON.stringify({ name: "alpha" }),
-        }
+        },
       );
       // Idempotent — returns the existing tag, still 201
       expect(status).toBe(201);
@@ -101,7 +179,7 @@ describe("e2e: watchlist & tags", () => {
         {
           method: "POST",
           body: JSON.stringify({ name: "beta" }),
-        }
+        },
       );
       expect(status).toBe(201);
       expect(data.data.name).toBe("beta");
@@ -120,7 +198,7 @@ describe("e2e: watchlist & tags", () => {
 
     test("GET /api/tags returns both tags", async () => {
       const { status, data } = await apiRequest<ApiSuccess<TagData[]>>(
-        "/api/tags"
+        "/api/tags",
       );
       expect(status).toBe(200);
       expect(data.data.length).toBe(2);
@@ -130,14 +208,14 @@ describe("e2e: watchlist & tags", () => {
   });
 
   // ===========================================================================
-  // Watchlist API — CRUD
+  // Members API — CRUD (scoped to watchlist)
   // ===========================================================================
 
-  describe("watchlist API", () => {
-    test("GET /api/watchlist returns empty list initially", async () => {
+  describe("members API", () => {
+    test("GET members returns empty list initially", async () => {
       const { status, data } = await apiRequest<
         ApiSuccess<WatchlistMemberData[]>
-      >("/api/watchlist");
+      >(membersPath());
       expect(status).toBe(200);
       expect(data.success).toBe(true);
       expect(data.data).toBeInstanceOf(Array);
@@ -148,10 +226,10 @@ describe("e2e: watchlist & tags", () => {
     // Create members
     // -------------------------------------------------------------------------
 
-    test("POST /api/watchlist creates a member without tags", async () => {
+    test("POST members creates a member without tags", async () => {
       const { status, data } = await apiRequest<
         ApiSuccess<WatchlistMemberData>
-      >("/api/watchlist", {
+      >(membersPath(), {
         method: "POST",
         body: JSON.stringify({
           twitterUsername: "elonmusk",
@@ -167,10 +245,10 @@ describe("e2e: watchlist & tags", () => {
       memberElonId = data.data.id;
     });
 
-    test("POST /api/watchlist creates a member with tags", async () => {
+    test("POST members creates a member with tags", async () => {
       const { status, data } = await apiRequest<
         ApiSuccess<WatchlistMemberData>
-      >("/api/watchlist", {
+      >(membersPath(), {
         method: "POST",
         body: JSON.stringify({
           twitterUsername: "@jack",
@@ -183,17 +261,17 @@ describe("e2e: watchlist & tags", () => {
       memberJackId = data.data.id;
     });
 
-    test("POST /api/watchlist rejects duplicate username", async () => {
-      const { status, data } = await apiRequest<ApiError>("/api/watchlist", {
+    test("POST members rejects duplicate username", async () => {
+      const { status, data } = await apiRequest<ApiError>(membersPath(), {
         method: "POST",
         body: JSON.stringify({ twitterUsername: "elonmusk" }),
       });
       expect(status).toBe(409);
-      expect(data.error).toContain("already in your watchlist");
+      expect(data.error).toContain("already in this watchlist");
     });
 
-    test("POST /api/watchlist rejects empty username", async () => {
-      const { status, data } = await apiRequest<ApiError>("/api/watchlist", {
+    test("POST members rejects empty username", async () => {
+      const { status, data } = await apiRequest<ApiError>(membersPath(), {
         method: "POST",
         body: JSON.stringify({ twitterUsername: "" }),
       });
@@ -205,10 +283,10 @@ describe("e2e: watchlist & tags", () => {
     // Read
     // -------------------------------------------------------------------------
 
-    test("GET /api/watchlist returns both members with tags", async () => {
+    test("GET members returns both members with tags", async () => {
       const { status, data } = await apiRequest<
         ApiSuccess<WatchlistMemberData[]>
-      >("/api/watchlist");
+      >(membersPath());
       expect(status).toBe(200);
       expect(data.data.length).toBe(2);
 
@@ -227,10 +305,10 @@ describe("e2e: watchlist & tags", () => {
     // Update
     // -------------------------------------------------------------------------
 
-    test("PUT /api/watchlist updates note", async () => {
+    test("PUT members updates note", async () => {
       const { status, data } = await apiRequest<
         ApiSuccess<WatchlistMemberData>
-      >("/api/watchlist", {
+      >(membersPath(), {
         method: "PUT",
         body: JSON.stringify({
           id: memberElonId,
@@ -241,10 +319,10 @@ describe("e2e: watchlist & tags", () => {
       expect(data.data.note).toBe("Updated note");
     });
 
-    test("PUT /api/watchlist updates tags", async () => {
+    test("PUT members updates tags", async () => {
       const { status, data } = await apiRequest<
         ApiSuccess<WatchlistMemberData>
-      >("/api/watchlist", {
+      >(membersPath(), {
         method: "PUT",
         body: JSON.stringify({
           id: memberElonId,
@@ -256,10 +334,10 @@ describe("e2e: watchlist & tags", () => {
       expect(data.data.tags[0]?.name).toBe("alpha");
     });
 
-    test("PUT /api/watchlist clears note with null", async () => {
+    test("PUT members clears note with null", async () => {
       const { status, data } = await apiRequest<
         ApiSuccess<WatchlistMemberData>
-      >("/api/watchlist", {
+      >(membersPath(), {
         method: "PUT",
         body: JSON.stringify({
           id: memberElonId,
@@ -270,8 +348,8 @@ describe("e2e: watchlist & tags", () => {
       expect(data.data.note).toBeNull();
     });
 
-    test("PUT /api/watchlist rejects missing id", async () => {
-      const { status, data } = await apiRequest<ApiError>("/api/watchlist", {
+    test("PUT members rejects missing id", async () => {
+      const { status, data } = await apiRequest<ApiError>(membersPath(), {
         method: "PUT",
         body: JSON.stringify({ note: "no id" }),
       });
@@ -279,8 +357,8 @@ describe("e2e: watchlist & tags", () => {
       expect(data.error).toBeDefined();
     });
 
-    test("PUT /api/watchlist returns 404 for non-existent id", async () => {
-      const { status, data } = await apiRequest<ApiError>("/api/watchlist", {
+    test("PUT members returns 404 for non-existent id", async () => {
+      const { status, data } = await apiRequest<ApiError>(membersPath(), {
         method: "PUT",
         body: JSON.stringify({ id: 99999, note: "ghost" }),
       });
@@ -292,10 +370,10 @@ describe("e2e: watchlist & tags", () => {
     // Delete
     // -------------------------------------------------------------------------
 
-    test("DELETE /api/watchlist removes a member", async () => {
+    test("DELETE members removes a member", async () => {
       const { status, data } = await apiRequest<
         ApiSuccess<{ deleted: boolean }>
-      >(`/api/watchlist?id=${memberJackId}`, {
+      >(membersPath(`?id=${memberJackId}`), {
         method: "DELETE",
       });
       expect(status).toBe(200);
@@ -303,23 +381,23 @@ describe("e2e: watchlist & tags", () => {
 
       // Verify it's gone
       const list = await apiRequest<ApiSuccess<WatchlistMemberData[]>>(
-        "/api/watchlist"
+        membersPath(),
       );
       expect(list.data.data.length).toBe(1);
       expect(list.data.data[0]?.twitterUsername).toBe("elonmusk");
     });
 
-    test("DELETE /api/watchlist returns 404 for non-existent id", async () => {
+    test("DELETE members returns 404 for non-existent id", async () => {
       const { status, data } = await apiRequest<ApiError>(
-        `/api/watchlist?id=99999`,
-        { method: "DELETE" }
+        membersPath("?id=99999"),
+        { method: "DELETE" },
       );
       expect(status).toBe(404);
       expect(data.error).toContain("not found");
     });
 
-    test("DELETE /api/watchlist rejects missing id param", async () => {
-      const { status, data } = await apiRequest<ApiError>("/api/watchlist", {
+    test("DELETE members rejects missing id param", async () => {
+      const { status, data } = await apiRequest<ApiError>(membersPath(), {
         method: "DELETE",
       });
       expect(status).toBe(400);
@@ -335,10 +413,10 @@ describe("e2e: watchlist & tags", () => {
     test("deleting a tag removes it from members", async () => {
       // First, verify elon still has tag alpha
       const before = await apiRequest<ApiSuccess<WatchlistMemberData[]>>(
-        "/api/watchlist"
+        membersPath(),
       );
       const elonBefore = before.data.data.find(
-        (m) => m.twitterUsername === "elonmusk"
+        (m) => m.twitterUsername === "elonmusk",
       );
       expect(elonBefore!.tags.length).toBe(1);
       expect(elonBefore!.tags[0]?.id).toBe(tagAlphaId);
@@ -346,16 +424,16 @@ describe("e2e: watchlist & tags", () => {
       // Delete tag alpha
       const { status } = await apiRequest<ApiSuccess<{ deleted: boolean }>>(
         `/api/tags?id=${tagAlphaId}`,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
       expect(status).toBe(200);
 
       // Verify tag is removed from member
       const after = await apiRequest<ApiSuccess<WatchlistMemberData[]>>(
-        "/api/watchlist"
+        membersPath(),
       );
       const elonAfter = after.data.data.find(
-        (m) => m.twitterUsername === "elonmusk"
+        (m) => m.twitterUsername === "elonmusk",
       );
       expect(elonAfter!.tags.length).toBe(0);
 
@@ -367,10 +445,57 @@ describe("e2e: watchlist & tags", () => {
     test("DELETE /api/tags returns 404 for non-existent id", async () => {
       const { status, data } = await apiRequest<ApiError>(
         `/api/tags?id=99999`,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
       expect(status).toBe(404);
       expect(data.error).toContain("not found");
+    });
+  });
+
+  // ===========================================================================
+  // Watchlist deletion
+  // ===========================================================================
+
+  describe("watchlist deletion", () => {
+    test("DELETE /api/watchlists removes a watchlist", async () => {
+      // Create a throwaway watchlist
+      const { data: created } = await apiRequest<ApiSuccess<WatchlistData>>(
+        "/api/watchlists",
+        {
+          method: "POST",
+          body: JSON.stringify({ name: "To Delete" }),
+        },
+      );
+      const tempId = created.data.id;
+
+      const { status, data } = await apiRequest<
+        ApiSuccess<{ deleted: boolean }>
+      >(`/api/watchlists?id=${tempId}`, { method: "DELETE" });
+      expect(status).toBe(200);
+      expect(data.data.deleted).toBe(true);
+
+      // Verify it's gone (only the original watchlist remains)
+      const list = await apiRequest<ApiSuccess<WatchlistData[]>>(
+        "/api/watchlists",
+      );
+      expect(list.data.data.find((w) => w.id === tempId)).toBeUndefined();
+    });
+
+    test("DELETE /api/watchlists returns 404 for non-existent id", async () => {
+      const { status, data } = await apiRequest<ApiError>(
+        `/api/watchlists?id=99999`,
+        { method: "DELETE" },
+      );
+      expect(status).toBe(404);
+      expect(data.error).toContain("not found");
+    });
+
+    test("DELETE /api/watchlists rejects missing id", async () => {
+      const { status, data } = await apiRequest<ApiError>("/api/watchlists", {
+        method: "DELETE",
+      });
+      expect(status).toBe(400);
+      expect(data.error).toBeDefined();
     });
   });
 
@@ -379,13 +504,12 @@ describe("e2e: watchlist & tags", () => {
   // ===========================================================================
 
   describe("page integration", () => {
-    test("GET /watchlist returns 200 with watchlist content", async () => {
+    test("GET /watchlist returns 200 with watchlist listing", async () => {
       const res = await fetch(`${getBaseUrl()}/watchlist`);
       expect(res.status).toBe(200);
 
       const html = await res.text();
       expect(html).toContain("Watchlist");
-      expect(html).toContain("Add User");
     });
   });
 });

@@ -2,11 +2,11 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { setupE2E, teardownE2E, getBaseUrl, apiRequest, apiRequestSSE } from "./setup";
 
 // =============================================================================
-// E2E Tests — Auto-Fetch & Translation Lifecycle
+// E2E Tests — Auto-Fetch & Translation Lifecycle (Multi-Watchlist)
 //
 // Verifies the full lifecycle:
-//   1. Set fetch interval → 2. Add watchlist members → 3. Trigger fetch →
-//   4. List posts → 5. Trigger translate → 6. Verify translated posts
+//   1. Create watchlist → 2. Set fetch interval → 3. Add members →
+//   4. Trigger fetch → 5. List posts → 6. Trigger translate → 7. Verify
 //
 // Server runs with MOCK_PROVIDER=true and E2E_SKIP_AUTH=true.
 // Translation uses mock AI (no real API calls) — the translate endpoint
@@ -14,6 +14,16 @@ import { setupE2E, teardownE2E, getBaseUrl, apiRequest, apiRequestSSE } from "./
 // acceptable: we verify the flow reaches the translate endpoint and handles
 // the error correctly.
 // =============================================================================
+
+interface WatchlistData {
+  id: number;
+  userId: string;
+  name: string;
+  description: string | null;
+  icon: string;
+  translateEnabled: number;
+  createdAt: string;
+}
 
 interface WatchlistSettingsData {
   fetchIntervalMinutes: number;
@@ -71,17 +81,46 @@ describe("e2e: auto-fetch lifecycle", () => {
   }, 15_000);
 
   // Track state across sequential tests
+  let watchlistId: number;
   let memberAliceId: number;
   let memberBobId: number;
+
+  /** Helper: build API path scoped to the test watchlist. */
+  function wlPath(sub: string, query = ""): string {
+    return `/api/watchlists/${watchlistId}/${sub}${query}`;
+  }
+
+  // ===========================================================================
+  // 0. Create watchlist
+  // ===========================================================================
+
+  describe("create watchlist", () => {
+    test("POST /api/watchlists creates the test watchlist", async () => {
+      const { status, data } = await apiRequest<ApiSuccess<WatchlistData>>(
+        "/api/watchlists",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            name: "Auto-Fetch Test",
+            icon: "zap",
+          }),
+        },
+      );
+      expect(status).toBe(201);
+      expect(data.success).toBe(true);
+      watchlistId = data.data.id;
+      expect(watchlistId).toBeGreaterThan(0);
+    });
+  });
 
   // ===========================================================================
   // 1. Settings — configure fetch interval
   // ===========================================================================
 
   describe("settings", () => {
-    test("GET /api/watchlist/settings returns defaults (interval=0, retention=1)", async () => {
+    test("GET settings returns defaults (interval=0, retention=1)", async () => {
       const { status, data } = await apiRequest<ApiSuccess<WatchlistSettingsData>>(
-        "/api/watchlist/settings",
+        wlPath("settings"),
       );
       expect(status).toBe(200);
       expect(data.success).toBe(true);
@@ -89,9 +128,9 @@ describe("e2e: auto-fetch lifecycle", () => {
       expect(data.data.retentionDays).toBe(1);
     });
 
-    test("PUT /api/watchlist/settings sets interval to 15", async () => {
+    test("PUT settings sets interval to 15", async () => {
       const { status, data } = await apiRequest<ApiSuccess<WatchlistSettingsData>>(
-        "/api/watchlist/settings",
+        wlPath("settings"),
         {
           method: "PUT",
           body: JSON.stringify({ fetchIntervalMinutes: 15 }),
@@ -101,9 +140,9 @@ describe("e2e: auto-fetch lifecycle", () => {
       expect(data.data.fetchIntervalMinutes).toBe(15);
     });
 
-    test("PUT /api/watchlist/settings sets retention to 7 days", async () => {
+    test("PUT settings sets retention to 7 days", async () => {
       const { status, data } = await apiRequest<ApiSuccess<WatchlistSettingsData>>(
-        "/api/watchlist/settings",
+        wlPath("settings"),
         {
           method: "PUT",
           body: JSON.stringify({ retentionDays: 7 }),
@@ -113,9 +152,9 @@ describe("e2e: auto-fetch lifecycle", () => {
       expect(data.data.retentionDays).toBe(7);
     });
 
-    test("PUT /api/watchlist/settings rejects invalid interval", async () => {
+    test("PUT settings rejects invalid interval", async () => {
       const { status, data } = await apiRequest<ApiError>(
-        "/api/watchlist/settings",
+        wlPath("settings"),
         {
           method: "PUT",
           body: JSON.stringify({ fetchIntervalMinutes: 42 }),
@@ -125,9 +164,9 @@ describe("e2e: auto-fetch lifecycle", () => {
       expect(data.error).toContain("Invalid interval");
     });
 
-    test("PUT /api/watchlist/settings rejects invalid retention", async () => {
+    test("PUT settings rejects invalid retention", async () => {
       const { status, data } = await apiRequest<ApiError>(
-        "/api/watchlist/settings",
+        wlPath("settings"),
         {
           method: "PUT",
           body: JSON.stringify({ retentionDays: 5 }),
@@ -137,9 +176,9 @@ describe("e2e: auto-fetch lifecycle", () => {
       expect(data.error).toContain("Invalid retention");
     });
 
-    test("GET /api/watchlist/settings reflects updated values", async () => {
+    test("GET settings reflects updated values", async () => {
       const { data } = await apiRequest<ApiSuccess<WatchlistSettingsData>>(
-        "/api/watchlist/settings",
+        wlPath("settings"),
       );
       expect(data.data.fetchIntervalMinutes).toBe(15);
       expect(data.data.retentionDays).toBe(7);
@@ -151,10 +190,10 @@ describe("e2e: auto-fetch lifecycle", () => {
   // ===========================================================================
 
   describe("add members", () => {
-    test("POST /api/watchlist adds alice", async () => {
+    test("POST members adds alice", async () => {
       const { status, data } = await apiRequest<
         ApiSuccess<{ id: number; twitterUsername: string }>
-      >("/api/watchlist", {
+      >(wlPath("members"), {
         method: "POST",
         body: JSON.stringify({
           twitterUsername: "alice",
@@ -166,10 +205,10 @@ describe("e2e: auto-fetch lifecycle", () => {
       memberAliceId = data.data.id;
     });
 
-    test("POST /api/watchlist adds bob", async () => {
+    test("POST members adds bob", async () => {
       const { status, data } = await apiRequest<
         ApiSuccess<{ id: number; twitterUsername: string }>
-      >("/api/watchlist", {
+      >(wlPath("members"), {
         method: "POST",
         body: JSON.stringify({
           twitterUsername: "bob",
@@ -186,9 +225,9 @@ describe("e2e: auto-fetch lifecycle", () => {
   // ===========================================================================
 
   describe("fetch tweets", () => {
-    test("POST /api/watchlist/fetch retrieves tweets for all members (SSE)", async () => {
+    test("POST fetch retrieves tweets for all members (SSE)", async () => {
       const { status, events } = await apiRequestSSE(
-        "/api/watchlist/fetch",
+        wlPath("fetch"),
         { method: "POST" },
       );
       expect(status).toBe(200);
@@ -205,9 +244,9 @@ describe("e2e: auto-fetch lifecycle", () => {
       expect(done.purged).toBe(0); // no old posts to purge
     });
 
-    test("POST /api/watchlist/fetch deduplicates on second call (SSE)", async () => {
+    test("POST fetch deduplicates on second call (SSE)", async () => {
       const { events } = await apiRequestSSE(
-        "/api/watchlist/fetch",
+        wlPath("fetch"),
         { method: "POST" },
       );
       const done = events.find((e) => e.event === "done")!.data as FetchResultData;
@@ -221,9 +260,9 @@ describe("e2e: auto-fetch lifecycle", () => {
   // ===========================================================================
 
   describe("list posts", () => {
-    test("GET /api/watchlist/posts returns fetched posts", async () => {
+    test("GET posts returns fetched posts", async () => {
       const { status, data } = await apiRequest<PostsListResponse>(
-        "/api/watchlist/posts",
+        wlPath("posts"),
       );
       expect(status).toBe(200);
       expect(data.success).toBe(true);
@@ -240,16 +279,16 @@ describe("e2e: auto-fetch lifecycle", () => {
       }
     });
 
-    test("GET /api/watchlist/posts filters by memberId", async () => {
+    test("GET posts filters by memberId", async () => {
       const { data: allPosts } = await apiRequest<PostsListResponse>(
-        "/api/watchlist/posts",
+        wlPath("posts"),
       );
 
       const { data: alicePosts } = await apiRequest<PostsListResponse>(
-        `/api/watchlist/posts?memberId=${memberAliceId}`,
+        wlPath("posts", `?memberId=${memberAliceId}`),
       );
       const { data: bobPosts } = await apiRequest<PostsListResponse>(
-        `/api/watchlist/posts?memberId=${memberBobId}`,
+        wlPath("posts", `?memberId=${memberBobId}`),
       );
 
       expect(alicePosts.data.length).toBeGreaterThan(0);
@@ -264,9 +303,9 @@ describe("e2e: auto-fetch lifecycle", () => {
       }
     });
 
-    test("GET /api/watchlist/posts respects limit", async () => {
+    test("GET posts respects limit", async () => {
       const { data } = await apiRequest<PostsListResponse>(
-        "/api/watchlist/posts?limit=1",
+        wlPath("posts", "?limit=1"),
       );
       expect(data.data.length).toBe(1);
     });
@@ -277,10 +316,10 @@ describe("e2e: auto-fetch lifecycle", () => {
   // ===========================================================================
 
   describe("translate", () => {
-    test("POST /api/watchlist/translate handles missing AI config gracefully", async () => {
+    test("POST translate handles missing AI config gracefully", async () => {
       // No AI settings configured in E2E DB — translation should fail gracefully
       const { status, data } = await apiRequest<ApiSuccess<TranslateResultData>>(
-        "/api/watchlist/translate",
+        wlPath("translate"),
         { method: "POST" },
       );
       expect(status).toBe(200);
@@ -297,7 +336,7 @@ describe("e2e: auto-fetch lifecycle", () => {
   // ===========================================================================
 
   describe("page integration", () => {
-    test("GET /watchlist returns 200 with watchlist content", async () => {
+    test("GET /watchlist returns 200 with watchlist listing", async () => {
       const res = await fetch(`${getBaseUrl()}/watchlist`);
       expect(res.status).toBe(200);
       const html = await res.text();
