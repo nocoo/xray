@@ -324,7 +324,6 @@ export function initSchema(): void {
     CREATE TABLE IF NOT EXISTS fetch_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-      watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE,
       type TEXT NOT NULL,
       attempted INTEGER NOT NULL DEFAULT 0,
       succeeded INTEGER NOT NULL DEFAULT 0,
@@ -334,10 +333,6 @@ export function initSchema(): void {
       errors TEXT,
       created_at INTEGER NOT NULL
     );
-
-    -- Performance index for fetch_logs
-    CREATE INDEX IF NOT EXISTS fetch_logs_watchlist_id_idx
-      ON fetch_logs (watchlist_id);
   `);
   console.log("[db] initSchema() fetch_logs block done");
 
@@ -374,6 +369,8 @@ export function initSchema(): void {
       ON watchlist_members (watchlist_id, twitter_username);
     CREATE INDEX IF NOT EXISTS watchlist_members_watchlist_id_idx
       ON watchlist_members (watchlist_id);
+    CREATE INDEX IF NOT EXISTS fetch_logs_watchlist_id_idx
+      ON fetch_logs (watchlist_id);
   `);
   console.log("[db] initSchema() watchlist_id indexes created, starting migration...");
 
