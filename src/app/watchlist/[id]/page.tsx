@@ -372,8 +372,8 @@ export default function WatchlistDetailPage() {
           setFetchSummary(
             `Fetched ${newPosts} new post${newPosts !== 1 ? "s" : ""} from ${json.data.fetched} user${json.data.fetched !== 1 ? "s" : ""}`,
           );
-          // Auto-translate even on JSON fallback (e.g. zero-member watchlist edge case)
-          if (newPosts > 0 && translateEnabledRef.current) {
+          // Auto-translate even on JSON fallback — let server decide via findUntranslated()
+          if (translateEnabledRef.current) {
             setFetching(false);
             await doStreamTranslate();
             return;
@@ -471,8 +471,11 @@ export default function WatchlistDetailPage() {
         loadPosts();
       }
 
-      // Auto-trigger translate if new posts were fetched and translation is enabled
-      if (totalNewPosts > 0 && translateEnabledRef.current) {
+      // Auto-trigger translate whenever translation is enabled — the server's
+      // findUntranslated() decides whether there's actually work to do.
+      // Previously gated on `totalNewPosts > 0`, which missed the case where
+      // posts were already in DB (deduped by insertMany) but never translated.
+      if (translateEnabledRef.current) {
         await doStreamTranslate();
       } else {
         setPipelinePhase("done");
