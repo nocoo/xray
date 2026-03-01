@@ -4,6 +4,7 @@ import {
   integer,
   primaryKey,
   uniqueIndex,
+  index,
 } from "drizzle-orm/sqlite-core";
 import type { AdapterAccountType } from "@auth/core/adapters";
 
@@ -136,23 +137,33 @@ export const watchlists = sqliteTable("watchlists", {
 // Watchlist Members — users tracked within a watchlist
 // ============================================================================
 
-export const watchlistMembers = sqliteTable("watchlist_members", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  /** Which watchlist this member belongs to. */
-  watchlistId: integer("watchlist_id")
-    .notNull()
-    .references(() => watchlists.id, { onDelete: "cascade" }),
-  twitterUsername: text("twitter_username").notNull(),
-  note: text("note"),
-  addedAt: integer("added_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  /** Auto-fetch interval in minutes. null = disabled. */
-  fetchIntervalMinutes: integer("fetch_interval_minutes"),
-});
+export const watchlistMembers = sqliteTable(
+  "watchlist_members",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Which watchlist this member belongs to. */
+    watchlistId: integer("watchlist_id")
+      .notNull()
+      .references(() => watchlists.id, { onDelete: "cascade" }),
+    twitterUsername: text("twitter_username").notNull(),
+    note: text("note"),
+    addedAt: integer("added_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    /** Auto-fetch interval in minutes. null = disabled. */
+    fetchIntervalMinutes: integer("fetch_interval_minutes"),
+  },
+  (t) => ({
+    /** Prevent duplicate usernames within the same watchlist. */
+    uniqWatchlistUsername: uniqueIndex("watchlist_members_wl_username_uniq").on(
+      t.watchlistId,
+      t.twitterUsername,
+    ),
+  }),
+);
 
 export const tags = sqliteTable("tags", {
   id: integer("id").primaryKey({ autoIncrement: true }),
