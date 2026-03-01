@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, useMemo, memo } from "react";
 import { TweetCard } from "@/components/twitter/tweet-card";
 import {
   ArrowLeftRight,
@@ -36,14 +36,14 @@ export const WatchlistPostCard = memo(function WatchlistPostCard({
 
   const hasTranslation = !!translatedText;
 
-  const displayTweet = (() => {
+  const displayTweet = useMemo(() => {
     if (lang !== "zh" || !hasTranslation) return post.tweet;
     const t = { ...post.tweet, text: translatedText! };
     if (t.quoted_tweet && quotedTranslatedText) {
       t.quoted_tweet = { ...t.quoted_tweet, text: quotedTranslatedText };
     }
     return t;
-  })();
+  }, [lang, hasTranslation, post.tweet, translatedText, quotedTranslatedText]);
 
   const showComment = lang === "zh" && commentText;
 
