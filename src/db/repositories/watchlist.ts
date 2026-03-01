@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { db, getRawSqlite } from "@/db";
 import {
   watchlistMembers,
@@ -18,6 +18,45 @@ export interface WatchlistMemberWithTags extends WatchlistMember {
   tags: Tag[];
 }
 
+/**
+ * Batch-load tags for multiple members in a single query (eliminates N+1).
+ * Returns a Map from memberId → Tag[].
+ */
+function batchGetTagsForMembers(memberIds: number[]): Map<number, Tag[]> {
+  const result = new Map<number, Tag[]>();
+  if (memberIds.length === 0) return result;
+
+  const rows = db
+    .select({
+      memberId: watchlistMemberTags.memberId,
+      tag: tags,
+    })
+    .from(watchlistMemberTags)
+    .innerJoin(tags, eq(watchlistMemberTags.tagId, tags.id))
+    .where(inArray(watchlistMemberTags.memberId, memberIds))
+    .all();
+
+  for (const row of rows) {
+    const existing = result.get(row.memberId);
+    if (existing) {
+      existing.push(row.tag);
+    } else {
+      result.set(row.memberId, [row.tag]);
+    }
+  }
+
+  return result;
+}
+
+/** Enrich an array of members with their tags using a single batch query. */
+function enrichWithTags(members: WatchlistMember[]): WatchlistMemberWithTags[] {
+  const tagMap = batchGetTagsForMembers(members.map((m) => m.id));
+  return members.map((m) => ({
+    ...m,
+    tags: tagMap.get(m.id) ?? [],
+  }));
+}
+
 /** Find all members for a specific watchlist, with their tags. */
 export function findByWatchlistId(watchlistId: number): WatchlistMemberWithTags[] {
   const members = db
@@ -26,10 +65,7 @@ export function findByWatchlistId(watchlistId: number): WatchlistMemberWithTags[
     .where(eq(watchlistMembers.watchlistId, watchlistId))
     .all();
 
-  return members.map((m: WatchlistMember) => ({
-    ...m,
-    tags: getTagsForMember(m.id),
-  }));
+  return enrichWithTags(members);
 }
 
 /** Find all watchlist members for a user (across all watchlists), with their tags. */
@@ -40,10 +76,7 @@ export function findByUserId(userId: string): WatchlistMemberWithTags[] {
     .where(eq(watchlistMembers.userId, userId))
     .all();
 
-  return members.map((m: WatchlistMember) => ({
-    ...m,
-    tags: getTagsForMember(m.id),
-  }));
+  return enrichWithTags(members);
 }
 
 /** Find a watchlist member by ID and user ID (ownership check). */
