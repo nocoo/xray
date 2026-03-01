@@ -245,12 +245,15 @@ export default function WatchlistDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when watchlistId changes
   }, [watchlistId]);
 
-  // Refresh posts when switching to posts tab
+  // Refresh posts when switching to posts tab — but NOT while the
+  // fetch SSE stream is running, because it already injects posts
+  // in real-time via setPosts().  A competing loadPosts() would
+  // overwrite the SSE-injected posts with a stale DB snapshot.
   useEffect(() => {
-    if (activeTab === "posts") {
+    if (activeTab === "posts" && !fetchingRef.current && pipelinePhase !== "translating") {
       loadPosts();
     }
-  }, [activeTab, loadPosts]);
+  }, [activeTab, loadPosts, pipelinePhase]);
 
   // ── Auto-translate via SSE stream ──
 
