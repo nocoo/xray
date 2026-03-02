@@ -40,6 +40,24 @@ export function SqliteAdapter(): Adapter {
 
   return {
     async createUser(user) {
+      // Handle legacy users: if a user row already exists for this email
+      // (created by the old ensureUserExists() flow before the adapter was added),
+      // return the existing user instead of inserting a duplicate.
+      // This prevents SQLITE_CONSTRAINT on the email UNIQUE index.
+      const existing = sql()
+        .prepare("SELECT * FROM user WHERE email = ?")
+        .get(user.email) as Row | null;
+
+      if (existing) {
+        // Update profile fields that may have changed (name, image)
+        sql()
+          .prepare("UPDATE user SET name = ?, image = ? WHERE id = ?")
+          .run(user.name ?? existing.name, user.image ?? existing.image, existing.id);
+        return rowToUser(
+          sql().prepare("SELECT * FROM user WHERE id = ?").get(existing.id) as Row
+        );
+      }
+
       const id = crypto.randomUUID();
       sql()
         .prepare(
@@ -74,7 +92,19 @@ export function SqliteAdapter(): Adapter {
       const row = sql()
         .prepare("SELECT * FROM user WHERE email = ?")
         .get(email) as Row | null;
-      return row ? rowToUser(row) : null;
+      if (!row) return null;
+
+      // Legacy migration: if this user has no linked account rows yet
+      // (created before the adapter existed), return null so NextAuth
+      // treats them as a new user → createUser() reuses the row → linkAccount()
+      // populates the account table. Without this, NextAuth throws
+      // OAuthAccountNotLinked because it finds a user but no matching account.
+      const hasAccount = sql()
+        .prepare("SELECT 1 FROM account WHERE userId = ? LIMIT 1")
+        .get(row.id);
+      if (!hasAccount) return null;
+
+      return rowToUser(row);
     },
 
     async getUserByAccount({ providerAccountId, provider }) {
