@@ -10,10 +10,14 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Next.js-16-black" alt="Next.js">
+  <img src="https://img.shields.io/badge/vinext-Vite+Next.js-black" alt="vinext">
   <img src="https://img.shields.io/badge/TypeScript-5-blue" alt="TypeScript">
   <img src="https://img.shields.io/badge/SQLite-local-green" alt="SQLite">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
+</p>
+
+<p align="center">
+  <img src="https://s.zhe.to/dcd0e6e42358/20260302/17ab9eca-f303-4e1e-8c4f-65a0a30e3041.jpg" alt="X-Ray Preview" width="720">
 </p>
 
 ---
@@ -92,7 +96,8 @@ x-ray/
 │   ├── 07-agent-scripts.md       # Agent 脚本说明
 │   ├── 07-xray-web.md            # Web 端文档
 │   ├── 08-deployment.md          # 部署指南
-│   └── 09-dashboard-api-roadmap.md # API 路线图
+│   ├── 09-dashboard-api-roadmap.md # API 路线图
+│   └── api.md                    # REST API 文档
 ├── 📂 agent/                     # AI Agent 原子化工具
 │   ├── 📂 analyze/               # 分析工具
 │   ├── 📂 fetch/                 # 数据拉取
@@ -126,13 +131,15 @@ x-ray/
 │   │   ├── 📂 twitter/           # Twitter 业务组件
 │   │   └── 📂 ui/                # shadcn/ui 基础组件
 │   ├── 📂 db/                    # 数据库层
-│   │   ├── 📂 repositories/      # CRUD 操作
 │   │   ├── schema.ts             # Drizzle schema
+│   │   ├── scoped.ts             # ScopedDB — 按用户隔离的 CRUD
 │   │   └── index.ts              # 连接管理
 │   ├── 📂 lib/                   # 工具函数
 │   │   ├── 📂 twitter/           # Twitter Provider 层
+│   │   ├── auth-adapter.ts       # NextAuth SQLite adapter
+│   │   ├── auth-context.ts       # React.cache 认证上下文
 │   │   └── version.ts            # 版本管理 (读取 package.json)
-│   └── auth.ts                   # NextAuth 配置
+│   └── auth.ts                   # NextAuth 配置 (JWT + adapter)
 ├── 📂 tests/                     # Agent / 脚本测试
 ├── .env.example                  # 环境变量示例
 ├── drizzle.config.ts             # Drizzle ORM 配置
@@ -145,12 +152,12 @@ x-ray/
 | 组件 | 选型 |
 |------|------|
 | ⚡ Runtime | [Bun](https://bun.sh) |
-| 🖥️ Framework | [Next.js 16](https://nextjs.org) (App Router) |
+| 🖥️ Framework | [vinext](https://github.com/nicolo-ribaudo/vinext) (Vite + Next.js API on Cloudflare Workers) |
 | 📝 Language | TypeScript (strict mode) |
 | 🗄️ Database | SQLite + [Drizzle ORM](https://orm.drizzle.team) |
+| 🔐 Auth | [NextAuth.js](https://next-auth.js.org) (Google OAuth + custom SQLite adapter) |
 | 🎨 UI | [Tailwind CSS](https://tailwindcss.com) + [shadcn/ui](https://ui.shadcn.com) |
-| 🔐 Auth | [NextAuth.js](https://next-auth.js.org) (Google OAuth) |
-| 🌐 API | Next.js API Routes (webhook key auth) |
+| 🌐 API | Next.js API Routes (session auth + webhook key auth) |
 | 📊 Charts | [Recharts](https://recharts.org) |
 
 ## 📋 常用命令
