@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-03-02
+
+### Added
+
+- **Smart photo grid layout** — tweet media now uses intelligent grid layouts based on photo count: 1 photo full-width, 2 photos side-by-side, 3 photos left-large + right-two-small, 4 photos 2×2 grid; horizontal scroll only kicks in at 5+ photos or mixed media types (video/GIF)
+- **Image lightbox** — clicking any photo opens a fullscreen popup with the high-res image, dark overlay (`bg-black/80`), close button, ESC key support, and click-outside-to-close
+- **E2E test coverage** — new tests for watchlist detail pages, logs API, AI settings, webhooks pages, and auth enforcement across watchlist/settings/tags routes
+
+### Fixed
+
+- **SSE post overwrite** — `loadPosts` no longer overwrites posts that were injected mid-stream by SSE events
+- **Auto-translate on zero new posts** — translation now triggers after fetch even when all posts are deduplicated (`newPosts=0`)
+- **E2E stability** — increased pre-push hook timeout to 60s, added port cleanup and server reuse to E2E setup
+- Removed unused `totalNewPosts` variable and stale `eslint-disable` comment for undefined `react-hooks` rule
+
 ## [1.2.2] - 2026-03-02
 
 ### Added
