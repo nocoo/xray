@@ -196,54 +196,12 @@ export const TweetCard = memo(function TweetCard({
 
           {/* Quoted media */}
           {tweet.quoted_tweet.media && tweet.quoted_tweet.media.length > 0 && (
-            <div
-              className={
-                tweet.quoted_tweet.media.length === 1
-                  ? "mt-2"
-                  : "mt-2 flex gap-1.5 overflow-x-auto"
-              }
-            >
-              {tweet.quoted_tweet.media.map((m) => {
-                const isSingle = tweet.quoted_tweet!.media!.length === 1;
-                const containerClass = isSingle
-                  ? "overflow-hidden rounded-md bg-muted"
-                  : "relative shrink-0 overflow-hidden rounded-md bg-muted";
-                const mediaClass = isSingle
-                  ? "w-full max-h-60 object-cover rounded-md"
-                  : "h-28 w-auto max-w-[200px] object-cover";
-
-                if (m.type === "PHOTO") {
-                  return (
-                    <div key={m.id} className={containerClass}>
-                      <img src={m.url} alt="" className={mediaClass} loading="lazy" />
-                    </div>
-                  );
-                }
-                if (m.type === "GIF") {
-                  return (
-                    <div key={m.id} className={containerClass}>
-                      <video
-                        src={proxyUrl(m.url)}
-                        autoPlay loop muted playsInline
-                        className={mediaClass}
-                      />
-                    </div>
-                  );
-                }
-                if (m.type === "VIDEO") {
-                  return (
-                    <div key={m.id} className={containerClass} onClick={(e) => e.stopPropagation()}>
-                      <video
-                        src={proxyUrl(m.url)}
-                        poster={m.thumbnail_url ? proxyUrl(m.thumbnail_url) : undefined}
-                        controls playsInline preload="none"
-                        className={mediaClass}
-                      />
-                    </div>
-                  );
-                }
-                return null;
-              })}
+            <div className="mt-2">
+              <MediaGrid
+                media={tweet.quoted_tweet.media}
+                compact
+                onPhotoClick={setLightboxUrl}
+              />
             </div>
           )}
 
