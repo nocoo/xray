@@ -1,5 +1,6 @@
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { unlinkSync } from "fs";
 import { Subprocess } from "bun";
 import { generateWebhookKey, hashWebhookKey, getKeyPrefix } from "@/lib/crypto";
 
@@ -17,17 +18,60 @@ export function getBaseUrl(): string {
 }
 
 /**
+ * Kill any process listening on the given port.
+ * Uses lsof (macOS/Linux) to find and SIGKILL the occupying process.
+ * Silently succeeds if no process is found.
+ */
+async function killPortProcess(port: number): Promise<void> {
+  try {
+    const result = Bun.spawnSync(["lsof", "-ti", `tcp:${port}`]);
+    const pids = result.stdout.toString().trim();
+    if (!pids) return;
+
+    for (const pid of pids.split("\n")) {
+      const p = pid.trim();
+      if (p) {
+        Bun.spawnSync(["kill", "-9", p]);
+      }
+    }
+    // Give the OS a moment to release the port
+    await Bun.sleep(500);
+  } catch {
+    // lsof not available or no process found — safe to continue
+  }
+}
+
+/**
+ * Check if a server is already healthy on the given base URL.
+ * Returns true if the health endpoint responds successfully.
+ */
+async function isServerHealthy(baseUrl: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${baseUrl}/api/auth/providers`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Start the vinext dev server for E2E testing.
  * Uses E2E_SKIP_AUTH=true to bypass authentication.
  */
 export async function setupE2E(): Promise<void> {
   if (process.env.E2E_SKIP_SETUP === "true") return;
 
+  // If server is already running and healthy, reuse it
+  if (await isServerHealthy(getBaseUrl())) return;
+
+  // Kill any stale process occupying the port
+  await killPortProcess(E2E_PORT);
+
   // Clean up any existing E2E database
   const dbPath = resolve(PROJECT_ROOT, E2E_DB);
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { unlinkSync } = require("fs");
     unlinkSync(dbPath);
   } catch {
     // File doesn't exist, that's fine
@@ -69,8 +113,6 @@ export async function teardownE2E(): Promise<void> {
   // Clean up E2E database
   const dbPath = resolve(PROJECT_ROOT, E2E_DB);
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { unlinkSync } = require("fs");
     unlinkSync(dbPath);
   } catch {
     // Already cleaned or doesn't exist
@@ -237,11 +279,15 @@ export function getNoAuthBaseUrl(): string {
 export async function setupNoAuthE2E(): Promise<void> {
   if (process.env.E2E_SKIP_SETUP === "true") return;
 
+  // If server is already running and healthy, reuse it
+  if (await isServerHealthy(getNoAuthBaseUrl())) return;
+
+  // Kill any stale process occupying the port
+  await killPortProcess(NO_AUTH_PORT);
+
   // Clean up any existing no-auth database
   const dbPath = resolve(PROJECT_ROOT, NO_AUTH_DB);
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { unlinkSync } = require("fs");
     unlinkSync(dbPath);
   } catch {
     // File doesn't exist, that's fine
@@ -281,8 +327,6 @@ export async function teardownNoAuthE2E(): Promise<void> {
 
   const dbPath = resolve(PROJECT_ROOT, NO_AUTH_DB);
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { unlinkSync } = require("fs");
     unlinkSync(dbPath);
   } catch {
     // Already cleaned or doesn't exist
