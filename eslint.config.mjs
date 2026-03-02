@@ -19,6 +19,25 @@ const eslintConfig = defineConfig([
     // Python file mis-named as .ts
     "scripts/fix-translations.ts",
   ]),
+  // Key rules from typescript-eslint strict preset (no type-checking required)
+  {
+    rules: {
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/no-dynamic-delete": "error",
+      "@typescript-eslint/no-extraneous-class": "error",
+      "@typescript-eslint/unified-signatures": "error",
+      "@typescript-eslint/no-invalid-void-type": "error",
+    },
+  },
+  // Relax non-null-assertion in test files (common pattern: result!.field)
+  {
+    files: ["src/__tests__/**"],
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/no-dynamic-delete": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
