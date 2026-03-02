@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { ScopedDB } from "@/db/scoped";
+import { getDb, seedUser } from "@/db";
 
 // E2E test bypass — when set, skip session auth and use a deterministic user
 const E2E_SKIP_AUTH = process.env.E2E_SKIP_AUTH === "true";
@@ -12,13 +13,22 @@ const E2E_USER_ID = "e2e-test-user";
  *
  * With the NextAuth adapter in place, user identity is resolved via the
  * `account` table (provider + providerAccountId), so the session's user.id
- * is already the stable database ID. No ensureUserExists() needed.
+ * is already the stable database ID. No ensureUserExists() needed for normal
+ * auth flow. However, E2E_SKIP_AUTH bypasses OAuth entirely, so the user row
+ * must be seeded explicitly to satisfy FK constraints.
  */
 export async function requireAuth(): Promise<
   | { db: ScopedDB; error?: never }
   | { db?: never; error: NextResponse }
 > {
   if (E2E_SKIP_AUTH) {
+    // Ensure the database is initialized before seeding — seedUser() uses the
+    // raw sqlite driver which is only available after getDb() has been called.
+    getDb();
+    // Seed the E2E user row on first call — idempotent (INSERT OR IGNORE).
+    // Without this, all write operations fail with SQLITE_CONSTRAINT_FOREIGNKEY
+    // because business tables have FK constraints to user(id).
+    seedUser(E2E_USER_ID, "E2E Test User", "e2e@test.com");
     return { db: new ScopedDB(E2E_USER_ID) };
   }
 
