@@ -36,6 +36,8 @@ export const TweetCard = memo(function TweetCard({
   linkToDetail?: boolean;
   className?: string;
 }) {
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
   const card = (
     <div className={`rounded-card bg-secondary p-4 transition-colors hover:bg-secondary/80 ${className ?? ""}`}>
       {/* Author row */}
@@ -123,86 +125,8 @@ export const TweetCard = memo(function TweetCard({
 
       {/* Media preview */}
       {tweet.media && tweet.media.length > 0 && (
-        <div
-          className={
-            tweet.media.length === 1
-              ? "mt-3"
-              : "mt-3 flex gap-2 overflow-x-auto"
-          }
-        >
-          {tweet.media.map((m) => {
-            const isSingle = tweet.media!.length === 1;
-            const containerClass = isSingle
-              ? "overflow-hidden rounded-lg bg-muted"
-              : "relative shrink-0 overflow-hidden rounded-lg bg-muted";
-            const mediaClass = isSingle
-              ? "w-full rounded-lg"
-              : "h-40 w-auto max-w-[280px] object-cover";
-
-            if (m.type === "PHOTO") {
-              return (
-                <div key={m.id} className={containerClass}>
-                  <img
-                    src={m.url}
-                    alt=""
-                    className={mediaClass}
-                    loading="lazy"
-                  />
-                </div>
-              );
-            }
-
-            // Twitter GIFs are actually silent looping .mp4 files
-            if (m.type === "GIF") {
-              return (
-                <div key={m.id} className={containerClass}>
-                  <video
-                    src={proxyUrl(m.url)}
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    className={mediaClass}
-                  />
-                </div>
-              );
-            }
-
-            // VIDEO: render with controls, click stops propagation to parent Link
-            if (m.type === "VIDEO") {
-              return (
-                <div
-                  key={m.id}
-                  className={containerClass}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <video
-                    src={proxyUrl(m.url)}
-                    poster={m.thumbnail_url ? proxyUrl(m.thumbnail_url) : undefined}
-                    controls
-                    playsInline
-                    preload="none"
-                    className={mediaClass}
-                  />
-                </div>
-              );
-            }
-
-            // Fallback for unknown media types
-            return (
-              <div
-                key={m.id}
-                className="relative shrink-0 overflow-hidden rounded-lg bg-muted"
-              >
-                <div className="flex h-40 w-40 items-center justify-center">
-                  <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    {m.type}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+        <div className="mt-3">
+          <MediaGrid media={tweet.media} onPhotoClick={setLightboxUrl} />
         </div>
       )}
 
@@ -373,16 +297,24 @@ export const TweetCard = memo(function TweetCard({
 
   if (linkToDetail) {
     return (
-      <Link
-        href={`/tweets/${tweet.id}`}
-        className="block focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-card"
-      >
-        {card}
-      </Link>
+      <>
+        <Link
+          href={`/tweets/${tweet.id}`}
+          className="block focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-card"
+        >
+          {card}
+        </Link>
+        <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
+      </>
     );
   }
 
-  return card;
+  return (
+    <>
+      {card}
+      <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
+    </>
+  );
 });
 
 // =============================================================================
