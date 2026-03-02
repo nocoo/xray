@@ -62,6 +62,9 @@ describe("e2e: auth enforcement (no-auth server)", () => {
       { path: "/api/webhooks", name: "webhooks" },
       { path: "/api/credits", name: "credits" },
       { path: "/api/credits/usage", name: "credits/usage" },
+      { path: "/api/watchlists", name: "watchlists" },
+      { path: "/api/settings/ai", name: "settings/ai" },
+      { path: "/api/tags", name: "tags" },
     ];
 
     for (const route of protectedRoutes) {
@@ -73,6 +76,44 @@ describe("e2e: auth enforcement (no-auth server)", () => {
         expect(json.error).toBe("Unauthorized");
       });
     }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Watchlist sub-routes — require session auth via requireAuthWithWatchlist
+  // (Use watchlist ID 1 — doesn't need to exist, auth check comes first)
+  // ---------------------------------------------------------------------------
+
+  describe("watchlist sub-routes return 401 without session", () => {
+    const watchlistRoutes = [
+      { path: "/api/watchlists/1/members", name: "watchlists/[id]/members" },
+      { path: "/api/watchlists/1/posts", name: "watchlists/[id]/posts" },
+      { path: "/api/watchlists/1/logs", name: "watchlists/[id]/logs" },
+      { path: "/api/watchlists/1/settings", name: "watchlists/[id]/settings" },
+    ];
+
+    for (const route of watchlistRoutes) {
+      test(`GET ${route.name} returns 401`, async () => {
+        const res = await fetch(`${getNoAuthBaseUrl()}${route.path}`);
+        expect(res.status).toBe(401);
+
+        const json = await res.json();
+        expect(json.error).toBe("Unauthorized");
+      });
+    }
+
+    test("POST watchlists/[id]/fetch returns 401", async () => {
+      const res = await fetch(`${getNoAuthBaseUrl()}/api/watchlists/1/fetch`, {
+        method: "POST",
+      });
+      expect(res.status).toBe(401);
+    });
+
+    test("POST watchlists/[id]/translate returns 401", async () => {
+      const res = await fetch(`${getNoAuthBaseUrl()}/api/watchlists/1/translate`, {
+        method: "POST",
+      });
+      expect(res.status).toBe(401);
+    });
   });
 
   // ---------------------------------------------------------------------------
