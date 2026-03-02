@@ -193,3 +193,126 @@ test.describe("settings interactions", () => {
     await expect(page.locator("body")).toContainText("shown once", { timeout: 10_000 });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Watchlist CRUD lifecycle — create → navigate → edit → delete
+// ---------------------------------------------------------------------------
+
+test.describe("watchlist CRUD lifecycle", () => {
+  test("create watchlist via dialog and land on detail page", async ({
+    page,
+  }) => {
+    await page.goto("/watchlist");
+
+    // Start with empty state
+    await expect(page.locator("body")).toContainText("No watchlists yet", {
+      timeout: 10_000,
+    });
+
+    // Open create dialog
+    await page.getByRole("button", { name: "New Watchlist" }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+
+    // Fill in the form
+    await page.getByPlaceholder("e.g. Crypto KOLs").fill("Test Watchlist");
+    await page
+      .getByPlaceholder("What this watchlist tracks")
+      .fill("E2E test watchlist");
+
+    // Pick an icon
+    await page.getByRole("button", { name: "Pick an icon" }).click();
+    await page.getByRole("button", { name: "rocket" }).click();
+
+    // Auto-translate should be on by default
+    const toggle = page.getByRole("switch");
+    await expect(toggle).toHaveAttribute("aria-checked", "true");
+
+    // Submit
+    await page.getByRole("button", { name: "Create" }).click();
+
+    // Should navigate to the new watchlist detail page
+    await page.waitForURL(/\/watchlist\/\d+/, { timeout: 10_000 });
+
+    // Detail page should show the watchlist name
+    await expect(page.locator("body")).toContainText("Test Watchlist");
+  });
+
+  test("edit watchlist name and description", async ({ page }) => {
+    // First create a watchlist
+    await page.goto("/watchlist");
+    await page.getByRole("button", { name: "New Watchlist" }).click();
+    await page.getByPlaceholder("e.g. Crypto KOLs").fill("To Edit");
+    await page.getByRole("button", { name: "Create" }).click();
+    await page.waitForURL(/\/watchlist\/\d+/, { timeout: 10_000 });
+
+    // Navigate back to listing
+    await page.goto("/watchlist");
+    await expect(page.locator("body")).toContainText("To Edit", {
+      timeout: 10_000,
+    });
+
+    // Hover over the card to reveal edit button
+    const card = page.locator("a", { hasText: "To Edit" });
+    await card.hover();
+    await card.locator('button[title="Edit"]').click();
+
+    // Edit dialog should open
+    await expect(page.getByRole("dialog")).toBeVisible();
+
+    // Update the name
+    const nameInput = page.getByPlaceholder("e.g. Crypto KOLs");
+    await nameInput.clear();
+    await nameInput.fill("Edited Watchlist");
+
+    // Update description
+    await page
+      .getByPlaceholder("What this watchlist tracks")
+      .fill("Updated description");
+
+    // Save
+    await page.getByRole("button", { name: "Save" }).click();
+
+    // Dialog should close and updated name should appear
+    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+    await expect(page.locator("body")).toContainText("Edited Watchlist");
+  });
+
+  test("delete watchlist via confirmation dialog", async ({ page }) => {
+    // First create a watchlist
+    await page.goto("/watchlist");
+    await page.getByRole("button", { name: "New Watchlist" }).click();
+    await page.getByPlaceholder("e.g. Crypto KOLs").fill("To Delete");
+    await page.getByRole("button", { name: "Create" }).click();
+    await page.waitForURL(/\/watchlist\/\d+/, { timeout: 10_000 });
+
+    // Navigate back to listing
+    await page.goto("/watchlist");
+    await expect(page.locator("body")).toContainText("To Delete", {
+      timeout: 10_000,
+    });
+
+    // Hover over the card to reveal delete button
+    const card = page.locator("a", { hasText: "To Delete" });
+    await card.hover();
+    await card.locator('button[title="Delete"]').click();
+
+    // Delete confirmation dialog
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.locator("body")).toContainText("permanently delete");
+
+    // Confirm deletion
+    await page.getByRole("button", { name: "Delete" }).click();
+
+    // Dialog should close and watchlist should be gone
+    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+    await expect(page.locator("body")).not.toContainText("To Delete");
+  });
+
+  test("?new=1 query param auto-opens create dialog", async ({ page }) => {
+    await page.goto("/watchlist?new=1");
+
+    // Dialog should auto-open
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("body")).toContainText("New Watchlist");
+  });
+});
