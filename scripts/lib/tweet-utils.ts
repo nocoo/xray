@@ -318,13 +318,13 @@ export function buildThreads(tweets: Tweet[]): TweetThread[] {
 
   for (const tweet of tweets) {
     if (tweet.reply_to_id && tweetMap.has(tweet.reply_to_id)) {
-      const parent = tweetMap.get(tweet.reply_to_id)!;
-      if (parent.author.username === tweet.author.username) {
+      const parent = tweetMap.get(tweet.reply_to_id);
+      if (parent && parent.author.username === tweet.author.username) {
         childToParent.set(tweet.id, tweet.reply_to_id);
         if (!parentToChildren.has(tweet.reply_to_id)) {
           parentToChildren.set(tweet.reply_to_id, []);
         }
-        parentToChildren.get(tweet.reply_to_id)!.push(tweet);
+        parentToChildren.get(tweet.reply_to_id)?.push(tweet);
       }
     }
   }
@@ -335,7 +335,7 @@ export function buildThreads(tweets: Tweet[]): TweetThread[] {
   function findRoot(tweetId: string): string {
     let current = tweetId;
     while (childToParent.has(current)) {
-      current = childToParent.get(current)!;
+      current = childToParent.get(current) ?? current;
     }
     return current;
   }
@@ -347,7 +347,8 @@ export function buildThreads(tweets: Tweet[]): TweetThread[] {
     queue.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
     while (queue.length > 0) {
-      const tweet = queue.shift()!;
+      const tweet = queue.shift();
+      if (!tweet) break;
       replies.push(tweet);
       const children = parentToChildren.get(tweet.id) || [];
       children.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -377,7 +378,8 @@ export function buildThreads(tweets: Tweet[]): TweetThread[] {
     const rootId = findRoot(tweet.id);
     if (processedIds.has(rootId)) continue;
 
-    const root = tweetMap.get(rootId)!;
+    const root = tweetMap.get(rootId);
+    if (!root) continue;
     const replies = collectReplies(rootId);
 
     processedIds.add(rootId);

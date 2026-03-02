@@ -167,7 +167,8 @@ async function main() {
         });
       }
       
-      const user = userMap.get(username)!;
+      const user = userMap.get(username);
+      if (!user) continue;
       user.tweets++;
       user.totalEngagement += engagement;
     }
