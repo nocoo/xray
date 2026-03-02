@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import type { Adapter } from "@auth/core/adapters";
 
 // Get allowed emails from environment variable
 const allowedEmails = (process.env.ALLOWED_EMAILS ?? "")
@@ -13,12 +14,25 @@ const useSecureCookies =
   process.env.NEXTAUTH_URL?.startsWith("https://") ||
   process.env.USE_SECURE_COOKIES === "true";
 
+// Lazy-load the SQLite adapter. This fails gracefully in middleware/edge
+// environments where bun:sqlite is unavailable — NextAuth falls back to
+// JWT-only mode (sufficient for token verification in proxy.ts).
+// The adapter is only needed during OAuth callback (/api/auth/[...nextauth])
+// to persist user + account rows on sign-in.
+let adapter: Adapter | undefined;
+try {
+  const { SqliteAdapter } = await import("@/lib/auth-adapter");
+  adapter = SqliteAdapter();
+} catch {
+  // Expected in middleware — bun:sqlite not available
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
-  // Note: Drizzle adapter is NOT used here because proxy.ts (middleware)
-  // imports auth.ts and middleware runs in an edge/node context where
-  // bun:sqlite is unavailable. Instead, we use JWT sessions and persist
-  // user records via API routes when needed.
+  adapter,
+  // Use JWT strategy even with adapter — avoids per-request DB session lookups.
+  // The adapter handles user creation + account linking on OAuth sign-in only.
+  session: { strategy: "jwt" },
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
