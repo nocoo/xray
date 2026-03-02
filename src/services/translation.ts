@@ -9,7 +9,7 @@
  */
 
 import { generateText } from "ai";
-import * as settingsRepo from "@/db/repositories/settings";
+import { ScopedDB } from "@/db/scoped";
 import {
   resolveAiConfig,
   createAiClient,
@@ -39,7 +39,8 @@ export interface BatchTranslationResult {
 // ── AI config resolution ──
 
 function loadAiSettingsForUser(userId: string) {
-  const all = settingsRepo.findByUserId(userId);
+  const db = new ScopedDB(userId);
+  const all = db.settings.findAll();
   const map = new Map(all.map((s) => [s.key, s.value]));
   return {
     provider: map.get("ai.provider") ?? "",
