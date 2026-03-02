@@ -402,7 +402,6 @@ export default function WatchlistDetailPage() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let totalNewPosts = 0;
       let hadCleanup = false;
 
       while (true) {
@@ -450,7 +449,6 @@ export default function WatchlistDetailPage() {
                 return merged;
               });
             } else if (eventType === "done") {
-              totalNewPosts = d.newPosts;
               const parts = [
                 `${d.newPosts} new post${d.newPosts !== 1 ? "s" : ""} from ${d.fetched} user${d.fetched !== 1 ? "s" : ""}`,
               ];
