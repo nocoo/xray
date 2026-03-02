@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState, useCallback } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,9 +14,10 @@ import {
   Image as ImageIcon,
   AtSign,
   Hash,
+  X,
 } from "lucide-react";
 
-import type { Tweet } from "../../../shared/types";
+import type { Tweet, TweetMedia } from "../../../shared/types";
 
 // We intentionally use <img> for external Twitter profile images and media.
 // next/image requires known hostnames in next.config, which is impractical
@@ -431,4 +432,257 @@ export function formatTimeAgo(iso: string): string {
     month: "short",
     day: "numeric",
   });
+}
+
+// =============================================================================
+// MediaGrid — smart layout based on photo count (1/2/3/4 grid, 5+ scroll)
+// Video/GIF always fall back to horizontal scroll.
+// =============================================================================
+
+function MediaGrid({
+  media,
+  compact = false,
+  onPhotoClick,
+}: {
+  media: TweetMedia[];
+  compact?: boolean;
+  onPhotoClick?: (url: string) => void;
+}) {
+  const photos = media.filter((m) => m.type === "PHOTO");
+  const allPhotos = photos.length === media.length;
+  const gridHeight = compact ? "h-44" : "h-60";
+  const roundedClass = compact ? "rounded-md" : "rounded-lg";
+
+  // Only pure-photo sets with 2-4 items get grid layout
+  if (allPhotos && media.length >= 2 && media.length <= 4) {
+    return (
+      <div className={`${gridHeight} ${roundedClass} overflow-hidden`}>
+        {media.length === 2 && (
+          <div className="grid grid-cols-2 gap-1 h-full">
+            {media.map((m) => (
+              <PhotoItem
+                key={m.id}
+                media={m}
+                className="w-full h-full object-cover"
+                onClick={onPhotoClick}
+              />
+            ))}
+          </div>
+        )}
+
+        {media.length === 3 && (
+          <div className="grid grid-cols-2 grid-rows-2 gap-1 h-full">
+            <PhotoItem
+              key={media[0]!.id}
+              media={media[0]!}
+              className="w-full h-full object-cover row-span-2"
+              onClick={onPhotoClick}
+            />
+            <PhotoItem
+              key={media[1]!.id}
+              media={media[1]!}
+              className="w-full h-full object-cover"
+              onClick={onPhotoClick}
+            />
+            <PhotoItem
+              key={media[2]!.id}
+              media={media[2]!}
+              className="w-full h-full object-cover"
+              onClick={onPhotoClick}
+            />
+          </div>
+        )}
+
+        {media.length === 4 && (
+          <div className="grid grid-cols-2 grid-rows-2 gap-1 h-full">
+            {media.map((m) => (
+              <PhotoItem
+                key={m.id}
+                media={m}
+                className="w-full h-full object-cover"
+                onClick={onPhotoClick}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 1 image (full-width) or 5+ images (horizontal scroll) or mixed media types
+  if (allPhotos && media.length === 1) {
+    return (
+      <div className={`overflow-hidden ${roundedClass} bg-muted`}>
+        <PhotoItem
+          media={media[0]!}
+          className={`w-full ${roundedClass}`}
+          onClick={onPhotoClick}
+        />
+      </div>
+    );
+  }
+
+  // 5+ photos or mixed media → horizontal scroll
+  const scrollMediaClass = compact
+    ? "h-28 w-auto max-w-[200px] object-cover"
+    : "h-40 w-auto max-w-[280px] object-cover";
+
+  return (
+    <div className={`flex gap-${compact ? "1.5" : "2"} overflow-x-auto`}>
+      {media.map((m) => {
+        const containerClass = `relative shrink-0 overflow-hidden ${roundedClass} bg-muted`;
+
+        if (m.type === "PHOTO") {
+          return (
+            <PhotoItem
+              key={m.id}
+              media={m}
+              className={scrollMediaClass}
+              containerClass={containerClass}
+              onClick={onPhotoClick}
+            />
+          );
+        }
+
+        if (m.type === "GIF") {
+          return (
+            <div key={m.id} className={containerClass}>
+              <video
+                src={proxyUrl(m.url)}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className={scrollMediaClass}
+              />
+            </div>
+          );
+        }
+
+        if (m.type === "VIDEO") {
+          return (
+            <div
+              key={m.id}
+              className={containerClass}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <video
+                src={proxyUrl(m.url)}
+                poster={
+                  m.thumbnail_url ? proxyUrl(m.thumbnail_url) : undefined
+                }
+                controls
+                playsInline
+                preload="none"
+                className={scrollMediaClass}
+              />
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={m.id}
+            className={`relative shrink-0 overflow-hidden ${roundedClass} bg-muted`}
+          >
+            <div className="flex h-40 w-40 items-center justify-center">
+              <ImageIcon className="h-8 w-8 text-muted-foreground" />
+              <span className="ml-1 text-xs text-muted-foreground">
+                {m.type}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// =============================================================================
+// PhotoItem — clickable photo thumbnail that opens lightbox
+// =============================================================================
+
+function PhotoItem({
+  media,
+  className,
+  containerClass,
+  onClick,
+}: {
+  media: TweetMedia;
+  className: string;
+  containerClass?: string;
+  onClick?: (url: string) => void;
+}) {
+  const handleClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!onClick) return;
+      e.stopPropagation();
+      e.preventDefault();
+      onClick(media.url);
+    },
+    [onClick, media.url],
+  );
+
+  const img = (
+    <img
+      src={media.url}
+      alt=""
+      className={`${className}${onClick ? " cursor-zoom-in" : ""}`}
+      loading="lazy"
+      onClick={handleClick}
+    />
+  );
+
+  if (containerClass) {
+    return <div className={containerClass}>{img}</div>;
+  }
+  return img;
+}
+
+// =============================================================================
+// ImageLightbox — fullscreen popup to view a high-res photo
+// =============================================================================
+
+function ImageLightbox({
+  url,
+  onClose,
+}: {
+  url: string | null;
+  onClose: () => void;
+}) {
+  if (!url) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 animate-in fade-in-0 duration-200"
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+      role="dialog"
+      aria-modal="true"
+      tabIndex={-1}
+      ref={(el) => el?.focus()}
+    >
+      {/* Close button */}
+      <button
+        className="absolute top-4 right-4 z-10 rounded-full bg-black/50 p-2 text-white/80 hover:text-white hover:bg-black/70 transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+        aria-label="Close"
+      >
+        <X className="h-5 w-5" />
+      </button>
+
+      {/* Full-res image */}
+      <img
+        src={url}
+        alt=""
+        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
 }
