@@ -610,3 +610,70 @@ test.describe("webhook management", () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Watchlist fetch flow — SSE stream + post rendering
+// ---------------------------------------------------------------------------
+
+test.describe("watchlist fetch flow", () => {
+  test("fetch tweets for a member via SSE and see posts", async ({ page }) => {
+    // Create a watchlist with auto-translate OFF
+    await page.goto("/watchlist");
+    await page.getByRole("button", { name: "New Watchlist" }).click();
+    await page.getByPlaceholder("e.g. Crypto KOLs").fill("Fetch Test WL");
+
+    // Turn off auto-translate to avoid needing AI settings
+    await page.getByRole("switch").click();
+    await expect(page.getByRole("switch")).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+
+    await page.getByRole("button", { name: "Create" }).click();
+    await page.waitForURL(/\/watchlist\/\d+/, { timeout: 10_000 });
+
+    // Add a member
+    await page.getByRole("button", { name: "Add User" }).click();
+    await page.getByPlaceholder("elonmusk").fill("fetchuser");
+    await page.getByRole("button", { name: "Add" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+    await expect(page.locator("body")).toContainText("@fetchuser", {
+      timeout: 10_000,
+    });
+
+    // "Fetch Now" should be enabled
+    await expect(
+      page.getByRole("button", { name: "Fetch Now" }),
+    ).toBeEnabled();
+
+    // Click "Fetch Now" to trigger SSE fetch
+    await page.getByRole("button", { name: "Fetch Now" }).click();
+
+    // Button should change to "Fetching..."
+    await expect(
+      page.getByRole("button", { name: "Fetching..." }),
+    ).toBeVisible({ timeout: 5_000 });
+
+    // Wait for fetch to complete — progress panel shows "Done"
+    await expect(page.locator("body")).toContainText("Done", {
+      timeout: 30_000,
+    });
+
+    // Posts from mock provider should be visible
+    // Mock returns "Mock tweet 1 from @fetchuser" etc.
+    await expect(page.locator("body")).toContainText(
+      "Mock tweet 1 from @fetchuser",
+      { timeout: 10_000 },
+    );
+
+    // Posts tab counter should update
+    await expect(
+      page.getByRole("button", { name: /Posts \(\d+\)/ }),
+    ).toBeVisible();
+
+    // "Fetch Now" button should be re-enabled
+    await expect(
+      page.getByRole("button", { name: "Fetch Now" }),
+    ).toBeEnabled({ timeout: 10_000 });
+  });
+});
