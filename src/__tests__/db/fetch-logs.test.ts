@@ -1,8 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { createTestDb, closeDb, db } from "@/db";
 import { users } from "@/db/schema";
-import * as watchlistsRepo from "@/db/repositories/watchlists";
-import * as fetchLogsRepo from "@/db/repositories/fetch-logs";
+import { ScopedDB } from "@/db/scoped";
 
 // =============================================================================
 // Helpers
@@ -15,7 +14,8 @@ function seedUser(id = "u1") {
 }
 
 function seedWatchlist(userId = "u1", name = "Default") {
-  return watchlistsRepo.create({ userId, name });
+  const scopedDb = new ScopedDB(userId);
+  return scopedDb.watchlists.create({ name });
 }
 
 // =============================================================================
@@ -24,10 +24,12 @@ function seedWatchlist(userId = "u1", name = "Default") {
 
 describe("fetch-logs repository", () => {
   let wlId: number;
+  let scopedDb: ScopedDB;
 
   beforeEach(() => {
     createTestDb();
     seedUser("u1");
+    scopedDb = new ScopedDB("u1");
     wlId = seedWatchlist("u1").id;
   });
 
@@ -38,8 +40,7 @@ describe("fetch-logs repository", () => {
   // ── insert ──
 
   test("insert creates a log entry and returns it", () => {
-    const log = fetchLogsRepo.insert({
-      userId: "u1",
+    const log = scopedDb.logs.insert({
       watchlistId: wlId,
       type: "fetch",
       attempted: 10,
@@ -63,8 +64,7 @@ describe("fetch-logs repository", () => {
   });
 
   test("insert with null errors when no errors", () => {
-    const log = fetchLogsRepo.insert({
-      userId: "u1",
+    const log = scopedDb.logs.insert({
       watchlistId: wlId,
       type: "translate",
       attempted: 5,
@@ -82,8 +82,7 @@ describe("fetch-logs repository", () => {
   // ── findByWatchlistId ──
 
   test("findByWatchlistId returns logs in newest-first order", () => {
-    fetchLogsRepo.insert({
-      userId: "u1",
+    scopedDb.logs.insert({
       watchlistId: wlId,
       type: "fetch",
       attempted: 5,
@@ -94,8 +93,7 @@ describe("fetch-logs repository", () => {
       errors: null,
     });
 
-    fetchLogsRepo.insert({
-      userId: "u1",
+    scopedDb.logs.insert({
       watchlistId: wlId,
       type: "translate",
       attempted: 10,
@@ -106,7 +104,7 @@ describe("fetch-logs repository", () => {
       errors: JSON.stringify(["error1", "error2"]),
     });
 
-    const logs = fetchLogsRepo.findByWatchlistId(wlId);
+    const logs = scopedDb.logs.findByWatchlistId(wlId);
     expect(logs).toHaveLength(2);
     // Newest first — translate was inserted second (higher id)
     expect(logs[0]!.id).toBeGreaterThan(logs[1]!.id);
@@ -114,8 +112,7 @@ describe("fetch-logs repository", () => {
 
   test("findByWatchlistId respects limit", () => {
     for (let i = 0; i < 5; i++) {
-      fetchLogsRepo.insert({
-        userId: "u1",
+      scopedDb.logs.insert({
         watchlistId: wlId,
         type: "fetch",
         attempted: i,
@@ -127,15 +124,14 @@ describe("fetch-logs repository", () => {
       });
     }
 
-    const logs = fetchLogsRepo.findByWatchlistId(wlId, 3);
+    const logs = scopedDb.logs.findByWatchlistId(wlId, 3);
     expect(logs).toHaveLength(3);
   });
 
   test("findByWatchlistId scoped to watchlist", () => {
     const wl2 = seedWatchlist("u1", "Second");
 
-    fetchLogsRepo.insert({
-      userId: "u1",
+    scopedDb.logs.insert({
       watchlistId: wlId,
       type: "fetch",
       attempted: 1,
@@ -146,8 +142,7 @@ describe("fetch-logs repository", () => {
       errors: null,
     });
 
-    fetchLogsRepo.insert({
-      userId: "u1",
+    scopedDb.logs.insert({
       watchlistId: wl2.id,
       type: "translate",
       attempted: 2,
@@ -158,11 +153,11 @@ describe("fetch-logs repository", () => {
       errors: null,
     });
 
-    const wl1Logs = fetchLogsRepo.findByWatchlistId(wlId);
+    const wl1Logs = scopedDb.logs.findByWatchlistId(wlId);
     expect(wl1Logs).toHaveLength(1);
     expect(wl1Logs[0]!.type).toBe("fetch");
 
-    const wl2Logs = fetchLogsRepo.findByWatchlistId(wl2.id);
+    const wl2Logs = scopedDb.logs.findByWatchlistId(wl2.id);
     expect(wl2Logs).toHaveLength(1);
     expect(wl2Logs[0]!.type).toBe("translate");
   });
@@ -170,8 +165,7 @@ describe("fetch-logs repository", () => {
   // ── findById ──
 
   test("findById returns a specific log entry", () => {
-    const inserted = fetchLogsRepo.insert({
-      userId: "u1",
+    const inserted = scopedDb.logs.insert({
       watchlistId: wlId,
       type: "fetch",
       attempted: 10,
@@ -182,24 +176,23 @@ describe("fetch-logs repository", () => {
       errors: JSON.stringify(["@foo: bar"]),
     });
 
-    const found = fetchLogsRepo.findById(inserted.id);
+    const found = scopedDb.logs.findById(inserted.id);
     expect(found).toBeDefined();
     expect(found!.id).toBe(inserted.id);
     expect(found!.attempted).toBe(10);
   });
 
   test("findById returns undefined for non-existent id", () => {
-    const found = fetchLogsRepo.findById(999);
+    const found = scopedDb.logs.findById(999);
     expect(found).toBeUndefined();
   });
 
   // ── countByWatchlistId ──
 
   test("countByWatchlistId returns correct count", () => {
-    expect(fetchLogsRepo.countByWatchlistId(wlId)).toBe(0);
+    expect(scopedDb.logs.countByWatchlistId(wlId)).toBe(0);
 
-    fetchLogsRepo.insert({
-      userId: "u1",
+    scopedDb.logs.insert({
       watchlistId: wlId,
       type: "fetch",
       attempted: 1,
@@ -210,8 +203,7 @@ describe("fetch-logs repository", () => {
       errors: null,
     });
 
-    fetchLogsRepo.insert({
-      userId: "u1",
+    scopedDb.logs.insert({
       watchlistId: wlId,
       type: "translate",
       attempted: 1,
@@ -222,14 +214,13 @@ describe("fetch-logs repository", () => {
       errors: null,
     });
 
-    expect(fetchLogsRepo.countByWatchlistId(wlId)).toBe(2);
+    expect(scopedDb.logs.countByWatchlistId(wlId)).toBe(2);
   });
 
   test("countByWatchlistId scoped to watchlist", () => {
     const wl2 = seedWatchlist("u1", "Second");
 
-    fetchLogsRepo.insert({
-      userId: "u1",
+    scopedDb.logs.insert({
       watchlistId: wlId,
       type: "fetch",
       attempted: 1,
@@ -240,8 +231,7 @@ describe("fetch-logs repository", () => {
       errors: null,
     });
 
-    fetchLogsRepo.insert({
-      userId: "u1",
+    scopedDb.logs.insert({
       watchlistId: wl2.id,
       type: "fetch",
       attempted: 1,
@@ -252,15 +242,14 @@ describe("fetch-logs repository", () => {
       errors: null,
     });
 
-    expect(fetchLogsRepo.countByWatchlistId(wlId)).toBe(1);
-    expect(fetchLogsRepo.countByWatchlistId(wl2.id)).toBe(1);
+    expect(scopedDb.logs.countByWatchlistId(wlId)).toBe(1);
+    expect(scopedDb.logs.countByWatchlistId(wl2.id)).toBe(1);
   });
 
   // ── deleteByWatchlistId ──
 
   test("deleteByWatchlistId removes all logs for a watchlist", () => {
-    fetchLogsRepo.insert({
-      userId: "u1",
+    scopedDb.logs.insert({
       watchlistId: wlId,
       type: "fetch",
       attempted: 1,
@@ -271,8 +260,7 @@ describe("fetch-logs repository", () => {
       errors: null,
     });
 
-    fetchLogsRepo.insert({
-      userId: "u1",
+    scopedDb.logs.insert({
       watchlistId: wlId,
       type: "translate",
       attempted: 1,
@@ -283,16 +271,15 @@ describe("fetch-logs repository", () => {
       errors: null,
     });
 
-    const deleted = fetchLogsRepo.deleteByWatchlistId(wlId);
+    const deleted = scopedDb.logs.deleteByWatchlistId(wlId);
     expect(deleted).toBe(2);
-    expect(fetchLogsRepo.countByWatchlistId(wlId)).toBe(0);
+    expect(scopedDb.logs.countByWatchlistId(wlId)).toBe(0);
   });
 
   test("deleteByWatchlistId does not affect other watchlists", () => {
     const wl2 = seedWatchlist("u1", "Second");
 
-    fetchLogsRepo.insert({
-      userId: "u1",
+    scopedDb.logs.insert({
       watchlistId: wlId,
       type: "fetch",
       attempted: 1,
@@ -303,8 +290,7 @@ describe("fetch-logs repository", () => {
       errors: null,
     });
 
-    fetchLogsRepo.insert({
-      userId: "u1",
+    scopedDb.logs.insert({
       watchlistId: wl2.id,
       type: "fetch",
       attempted: 1,
@@ -315,16 +301,15 @@ describe("fetch-logs repository", () => {
       errors: null,
     });
 
-    fetchLogsRepo.deleteByWatchlistId(wlId);
-    expect(fetchLogsRepo.countByWatchlistId(wlId)).toBe(0);
-    expect(fetchLogsRepo.countByWatchlistId(wl2.id)).toBe(1);
+    scopedDb.logs.deleteByWatchlistId(wlId);
+    expect(scopedDb.logs.countByWatchlistId(wlId)).toBe(0);
+    expect(scopedDb.logs.countByWatchlistId(wl2.id)).toBe(1);
   });
 
   // ── cascade: deleting watchlist cascades to logs ──
 
   test("deleting watchlist cascades to fetch logs", () => {
-    fetchLogsRepo.insert({
-      userId: "u1",
+    scopedDb.logs.insert({
       watchlistId: wlId,
       type: "fetch",
       attempted: 1,
@@ -335,7 +320,7 @@ describe("fetch-logs repository", () => {
       errors: null,
     });
 
-    watchlistsRepo.deleteById(wlId);
-    expect(fetchLogsRepo.countByWatchlistId(wlId)).toBe(0);
+    scopedDb.watchlists.deleteById(wlId);
+    expect(scopedDb.logs.countByWatchlistId(wlId)).toBe(0);
   });
 });

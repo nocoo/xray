@@ -1,9 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { createTestDb, closeDb, db } from "@/db";
 import { users } from "@/db/schema";
-import * as watchlistsRepo from "@/db/repositories/watchlists";
-import * as watchlistRepo from "@/db/repositories/watchlist";
-import * as fetchedPostsRepo from "@/db/repositories/fetched-posts";
+import { ScopedDB } from "@/db/scoped";
 
 // =============================================================================
 // Helpers
@@ -16,12 +14,13 @@ function seedUser(id = "u1") {
 }
 
 function seedWatchlist(userId = "u1", name = "Default") {
-  return watchlistsRepo.create({ userId, name });
+  const scopedDb = new ScopedDB(userId);
+  return scopedDb.watchlists.create({ name });
 }
 
 function seedMember(userId: string, watchlistId: number, username = "elonmusk") {
-  return watchlistRepo.create({
-    userId,
+  const scopedDb = new ScopedDB(userId);
+  return scopedDb.members.create({
     watchlistId,
     twitterUsername: username,
     note: null,
@@ -29,14 +28,12 @@ function seedMember(userId: string, watchlistId: number, username = "elonmusk") 
 }
 
 function makePostData(
-  userId: string,
   watchlistId: number,
   memberId: number,
   tweetId: string,
   username = "elonmusk",
 ) {
   return {
-    userId,
     watchlistId,
     memberId,
     tweetId,
@@ -49,15 +46,15 @@ function makePostData(
 
 /** Insert a single post via insertMany, return the first matching row. */
 function insertOne(
-  userId: string,
+  scopedDb: ScopedDB,
   watchlistId: number,
   memberId: number,
   tweetId: string,
   username = "elonmusk",
 ) {
-  const data = makePostData(userId, watchlistId, memberId, tweetId, username);
-  fetchedPostsRepo.insertMany([data]);
-  const posts = fetchedPostsRepo.findByWatchlistId(watchlistId);
+  const data = makePostData(watchlistId, memberId, tweetId, username);
+  scopedDb.posts.insertMany([data]);
+  const posts = scopedDb.posts.findByWatchlistId(watchlistId);
   return posts.find((p) => p.tweetId === tweetId)!;
 }
 
@@ -67,10 +64,12 @@ function insertOne(
 
 describe("repositories/fetched-posts", () => {
   let wlId: number;
+  let scopedDb: ScopedDB;
 
   beforeEach(() => {
     createTestDb();
     seedUser("u1");
+    scopedDb = new ScopedDB("u1");
     wlId = seedWatchlist("u1").id;
   });
 
@@ -85,12 +84,12 @@ describe("repositories/fetched-posts", () => {
   describe("insertMany", () => {
     test("inserts a new post", () => {
       const member = seedMember("u1", wlId);
-      const data = makePostData("u1", wlId, member.id, "tweet-001");
+      const data = makePostData(wlId, member.id, "tweet-001");
 
-      const count = fetchedPostsRepo.insertMany([data]);
+      const count = scopedDb.posts.insertMany([data]);
       expect(count).toBe(1);
 
-      const posts = fetchedPostsRepo.findByWatchlistId(wlId);
+      const posts = scopedDb.posts.findByWatchlistId(wlId);
       expect(posts).toHaveLength(1);
       expect(posts[0]!.tweetId).toBe("tweet-001");
       expect(posts[0]!.text).toBe("Tweet tweet-001 content");
@@ -101,13 +100,13 @@ describe("repositories/fetched-posts", () => {
 
     test("skips duplicate tweet (same watchlist + tweetId)", () => {
       const member = seedMember("u1", wlId);
-      const data = makePostData("u1", wlId, member.id, "tweet-001");
+      const data = makePostData(wlId, member.id, "tweet-001");
 
-      fetchedPostsRepo.insertMany([data]);
-      const count = fetchedPostsRepo.insertMany([data]);
+      scopedDb.posts.insertMany([data]);
+      const count = scopedDb.posts.insertMany([data]);
       expect(count).toBe(0);
 
-      expect(fetchedPostsRepo.countByWatchlistId(wlId)).toBe(1);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(1);
     });
 
     test("allows same tweetId in different watchlists", () => {
@@ -115,8 +114,8 @@ describe("repositories/fetched-posts", () => {
       const m1 = seedMember("u1", wlId, "user1");
       const m2 = seedMember("u1", wl2.id, "user1");
 
-      const c1 = fetchedPostsRepo.insertMany([makePostData("u1", wlId, m1.id, "tweet-001", "user1")]);
-      const c2 = fetchedPostsRepo.insertMany([makePostData("u1", wl2.id, m2.id, "tweet-001", "user1")]);
+      const c1 = scopedDb.posts.insertMany([makePostData(wlId, m1.id, "tweet-001", "user1")]);
+      const c2 = scopedDb.posts.insertMany([makePostData(wl2.id, m2.id, "tweet-001", "user1")]);
 
       expect(c1).toBe(1);
       expect(c2).toBe(1);
@@ -125,30 +124,30 @@ describe("repositories/fetched-posts", () => {
     test("inserts multiple posts, returns count of new inserts", () => {
       const member = seedMember("u1", wlId);
       const posts = [
-        makePostData("u1", wlId, member.id, "t1"),
-        makePostData("u1", wlId, member.id, "t2"),
-        makePostData("u1", wlId, member.id, "t3"),
+        makePostData(wlId, member.id, "t1"),
+        makePostData(wlId, member.id, "t2"),
+        makePostData(wlId, member.id, "t3"),
       ];
 
-      const count = fetchedPostsRepo.insertMany(posts);
+      const count = scopedDb.posts.insertMany(posts);
       expect(count).toBe(3);
     });
 
     test("skips duplicates in batch", () => {
       const member = seedMember("u1", wlId);
-      fetchedPostsRepo.insertMany([makePostData("u1", wlId, member.id, "t1")]);
+      scopedDb.posts.insertMany([makePostData(wlId, member.id, "t1")]);
 
       const posts = [
-        makePostData("u1", wlId, member.id, "t1"), // dup
-        makePostData("u1", wlId, member.id, "t2"), // new
+        makePostData(wlId, member.id, "t1"), // dup
+        makePostData(wlId, member.id, "t2"), // new
       ];
 
-      const count = fetchedPostsRepo.insertMany(posts);
+      const count = scopedDb.posts.insertMany(posts);
       expect(count).toBe(1);
     });
 
     test("returns 0 for empty array", () => {
-      expect(fetchedPostsRepo.insertMany([])).toBe(0);
+      expect(scopedDb.posts.insertMany([])).toBe(0);
     });
   });
 
@@ -158,18 +157,18 @@ describe("repositories/fetched-posts", () => {
 
   describe("findByWatchlistId", () => {
     test("returns empty array when no posts", () => {
-      expect(fetchedPostsRepo.findByWatchlistId(wlId)).toEqual([]);
+      expect(scopedDb.posts.findByWatchlistId(wlId)).toEqual([]);
     });
 
     test("returns posts ordered by tweetCreatedAt desc", () => {
       const member = seedMember("u1", wlId);
-      fetchedPostsRepo.insertMany([
-        { ...makePostData("u1", wlId, member.id, "t1"), tweetCreatedAt: "2026-01-10T00:00:00Z" },
-        { ...makePostData("u1", wlId, member.id, "t2"), tweetCreatedAt: "2026-01-15T00:00:00Z" },
-        { ...makePostData("u1", wlId, member.id, "t3"), tweetCreatedAt: "2026-01-12T00:00:00Z" },
+      scopedDb.posts.insertMany([
+        { ...makePostData(wlId, member.id, "t1"), tweetCreatedAt: "2026-01-10T00:00:00Z" },
+        { ...makePostData(wlId, member.id, "t2"), tweetCreatedAt: "2026-01-15T00:00:00Z" },
+        { ...makePostData(wlId, member.id, "t3"), tweetCreatedAt: "2026-01-12T00:00:00Z" },
       ]);
 
-      const posts = fetchedPostsRepo.findByWatchlistId(wlId);
+      const posts = scopedDb.posts.findByWatchlistId(wlId);
       expect(posts).toHaveLength(3);
       expect(posts[0]!.tweetId).toBe("t2");
       expect(posts[1]!.tweetId).toBe("t3");
@@ -179,11 +178,11 @@ describe("repositories/fetched-posts", () => {
     test("respects limit parameter", () => {
       const member = seedMember("u1", wlId);
       const posts = Array.from({ length: 5 }, (_, i) =>
-        makePostData("u1", wlId, member.id, `t${i}`),
+        makePostData(wlId, member.id, `t${i}`),
       );
-      fetchedPostsRepo.insertMany(posts);
+      scopedDb.posts.insertMany(posts);
 
-      const result = fetchedPostsRepo.findByWatchlistId(wlId, 2);
+      const result = scopedDb.posts.findByWatchlistId(wlId, 2);
       expect(result).toHaveLength(2);
     });
 
@@ -191,11 +190,11 @@ describe("repositories/fetched-posts", () => {
       const wl2 = seedWatchlist("u1", "Second");
       const m1 = seedMember("u1", wlId, "user1");
       const m2 = seedMember("u1", wl2.id, "user2");
-      fetchedPostsRepo.insertMany([makePostData("u1", wlId, m1.id, "t1", "user1")]);
-      fetchedPostsRepo.insertMany([makePostData("u1", wl2.id, m2.id, "t2", "user2")]);
+      scopedDb.posts.insertMany([makePostData(wlId, m1.id, "t1", "user1")]);
+      scopedDb.posts.insertMany([makePostData(wl2.id, m2.id, "t2", "user2")]);
 
-      expect(fetchedPostsRepo.findByWatchlistId(wlId)).toHaveLength(1);
-      expect(fetchedPostsRepo.findByWatchlistId(wl2.id)).toHaveLength(1);
+      expect(scopedDb.posts.findByWatchlistId(wlId)).toHaveLength(1);
+      expect(scopedDb.posts.findByWatchlistId(wl2.id)).toHaveLength(1);
     });
   });
 
@@ -208,18 +207,18 @@ describe("repositories/fetched-posts", () => {
       const m1 = seedMember("u1", wlId, "user1");
       const m2 = seedMember("u1", wlId, "user2");
 
-      fetchedPostsRepo.insertMany([
-        makePostData("u1", wlId, m1.id, "t1", "user1"),
-        makePostData("u1", wlId, m2.id, "t2", "user2"),
+      scopedDb.posts.insertMany([
+        makePostData(wlId, m1.id, "t1", "user1"),
+        makePostData(wlId, m2.id, "t2", "user2"),
       ]);
 
-      const posts = fetchedPostsRepo.findByMemberId(m1.id, wlId);
+      const posts = scopedDb.posts.findByMemberId(m1.id, wlId);
       expect(posts).toHaveLength(1);
       expect(posts[0]!.twitterUsername).toBe("user1");
     });
 
     test("returns empty for non-existent member", () => {
-      expect(fetchedPostsRepo.findByMemberId(999, wlId)).toEqual([]);
+      expect(scopedDb.posts.findByMemberId(999, wlId)).toEqual([]);
     });
   });
 
@@ -230,26 +229,26 @@ describe("repositories/fetched-posts", () => {
   describe("findUntranslated", () => {
     test("returns posts with null translatedText", () => {
       const member = seedMember("u1", wlId);
-      fetchedPostsRepo.insertMany([
-        makePostData("u1", wlId, member.id, "t1"),
-        makePostData("u1", wlId, member.id, "t2"),
+      scopedDb.posts.insertMany([
+        makePostData(wlId, member.id, "t1"),
+        makePostData(wlId, member.id, "t2"),
       ]);
 
-      const untranslated = fetchedPostsRepo.findUntranslated(wlId);
+      const untranslated = scopedDb.posts.findUntranslated(wlId);
       expect(untranslated).toHaveLength(2);
     });
 
     test("excludes translated posts", () => {
       const member = seedMember("u1", wlId);
-      fetchedPostsRepo.insertMany([
-        makePostData("u1", wlId, member.id, "t1"),
-        makePostData("u1", wlId, member.id, "t2"),
+      scopedDb.posts.insertMany([
+        makePostData(wlId, member.id, "t1"),
+        makePostData(wlId, member.id, "t2"),
       ]);
-      const post = fetchedPostsRepo.findByWatchlistId(wlId).find((p) => p.tweetId === "t1")!;
+      const post = scopedDb.posts.findByWatchlistId(wlId).find((p) => p.tweetId === "t1")!;
 
-      fetchedPostsRepo.updateTranslation(post.id, "翻译后的文本", "锐评文本");
+      scopedDb.posts.updateTranslation(post.id, "翻译后的文本", "锐评文本");
 
-      const untranslated = fetchedPostsRepo.findUntranslated(wlId);
+      const untranslated = scopedDb.posts.findUntranslated(wlId);
       expect(untranslated).toHaveLength(1);
       expect(untranslated[0]!.tweetId).toBe("t2");
     });
@@ -257,11 +256,11 @@ describe("repositories/fetched-posts", () => {
     test("respects limit", () => {
       const member = seedMember("u1", wlId);
       const posts = Array.from({ length: 5 }, (_, i) =>
-        makePostData("u1", wlId, member.id, `t${i}`),
+        makePostData(wlId, member.id, `t${i}`),
       );
-      fetchedPostsRepo.insertMany(posts);
+      scopedDb.posts.insertMany(posts);
 
-      const untranslated = fetchedPostsRepo.findUntranslated(wlId, 2);
+      const untranslated = scopedDb.posts.findUntranslated(wlId, 2);
       expect(untranslated).toHaveLength(2);
     });
   });
@@ -273,9 +272,9 @@ describe("repositories/fetched-posts", () => {
   describe("updateTranslation", () => {
     test("updates translatedText and translatedAt", () => {
       const member = seedMember("u1", wlId);
-      const post = insertOne("u1", wlId, member.id, "t1");
+      const post = insertOne(scopedDb, wlId, member.id, "t1");
 
-      const updated = fetchedPostsRepo.updateTranslation(post.id, "这是翻译", "这是锐评");
+      const updated = scopedDb.posts.updateTranslation(post.id, "这是翻译", "这是锐评");
       expect(updated).toBeDefined();
       expect(updated!.translatedText).toBe("这是翻译");
       expect(updated!.commentText).toBe("这是锐评");
@@ -283,7 +282,7 @@ describe("repositories/fetched-posts", () => {
     });
 
     test("returns undefined for non-existent post", () => {
-      const updated = fetchedPostsRepo.updateTranslation(999, "text", "comment");
+      const updated = scopedDb.posts.updateTranslation(999, "text", "comment");
       expect(updated).toBeUndefined();
     });
   });
@@ -295,29 +294,29 @@ describe("repositories/fetched-posts", () => {
   describe("deleteByWatchlistId", () => {
     test("deletes all posts for a watchlist", () => {
       const member = seedMember("u1", wlId);
-      fetchedPostsRepo.insertMany([
-        makePostData("u1", wlId, member.id, "t1"),
-        makePostData("u1", wlId, member.id, "t2"),
+      scopedDb.posts.insertMany([
+        makePostData(wlId, member.id, "t1"),
+        makePostData(wlId, member.id, "t2"),
       ]);
 
-      const deleted = fetchedPostsRepo.deleteByWatchlistId(wlId);
+      const deleted = scopedDb.posts.deleteByWatchlistId(wlId);
       expect(deleted).toBe(2);
-      expect(fetchedPostsRepo.findByWatchlistId(wlId)).toEqual([]);
+      expect(scopedDb.posts.findByWatchlistId(wlId)).toEqual([]);
     });
 
     test("returns 0 when no posts to delete", () => {
-      expect(fetchedPostsRepo.deleteByWatchlistId(wlId)).toBe(0);
+      expect(scopedDb.posts.deleteByWatchlistId(wlId)).toBe(0);
     });
 
     test("does not affect other watchlists", () => {
       const wl2 = seedWatchlist("u1", "Second");
       const m1 = seedMember("u1", wlId, "user1");
       const m2 = seedMember("u1", wl2.id, "user2");
-      fetchedPostsRepo.insertMany([makePostData("u1", wlId, m1.id, "t1", "user1")]);
-      fetchedPostsRepo.insertMany([makePostData("u1", wl2.id, m2.id, "t2", "user2")]);
+      scopedDb.posts.insertMany([makePostData(wlId, m1.id, "t1", "user1")]);
+      scopedDb.posts.insertMany([makePostData(wl2.id, m2.id, "t2", "user2")]);
 
-      fetchedPostsRepo.deleteByWatchlistId(wlId);
-      expect(fetchedPostsRepo.findByWatchlistId(wl2.id)).toHaveLength(1);
+      scopedDb.posts.deleteByWatchlistId(wlId);
+      expect(scopedDb.posts.findByWatchlistId(wl2.id)).toHaveLength(1);
     });
   });
 
@@ -327,35 +326,35 @@ describe("repositories/fetched-posts", () => {
 
   describe("countByWatchlistId", () => {
     test("returns 0 when no posts", () => {
-      expect(fetchedPostsRepo.countByWatchlistId(wlId)).toBe(0);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(0);
     });
 
     test("returns correct count", () => {
       const member = seedMember("u1", wlId);
-      fetchedPostsRepo.insertMany([
-        makePostData("u1", wlId, member.id, "t1"),
-        makePostData("u1", wlId, member.id, "t2"),
+      scopedDb.posts.insertMany([
+        makePostData(wlId, member.id, "t1"),
+        makePostData(wlId, member.id, "t2"),
       ]);
-      expect(fetchedPostsRepo.countByWatchlistId(wlId)).toBe(2);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(2);
     });
   });
 
   describe("countUntranslated", () => {
     test("returns 0 when no posts", () => {
-      expect(fetchedPostsRepo.countUntranslated(wlId)).toBe(0);
+      expect(scopedDb.posts.countUntranslated(wlId)).toBe(0);
     });
 
     test("returns correct count excluding translated", () => {
       const member = seedMember("u1", wlId);
-      fetchedPostsRepo.insertMany([
-        makePostData("u1", wlId, member.id, "t1"),
-        makePostData("u1", wlId, member.id, "t2"),
+      scopedDb.posts.insertMany([
+        makePostData(wlId, member.id, "t1"),
+        makePostData(wlId, member.id, "t2"),
       ]);
-      const p1 = fetchedPostsRepo.findByWatchlistId(wlId).find((p) => p.tweetId === "t1")!;
+      const p1 = scopedDb.posts.findByWatchlistId(wlId).find((p) => p.tweetId === "t1")!;
 
-      fetchedPostsRepo.updateTranslation(p1.id, "翻译", "锐评");
+      scopedDb.posts.updateTranslation(p1.id, "翻译", "锐评");
 
-      expect(fetchedPostsRepo.countUntranslated(wlId)).toBe(1);
+      expect(scopedDb.posts.countUntranslated(wlId)).toBe(1);
     });
   });
 
@@ -367,34 +366,34 @@ describe("repositories/fetched-posts", () => {
     test("deletes posts with tweetCreatedAt before cutoff", () => {
       const member = seedMember("u1", wlId);
 
-      fetchedPostsRepo.insertMany([
-        { ...makePostData("u1", wlId, member.id, "old-tweet"), tweetCreatedAt: "2026-01-01T00:00:00.000Z" },
-        { ...makePostData("u1", wlId, member.id, "recent-tweet"), tweetCreatedAt: "2026-02-27T00:00:00.000Z" },
+      scopedDb.posts.insertMany([
+        { ...makePostData(wlId, member.id, "old-tweet"), tweetCreatedAt: "2026-01-01T00:00:00.000Z" },
+        { ...makePostData(wlId, member.id, "recent-tweet"), tweetCreatedAt: "2026-02-27T00:00:00.000Z" },
       ]);
 
-      expect(fetchedPostsRepo.countByWatchlistId(wlId)).toBe(2);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(2);
 
-      const purged = fetchedPostsRepo.purgeOlderThan(wlId, "2026-02-01T00:00:00.000Z");
+      const purged = scopedDb.posts.purgeOlderThan(wlId, "2026-02-01T00:00:00.000Z");
       expect(purged).toBe(1);
-      expect(fetchedPostsRepo.countByWatchlistId(wlId)).toBe(1);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(1);
 
-      const remaining = fetchedPostsRepo.findByWatchlistId(wlId);
+      const remaining = scopedDb.posts.findByWatchlistId(wlId);
       expect(remaining[0]!.tweetId).toBe("recent-tweet");
     });
 
     test("returns 0 when no posts match cutoff", () => {
       const member = seedMember("u1", wlId);
-      fetchedPostsRepo.insertMany([
-        { ...makePostData("u1", wlId, member.id, "recent"), tweetCreatedAt: "2026-02-27T00:00:00.000Z" },
+      scopedDb.posts.insertMany([
+        { ...makePostData(wlId, member.id, "recent"), tweetCreatedAt: "2026-02-27T00:00:00.000Z" },
       ]);
 
-      const purged = fetchedPostsRepo.purgeOlderThan(wlId, "2026-01-01T00:00:00.000Z");
+      const purged = scopedDb.posts.purgeOlderThan(wlId, "2026-01-01T00:00:00.000Z");
       expect(purged).toBe(0);
-      expect(fetchedPostsRepo.countByWatchlistId(wlId)).toBe(1);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(1);
     });
 
     test("returns 0 when no posts exist", () => {
-      const purged = fetchedPostsRepo.purgeOlderThan(wlId, "2026-02-28T00:00:00.000Z");
+      const purged = scopedDb.posts.purgeOlderThan(wlId, "2026-02-28T00:00:00.000Z");
       expect(purged).toBe(0);
     });
 
@@ -403,29 +402,29 @@ describe("repositories/fetched-posts", () => {
       const m1 = seedMember("u1", wlId, "user1");
       const m2 = seedMember("u1", wl2.id, "user2");
 
-      fetchedPostsRepo.insertMany([
-        { ...makePostData("u1", wlId, m1.id, "old1", "user1"), tweetCreatedAt: "2026-01-01T00:00:00.000Z" },
+      scopedDb.posts.insertMany([
+        { ...makePostData(wlId, m1.id, "old1", "user1"), tweetCreatedAt: "2026-01-01T00:00:00.000Z" },
       ]);
-      fetchedPostsRepo.insertMany([
-        { ...makePostData("u1", wl2.id, m2.id, "old2", "user2"), tweetCreatedAt: "2026-01-01T00:00:00.000Z" },
+      scopedDb.posts.insertMany([
+        { ...makePostData(wl2.id, m2.id, "old2", "user2"), tweetCreatedAt: "2026-01-01T00:00:00.000Z" },
       ]);
 
-      const purged = fetchedPostsRepo.purgeOlderThan(wlId, "2026-02-01T00:00:00.000Z");
+      const purged = scopedDb.posts.purgeOlderThan(wlId, "2026-02-01T00:00:00.000Z");
       expect(purged).toBe(1);
-      expect(fetchedPostsRepo.countByWatchlistId(wlId)).toBe(0);
-      expect(fetchedPostsRepo.countByWatchlistId(wl2.id)).toBe(1);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(0);
+      expect(scopedDb.posts.countByWatchlistId(wl2.id)).toBe(1);
     });
 
     test("purges all posts when cutoff is in the future", () => {
       const member = seedMember("u1", wlId);
-      fetchedPostsRepo.insertMany([
-        { ...makePostData("u1", wlId, member.id, "t1"), tweetCreatedAt: "2026-02-27T00:00:00.000Z" },
-        { ...makePostData("u1", wlId, member.id, "t2"), tweetCreatedAt: "2026-02-28T00:00:00.000Z" },
+      scopedDb.posts.insertMany([
+        { ...makePostData(wlId, member.id, "t1"), tweetCreatedAt: "2026-02-27T00:00:00.000Z" },
+        { ...makePostData(wlId, member.id, "t2"), tweetCreatedAt: "2026-02-28T00:00:00.000Z" },
       ]);
 
-      const purged = fetchedPostsRepo.purgeOlderThan(wlId, "2026-12-31T00:00:00.000Z");
+      const purged = scopedDb.posts.purgeOlderThan(wlId, "2026-12-31T00:00:00.000Z");
       expect(purged).toBe(2);
-      expect(fetchedPostsRepo.countByWatchlistId(wlId)).toBe(0);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(0);
     });
   });
 
@@ -438,49 +437,49 @@ describe("repositories/fetched-posts", () => {
       const m1 = seedMember("u1", wlId, "user1");
       const m2 = seedMember("u1", wlId, "user2");
 
-      fetchedPostsRepo.insertMany([
-        makePostData("u1", wlId, m1.id, "t1", "user1"),
-        makePostData("u1", wlId, m2.id, "t2", "user2"),
+      scopedDb.posts.insertMany([
+        makePostData(wlId, m1.id, "t1", "user1"),
+        makePostData(wlId, m2.id, "t2", "user2"),
       ]);
-      expect(fetchedPostsRepo.countByWatchlistId(wlId)).toBe(2);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(2);
 
-      const purged = fetchedPostsRepo.purgeOrphaned(wlId, [m1.id]);
+      const purged = scopedDb.posts.purgeOrphaned(wlId, [m1.id]);
       expect(purged).toBe(1);
 
-      const remaining = fetchedPostsRepo.findByWatchlistId(wlId);
+      const remaining = scopedDb.posts.findByWatchlistId(wlId);
       expect(remaining).toHaveLength(1);
       expect(remaining[0]!.twitterUsername).toBe("user1");
     });
 
     test("deletes all posts when activeMemberIds is empty", () => {
       const m1 = seedMember("u1", wlId, "user1");
-      fetchedPostsRepo.insertMany([
-        makePostData("u1", wlId, m1.id, "t1", "user1"),
-        makePostData("u1", wlId, m1.id, "t2", "user1"),
+      scopedDb.posts.insertMany([
+        makePostData(wlId, m1.id, "t1", "user1"),
+        makePostData(wlId, m1.id, "t2", "user1"),
       ]);
-      expect(fetchedPostsRepo.countByWatchlistId(wlId)).toBe(2);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(2);
 
-      const purged = fetchedPostsRepo.purgeOrphaned(wlId, []);
+      const purged = scopedDb.posts.purgeOrphaned(wlId, []);
       expect(purged).toBe(2);
-      expect(fetchedPostsRepo.countByWatchlistId(wlId)).toBe(0);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(0);
     });
 
     test("returns 0 when all posts belong to active members", () => {
       const m1 = seedMember("u1", wlId, "user1");
       const m2 = seedMember("u1", wlId, "user2");
 
-      fetchedPostsRepo.insertMany([
-        makePostData("u1", wlId, m1.id, "t1", "user1"),
-        makePostData("u1", wlId, m2.id, "t2", "user2"),
+      scopedDb.posts.insertMany([
+        makePostData(wlId, m1.id, "t1", "user1"),
+        makePostData(wlId, m2.id, "t2", "user2"),
       ]);
 
-      const purged = fetchedPostsRepo.purgeOrphaned(wlId, [m1.id, m2.id]);
+      const purged = scopedDb.posts.purgeOrphaned(wlId, [m1.id, m2.id]);
       expect(purged).toBe(0);
-      expect(fetchedPostsRepo.countByWatchlistId(wlId)).toBe(2);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(2);
     });
 
     test("returns 0 when no posts exist", () => {
-      const purged = fetchedPostsRepo.purgeOrphaned(wlId, [1, 2]);
+      const purged = scopedDb.posts.purgeOrphaned(wlId, [1, 2]);
       expect(purged).toBe(0);
     });
 
@@ -489,13 +488,13 @@ describe("repositories/fetched-posts", () => {
       const m1 = seedMember("u1", wlId, "user1");
       const m2 = seedMember("u1", wl2.id, "user2");
 
-      fetchedPostsRepo.insertMany([makePostData("u1", wlId, m1.id, "t1", "user1")]);
-      fetchedPostsRepo.insertMany([makePostData("u1", wl2.id, m2.id, "t2", "user2")]);
+      scopedDb.posts.insertMany([makePostData(wlId, m1.id, "t1", "user1")]);
+      scopedDb.posts.insertMany([makePostData(wl2.id, m2.id, "t2", "user2")]);
 
-      const purged = fetchedPostsRepo.purgeOrphaned(wlId, []);
+      const purged = scopedDb.posts.purgeOrphaned(wlId, []);
       expect(purged).toBe(1);
-      expect(fetchedPostsRepo.countByWatchlistId(wlId)).toBe(0);
-      expect(fetchedPostsRepo.countByWatchlistId(wl2.id)).toBe(1);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(0);
+      expect(scopedDb.posts.countByWatchlistId(wl2.id)).toBe(1);
     });
 
     test("handles multiple orphaned members correctly", () => {
@@ -503,18 +502,18 @@ describe("repositories/fetched-posts", () => {
       const m2 = seedMember("u1", wlId, "user2");
       const m3 = seedMember("u1", wlId, "user3");
 
-      fetchedPostsRepo.insertMany([
-        makePostData("u1", wlId, m1.id, "t1", "user1"),
-        makePostData("u1", wlId, m2.id, "t2", "user2"),
-        makePostData("u1", wlId, m2.id, "t3", "user2"),
-        makePostData("u1", wlId, m3.id, "t4", "user3"),
-        makePostData("u1", wlId, m3.id, "t5", "user3"),
+      scopedDb.posts.insertMany([
+        makePostData(wlId, m1.id, "t1", "user1"),
+        makePostData(wlId, m2.id, "t2", "user2"),
+        makePostData(wlId, m2.id, "t3", "user2"),
+        makePostData(wlId, m3.id, "t4", "user3"),
+        makePostData(wlId, m3.id, "t5", "user3"),
       ]);
-      expect(fetchedPostsRepo.countByWatchlistId(wlId)).toBe(5);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(5);
 
-      const purged = fetchedPostsRepo.purgeOrphaned(wlId, [m1.id]);
+      const purged = scopedDb.posts.purgeOrphaned(wlId, [m1.id]);
       expect(purged).toBe(4);
-      expect(fetchedPostsRepo.countByWatchlistId(wlId)).toBe(1);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(1);
     });
   });
 });

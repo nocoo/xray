@@ -1,14 +1,17 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { createTestDb, closeDb, db } from "@/db";
 import { users } from "@/db/schema";
-import * as watchlistsRepo from "@/db/repositories/watchlists";
+import { ScopedDB } from "@/db/scoped";
 
 describe("repositories/watchlists", () => {
+  let scopedDb: ScopedDB;
+
   beforeEach(() => {
     createTestDb();
     db.insert(users)
       .values({ id: "u1", name: "Test User", email: "test@example.com" })
       .run();
+    scopedDb = new ScopedDB("u1");
   });
 
   afterEach(() => {
@@ -17,7 +20,7 @@ describe("repositories/watchlists", () => {
 
   describe("create", () => {
     test("creates a watchlist with defaults", () => {
-      const wl = watchlistsRepo.create({ userId: "u1", name: "AI Traders" });
+      const wl = scopedDb.watchlists.create({ name: "AI Traders" });
       expect(wl.id).toBeDefined();
       expect(wl.userId).toBe("u1");
       expect(wl.name).toBe("AI Traders");
@@ -28,8 +31,7 @@ describe("repositories/watchlists", () => {
     });
 
     test("creates with custom icon and translateEnabled", () => {
-      const wl = watchlistsRepo.create({
-        userId: "u1",
+      const wl = scopedDb.watchlists.create({
         name: "Crypto",
         description: "Crypto influencers",
         icon: "bitcoin",
@@ -41,22 +43,22 @@ describe("repositories/watchlists", () => {
     });
 
     test("allows multiple watchlists per user", () => {
-      watchlistsRepo.create({ userId: "u1", name: "List A" });
-      watchlistsRepo.create({ userId: "u1", name: "List B" });
-      const all = watchlistsRepo.findByUserId("u1");
+      scopedDb.watchlists.create({ name: "List A" });
+      scopedDb.watchlists.create({ name: "List B" });
+      const all = scopedDb.watchlists.findAll();
       expect(all).toHaveLength(2);
     });
   });
 
   describe("findByUserId", () => {
     test("returns empty array when no watchlists", () => {
-      expect(watchlistsRepo.findByUserId("u1")).toEqual([]);
+      expect(scopedDb.watchlists.findAll()).toEqual([]);
     });
 
     test("returns all watchlists for user", () => {
-      watchlistsRepo.create({ userId: "u1", name: "First" });
-      watchlistsRepo.create({ userId: "u1", name: "Second" });
-      const all = watchlistsRepo.findByUserId("u1");
+      scopedDb.watchlists.create({ name: "First" });
+      scopedDb.watchlists.create({ name: "Second" });
+      const all = scopedDb.watchlists.findAll();
       expect(all).toHaveLength(2);
       const names = all.map((w) => w.name).sort();
       expect(names).toEqual(["First", "Second"]);
@@ -66,18 +68,19 @@ describe("repositories/watchlists", () => {
       db.insert(users)
         .values({ id: "u2", email: "other@example.com" })
         .run();
-      watchlistsRepo.create({ userId: "u1", name: "U1 List" });
-      watchlistsRepo.create({ userId: "u2", name: "U2 List" });
+      const scopedDb2 = new ScopedDB("u2");
+      scopedDb.watchlists.create({ name: "U1 List" });
+      scopedDb2.watchlists.create({ name: "U2 List" });
 
-      expect(watchlistsRepo.findByUserId("u1")).toHaveLength(1);
-      expect(watchlistsRepo.findByUserId("u2")).toHaveLength(1);
+      expect(scopedDb.watchlists.findAll()).toHaveLength(1);
+      expect(scopedDb2.watchlists.findAll()).toHaveLength(1);
     });
   });
 
   describe("findByIdAndUserId", () => {
     test("finds owned watchlist", () => {
-      const wl = watchlistsRepo.create({ userId: "u1", name: "Test" });
-      const found = watchlistsRepo.findByIdAndUserId(wl.id, "u1");
+      const wl = scopedDb.watchlists.create({ name: "Test" });
+      const found = scopedDb.watchlists.findById(wl.id);
       expect(found).toBeDefined();
       expect(found!.name).toBe("Test");
     });
@@ -86,36 +89,37 @@ describe("repositories/watchlists", () => {
       db.insert(users)
         .values({ id: "u2", email: "other@example.com" })
         .run();
-      const wl = watchlistsRepo.create({ userId: "u1", name: "Test" });
-      expect(watchlistsRepo.findByIdAndUserId(wl.id, "u2")).toBeUndefined();
+      const scopedDb2 = new ScopedDB("u2");
+      const wl = scopedDb.watchlists.create({ name: "Test" });
+      expect(scopedDb2.watchlists.findById(wl.id)).toBeUndefined();
     });
 
     test("returns undefined for non-existent id", () => {
-      expect(watchlistsRepo.findByIdAndUserId(999, "u1")).toBeUndefined();
+      expect(scopedDb.watchlists.findById(999)).toBeUndefined();
     });
   });
 
   describe("findById", () => {
     test("finds by id without ownership check", () => {
-      const wl = watchlistsRepo.create({ userId: "u1", name: "Test" });
-      expect(watchlistsRepo.findById(wl.id)).toBeDefined();
+      const wl = scopedDb.watchlists.create({ name: "Test" });
+      expect(scopedDb.watchlists.findById(wl.id)).toBeDefined();
     });
 
     test("returns undefined for non-existent", () => {
-      expect(watchlistsRepo.findById(999)).toBeUndefined();
+      expect(scopedDb.watchlists.findById(999)).toBeUndefined();
     });
   });
 
   describe("update", () => {
     test("updates name", () => {
-      const wl = watchlistsRepo.create({ userId: "u1", name: "Old" });
-      const updated = watchlistsRepo.update(wl.id, { name: "New" });
+      const wl = scopedDb.watchlists.create({ name: "Old" });
+      const updated = scopedDb.watchlists.update(wl.id, { name: "New" });
       expect(updated!.name).toBe("New");
     });
 
     test("updates icon and translateEnabled", () => {
-      const wl = watchlistsRepo.create({ userId: "u1", name: "Test" });
-      const updated = watchlistsRepo.update(wl.id, {
+      const wl = scopedDb.watchlists.create({ name: "Test" });
+      const updated = scopedDb.watchlists.update(wl.id, {
         icon: "radar",
         translateEnabled: 0,
       });
@@ -124,31 +128,30 @@ describe("repositories/watchlists", () => {
     });
 
     test("partial update preserves other fields", () => {
-      const wl = watchlistsRepo.create({
-        userId: "u1",
+      const wl = scopedDb.watchlists.create({
         name: "Test",
         icon: "brain",
         translateEnabled: 0,
       });
-      const updated = watchlistsRepo.update(wl.id, { name: "Renamed" });
+      const updated = scopedDb.watchlists.update(wl.id, { name: "Renamed" });
       expect(updated!.icon).toBe("brain");
       expect(updated!.translateEnabled).toBe(0);
     });
 
     test("returns undefined for non-existent", () => {
-      expect(watchlistsRepo.update(999, { name: "Nope" })).toBeUndefined();
+      expect(scopedDb.watchlists.update(999, { name: "Nope" })).toBeUndefined();
     });
   });
 
   describe("deleteById", () => {
     test("deletes existing watchlist", () => {
-      const wl = watchlistsRepo.create({ userId: "u1", name: "ToDelete" });
-      expect(watchlistsRepo.deleteById(wl.id)).toBe(true);
-      expect(watchlistsRepo.findByUserId("u1")).toHaveLength(0);
+      const wl = scopedDb.watchlists.create({ name: "ToDelete" });
+      expect(scopedDb.watchlists.deleteById(wl.id)).toBe(true);
+      expect(scopedDb.watchlists.findAll()).toHaveLength(0);
     });
 
     test("returns false for non-existent", () => {
-      expect(watchlistsRepo.deleteById(999)).toBe(false);
+      expect(scopedDb.watchlists.deleteById(999)).toBe(false);
     });
   });
 });

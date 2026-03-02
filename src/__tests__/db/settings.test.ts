@@ -1,18 +1,21 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { createTestDb, closeDb, db } from "@/db";
 import { users } from "@/db/schema";
-import * as settingsRepo from "@/db/repositories/settings";
+import { ScopedDB } from "@/db/scoped";
 
 // =============================================================================
 // Settings Repository Tests
 // =============================================================================
 
 describe("repositories/settings", () => {
+  let scopedDb: ScopedDB;
+
   beforeEach(() => {
     createTestDb();
     db.insert(users)
       .values({ id: "u1", name: "Test User", email: "test@example.com" })
       .run();
+    scopedDb = new ScopedDB("u1");
   });
 
   afterEach(() => {
@@ -25,16 +28,16 @@ describe("repositories/settings", () => {
 
   describe("findByUserId", () => {
     test("returns empty array when no settings exist", () => {
-      const result = settingsRepo.findByUserId("u1");
+      const result = scopedDb.settings.findAll();
       expect(result).toEqual([]);
     });
 
     test("returns all settings for a user", () => {
-      settingsRepo.upsert("u1", "ai.provider", "anthropic");
-      settingsRepo.upsert("u1", "ai.apiKey", "sk-test-123");
-      settingsRepo.upsert("u1", "ai.model", "claude-sonnet-4-20250514");
+      scopedDb.settings.upsert("ai.provider", "anthropic");
+      scopedDb.settings.upsert("ai.apiKey", "sk-test-123");
+      scopedDb.settings.upsert("ai.model", "claude-sonnet-4-20250514");
 
-      const result = settingsRepo.findByUserId("u1");
+      const result = scopedDb.settings.findAll();
       expect(result).toHaveLength(3);
 
       const keys = result.map((s) => s.key).sort();
@@ -46,9 +49,10 @@ describe("repositories/settings", () => {
         .values({ id: "u2", email: "other@example.com" })
         .run();
 
-      settingsRepo.upsert("u2", "ai.provider", "openai");
+      const scopedDb2 = new ScopedDB("u2");
+      scopedDb2.settings.upsert("ai.provider", "openai");
 
-      const result = settingsRepo.findByUserId("u1");
+      const result = scopedDb.settings.findAll();
       expect(result).toEqual([]);
     });
   });
@@ -59,14 +63,14 @@ describe("repositories/settings", () => {
 
   describe("findByKey", () => {
     test("returns undefined when key does not exist", () => {
-      const result = settingsRepo.findByKey("u1", "ai.provider");
+      const result = scopedDb.settings.findByKey("ai.provider");
       expect(result).toBeUndefined();
     });
 
     test("returns the setting when it exists", () => {
-      settingsRepo.upsert("u1", "ai.provider", "anthropic");
+      scopedDb.settings.upsert("ai.provider", "anthropic");
 
-      const result = settingsRepo.findByKey("u1", "ai.provider");
+      const result = scopedDb.settings.findByKey("ai.provider");
       expect(result).toBeDefined();
       expect(result!.value).toBe("anthropic");
       expect(result!.userId).toBe("u1");
@@ -79,9 +83,10 @@ describe("repositories/settings", () => {
         .values({ id: "u2", email: "other@example.com" })
         .run();
 
-      settingsRepo.upsert("u2", "ai.provider", "openai");
+      const scopedDb2 = new ScopedDB("u2");
+      scopedDb2.settings.upsert("ai.provider", "openai");
 
-      const result = settingsRepo.findByKey("u1", "ai.provider");
+      const result = scopedDb.settings.findByKey("ai.provider");
       expect(result).toBeUndefined();
     });
   });
@@ -92,7 +97,7 @@ describe("repositories/settings", () => {
 
   describe("upsert", () => {
     test("creates a new setting on first call", () => {
-      const result = settingsRepo.upsert("u1", "ai.provider", "anthropic");
+      const result = scopedDb.settings.upsert("ai.provider", "anthropic");
 
       expect(result.userId).toBe("u1");
       expect(result.key).toBe("ai.provider");
@@ -101,30 +106,30 @@ describe("repositories/settings", () => {
     });
 
     test("updates existing setting on subsequent calls", () => {
-      settingsRepo.upsert("u1", "ai.model", "claude-3-haiku");
+      scopedDb.settings.upsert("ai.model", "claude-3-haiku");
 
-      const updated = settingsRepo.upsert("u1", "ai.model", "claude-sonnet-4-20250514");
+      const updated = scopedDb.settings.upsert("ai.model", "claude-sonnet-4-20250514");
       expect(updated.value).toBe("claude-sonnet-4-20250514");
 
       // Only one record should exist for this key
-      const all = settingsRepo.findByUserId("u1");
+      const all = scopedDb.settings.findAll();
       expect(all).toHaveLength(1);
     });
 
     test("updates updatedAt timestamp on update", () => {
-      const first = settingsRepo.upsert("u1", "ai.provider", "openai");
+      const first = scopedDb.settings.upsert("ai.provider", "openai");
       // Small delay to ensure timestamp difference
-      const second = settingsRepo.upsert("u1", "ai.provider", "anthropic");
+      const second = scopedDb.settings.upsert("ai.provider", "anthropic");
 
       expect(second.updatedAt).toBeGreaterThanOrEqual(first.updatedAt);
     });
 
     test("different keys are independent", () => {
-      settingsRepo.upsert("u1", "ai.provider", "anthropic");
-      settingsRepo.upsert("u1", "ai.model", "claude-sonnet-4-20250514");
+      scopedDb.settings.upsert("ai.provider", "anthropic");
+      scopedDb.settings.upsert("ai.model", "claude-sonnet-4-20250514");
 
-      const provider = settingsRepo.findByKey("u1", "ai.provider");
-      const model = settingsRepo.findByKey("u1", "ai.model");
+      const provider = scopedDb.settings.findByKey("ai.provider");
+      const model = scopedDb.settings.findByKey("ai.model");
 
       expect(provider!.value).toBe("anthropic");
       expect(model!.value).toBe("claude-sonnet-4-20250514");
@@ -137,27 +142,27 @@ describe("repositories/settings", () => {
 
   describe("deleteSetting", () => {
     test("returns false when key does not exist", () => {
-      const result = settingsRepo.deleteSetting("u1", "ai.provider");
+      const result = scopedDb.settings.deleteSetting("ai.provider");
       expect(result).toBe(false);
     });
 
     test("returns true and deletes existing key", () => {
-      settingsRepo.upsert("u1", "ai.provider", "anthropic");
+      scopedDb.settings.upsert("ai.provider", "anthropic");
 
-      const result = settingsRepo.deleteSetting("u1", "ai.provider");
+      const result = scopedDb.settings.deleteSetting("ai.provider");
       expect(result).toBe(true);
 
-      expect(settingsRepo.findByKey("u1", "ai.provider")).toBeUndefined();
+      expect(scopedDb.settings.findByKey("ai.provider")).toBeUndefined();
     });
 
     test("only deletes the specified key", () => {
-      settingsRepo.upsert("u1", "ai.provider", "anthropic");
-      settingsRepo.upsert("u1", "ai.model", "claude-sonnet-4-20250514");
+      scopedDb.settings.upsert("ai.provider", "anthropic");
+      scopedDb.settings.upsert("ai.model", "claude-sonnet-4-20250514");
 
-      settingsRepo.deleteSetting("u1", "ai.provider");
+      scopedDb.settings.deleteSetting("ai.provider");
 
-      expect(settingsRepo.findByKey("u1", "ai.provider")).toBeUndefined();
-      expect(settingsRepo.findByKey("u1", "ai.model")).toBeDefined();
+      expect(scopedDb.settings.findByKey("ai.provider")).toBeUndefined();
+      expect(scopedDb.settings.findByKey("ai.model")).toBeDefined();
     });
   });
 
@@ -167,19 +172,19 @@ describe("repositories/settings", () => {
 
   describe("deleteByUserId", () => {
     test("returns 0 when no settings exist", () => {
-      const result = settingsRepo.deleteByUserId("u1");
+      const result = scopedDb.settings.deleteAll();
       expect(result).toBe(0);
     });
 
     test("deletes all settings and returns count", () => {
-      settingsRepo.upsert("u1", "ai.provider", "anthropic");
-      settingsRepo.upsert("u1", "ai.apiKey", "sk-test");
-      settingsRepo.upsert("u1", "ai.model", "claude-sonnet-4-20250514");
+      scopedDb.settings.upsert("ai.provider", "anthropic");
+      scopedDb.settings.upsert("ai.apiKey", "sk-test");
+      scopedDb.settings.upsert("ai.model", "claude-sonnet-4-20250514");
 
-      const result = settingsRepo.deleteByUserId("u1");
+      const result = scopedDb.settings.deleteAll();
       expect(result).toBe(3);
 
-      expect(settingsRepo.findByUserId("u1")).toEqual([]);
+      expect(scopedDb.settings.findAll()).toEqual([]);
     });
 
     test("only deletes the specified user's settings", () => {
@@ -187,13 +192,14 @@ describe("repositories/settings", () => {
         .values({ id: "u2", email: "other@example.com" })
         .run();
 
-      settingsRepo.upsert("u1", "ai.provider", "anthropic");
-      settingsRepo.upsert("u2", "ai.provider", "openai");
+      const scopedDb2 = new ScopedDB("u2");
+      scopedDb.settings.upsert("ai.provider", "anthropic");
+      scopedDb2.settings.upsert("ai.provider", "openai");
 
-      settingsRepo.deleteByUserId("u1");
+      scopedDb.settings.deleteAll();
 
-      expect(settingsRepo.findByUserId("u1")).toEqual([]);
-      expect(settingsRepo.findByUserId("u2")).toHaveLength(1);
+      expect(scopedDb.settings.findAll()).toEqual([]);
+      expect(scopedDb2.settings.findAll()).toHaveLength(1);
     });
   });
 });

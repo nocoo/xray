@@ -1,15 +1,18 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { createTestDb, closeDb, db } from "@/db";
 import { users } from "@/db/schema";
-import * as tagsRepo from "@/db/repositories/tags";
+import { ScopedDB } from "@/db/scoped";
 import { generateTagColor } from "@/lib/tag-color";
 
 describe("repositories/tags", () => {
+  let scopedDb: ScopedDB;
+
   beforeEach(() => {
     createTestDb();
     db.insert(users)
       .values({ id: "u1", name: "Test User", email: "test@example.com" })
       .run();
+    scopedDb = new ScopedDB("u1");
   });
 
   afterEach(() => {
@@ -18,7 +21,7 @@ describe("repositories/tags", () => {
 
   describe("create", () => {
     test("creates a tag with auto-generated color", () => {
-      const tag = tagsRepo.create({ userId: "u1", name: "AI Leaders" });
+      const tag = scopedDb.tags.create({ name: "AI Leaders" });
       expect(tag.id).toBeDefined();
       expect(tag.name).toBe("AI Leaders");
       expect(tag.color).toBe(generateTagColor("AI Leaders"));
@@ -26,13 +29,13 @@ describe("repositories/tags", () => {
     });
 
     test("trims whitespace from name", () => {
-      const tag = tagsRepo.create({ userId: "u1", name: "  Crypto  " });
+      const tag = scopedDb.tags.create({ name: "  Crypto  " });
       expect(tag.name).toBe("Crypto");
     });
 
     test("returns existing tag if same name exists (idempotent)", () => {
-      const first = tagsRepo.create({ userId: "u1", name: "AI" });
-      const second = tagsRepo.create({ userId: "u1", name: "AI" });
+      const first = scopedDb.tags.create({ name: "AI" });
+      const second = scopedDb.tags.create({ name: "AI" });
       expect(second.id).toBe(first.id);
     });
 
@@ -40,26 +43,28 @@ describe("repositories/tags", () => {
       db.insert(users)
         .values({ id: "u2", email: "other@example.com" })
         .run();
-      const t1 = tagsRepo.create({ userId: "u1", name: "AI" });
-      const t2 = tagsRepo.create({ userId: "u2", name: "AI" });
+      const scopedDb2 = new ScopedDB("u2");
+      const t1 = scopedDb.tags.create({ name: "AI" });
+      const t2 = scopedDb2.tags.create({ name: "AI" });
       expect(t1.id).not.toBe(t2.id);
     });
   });
 
   describe("findByUserId", () => {
     test("returns empty array when no tags exist", () => {
-      expect(tagsRepo.findByUserId("u1")).toEqual([]);
+      expect(scopedDb.tags.findAll()).toEqual([]);
     });
 
     test("returns only tags for the specified user", () => {
       db.insert(users)
         .values({ id: "u2", email: "other@example.com" })
         .run();
-      tagsRepo.create({ userId: "u1", name: "AI" });
-      tagsRepo.create({ userId: "u1", name: "Crypto" });
-      tagsRepo.create({ userId: "u2", name: "Finance" });
+      const scopedDb2 = new ScopedDB("u2");
+      scopedDb.tags.create({ name: "AI" });
+      scopedDb.tags.create({ name: "Crypto" });
+      scopedDb2.tags.create({ name: "Finance" });
 
-      const u1Tags = tagsRepo.findByUserId("u1");
+      const u1Tags = scopedDb.tags.findAll();
       expect(u1Tags).toHaveLength(2);
       expect(u1Tags.map((t) => t.name).sort()).toEqual(["AI", "Crypto"]);
     });
@@ -67,27 +72,28 @@ describe("repositories/tags", () => {
 
   describe("findByIdAndUserId", () => {
     test("returns tag when owned by user", () => {
-      const tag = tagsRepo.create({ userId: "u1", name: "AI" });
-      const found = tagsRepo.findByIdAndUserId(tag.id, "u1");
+      const tag = scopedDb.tags.create({ name: "AI" });
+      const found = scopedDb.tags.findById(tag.id);
       expect(found).toBeDefined();
       expect(found!.name).toBe("AI");
     });
 
     test("returns undefined for wrong user", () => {
-      const tag = tagsRepo.create({ userId: "u1", name: "AI" });
-      expect(tagsRepo.findByIdAndUserId(tag.id, "other")).toBeUndefined();
+      const tag = scopedDb.tags.create({ name: "AI" });
+      const otherDb = new ScopedDB("other");
+      expect(otherDb.tags.findById(tag.id)).toBeUndefined();
     });
   });
 
   describe("deleteById", () => {
     test("deletes existing tag", () => {
-      const tag = tagsRepo.create({ userId: "u1", name: "AI" });
-      expect(tagsRepo.deleteById(tag.id)).toBe(true);
-      expect(tagsRepo.findByUserId("u1")).toHaveLength(0);
+      const tag = scopedDb.tags.create({ name: "AI" });
+      expect(scopedDb.tags.deleteById(tag.id)).toBe(true);
+      expect(scopedDb.tags.findAll()).toHaveLength(0);
     });
 
     test("returns false for non-existent tag", () => {
-      expect(tagsRepo.deleteById(999)).toBe(false);
+      expect(scopedDb.tags.deleteById(999)).toBe(false);
     });
   });
 });

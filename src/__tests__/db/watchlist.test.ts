@@ -1,24 +1,25 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { createTestDb, closeDb, db } from "@/db";
 import { users } from "@/db/schema";
-import * as watchlistRepo from "@/db/repositories/watchlist";
-import * as watchlistsRepo from "@/db/repositories/watchlists";
-import * as tagsRepo from "@/db/repositories/tags";
+import { ScopedDB } from "@/db/scoped";
 
 /** Helper: seed user + watchlist, return watchlistId */
 function seedWatchlist(userId = "u1"): number {
-  const wl = watchlistsRepo.create({ userId, name: "Default" });
+  const scopedDb = new ScopedDB(userId);
+  const wl = scopedDb.watchlists.create({ name: "Default" });
   return wl.id;
 }
 
 describe("repositories/watchlist (members)", () => {
   let wlId: number;
+  let scopedDb: ScopedDB;
 
   beforeEach(() => {
     createTestDb();
     db.insert(users)
       .values({ id: "u1", name: "Test User", email: "test@example.com" })
       .run();
+    scopedDb = new ScopedDB("u1");
     wlId = seedWatchlist();
   });
 
@@ -28,8 +29,7 @@ describe("repositories/watchlist (members)", () => {
 
   describe("create", () => {
     test("creates a watchlist member", () => {
-      const member = watchlistRepo.create({
-        userId: "u1",
+      const member = scopedDb.members.create({
         watchlistId: wlId,
         twitterUsername: "elonmusk",
         note: "SpaceX CEO",
@@ -42,8 +42,7 @@ describe("repositories/watchlist (members)", () => {
     });
 
     test("strips @ prefix and lowercases username", () => {
-      const member = watchlistRepo.create({
-        userId: "u1",
+      const member = scopedDb.members.create({
         watchlistId: wlId,
         twitterUsername: "@ElonMusk",
         note: null,
@@ -52,8 +51,7 @@ describe("repositories/watchlist (members)", () => {
     });
 
     test("allows null note", () => {
-      const member = watchlistRepo.create({
-        userId: "u1",
+      const member = scopedDb.members.create({
         watchlistId: wlId,
         twitterUsername: "user1",
         note: null,
@@ -64,247 +62,237 @@ describe("repositories/watchlist (members)", () => {
 
   describe("findByWatchlistId", () => {
     test("returns empty array when no members", () => {
-      expect(watchlistRepo.findByWatchlistId(wlId)).toEqual([]);
+      expect(scopedDb.members.findByWatchlistId(wlId)).toEqual([]);
     });
 
     test("returns members with empty tags array", () => {
-      watchlistRepo.create({ userId: "u1", watchlistId: wlId, twitterUsername: "user1", note: null });
-      const members = watchlistRepo.findByWatchlistId(wlId);
+      scopedDb.members.create({ watchlistId: wlId, twitterUsername: "user1", note: null });
+      const members = scopedDb.members.findByWatchlistId(wlId);
       expect(members).toHaveLength(1);
       expect(members[0]!.tags).toEqual([]);
     });
 
     test("scoped to watchlist", () => {
-      const wl2 = watchlistsRepo.create({ userId: "u1", name: "Second" });
-      watchlistRepo.create({ userId: "u1", watchlistId: wlId, twitterUsername: "user1", note: null });
-      watchlistRepo.create({ userId: "u1", watchlistId: wl2.id, twitterUsername: "user2", note: null });
+      const wl2 = scopedDb.watchlists.create({ name: "Second" });
+      scopedDb.members.create({ watchlistId: wlId, twitterUsername: "user1", note: null });
+      scopedDb.members.create({ watchlistId: wl2.id, twitterUsername: "user2", note: null });
 
-      expect(watchlistRepo.findByWatchlistId(wlId)).toHaveLength(1);
-      expect(watchlistRepo.findByWatchlistId(wl2.id)).toHaveLength(1);
+      expect(scopedDb.members.findByWatchlistId(wlId)).toHaveLength(1);
+      expect(scopedDb.members.findByWatchlistId(wl2.id)).toHaveLength(1);
     });
 
     test("same user can be in multiple watchlists", () => {
-      const wl2 = watchlistsRepo.create({ userId: "u1", name: "Second" });
-      watchlistRepo.create({ userId: "u1", watchlistId: wlId, twitterUsername: "elonmusk", note: null });
-      watchlistRepo.create({ userId: "u1", watchlistId: wl2.id, twitterUsername: "elonmusk", note: null });
+      const wl2 = scopedDb.watchlists.create({ name: "Second" });
+      scopedDb.members.create({ watchlistId: wlId, twitterUsername: "elonmusk", note: null });
+      scopedDb.members.create({ watchlistId: wl2.id, twitterUsername: "elonmusk", note: null });
 
-      expect(watchlistRepo.findByWatchlistId(wlId)).toHaveLength(1);
-      expect(watchlistRepo.findByWatchlistId(wl2.id)).toHaveLength(1);
+      expect(scopedDb.members.findByWatchlistId(wlId)).toHaveLength(1);
+      expect(scopedDb.members.findByWatchlistId(wl2.id)).toHaveLength(1);
     });
   });
 
   describe("findByUserId", () => {
     test("returns all members across watchlists", () => {
-      const wl2 = watchlistsRepo.create({ userId: "u1", name: "Second" });
-      watchlistRepo.create({ userId: "u1", watchlistId: wlId, twitterUsername: "user1", note: null });
-      watchlistRepo.create({ userId: "u1", watchlistId: wl2.id, twitterUsername: "user2", note: null });
+      const wl2 = scopedDb.watchlists.create({ name: "Second" });
+      scopedDb.members.create({ watchlistId: wlId, twitterUsername: "user1", note: null });
+      scopedDb.members.create({ watchlistId: wl2.id, twitterUsername: "user2", note: null });
 
-      expect(watchlistRepo.findByUserId("u1")).toHaveLength(2);
+      expect(scopedDb.members.findAll()).toHaveLength(2);
     });
 
     test("scoped to user", () => {
       db.insert(users)
         .values({ id: "u2", email: "other@example.com" })
         .run();
+      const scopedDb2 = new ScopedDB("u2");
       const wl2 = seedWatchlist("u2");
-      watchlistRepo.create({ userId: "u1", watchlistId: wlId, twitterUsername: "user1", note: null });
-      watchlistRepo.create({ userId: "u2", watchlistId: wl2, twitterUsername: "user2", note: null });
+      scopedDb.members.create({ watchlistId: wlId, twitterUsername: "user1", note: null });
+      scopedDb2.members.create({ watchlistId: wl2, twitterUsername: "user2", note: null });
 
-      expect(watchlistRepo.findByUserId("u1")).toHaveLength(1);
-      expect(watchlistRepo.findByUserId("u2")).toHaveLength(1);
+      expect(scopedDb.members.findAll()).toHaveLength(1);
+      expect(scopedDb2.members.findAll()).toHaveLength(1);
     });
   });
 
   describe("findByUsernameAndWatchlistId", () => {
     test("finds existing member", () => {
-      watchlistRepo.create({ userId: "u1", watchlistId: wlId, twitterUsername: "elonmusk", note: null });
-      const found = watchlistRepo.findByUsernameAndWatchlistId("elonmusk", wlId);
+      scopedDb.members.create({ watchlistId: wlId, twitterUsername: "elonmusk", note: null });
+      const found = scopedDb.members.findByUsernameAndWatchlist("elonmusk", wlId);
       expect(found).toBeDefined();
       expect(found!.twitterUsername).toBe("elonmusk");
     });
 
     test("returns undefined for non-existent", () => {
       expect(
-        watchlistRepo.findByUsernameAndWatchlistId("nobody", wlId)
+        scopedDb.members.findByUsernameAndWatchlist("nobody", wlId)
       ).toBeUndefined();
     });
 
     test("scoped to watchlist", () => {
-      const wl2 = watchlistsRepo.create({ userId: "u1", name: "Second" });
-      watchlistRepo.create({ userId: "u1", watchlistId: wlId, twitterUsername: "elonmusk", note: null });
+      const wl2 = scopedDb.watchlists.create({ name: "Second" });
+      scopedDb.members.create({ watchlistId: wlId, twitterUsername: "elonmusk", note: null });
 
-      expect(watchlistRepo.findByUsernameAndWatchlistId("elonmusk", wlId)).toBeDefined();
-      expect(watchlistRepo.findByUsernameAndWatchlistId("elonmusk", wl2.id)).toBeUndefined();
+      expect(scopedDb.members.findByUsernameAndWatchlist("elonmusk", wlId)).toBeDefined();
+      expect(scopedDb.members.findByUsernameAndWatchlist("elonmusk", wl2.id)).toBeUndefined();
     });
   });
 
   describe("updateNote", () => {
     test("updates the note", () => {
-      const member = watchlistRepo.create({
-        userId: "u1",
+      const member = scopedDb.members.create({
         watchlistId: wlId,
         twitterUsername: "user1",
         note: "original",
       });
-      const updated = watchlistRepo.updateNote(member.id, "updated");
+      const updated = scopedDb.members.updateNote(member.id, "updated");
       expect(updated!.note).toBe("updated");
     });
 
     test("can clear note to null", () => {
-      const member = watchlistRepo.create({
-        userId: "u1",
+      const member = scopedDb.members.create({
         watchlistId: wlId,
         twitterUsername: "user1",
         note: "has note",
       });
-      const updated = watchlistRepo.updateNote(member.id, null);
+      const updated = scopedDb.members.updateNote(member.id, null);
       expect(updated!.note).toBeNull();
     });
   });
 
   describe("deleteById", () => {
     test("deletes existing member", () => {
-      const member = watchlistRepo.create({
-        userId: "u1",
+      const member = scopedDb.members.create({
         watchlistId: wlId,
         twitterUsername: "user1",
         note: null,
       });
-      expect(watchlistRepo.deleteById(member.id)).toBe(true);
-      expect(watchlistRepo.findByWatchlistId(wlId)).toHaveLength(0);
+      expect(scopedDb.members.deleteById(member.id)).toBe(true);
+      expect(scopedDb.members.findByWatchlistId(wlId)).toHaveLength(0);
     });
 
     test("returns false for non-existent", () => {
-      expect(watchlistRepo.deleteById(999)).toBe(false);
+      expect(scopedDb.members.deleteById(999)).toBe(false);
     });
   });
 
   describe("tag associations", () => {
     test("setTags assigns tags to a member", () => {
-      const member = watchlistRepo.create({
-        userId: "u1",
+      const member = scopedDb.members.create({
         watchlistId: wlId,
         twitterUsername: "user1",
         note: null,
       });
-      const tag1 = tagsRepo.create({ userId: "u1", name: "AI" });
-      const tag2 = tagsRepo.create({ userId: "u1", name: "Crypto" });
+      const tag1 = scopedDb.tags.create({ name: "AI" });
+      const tag2 = scopedDb.tags.create({ name: "Crypto" });
 
-      watchlistRepo.setTags(member.id, [tag1.id, tag2.id]);
+      scopedDb.members.setTags(member.id, [tag1.id, tag2.id]);
 
-      const found = watchlistRepo.findByIdAndUserId(member.id, "u1");
+      const found = scopedDb.members.findById(member.id);
       expect(found!.tags).toHaveLength(2);
       expect(found!.tags.map((t) => t.name).sort()).toEqual(["AI", "Crypto"]);
     });
 
     test("setTags replaces existing tags", () => {
-      const member = watchlistRepo.create({
-        userId: "u1",
+      const member = scopedDb.members.create({
         watchlistId: wlId,
         twitterUsername: "user1",
         note: null,
       });
-      const tag1 = tagsRepo.create({ userId: "u1", name: "AI" });
-      const tag2 = tagsRepo.create({ userId: "u1", name: "Crypto" });
+      const tag1 = scopedDb.tags.create({ name: "AI" });
+      const tag2 = scopedDb.tags.create({ name: "Crypto" });
 
-      watchlistRepo.setTags(member.id, [tag1.id]);
-      watchlistRepo.setTags(member.id, [tag2.id]);
+      scopedDb.members.setTags(member.id, [tag1.id]);
+      scopedDb.members.setTags(member.id, [tag2.id]);
 
-      const found = watchlistRepo.findByIdAndUserId(member.id, "u1");
+      const found = scopedDb.members.findById(member.id);
       expect(found!.tags).toHaveLength(1);
       expect(found!.tags[0]!.name).toBe("Crypto");
     });
 
     test("addTag adds a single tag", () => {
-      const member = watchlistRepo.create({
-        userId: "u1",
+      const member = scopedDb.members.create({
         watchlistId: wlId,
         twitterUsername: "user1",
         note: null,
       });
-      const tag = tagsRepo.create({ userId: "u1", name: "AI" });
+      const tag = scopedDb.tags.create({ name: "AI" });
 
-      watchlistRepo.addTag(member.id, tag.id);
+      scopedDb.members.addTag(member.id, tag.id);
 
-      const found = watchlistRepo.findByIdAndUserId(member.id, "u1");
+      const found = scopedDb.members.findById(member.id);
       expect(found!.tags).toHaveLength(1);
     });
 
     test("addTag is idempotent", () => {
-      const member = watchlistRepo.create({
-        userId: "u1",
+      const member = scopedDb.members.create({
         watchlistId: wlId,
         twitterUsername: "user1",
         note: null,
       });
-      const tag = tagsRepo.create({ userId: "u1", name: "AI" });
+      const tag = scopedDb.tags.create({ name: "AI" });
 
-      watchlistRepo.addTag(member.id, tag.id);
-      watchlistRepo.addTag(member.id, tag.id);
+      scopedDb.members.addTag(member.id, tag.id);
+      scopedDb.members.addTag(member.id, tag.id);
 
-      const found = watchlistRepo.findByIdAndUserId(member.id, "u1");
+      const found = scopedDb.members.findById(member.id);
       expect(found!.tags).toHaveLength(1);
     });
 
     test("removeTag removes a single tag", () => {
-      const member = watchlistRepo.create({
-        userId: "u1",
+      const member = scopedDb.members.create({
         watchlistId: wlId,
         twitterUsername: "user1",
         note: null,
       });
-      const tag1 = tagsRepo.create({ userId: "u1", name: "AI" });
-      const tag2 = tagsRepo.create({ userId: "u1", name: "Crypto" });
+      const tag1 = scopedDb.tags.create({ name: "AI" });
+      const tag2 = scopedDb.tags.create({ name: "Crypto" });
 
-      watchlistRepo.setTags(member.id, [tag1.id, tag2.id]);
-      watchlistRepo.removeTag(member.id, tag1.id);
+      scopedDb.members.setTags(member.id, [tag1.id, tag2.id]);
+      scopedDb.members.removeTag(member.id, tag1.id);
 
-      const found = watchlistRepo.findByIdAndUserId(member.id, "u1");
+      const found = scopedDb.members.findById(member.id);
       expect(found!.tags).toHaveLength(1);
       expect(found!.tags[0]!.name).toBe("Crypto");
     });
 
     test("deleting a tag cascades to member associations", () => {
-      const member = watchlistRepo.create({
-        userId: "u1",
+      const member = scopedDb.members.create({
         watchlistId: wlId,
         twitterUsername: "user1",
         note: null,
       });
-      const tag = tagsRepo.create({ userId: "u1", name: "AI" });
-      watchlistRepo.addTag(member.id, tag.id);
+      const tag = scopedDb.tags.create({ name: "AI" });
+      scopedDb.members.addTag(member.id, tag.id);
 
-      tagsRepo.deleteById(tag.id);
+      scopedDb.tags.deleteById(tag.id);
 
-      const found = watchlistRepo.findByIdAndUserId(member.id, "u1");
+      const found = scopedDb.members.findById(member.id);
       expect(found!.tags).toHaveLength(0);
     });
 
     test("deleting a member cascades to tag associations", () => {
-      const member = watchlistRepo.create({
-        userId: "u1",
+      const member = scopedDb.members.create({
         watchlistId: wlId,
         twitterUsername: "user1",
         note: null,
       });
-      const tag = tagsRepo.create({ userId: "u1", name: "AI" });
-      watchlistRepo.addTag(member.id, tag.id);
+      const tag = scopedDb.tags.create({ name: "AI" });
+      scopedDb.members.addTag(member.id, tag.id);
 
-      watchlistRepo.deleteById(member.id);
+      scopedDb.members.deleteById(member.id);
 
       // Tag should still exist
-      expect(tagsRepo.findByUserId("u1")).toHaveLength(1);
+      expect(scopedDb.tags.findAll()).toHaveLength(1);
     });
 
     test("deleting a watchlist cascades to members", () => {
-      watchlistRepo.create({
-        userId: "u1",
+      scopedDb.members.create({
         watchlistId: wlId,
         twitterUsername: "user1",
         note: null,
       });
-      watchlistsRepo.deleteById(wlId);
-      expect(watchlistRepo.findByWatchlistId(wlId)).toHaveLength(0);
+      scopedDb.watchlists.deleteById(wlId);
+      expect(scopedDb.members.findByWatchlistId(wlId)).toHaveLength(0);
     });
   });
 });
