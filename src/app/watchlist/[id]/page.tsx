@@ -242,8 +242,7 @@ export default function WatchlistDetailPage() {
     }
     loadData();
     loadPosts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when watchlistId changes
-  }, [watchlistId]);
+  }, [watchlistId]); // only re-run when watchlistId changes
 
   // Refresh posts when switching to posts tab — but NOT while the
   // fetch SSE stream is running, because it already injects posts
