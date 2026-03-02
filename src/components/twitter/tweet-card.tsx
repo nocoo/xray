@@ -412,6 +412,29 @@ function MediaGrid({
     );
   }
 
+  // Single video/GIF → full-width
+  if (media.length === 1 && (media[0]!.type === "VIDEO" || media[0]!.type === "GIF")) {
+    const m = media[0]!;
+    return (
+      <div
+        className={`overflow-hidden ${roundedClass} bg-muted`}
+        onClick={m.type === "VIDEO" ? (e) => e.stopPropagation() : undefined}
+      >
+        <video
+          src={proxyUrl(m.url)}
+          poster={m.thumbnail_url ? proxyUrl(m.thumbnail_url) : undefined}
+          controls={m.type === "VIDEO"}
+          autoPlay={m.type === "GIF"}
+          loop={m.type === "GIF"}
+          muted={m.type === "GIF"}
+          playsInline
+          preload={m.type === "VIDEO" ? "none" : undefined}
+          className={`w-full ${roundedClass}`}
+        />
+      </div>
+    );
+  }
+
   // 5+ photos or mixed media → horizontal scroll
   const scrollMediaClass = compact
     ? "h-28 w-auto max-w-[200px] object-cover"
