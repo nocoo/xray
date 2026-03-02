@@ -418,7 +418,7 @@ function MediaGrid({
     : "h-40 w-auto max-w-[280px] object-cover";
 
   return (
-    <div className={`flex gap-${compact ? "1.5" : "2"} overflow-x-auto`}>
+    <div className={compact ? "flex gap-1.5 overflow-x-auto" : "flex gap-2 overflow-x-auto"}>
       {media.map((m) => {
         const containerClass = `relative shrink-0 overflow-hidden ${roundedClass} bg-muted`;
 
