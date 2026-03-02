@@ -6,31 +6,65 @@ Audit against the 4-layer testing spec revealed 5 gaps in the current setup.
 
 ## Gap Analysis
 
-| # | Gap | Severity | Current | Required |
-|---|-----|----------|---------|----------|
-| 1 | pre-commit missing Lint | High | Lint only in pre-push | pre-commit: UT + Lint + coverage |
-| 2 | pre-commit missing coverage check | High | `bun test` without `--coverage` | `bun test --coverage` (90% threshold in bunfig.toml) |
-| 3 | pre-push duplicates UT + Lint | Medium | Runs UT + Lint + E2E | Only API E2E + BDD E2E |
-| 4 | ESLint not in strict mode | Medium | `recommended` preset | Add key strict rules manually |
-| 5 | Playwright BDD coverage thin | Low | 2 files (smoke + functional) | Core watchlist lifecycle missing |
+| # | Gap | Severity | Current | Required | Status |
+|---|-----|----------|---------|----------|--------|
+| 1 | pre-commit missing Lint | High | Lint only in pre-push | pre-commit: UT + Lint + coverage | DONE |
+| 2 | pre-commit missing coverage check | High | `bun test` without `--coverage` | `bun test --coverage` (90% threshold in bunfig.toml) | DONE |
+| 3 | pre-push duplicates UT + Lint | Medium | Runs UT + Lint + E2E | Only API E2E + BDD E2E | DONE |
+| 4 | ESLint not in strict mode | Medium | `recommended` preset | Add key strict rules manually | DONE |
+| 5 | Playwright BDD coverage thin | Low | 2 files (smoke + functional) | Core watchlist lifecycle missing | DONE |
 
-## Execution Plan
+## Execution History
 
-### Commit 1: `docs: add 4-layer testing improvement plan`
-- This file.
+### Batch 1: Infrastructure (6 commits)
 
-### Commit 2: `refactor: restructure husky hooks to match 4-layer spec`
-- `.husky/pre-commit`: add Lint + `--coverage` flag
-- `.husky/pre-push`: remove duplicated UT + Lint, keep only E2E
+1. `ebb4b44` — `docs: add 4-layer testing improvement plan`
+2. `37cb8d5` — `refactor: restructure husky hooks to match 4-layer spec`
+3. `d4ea26b` — `chore: add strict lint rules to eslint config`
+4. `37757b5` — `fix: remove non-null assertions in agent and scripts`
+5. `3ab1013` — `fix: remove all non-null assertions from production code`
+6. `78d9dc4` — `docs: update testing doc to reflect 4-layer architecture`
 
-### Commit 3: `chore: add strict lint rules to eslint config`
-- `eslint.config.mjs`: add key rules from `strict` preset
-- Run `bun run lint` and fix any new errors
+### Batch 2: Test Coverage Expansion (6 commits)
 
-### Commit 4: `docs: update testing doc to reflect 4-layer architecture`
-- `docs/04-testing.md`: replace with full 4-layer spec documentation
+7. `2380d10` — `test: add full auth enforcement coverage for all routes and methods`
+   - Added 9 missing session-auth routes (explore sub-routes, webhooks/rotate, settings/ai/test)
+   - Added 18 non-GET mutation method tests (POST/PUT/DELETE on credentials, webhooks, watchlists, tags, members, settings)
+   - Total auth enforcement tests: ~22 → ~50
 
-## Future Work (not in this batch)
-- Add Playwright tests for watchlist lifecycle (create -> add members -> fetch -> view)
-- Add Playwright tests for settings CRUD flows
-- Add explicit 401 auth enforcement tests for ~17 uncovered routes
+8. `f526fb5` — `test: add smoke tests for watchlist, ai-settings, webhooks, login, connections`
+   - Added 4 new pages to smoke test loop (watchlist, ai-settings, webhooks, login)
+   - Added standalone smoke tests for watchlist empty state and user connections page
+   - Total smoke pages: 10 → 14 + 2 standalone
+
+9. `3efc271` — `test: add watchlist CRUD lifecycle tests to playwright`
+   - Create watchlist with icon picker + auto-translate toggle
+   - Edit watchlist name/description via hover-revealed button
+   - Delete watchlist with confirmation dialog
+   - `?new=1` query param auto-opens create dialog
+
+10. `18a036f` — `test: add watchlist member CRUD and tag flow tests to playwright`
+    - Add member with username + note
+    - Add member with inline tag creation
+    - Edit member note via hover-revealed edit button
+    - Remove member via confirmation dialog
+
+11. `7ad6080` — `test: add settings, AI config, and webhook CRUD tests to playwright`
+    - Credentials: save + delete flow
+    - AI settings: provider selection, model auto-fill, save, custom provider fields
+    - Webhooks: create key (one-time display), delete key
+
+12. `f2b6660` — `test: add watchlist fetch SSE flow test to playwright`
+    - Create watchlist (translate off) → add member → click Fetch Now
+    - Assert SSE progress (Fetching... → Done)
+    - Assert mock posts render with deterministic content
+    - Assert posts tab counter updates and Fetch Now re-enables
+
+## Final Coverage Summary
+
+| Layer | Before | After |
+|-------|--------|-------|
+| L1 (UT) | ~849 tests, 90% threshold | Same (no new UTs needed) |
+| L2 (Lint) | recommended preset, not in pre-commit | 6 strict rules, runs in pre-commit |
+| L3 (API E2E) | ~148 tests, 22 auth enforcement | ~148 tests + ~50 auth enforcement |
+| L4 (Playwright) | 24 tests (smoke + basic functional) | ~45 tests (full CRUD + SSE + settings) |
