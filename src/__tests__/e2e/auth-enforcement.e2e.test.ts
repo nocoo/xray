@@ -32,12 +32,20 @@ describe("e2e: auth enforcement (no-auth server)", () => {
     const exploreRoutes = [
       { path: "/api/explore/users?username=testuser", name: "explore/users" },
       { path: "/api/explore/users/tweets?username=testuser", name: "explore/users/tweets" },
+      { path: "/api/explore/users/affiliates?username=testuser", name: "explore/users/affiliates" },
+      { path: "/api/explore/users/following?username=testuser", name: "explore/users/following" },
+      { path: "/api/explore/users/followers?username=testuser", name: "explore/users/followers" },
+      { path: "/api/explore/users/highlights?username=testuser", name: "explore/users/highlights" },
+      { path: "/api/explore/users/replies?username=testuser", name: "explore/users/replies" },
+      { path: "/api/explore/users/timeline?username=testuser", name: "explore/users/timeline" },
       { path: "/api/explore/tweets?q=ai", name: "explore/tweets" },
+      { path: "/api/explore/tweets/test-id-123", name: "explore/tweets/[id]" },
       { path: "/api/explore/analytics", name: "explore/analytics" },
       { path: "/api/explore/bookmarks", name: "explore/bookmarks" },
       { path: "/api/explore/likes", name: "explore/likes" },
       { path: "/api/explore/lists", name: "explore/lists" },
       { path: "/api/explore/inbox", name: "explore/inbox" },
+      { path: "/api/explore/messages/conv-123", name: "explore/messages/[conversationId]" },
     ];
 
     for (const route of exploreRoutes) {
@@ -56,7 +64,7 @@ describe("e2e: auth enforcement (no-auth server)", () => {
   // ---------------------------------------------------------------------------
 
   describe("other protected routes return 401 without session", () => {
-    const protectedRoutes = [
+    const protectedGetRoutes = [
       { path: "/api/usage", name: "usage" },
       { path: "/api/credentials", name: "credentials" },
       { path: "/api/webhooks", name: "webhooks" },
@@ -67,9 +75,40 @@ describe("e2e: auth enforcement (no-auth server)", () => {
       { path: "/api/tags", name: "tags" },
     ];
 
-    for (const route of protectedRoutes) {
+    for (const route of protectedGetRoutes) {
       test(`GET ${route.name} returns 401`, async () => {
         const res = await fetch(`${getNoAuthBaseUrl()}${route.path}`);
+        expect(res.status).toBe(401);
+
+        const json = await res.json();
+        expect(json.error).toBe("Unauthorized");
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // Non-GET methods on protected routes
+    // -----------------------------------------------------------------------
+
+    const protectedMutationRoutes = [
+      { path: "/api/credentials", method: "PUT", name: "credentials" },
+      { path: "/api/credentials", method: "DELETE", name: "credentials" },
+      { path: "/api/webhooks", method: "POST", name: "webhooks" },
+      { path: "/api/webhooks", method: "DELETE", name: "webhooks" },
+      { path: "/api/webhooks/rotate", method: "POST", name: "webhooks/rotate" },
+      { path: "/api/watchlists", method: "POST", name: "watchlists" },
+      { path: "/api/watchlists", method: "PUT", name: "watchlists" },
+      { path: "/api/watchlists", method: "DELETE", name: "watchlists" },
+      { path: "/api/settings/ai", method: "PUT", name: "settings/ai" },
+      { path: "/api/settings/ai/test", method: "POST", name: "settings/ai/test" },
+      { path: "/api/tags", method: "POST", name: "tags" },
+      { path: "/api/tags", method: "DELETE", name: "tags" },
+    ];
+
+    for (const route of protectedMutationRoutes) {
+      test(`${route.method} ${route.name} returns 401`, async () => {
+        const res = await fetch(`${getNoAuthBaseUrl()}${route.path}`, {
+          method: route.method,
+        });
         expect(res.status).toBe(401);
 
         const json = await res.json();
@@ -84,14 +123,14 @@ describe("e2e: auth enforcement (no-auth server)", () => {
   // ---------------------------------------------------------------------------
 
   describe("watchlist sub-routes return 401 without session", () => {
-    const watchlistRoutes = [
+    const watchlistGetRoutes = [
       { path: "/api/watchlists/1/members", name: "watchlists/[id]/members" },
       { path: "/api/watchlists/1/posts", name: "watchlists/[id]/posts" },
       { path: "/api/watchlists/1/logs", name: "watchlists/[id]/logs" },
       { path: "/api/watchlists/1/settings", name: "watchlists/[id]/settings" },
     ];
 
-    for (const route of watchlistRoutes) {
+    for (const route of watchlistGetRoutes) {
       test(`GET ${route.name} returns 401`, async () => {
         const res = await fetch(`${getNoAuthBaseUrl()}${route.path}`);
         expect(res.status).toBe(401);
@@ -101,19 +140,30 @@ describe("e2e: auth enforcement (no-auth server)", () => {
       });
     }
 
-    test("POST watchlists/[id]/fetch returns 401", async () => {
-      const res = await fetch(`${getNoAuthBaseUrl()}/api/watchlists/1/fetch`, {
-        method: "POST",
-      });
-      expect(res.status).toBe(401);
-    });
+    // -----------------------------------------------------------------------
+    // Mutation methods on watchlist sub-routes
+    // -----------------------------------------------------------------------
 
-    test("POST watchlists/[id]/translate returns 401", async () => {
-      const res = await fetch(`${getNoAuthBaseUrl()}/api/watchlists/1/translate`, {
-        method: "POST",
+    const watchlistMutationRoutes = [
+      { path: "/api/watchlists/1/members", method: "POST", name: "watchlists/[id]/members" },
+      { path: "/api/watchlists/1/members", method: "PUT", name: "watchlists/[id]/members" },
+      { path: "/api/watchlists/1/members", method: "DELETE", name: "watchlists/[id]/members" },
+      { path: "/api/watchlists/1/settings", method: "PUT", name: "watchlists/[id]/settings" },
+      { path: "/api/watchlists/1/fetch", method: "POST", name: "watchlists/[id]/fetch" },
+      { path: "/api/watchlists/1/translate", method: "POST", name: "watchlists/[id]/translate" },
+    ];
+
+    for (const route of watchlistMutationRoutes) {
+      test(`${route.method} ${route.name} returns 401`, async () => {
+        const res = await fetch(`${getNoAuthBaseUrl()}${route.path}`, {
+          method: route.method,
+        });
+        expect(res.status).toBe(401);
+
+        const json = await res.json();
+        expect(json.error).toBe("Unauthorized");
       });
-      expect(res.status).toBe(401);
-    });
+    }
   });
 
   // ---------------------------------------------------------------------------
