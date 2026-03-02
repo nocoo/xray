@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
 import { createTestDb, closeDb, db } from "@/db";
 import { users } from "@/db/schema";
-import * as settingsRepo from "@/db/repositories/settings";
+import { ScopedDB } from "@/db/scoped";
 
 // =============================================================================
 // Mock the `ai` module's generateText
@@ -32,9 +32,10 @@ function seedUser(id = "u1") {
 }
 
 function seedAiSettings(userId = "u1") {
-  settingsRepo.upsert(userId, "ai.provider", "minimax");
-  settingsRepo.upsert(userId, "ai.apiKey", "test-api-key-123");
-  settingsRepo.upsert(userId, "ai.model", "MiniMax-M2.5");
+  const scopedDb = new ScopedDB(userId);
+  scopedDb.settings.upsert("ai.provider", "minimax");
+  scopedDb.settings.upsert("ai.apiKey", "test-api-key-123");
+  scopedDb.settings.upsert("ai.model", "MiniMax-M2.5");
 }
 
 // =============================================================================
@@ -148,7 +149,8 @@ describe("services/translation", () => {
     });
 
     test("throws when only provider is set (no apiKey)", async () => {
-      settingsRepo.upsert("u1", "ai.provider", "minimax");
+      const scopedDb = new ScopedDB("u1");
+      scopedDb.settings.upsert("ai.provider", "minimax");
       // No apiKey set
 
       await expect(translateText("u1", "Hello")).rejects.toThrow(

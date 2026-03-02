@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { createTestDb, closeDb, db } from "@/db";
 import { users } from "@/db/schema";
-import * as watchlistsRepo from "@/db/repositories/watchlists";
+import { ScopedDB } from "@/db/scoped";
 
 // The API routes use requireAuth() which needs E2E_SKIP_AUTH for direct testing
 let watchlistId: number;
@@ -17,8 +17,9 @@ beforeEach(() => {
   db.insert(users)
     .values({ id: "e2e-test-user", name: "E2E Test User", email: "e2e@test.com" })
     .run();
+  const scopedDb = new ScopedDB("e2e-test-user");
   // Create a default watchlist for member tests
-  const wl = watchlistsRepo.create({ userId: "e2e-test-user", name: "Test WL" });
+  const wl = scopedDb.watchlists.create({ name: "Test WL" });
   watchlistId = wl.id;
 });
 

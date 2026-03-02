@@ -1,8 +1,6 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { createTestDb, closeDb, initSchema, seedUser } from "@/db";
-import * as webhooksRepo from "@/db/repositories/webhooks";
-import * as credentialsRepo from "@/db/repositories/credentials";
-import * as usageStatsRepo from "@/db/repositories/usage-stats";
+import { ScopedDB } from "@/db/scoped";
 import { generateWebhookKey, hashWebhookKey, getKeyPrefix } from "@/lib/crypto";
 import { withTwitterProvider } from "@/lib/twitter/route-handler";
 import { NextRequest } from "next/server";
@@ -12,6 +10,7 @@ import { NextRequest } from "next/server";
 // =============================================================================
 
 const TEST_USER_ID = "test-user-route-handler";
+let scopedDb: ScopedDB;
 
 function createRequest(
   url: string,
@@ -29,14 +28,13 @@ function createRequest(
 
 function setupUserWithWebhook(): string {
   // Seed credentials for mock provider bypass
-  credentialsRepo.upsert(TEST_USER_ID, {
+  scopedDb.credentials.upsert({
     tweapiKey: "test-key",
     twitterCookie: "test-cookie",
   });
   // Create webhook and return key
   const key = generateWebhookKey();
-  webhooksRepo.create({
-    userId: TEST_USER_ID,
+  scopedDb.webhooks.create({
     keyHash: hashWebhookKey(key),
     keyPrefix: getKeyPrefix(key),
   });
@@ -47,6 +45,7 @@ beforeEach(() => {
   createTestDb();
   initSchema();
   seedUser(TEST_USER_ID);
+  scopedDb = new ScopedDB(TEST_USER_ID);
 });
 
 afterEach(() => {
@@ -81,8 +80,7 @@ describe("withTwitterProvider", () => {
   test("returns 503 when user has no API credentials", async () => {
     // Create webhook but no credentials
     const key = generateWebhookKey();
-    webhooksRepo.create({
-      userId: TEST_USER_ID,
+    scopedDb.webhooks.create({
       keyHash: hashWebhookKey(key),
       keyPrefix: getKeyPrefix(key),
     });
@@ -182,7 +180,7 @@ describe("withTwitterProvider", () => {
       expect(res.status).toBe(200);
 
       // Verify usage stats were recorded
-      const stats = usageStatsRepo.findByUserId(TEST_USER_ID);
+      const stats = scopedDb.usageStats.findAll();
       expect(stats.length).toBe(1);
       expect(stats[0]!.endpoint).toBe(
         "/api/twitter/users/:username/tweets",
@@ -206,7 +204,7 @@ describe("withTwitterProvider", () => {
       });
 
       // No usage stats should be recorded
-      const stats = usageStatsRepo.findByUserId(TEST_USER_ID);
+      const stats = scopedDb.usageStats.findAll();
       expect(stats.length).toBe(0);
     } finally {
       process.env.MOCK_PROVIDER = originalEnv;

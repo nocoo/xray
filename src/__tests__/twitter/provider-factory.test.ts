@@ -1,6 +1,6 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { createTestDb, closeDb, initSchema, seedUser } from "@/db";
-import * as credentialsRepo from "@/db/repositories/credentials";
+import { ScopedDB } from "@/db/scoped";
 import { createProviderForUser } from "@/lib/twitter/provider-factory";
 import { MockTwitterProvider } from "@/lib/twitter/mock-provider";
 import { TweAPIProvider } from "@/lib/twitter/tweapi-provider";
@@ -10,11 +10,13 @@ import { TweAPIProvider } from "@/lib/twitter/tweapi-provider";
 // =============================================================================
 
 const TEST_USER_ID = "test-user-factory";
+let scopedDb: ScopedDB;
 
 beforeEach(() => {
   createTestDb();
   initSchema();
   seedUser(TEST_USER_ID);
+  scopedDb = new ScopedDB(TEST_USER_ID);
 });
 
 afterEach(() => {
@@ -52,7 +54,7 @@ describe("createProviderForUser", () => {
     const originalEnv = process.env.MOCK_PROVIDER;
     delete process.env.MOCK_PROVIDER;
     try {
-      credentialsRepo.upsert(TEST_USER_ID, {
+      scopedDb.credentials.upsert({
         tweapiKey: null,
         twitterCookie: "some-cookie",
       });
@@ -67,7 +69,7 @@ describe("createProviderForUser", () => {
     const originalEnv = process.env.MOCK_PROVIDER;
     delete process.env.MOCK_PROVIDER;
     try {
-      credentialsRepo.upsert(TEST_USER_ID, {
+      scopedDb.credentials.upsert({
         tweapiKey: "test-api-key",
         twitterCookie: "test-cookie",
       });
@@ -82,7 +84,7 @@ describe("createProviderForUser", () => {
     const originalEnv = process.env.MOCK_PROVIDER;
     delete process.env.MOCK_PROVIDER;
     try {
-      credentialsRepo.upsert(TEST_USER_ID, {
+      scopedDb.credentials.upsert({
         tweapiKey: "test-api-key",
         twitterCookie: "test-cookie",
       });

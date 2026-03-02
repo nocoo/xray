@@ -1,9 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
 import { createTestDb, closeDb, db } from "@/db";
 import { users, watchlistMembers } from "@/db/schema";
-import * as watchlistsRepo from "@/db/repositories/watchlists";
-import * as fetchedPostsRepo from "@/db/repositories/fetched-posts";
-import * as settingsRepo from "@/db/repositories/settings";
+import { ScopedDB } from "@/db/scoped";
 
 // =============================================================================
 // Setup: E2E_SKIP_AUTH + MOCK_PROVIDER for all API route tests
@@ -11,6 +9,7 @@ import * as settingsRepo from "@/db/repositories/settings";
 
 const USER_ID = "e2e-test-user";
 let watchlistId: number;
+let scopedDb: ScopedDB;
 
 function ctx(id?: number) {
   return { params: Promise.resolve({ id: String(id ?? watchlistId) }) };
@@ -23,8 +22,9 @@ beforeEach(() => {
   db.insert(users)
     .values({ id: USER_ID, name: "E2E Test User", email: "e2e@test.com" })
     .run();
+  scopedDb = new ScopedDB(USER_ID);
   // Create a default watchlist for all tests
-  const wl = watchlistsRepo.create({ userId: USER_ID, name: "Test WL" });
+  const wl = scopedDb.watchlists.create({ name: "Test WL" });
   watchlistId = wl.id;
 });
 
@@ -53,8 +53,7 @@ function seedMember(username: string) {
 }
 
 function seedPost(memberId: number, tweetId: string, username: string) {
-  fetchedPostsRepo.insertMany([{
-    userId: USER_ID,
+  scopedDb.posts.insertMany([{
     watchlistId,
     memberId,
     tweetId,
@@ -140,7 +139,7 @@ describe("POST /api/watchlists/[id]/fetch", () => {
     expect(d.purged).toBe(0);
 
     // Verify posts were stored
-    const posts = fetchedPostsRepo.findByWatchlistId(watchlistId);
+    const posts = scopedDb.posts.findByWatchlistId(watchlistId);
     expect(posts.length).toBeGreaterThan(0);
   });
 
@@ -166,8 +165,7 @@ describe("POST /api/watchlists/[id]/fetch", () => {
     const member = seedMember("testuser1");
 
     // Pre-seed an old post (older than 7 days max retention)
-    fetchedPostsRepo.insertMany([{
-      userId: USER_ID,
+    scopedDb.posts.insertMany([{
       watchlistId,
       memberId: member.id,
       tweetId: "very-old-tweet",
@@ -177,7 +175,7 @@ describe("POST /api/watchlists/[id]/fetch", () => {
       tweetCreatedAt: "2025-01-01T00:00:00.000Z",
     }]);
 
-    expect(fetchedPostsRepo.countByWatchlistId(watchlistId)).toBe(1);
+    expect(scopedDb.posts.countByWatchlistId(watchlistId)).toBe(1);
 
     const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
     const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
@@ -467,9 +465,9 @@ describe("POST /api/watchlists/[id]/translate", () => {
 
   test("translates untranslated posts and persists results", async () => {
     // Seed AI settings
-    settingsRepo.upsert(USER_ID, "ai.provider", "minimax");
-    settingsRepo.upsert(USER_ID, "ai.apiKey", "test-key");
-    settingsRepo.upsert(USER_ID, "ai.model", "MiniMax-M2.5");
+    scopedDb.settings.upsert("ai.provider", "minimax");
+    scopedDb.settings.upsert("ai.apiKey", "test-key");
+    scopedDb.settings.upsert("ai.model", "MiniMax-M2.5");
 
     const member = seedMember("testuser");
     seedPost(member.id, "t1", "testuser");
@@ -492,7 +490,7 @@ describe("POST /api/watchlists/[id]/translate", () => {
     expect(body.data.remaining).toBe(0);
 
     // Verify translations are persisted
-    const posts = fetchedPostsRepo.findByWatchlistId(watchlistId);
+    const posts = scopedDb.posts.findByWatchlistId(watchlistId);
     for (const post of posts) {
       expect(post.translatedText).toBe("模拟翻译");
       expect(post.translatedAt).not.toBeNull();
@@ -500,9 +498,9 @@ describe("POST /api/watchlists/[id]/translate", () => {
   });
 
   test("respects limit parameter", async () => {
-    settingsRepo.upsert(USER_ID, "ai.provider", "minimax");
-    settingsRepo.upsert(USER_ID, "ai.apiKey", "test-key");
-    settingsRepo.upsert(USER_ID, "ai.model", "MiniMax-M2.5");
+    scopedDb.settings.upsert("ai.provider", "minimax");
+    scopedDb.settings.upsert("ai.apiKey", "test-key");
+    scopedDb.settings.upsert("ai.model", "MiniMax-M2.5");
 
     const member = seedMember("testuser");
     for (let i = 0; i < 5; i++) {
@@ -529,15 +527,15 @@ describe("POST /api/watchlists/[id]/translate", () => {
   // ---------------------------------------------------------------------------
 
   test("translates a single post by postId", async () => {
-    settingsRepo.upsert(USER_ID, "ai.provider", "minimax");
-    settingsRepo.upsert(USER_ID, "ai.apiKey", "test-key");
-    settingsRepo.upsert(USER_ID, "ai.model", "MiniMax-M2.5");
+    scopedDb.settings.upsert("ai.provider", "minimax");
+    scopedDb.settings.upsert("ai.apiKey", "test-key");
+    scopedDb.settings.upsert("ai.model", "MiniMax-M2.5");
 
     const member = seedMember("testuser");
     seedPost(member.id, "t1", "testuser");
     seedPost(member.id, "t2", "testuser");
 
-    const posts = fetchedPostsRepo.findByWatchlistId(watchlistId);
+    const posts = scopedDb.posts.findByWatchlistId(watchlistId);
     const targetPost = posts.find((p) => p.tweetId === "t1")!;
 
     const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
@@ -558,7 +556,7 @@ describe("POST /api/watchlists/[id]/translate", () => {
     expect(body.data.translatedText).toBe("模拟翻译");
 
     // Verify persisted
-    const updated = fetchedPostsRepo.findById(targetPost.id)!;
+    const updated = scopedDb.posts.findById(targetPost.id)!;
     expect(updated.translatedText).toBe("模拟翻译");
     expect(updated.translatedAt).not.toBeNull();
   });
@@ -581,9 +579,9 @@ describe("POST /api/watchlists/[id]/translate", () => {
   // ---------------------------------------------------------------------------
 
   test("stream mode returns SSE with per-post translation events", async () => {
-    settingsRepo.upsert(USER_ID, "ai.provider", "minimax");
-    settingsRepo.upsert(USER_ID, "ai.apiKey", "test-key");
-    settingsRepo.upsert(USER_ID, "ai.model", "MiniMax-M2.5");
+    scopedDb.settings.upsert("ai.provider", "minimax");
+    scopedDb.settings.upsert("ai.apiKey", "test-key");
+    scopedDb.settings.upsert("ai.model", "MiniMax-M2.5");
 
     const member = seedMember("testuser");
     seedPost(member.id, "t1", "testuser");
@@ -641,7 +639,7 @@ describe("POST /api/watchlists/[id]/translate", () => {
     expect(d.remaining).toBe(0);
 
     // Verify translations are persisted in DB
-    const posts = fetchedPostsRepo.findByWatchlistId(watchlistId);
+    const posts = scopedDb.posts.findByWatchlistId(watchlistId);
     for (const post of posts) {
       expect(post.translatedText).toBe("模拟翻译");
       expect(post.translatedAt).not.toBeNull();
@@ -667,9 +665,9 @@ describe("POST /api/watchlists/[id]/translate", () => {
   });
 
   test("stream mode emits error events for failed translations", async () => {
-    settingsRepo.upsert(USER_ID, "ai.provider", "minimax");
-    settingsRepo.upsert(USER_ID, "ai.apiKey", "test-key");
-    settingsRepo.upsert(USER_ID, "ai.model", "MiniMax-M2.5");
+    scopedDb.settings.upsert("ai.provider", "minimax");
+    scopedDb.settings.upsert("ai.apiKey", "test-key");
+    scopedDb.settings.upsert("ai.model", "MiniMax-M2.5");
 
     const member = seedMember("testuser");
     seedPost(member.id, "t1", "testuser");
@@ -719,14 +717,14 @@ describe("POST /api/watchlists/[id]/translate", () => {
     expect(d.remaining).toBe(1); // still untranslated
 
     // Verify post was NOT updated in DB
-    const posts = fetchedPostsRepo.findByWatchlistId(watchlistId);
+    const posts = scopedDb.posts.findByWatchlistId(watchlistId);
     expect(posts[0]!.translatedText).toBeNull();
   });
 
   test("stream mode respects limit parameter", async () => {
-    settingsRepo.upsert(USER_ID, "ai.provider", "minimax");
-    settingsRepo.upsert(USER_ID, "ai.apiKey", "test-key");
-    settingsRepo.upsert(USER_ID, "ai.model", "MiniMax-M2.5");
+    scopedDb.settings.upsert("ai.provider", "minimax");
+    scopedDb.settings.upsert("ai.apiKey", "test-key");
+    scopedDb.settings.upsert("ai.model", "MiniMax-M2.5");
 
     const member = seedMember("testuser");
     for (let i = 0; i < 5; i++) {

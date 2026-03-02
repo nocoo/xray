@@ -1,10 +1,10 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { createTestDb, closeDb, db } from "@/db";
 import { users } from "@/db/schema";
-import * as watchlistsRepo from "@/db/repositories/watchlists";
-import * as watchlistRepo from "@/db/repositories/watchlist";
+import { ScopedDB } from "@/db/scoped";
 
 const BASE = "http://localhost/api/watchlists";
+let scopedDb: ScopedDB;
 
 function jsonReq(method: string, body?: unknown, query?: string) {
   const url = query ? `${BASE}?${query}` : BASE;
@@ -21,6 +21,7 @@ beforeEach(() => {
   db.insert(users)
     .values({ id: "e2e-test-user", name: "E2E Test User", email: "e2e@test.com" })
     .run();
+  scopedDb = new ScopedDB("e2e-test-user");
 });
 
 afterEach(() => {
@@ -43,8 +44,8 @@ describe("GET /api/watchlists", () => {
   });
 
   test("returns all user watchlists", async () => {
-    watchlistsRepo.create({ userId: "e2e-test-user", name: "List A" });
-    watchlistsRepo.create({ userId: "e2e-test-user", name: "List B" });
+    scopedDb.watchlists.create({ name: "List A" });
+    scopedDb.watchlists.create({ name: "List B" });
 
     const { GET } = await import("@/app/api/watchlists/route");
     const res = await GET();
@@ -56,8 +57,9 @@ describe("GET /api/watchlists", () => {
     db.insert(users)
       .values({ id: "other-user", email: "other@example.com" })
       .run();
-    watchlistsRepo.create({ userId: "other-user", name: "Secret" });
-    watchlistsRepo.create({ userId: "e2e-test-user", name: "Mine" });
+    const otherDb = new ScopedDB("other-user");
+    otherDb.watchlists.create({ name: "Secret" });
+    scopedDb.watchlists.create({ name: "Mine" });
 
     const { GET } = await import("@/app/api/watchlists/route");
     const res = await GET();
@@ -138,7 +140,7 @@ describe("POST /api/watchlists", () => {
 
 describe("PUT /api/watchlists", () => {
   test("updates name", async () => {
-    const wl = watchlistsRepo.create({ userId: "e2e-test-user", name: "Old" });
+    const wl = scopedDb.watchlists.create({ name: "Old" });
 
     const { PUT } = await import("@/app/api/watchlists/route");
     const res = await PUT(jsonReq("PUT", { id: wl.id, name: "New Name" }));
@@ -148,7 +150,7 @@ describe("PUT /api/watchlists", () => {
   });
 
   test("updates icon and translateEnabled", async () => {
-    const wl = watchlistsRepo.create({ userId: "e2e-test-user", name: "Test" });
+    const wl = scopedDb.watchlists.create({ name: "Test" });
 
     const { PUT } = await import("@/app/api/watchlists/route");
     const res = await PUT(
@@ -160,8 +162,7 @@ describe("PUT /api/watchlists", () => {
   });
 
   test("partial update preserves other fields", async () => {
-    const wl = watchlistsRepo.create({
-      userId: "e2e-test-user",
+    const wl = scopedDb.watchlists.create({
       name: "Test",
       icon: "brain",
       translateEnabled: 0,
@@ -191,7 +192,8 @@ describe("PUT /api/watchlists", () => {
     db.insert(users)
       .values({ id: "other-user", email: "other@example.com" })
       .run();
-    const wl = watchlistsRepo.create({ userId: "other-user", name: "Secret" });
+    const otherDb = new ScopedDB("other-user");
+    const wl = otherDb.watchlists.create({ name: "Secret" });
 
     const { PUT } = await import("@/app/api/watchlists/route");
     const res = await PUT(jsonReq("PUT", { id: wl.id, name: "Hijacked" }));
@@ -199,8 +201,7 @@ describe("PUT /api/watchlists", () => {
   });
 
   test("can clear description to null", async () => {
-    const wl = watchlistsRepo.create({
-      userId: "e2e-test-user",
+    const wl = scopedDb.watchlists.create({
       name: "Test",
       description: "Has description",
     });
@@ -218,7 +219,7 @@ describe("PUT /api/watchlists", () => {
 
 describe("DELETE /api/watchlists", () => {
   test("deletes an existing watchlist", async () => {
-    const wl = watchlistsRepo.create({ userId: "e2e-test-user", name: "ToDelete" });
+    const wl = scopedDb.watchlists.create({ name: "ToDelete" });
 
     const { DELETE: DEL } = await import("@/app/api/watchlists/route");
     const res = await DEL(jsonReq("DELETE", undefined, `id=${wl.id}`));
@@ -227,13 +228,12 @@ describe("DELETE /api/watchlists", () => {
     expect(body.data.deleted).toBe(true);
 
     // Verify it's gone
-    expect(watchlistsRepo.findByIdAndUserId(wl.id, "e2e-test-user")).toBeUndefined();
+    expect(scopedDb.watchlists.findById(wl.id)).toBeUndefined();
   });
 
   test("cascade deletes members when watchlist is deleted", async () => {
-    const wl = watchlistsRepo.create({ userId: "e2e-test-user", name: "ToDelete" });
-    watchlistRepo.create({
-      userId: "e2e-test-user",
+    const wl = scopedDb.watchlists.create({ name: "ToDelete" });
+    scopedDb.members.create({
       watchlistId: wl.id,
       twitterUsername: "user1",
       note: null,
@@ -242,7 +242,7 @@ describe("DELETE /api/watchlists", () => {
     const { DELETE: DEL } = await import("@/app/api/watchlists/route");
     await DEL(jsonReq("DELETE", undefined, `id=${wl.id}`));
 
-    expect(watchlistRepo.findByWatchlistId(wl.id)).toHaveLength(0);
+    expect(scopedDb.members.findByWatchlistId(wl.id)).toHaveLength(0);
   });
 
   test("returns 400 for missing id", async () => {
@@ -267,7 +267,8 @@ describe("DELETE /api/watchlists", () => {
     db.insert(users)
       .values({ id: "other-user", email: "other@example.com" })
       .run();
-    const wl = watchlistsRepo.create({ userId: "other-user", name: "Secret" });
+    const otherDb = new ScopedDB("other-user");
+    const wl = otherDb.watchlists.create({ name: "Secret" });
 
     const { DELETE: DEL } = await import("@/app/api/watchlists/route");
     const res = await DEL(jsonReq("DELETE", undefined, `id=${wl.id}`));
