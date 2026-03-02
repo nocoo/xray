@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
-import * as webhooksRepo from "@/db/repositories/webhooks";
 import {
   generateWebhookKey,
   hashWebhookKey,
@@ -15,10 +14,10 @@ export const dynamic = "force-dynamic";
  * Returns metadata only (hash prefix, timestamps) — never the actual key.
  */
 export async function GET() {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
-  const hooks = webhooksRepo.findByUserId(user.id);
+  const hooks = db.webhooks.findAll();
 
   return NextResponse.json(
     hooks.map((h) => ({
@@ -36,18 +35,14 @@ export async function GET() {
  * Returns the plaintext key ONCE — it will never be retrievable again.
  */
 export async function POST() {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
   const plaintextKey = generateWebhookKey();
   const keyHash = hashWebhookKey(plaintextKey);
   const keyPrefix = getKeyPrefix(plaintextKey);
 
-  const webhook = webhooksRepo.create({
-    userId: user.id,
-    keyHash,
-    keyPrefix,
-  });
+  const webhook = db.webhooks.create({ keyHash, keyPrefix });
 
   return NextResponse.json(
     {
@@ -67,7 +62,7 @@ export async function POST() {
  * Delete a webhook by ID (passed as query param).
  */
 export async function DELETE(request: Request) {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
@@ -88,16 +83,13 @@ export async function DELETE(request: Request) {
     );
   }
 
-  // Verify ownership
-  const webhook = webhooksRepo.findByIdAndUserId(id, user.id);
-  if (!webhook || webhook.userId !== user.id) {
+  const deleted = db.webhooks.deleteById(id);
+  if (!deleted) {
     return NextResponse.json(
       { error: "Webhook not found" },
       { status: 404 }
     );
   }
-
-  webhooksRepo.deleteById(id);
 
   return NextResponse.json({ deleted: true });
 }

@@ -7,7 +7,6 @@
 
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
-import * as settingsRepo from "@/db/repositories/settings";
 import {
   resolveAiConfig,
   createAiClient,
@@ -19,11 +18,11 @@ import { generateText } from "ai";
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
   // Read settings from DB
-  const all = settingsRepo.findByUserId(user.id);
+  const all = db.settings.findAll();
   const map = new Map(all.map((s) => [s.key, s.value]));
   const provider = map.get("ai.provider") ?? "";
   const apiKey = map.get("ai.apiKey") ?? "";

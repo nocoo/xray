@@ -22,10 +22,10 @@ type HandlerFn = (
 export async function withSessionProvider(
   handler: HandlerFn,
 ): Promise<Response> {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
-  const provider = createProviderForUser(user.id);
+  const provider = createProviderForUser(db.userId);
   if (!provider) {
     return Response.json(
       {
@@ -37,7 +37,7 @@ export async function withSessionProvider(
   }
 
   try {
-    return await handler(provider, user.id);
+    return await handler(provider, db.userId);
   } catch (err) {
     if (err instanceof ProviderError) {
       return Response.json(

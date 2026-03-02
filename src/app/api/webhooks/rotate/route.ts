@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
-import * as webhooksRepo from "@/db/repositories/webhooks";
 import {
   generateWebhookKey,
   hashWebhookKey,
@@ -17,7 +16,7 @@ export const dynamic = "force-dynamic";
  * Body: { id: number }
  */
 export async function POST(request: Request) {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
   let body: { id?: number };
@@ -34,26 +33,17 @@ export async function POST(request: Request) {
     );
   }
 
-  // Verify ownership
-  const existing = webhooksRepo.findByIdAndUserId(body.id, user.id);
-  if (!existing || existing.userId !== user.id) {
-    return NextResponse.json(
-      { error: "Webhook not found" },
-      { status: 404 }
-    );
-  }
-
-  // Generate new key and rotate
+  // Generate new key and rotate (ScopedDB verifies ownership internally)
   const newPlaintextKey = generateWebhookKey();
   const newKeyHash = hashWebhookKey(newPlaintextKey);
   const newKeyPrefix = getKeyPrefix(newPlaintextKey);
 
-  const rotated = webhooksRepo.rotateKey(body.id, newKeyHash, newKeyPrefix);
+  const rotated = db.webhooks.rotateKey(body.id, newKeyHash, newKeyPrefix);
 
   if (!rotated) {
     return NextResponse.json(
-      { error: "Failed to rotate webhook key" },
-      { status: 500 }
+      { error: "Webhook not found" },
+      { status: 404 }
     );
   }
 

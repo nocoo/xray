@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
-import * as credentialsRepo from "@/db/repositories/credentials";
 
 export const dynamic = "force-dynamic";
 
@@ -9,10 +8,10 @@ export const dynamic = "force-dynamic";
  * Returns the current user's API credentials (masked).
  */
 export async function GET() {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
-  const creds = credentialsRepo.findByUserId(user.id);
+  const creds = db.credentials.find();
 
   if (!creds) {
     return NextResponse.json({ configured: false, tweapiKey: null, twitterCookie: null });
@@ -31,7 +30,7 @@ export async function GET() {
  * Create or update the current user's API credentials.
  */
 export async function PUT(request: Request) {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
   let body: { tweapiKey?: string; twitterCookie?: string };
@@ -51,11 +50,11 @@ export async function PUT(request: Request) {
 
   try {
     // Merge with existing values (don't wipe fields not being updated)
-    const existing = credentialsRepo.findByUserId(user.id);
+    const existing = db.credentials.find();
     const tweapiKey = body.tweapiKey ?? existing?.tweapiKey ?? null;
     const twitterCookie = body.twitterCookie ?? existing?.twitterCookie ?? null;
 
-    const result = credentialsRepo.upsert(user.id, { tweapiKey, twitterCookie });
+    const result = db.credentials.upsert({ tweapiKey, twitterCookie });
 
     return NextResponse.json({
       configured: true,
@@ -77,10 +76,10 @@ export async function PUT(request: Request) {
  * Remove the current user's API credentials.
  */
 export async function DELETE() {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
-  const deleted = credentialsRepo.deleteByUserId(user.id);
+  const deleted = db.credentials.delete();
 
   if (!deleted) {
     return NextResponse.json({ error: "No credentials found" }, { status: 404 });

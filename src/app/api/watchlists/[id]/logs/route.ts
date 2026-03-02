@@ -7,14 +7,13 @@
 
 import { NextResponse } from "next/server";
 import { requireAuthWithWatchlist } from "@/lib/api-helpers";
-import * as fetchLogsRepo from "@/db/repositories/fetch-logs";
 
 export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, ctx: RouteContext) {
-  const { error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
+  const { db, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   const url = new URL(request.url);
@@ -27,7 +26,7 @@ export async function GET(request: Request, ctx: RouteContext) {
     }
   }
 
-  const logs = fetchLogsRepo.findByWatchlistId(watchlistId, limit);
+  const logs = db.logs.findByWatchlistId(watchlistId, limit);
 
   // Parse the JSON errors string back to arrays for the client
   const data = logs.map((log) => {

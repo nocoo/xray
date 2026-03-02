@@ -7,16 +7,11 @@
 
 import { NextRequest } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
-import {
-  getSummary,
-  getEndpointBreakdown,
-  getDailyTotals,
-} from "@/db/repositories/usage-stats";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
   const url = new URL(req.url);
@@ -33,9 +28,9 @@ export async function GET(req: NextRequest) {
     .toISOString()
     .slice(0, 10);
 
-  const summary = getSummary(user.id);
-  const endpoints = getEndpointBreakdown(user.id, startDate, endDate);
-  const daily = getDailyTotals(user.id, startDate, endDate);
+  const summary = db.usageStats.getSummary();
+  const endpoints = db.usageStats.getEndpointBreakdown(startDate, endDate);
+  const daily = db.usageStats.getDailyTotals(startDate, endDate);
 
   // Fill in missing dates with 0
   const filledDaily = fillDates(startDate, endDate, daily);

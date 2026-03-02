@@ -136,7 +136,7 @@ class CredentialsRepo {
 // Webhooks
 // =============================================================================
 
-class WebhooksRepo {
+export class WebhooksRepo {
   constructor(private userId: string) {}
 
   findAll(): Webhook[] {

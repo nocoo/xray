@@ -3,7 +3,7 @@
 // =============================================================================
 
 import { hashWebhookKey } from "@/lib/crypto";
-import * as webhooksRepo from "@/db/repositories/webhooks";
+import { WebhooksRepo } from "@/db/scoped";
 
 /**
  * Authenticate an incoming request via webhook key.
@@ -21,7 +21,7 @@ export function authenticateWebhookKey(
   if (!key) return null;
 
   const keyHash = hashWebhookKey(key);
-  const webhook = webhooksRepo.findByKeyHash(keyHash);
+  const webhook = WebhooksRepo.findByKeyHash(keyHash);
 
   if (!webhook) return null;
 

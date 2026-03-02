@@ -12,8 +12,6 @@
 
 import { NextResponse } from "next/server";
 import { requireAuthWithWatchlist } from "@/lib/api-helpers";
-import * as fetchedPostsRepo from "@/db/repositories/fetched-posts";
-import * as fetchLogsRepo from "@/db/repositories/fetch-logs";
 import { translateBatch, translateText } from "@/services/translation";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +24,7 @@ function sseMessage(event: string, data: unknown): string {
 }
 
 export async function POST(request: Request, ctx: RouteContext) {
-  const { user, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
+  const { db, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   let limit = 20;
@@ -49,8 +47,8 @@ export async function POST(request: Request, ctx: RouteContext) {
 
   // ── Single-post mode (always JSON) ──
   if (singlePostId !== null) {
-    const post = fetchedPostsRepo.findById(singlePostId);
-    if (!post || post.userId !== user.id || post.watchlistId !== watchlistId) {
+    const post = db.posts.findById(singlePostId);
+    if (!post || post.watchlistId !== watchlistId) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
     let tweet;
@@ -62,15 +60,14 @@ export async function POST(request: Request, ctx: RouteContext) {
     const quotedText = tweet.quoted_tweet?.text as string | undefined;
     const postsToTranslate = [{ id: post.id, text: post.text, quotedText }];
 
-    const result = await translateBatch(user.id, postsToTranslate);
+    const result = await translateBatch(db.userId, postsToTranslate);
     for (const t of result.translated) {
-      fetchedPostsRepo.updateTranslation(t.postId, t.translatedText, t.commentText, t.quotedTranslatedText);
+      db.posts.updateTranslation(t.postId, t.translatedText, t.commentText, t.quotedTranslatedText);
     }
-    const remaining = fetchedPostsRepo.countUntranslated(watchlistId);
+    const remaining = db.posts.countUntranslated(watchlistId);
     const errorMessages = result.errors.map((e) => e.error);
 
-    fetchLogsRepo.insert({
-      userId: user.id,
+    db.logs.insert({
       watchlistId,
       type: "translate",
       attempted: 1,
@@ -102,14 +99,8 @@ export async function POST(request: Request, ctx: RouteContext) {
   }
 
   // ── Batch mode ──
-  const untranslated = fetchedPostsRepo.findUntranslated(watchlistId, limit);
+  const untranslated = db.posts.findUntranslated(watchlistId, limit);
   if (untranslated.length === 0) {
-    if (streamMode) {
-      return NextResponse.json({
-        success: true,
-        data: { translated: 0, errors: [], remaining: 0 },
-      });
-    }
     return NextResponse.json({
       success: true,
       data: { translated: 0, errors: [], remaining: 0 },
@@ -151,8 +142,8 @@ export async function POST(request: Request, ctx: RouteContext) {
           const results = await Promise.allSettled(
             batch.map(async (post) => {
               if (aborted) throw new Error("Aborted");
-              const result = await translateText(user.id, post.text, post.quotedText);
-              fetchedPostsRepo.updateTranslation(
+              const result = await translateText(db.userId, post.text, post.quotedText);
+              db.posts.updateTranslation(
                 post.id,
                 result.translatedText,
                 result.commentText,
@@ -203,10 +194,9 @@ export async function POST(request: Request, ctx: RouteContext) {
           }
         }
 
-        const remaining = fetchedPostsRepo.countUntranslated(watchlistId);
+        const remaining = db.posts.countUntranslated(watchlistId);
 
-        fetchLogsRepo.insert({
-          userId: user.id,
+        db.logs.insert({
           watchlistId,
           type: "translate",
           attempted: total,
@@ -247,15 +237,14 @@ export async function POST(request: Request, ctx: RouteContext) {
   }
 
   // ── Non-stream batch mode (original behavior) ──
-  const result = await translateBatch(user.id, postsToTranslate);
+  const result = await translateBatch(db.userId, postsToTranslate);
   for (const t of result.translated) {
-    fetchedPostsRepo.updateTranslation(t.postId, t.translatedText, t.commentText, t.quotedTranslatedText);
+    db.posts.updateTranslation(t.postId, t.translatedText, t.commentText, t.quotedTranslatedText);
   }
-  const remaining = fetchedPostsRepo.countUntranslated(watchlistId);
+  const remaining = db.posts.countUntranslated(watchlistId);
   const errorMessages = result.errors.map((e) => e.error);
 
-  fetchLogsRepo.insert({
-    userId: user.id,
+  db.logs.insert({
     watchlistId,
     type: "translate",
     attempted: postsToTranslate.length,

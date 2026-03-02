@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuthWithWatchlist } from "@/lib/api-helpers";
-import * as watchlistRepo from "@/db/repositories/watchlist";
-import * as tagsRepo from "@/db/repositories/tags";
+import type { ScopedDB } from "@/db/scoped";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +10,8 @@ type RouteContext = { params: Promise<{ id: string }> };
  * Validate that all provided tagIds belong to the given user.
  * Returns the list of invalid IDs (empty = all valid).
  */
-function validateTagOwnership(tagIds: number[], userId: string): number[] {
-  return tagIds.filter((id) => !tagsRepo.findByIdAndUserId(id, userId));
+function validateTagOwnership(db: ScopedDB, tagIds: number[]): number[] {
+  return tagIds.filter((id) => !db.tags.findById(id));
 }
 
 /**
@@ -20,10 +19,10 @@ function validateTagOwnership(tagIds: number[], userId: string): number[] {
  * List all members for a watchlist (with tags).
  */
 export async function GET(_request: Request, ctx: RouteContext) {
-  const { error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
+  const { db, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
-  const members = watchlistRepo.findByWatchlistId(watchlistId);
+  const members = db.members.findByWatchlistId(watchlistId);
   return NextResponse.json({ success: true, data: members });
 }
 
@@ -33,7 +32,7 @@ export async function GET(_request: Request, ctx: RouteContext) {
  * Body: { twitterUsername: string, note?: string, tagIds?: number[] }
  */
 export async function POST(request: Request, ctx: RouteContext) {
-  const { user, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
+  const { db, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   let body: { twitterUsername?: string; note?: string; tagIds?: number[] };
@@ -56,7 +55,7 @@ export async function POST(request: Request, ctx: RouteContext) {
   const username = body.twitterUsername.trim().toLowerCase().replace(/^@/, "");
 
   // Check for duplicates within this watchlist
-  const existing = watchlistRepo.findByUsernameAndWatchlistId(username, watchlistId);
+  const existing = db.members.findByUsernameAndWatchlist(username, watchlistId);
   if (existing) {
     return NextResponse.json(
       { error: `@${username} is already in this watchlist` },
@@ -64,8 +63,7 @@ export async function POST(request: Request, ctx: RouteContext) {
     );
   }
 
-  const member = watchlistRepo.create({
-    userId: user.id,
+  const member = db.members.create({
     watchlistId,
     twitterUsername: username,
     note: body.note?.trim() || null,
@@ -73,18 +71,18 @@ export async function POST(request: Request, ctx: RouteContext) {
 
   // Assign tags if provided (validated for ownership)
   if (body.tagIds?.length) {
-    const invalid = validateTagOwnership(body.tagIds, user.id);
+    const invalid = validateTagOwnership(db, body.tagIds);
     if (invalid.length > 0) {
       return NextResponse.json(
         { error: `Invalid tag IDs: ${invalid.join(", ")}` },
         { status: 403 },
       );
     }
-    watchlistRepo.setTags(member.id, body.tagIds);
+    db.members.setTags(member.id, body.tagIds);
   }
 
   // Return with tags populated
-  const result = watchlistRepo.findByIdAndUserId(member.id, user.id);
+  const result = db.members.findById(member.id);
 
   return NextResponse.json({ success: true, data: result }, { status: 201 });
 }
@@ -95,7 +93,7 @@ export async function POST(request: Request, ctx: RouteContext) {
  * Body: { id: number, note?: string, tagIds?: number[] }
  */
 export async function PUT(request: Request, ctx: RouteContext) {
-  const { user, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
+  const { db, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   let body: { id?: number; note?: string; tagIds?: number[] };
@@ -116,7 +114,7 @@ export async function PUT(request: Request, ctx: RouteContext) {
   }
 
   // Verify ownership — must belong to this user AND this watchlist
-  const member = watchlistRepo.findByIdUserAndWatchlist(body.id, user.id, watchlistId);
+  const member = db.members.findByIdAndWatchlist(body.id, watchlistId);
   if (!member) {
     return NextResponse.json(
       { error: "Watchlist member not found" },
@@ -126,13 +124,13 @@ export async function PUT(request: Request, ctx: RouteContext) {
 
   // Update note if provided (allow explicit null to clear)
   if (body.note !== undefined) {
-    watchlistRepo.updateNote(body.id, body.note?.trim() || null);
+    db.members.updateNote(body.id, body.note?.trim() || null);
   }
 
   // Update tags if provided (validated for ownership)
   if (body.tagIds !== undefined) {
     if (body.tagIds.length > 0) {
-      const invalid = validateTagOwnership(body.tagIds, user.id);
+      const invalid = validateTagOwnership(db, body.tagIds);
       if (invalid.length > 0) {
         return NextResponse.json(
           { error: `Invalid tag IDs: ${invalid.join(", ")}` },
@@ -140,10 +138,10 @@ export async function PUT(request: Request, ctx: RouteContext) {
         );
       }
     }
-    watchlistRepo.setTags(body.id, body.tagIds);
+    db.members.setTags(body.id, body.tagIds);
   }
 
-  const result = watchlistRepo.findByIdUserAndWatchlist(body.id, user.id, watchlistId);
+  const result = db.members.findByIdAndWatchlist(body.id, watchlistId);
 
   return NextResponse.json({ success: true, data: result });
 }
@@ -153,7 +151,7 @@ export async function PUT(request: Request, ctx: RouteContext) {
  * Remove a member from the watchlist.
  */
 export async function DELETE(request: Request, ctx: RouteContext) {
-  const { user, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
+  const { db, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
@@ -175,7 +173,7 @@ export async function DELETE(request: Request, ctx: RouteContext) {
   }
 
   // Verify ownership — must belong to this user AND this watchlist
-  const member = watchlistRepo.findByIdUserAndWatchlist(id, user.id, watchlistId);
+  const member = db.members.findByIdAndWatchlist(id, watchlistId);
   if (!member) {
     return NextResponse.json(
       { error: "Watchlist member not found" },
@@ -183,7 +181,7 @@ export async function DELETE(request: Request, ctx: RouteContext) {
     );
   }
 
-  watchlistRepo.deleteById(id);
+  db.members.deleteById(id);
 
   return NextResponse.json({ success: true, data: { deleted: true } });
 }

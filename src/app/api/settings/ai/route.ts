@@ -5,25 +5,14 @@
 
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
-import * as settingsRepo from "@/db/repositories/settings";
 import { isValidProvider, type AiProvider, type SdkType } from "@/services/ai";
+import type { ScopedDB } from "@/db/scoped";
 
 export const dynamic = "force-dynamic";
 
-// ── AI settings keys stored in the KV table ──
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const AI_KEYS = [
-  "ai.provider",
-  "ai.apiKey",
-  "ai.model",
-  "ai.baseURL",
-  "ai.sdkType",
-] as const;
-
 /** Read all AI settings for a user into a typed object. */
-function readAiSettings(userId: string) {
-  const all = settingsRepo.findByUserId(userId);
+function readAiSettings(db: ScopedDB) {
+  const all = db.settings.findAll();
   const map = new Map(all.map((s) => [s.key, s.value]));
   return {
     provider: (map.get("ai.provider") ?? "") as AiProvider | "",
@@ -44,10 +33,10 @@ function maskApiKey(key: string): string {
 // ── GET ──
 
 export async function GET() {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
-  const settings = readAiSettings(user.id);
+  const settings = readAiSettings(db);
   return NextResponse.json({
     ...settings,
     apiKey: maskApiKey(settings.apiKey),
@@ -58,7 +47,7 @@ export async function GET() {
 // ── PUT ──
 
 export async function PUT(request: Request) {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
   let body: {
@@ -97,22 +86,22 @@ export async function PUT(request: Request) {
 
   // Save each provided field
   if (body.provider !== undefined) {
-    settingsRepo.upsert(user.id, "ai.provider", body.provider);
+    db.settings.upsert("ai.provider", body.provider);
   }
   if (body.apiKey !== undefined) {
-    settingsRepo.upsert(user.id, "ai.apiKey", body.apiKey);
+    db.settings.upsert("ai.apiKey", body.apiKey);
   }
   if (body.model !== undefined) {
-    settingsRepo.upsert(user.id, "ai.model", body.model);
+    db.settings.upsert("ai.model", body.model);
   }
   if (body.baseURL !== undefined) {
-    settingsRepo.upsert(user.id, "ai.baseURL", body.baseURL);
+    db.settings.upsert("ai.baseURL", body.baseURL);
   }
   if (body.sdkType !== undefined) {
-    settingsRepo.upsert(user.id, "ai.sdkType", body.sdkType);
+    db.settings.upsert("ai.sdkType", body.sdkType);
   }
 
-  const updated = readAiSettings(user.id);
+  const updated = readAiSettings(db);
   return NextResponse.json({
     ...updated,
     apiKey: maskApiKey(updated.apiKey),

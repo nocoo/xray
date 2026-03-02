@@ -12,10 +12,6 @@
  */
 
 import { requireAuthWithWatchlist } from "@/lib/api-helpers";
-import * as watchlistRepo from "@/db/repositories/watchlist";
-import * as fetchedPostsRepo from "@/db/repositories/fetched-posts";
-import * as fetchLogsRepo from "@/db/repositories/fetch-logs";
-import * as settingsRepo from "@/db/repositories/settings";
 import { createProviderForUser } from "@/lib/twitter/provider-factory";
 
 export const dynamic = "force-dynamic";
@@ -24,19 +20,6 @@ const DEFAULT_RETENTION_DAYS = 1;
 const MAX_RETENTION_DAYS = 7;
 
 type RouteContext = { params: Promise<{ id: string }> };
-
-function getRetentionDays(userId: string, watchlistId: number): number {
-  // Try per-watchlist setting first, fall back to global
-  const perWl = settingsRepo.findByKey(userId, `watchlist.${watchlistId}.retentionDays`);
-  if (perWl) {
-    const days = parseInt(perWl.value, 10);
-    if (!isNaN(days)) return days;
-  }
-  const row = settingsRepo.findByKey(userId, "watchlist.retentionDays");
-  if (!row) return DEFAULT_RETENTION_DAYS;
-  const days = parseInt(row.value, 10);
-  return isNaN(days) ? DEFAULT_RETENTION_DAYS : days;
-}
 
 function daysAgoIso(days: number): string {
   const d = new Date();
@@ -50,11 +33,11 @@ function sseMessage(event: string, data: unknown): string {
 }
 
 export async function POST(_request: Request, ctx: RouteContext) {
-  const { user, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
+  const { db, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   // Create Twitter provider for this user
-  const provider = createProviderForUser(user.id);
+  const provider = createProviderForUser(db.userId);
   if (!provider) {
     return new Response(
       JSON.stringify({
@@ -65,7 +48,7 @@ export async function POST(_request: Request, ctx: RouteContext) {
     );
   }
 
-  const members = watchlistRepo.findByWatchlistId(watchlistId);
+  const members = db.members.findByWatchlistId(watchlistId);
   if (members.length === 0) {
     return new Response(
       JSON.stringify({
@@ -83,16 +66,28 @@ export async function POST(_request: Request, ctx: RouteContext) {
   }
 
   // Retention: compute cutoff for filtering incoming tweets
-  const retentionDays = getRetentionDays(user.id, watchlistId);
+  const getRetentionDays = (): number => {
+    const perWl = db.settings.findByKey(`watchlist.${watchlistId}.retentionDays`);
+    if (perWl) {
+      const days = parseInt(perWl.value, 10);
+      if (!isNaN(days)) return days;
+    }
+    const row = db.settings.findByKey("watchlist.retentionDays");
+    if (!row) return DEFAULT_RETENTION_DAYS;
+    const days = parseInt(row.value, 10);
+    return isNaN(days) ? DEFAULT_RETENTION_DAYS : days;
+  };
+
+  const retentionDays = getRetentionDays();
   const retentionCutoff = daysAgoIso(retentionDays);
 
   // Purge: always remove posts older than the max retention (7 days)
   const purgeCutoff = daysAgoIso(MAX_RETENTION_DAYS);
-  const purged = fetchedPostsRepo.purgeOlderThan(watchlistId, purgeCutoff);
+  const purged = db.posts.purgeOlderThan(watchlistId, purgeCutoff);
 
   // Purge orphaned posts (from members no longer in the watchlist)
   const activeMemberIds = members.map((m) => m.id);
-  const purgedOrphans = fetchedPostsRepo.purgeOrphaned(watchlistId, activeMemberIds);
+  const purgedOrphans = db.posts.purgeOrphaned(watchlistId, activeMemberIds);
 
   const encoder = new TextEncoder();
   let aborted = false;
@@ -143,7 +138,6 @@ export async function POST(_request: Request, ctx: RouteContext) {
               continue;
             }
             posts.push({
-              userId: user.id,
               watchlistId,
               memberId: member.id,
               tweetId: tweet.id,
@@ -154,7 +148,7 @@ export async function POST(_request: Request, ctx: RouteContext) {
             });
           }
 
-          const inserted = fetchedPostsRepo.insertMany(posts);
+          const inserted = db.posts.insertMany(posts);
           memberNew = inserted;
           totalNew += inserted;
         } catch (err) {
@@ -184,7 +178,7 @@ export async function POST(_request: Request, ctx: RouteContext) {
 
         // Emit newly inserted posts so the client can render them in real-time
         if (memberNew > 0) {
-          const recentPosts = fetchedPostsRepo.findByMemberId(member.id, watchlistId, memberNew);
+          const recentPosts = db.posts.findByMemberId(member.id, watchlistId, memberNew);
           const postsData = recentPosts.map((p) => {
             let tweet;
             try {
@@ -215,8 +209,7 @@ export async function POST(_request: Request, ctx: RouteContext) {
       }
 
       // Persist log entry
-      fetchLogsRepo.insert({
-        userId: user.id,
+      db.logs.insert({
         watchlistId,
         type: "fetch",
         attempted: members.length,

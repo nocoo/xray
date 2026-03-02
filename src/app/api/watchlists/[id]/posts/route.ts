@@ -9,14 +9,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithWatchlist } from "@/lib/api-helpers";
-import * as fetchedPostsRepo from "@/db/repositories/fetched-posts";
 
 export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, ctx: RouteContext) {
-  const { error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
+  const { db, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
   if (error) return error;
 
   const url = new URL(request.url);
@@ -37,9 +36,9 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
         { status: 400 },
       );
     }
-    posts = fetchedPostsRepo.findByMemberId(memberId, watchlistId, limit);
+    posts = db.posts.findByMemberId(memberId, watchlistId, limit);
   } else {
-    posts = fetchedPostsRepo.findByWatchlistId(watchlistId, limit);
+    posts = db.posts.findByWatchlistId(watchlistId, limit);
   }
 
   // Return posts with parsed tweetJson for convenience
@@ -65,7 +64,7 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
     };
   });
 
-  const untranslatedCount = fetchedPostsRepo.countUntranslated(watchlistId);
+  const untranslatedCount = db.posts.countUntranslated(watchlistId);
 
   return NextResponse.json({
     success: true,

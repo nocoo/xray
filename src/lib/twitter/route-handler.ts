@@ -8,7 +8,7 @@ import { NextRequest } from "next/server";
 import { authenticateWebhookKey } from "./webhook-auth";
 import { createProviderForUser } from "./provider-factory";
 import { ProviderError } from "./errors";
-import { incrementCount } from "@/db/repositories/usage-stats";
+import { ScopedDB } from "@/db/scoped";
 import type { ITwitterProvider } from "./types";
 
 type HandlerFn = (
@@ -39,7 +39,8 @@ function todayDate(): string {
  */
 function trackUsage(userId: string, pathname: string): void {
   try {
-    incrementCount(userId, extractEndpoint(pathname), todayDate());
+    const db = new ScopedDB(userId);
+    db.usageStats.incrementCount(extractEndpoint(pathname), todayDate());
   } catch {
     // Usage tracking is best-effort — never fail the request
   }

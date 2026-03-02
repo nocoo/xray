@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
-import * as tagsRepo from "@/db/repositories/tags";
 
 export const dynamic = "force-dynamic";
 
@@ -9,10 +8,10 @@ export const dynamic = "force-dynamic";
  * List all tags for the current user.
  */
 export async function GET() {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
-  const userTags = tagsRepo.findByUserId(user.id);
+  const userTags = db.tags.findAll();
 
   return NextResponse.json({ success: true, data: userTags });
 }
@@ -23,7 +22,7 @@ export async function GET() {
  * Body: { name: string }
  */
 export async function POST(request: Request) {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
   let body: { name?: string };
@@ -43,10 +42,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const tag = tagsRepo.create({
-    userId: user.id,
-    name: body.name.trim(),
-  });
+  const tag = db.tags.create({ name: body.name.trim() });
 
   return NextResponse.json({ success: true, data: tag }, { status: 201 });
 }
@@ -56,7 +52,7 @@ export async function POST(request: Request) {
  * Delete a tag. Also removes it from all watchlist members.
  */
 export async function DELETE(request: Request) {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
@@ -77,16 +73,13 @@ export async function DELETE(request: Request) {
     );
   }
 
-  // Verify ownership
-  const tag = tagsRepo.findByIdAndUserId(id, user.id);
-  if (!tag) {
+  const deleted = db.tags.deleteById(id);
+  if (!deleted) {
     return NextResponse.json(
       { error: "Tag not found" },
       { status: 404 }
     );
   }
-
-  tagsRepo.deleteById(id);
 
   return NextResponse.json({ success: true, data: { deleted: true } });
 }

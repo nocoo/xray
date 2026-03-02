@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
-import * as watchlistsRepo from "@/db/repositories/watchlists";
 
 export const dynamic = "force-dynamic";
 
@@ -9,12 +8,12 @@ export const dynamic = "force-dynamic";
  * List all watchlists for the current user.
  */
 export async function GET() {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
-  const watchlists = watchlistsRepo.findByUserId(user.id);
+  const list = db.watchlists.findAll();
 
-  return NextResponse.json({ success: true, data: watchlists });
+  return NextResponse.json({ success: true, data: list });
 }
 
 /**
@@ -23,7 +22,7 @@ export async function GET() {
  * Body: { name: string, description?: string, icon?: string, translateEnabled?: 0|1 }
  */
 export async function POST(request: Request) {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
   let body: {
@@ -48,8 +47,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const watchlist = watchlistsRepo.create({
-    userId: user.id,
+  const watchlist = db.watchlists.create({
     name: body.name.trim(),
     description: body.description?.trim() || undefined,
     icon: body.icon?.trim() || undefined,
@@ -65,7 +63,7 @@ export async function POST(request: Request) {
  * Body: { id: number, name?: string, description?: string, icon?: string, translateEnabled?: 0|1 }
  */
 export async function PUT(request: Request) {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
   let body: {
@@ -91,8 +89,8 @@ export async function PUT(request: Request) {
     );
   }
 
-  // Verify ownership
-  const existing = watchlistsRepo.findByIdAndUserId(body.id, user.id);
+  // Verify ownership (ScopedDB already filters by userId)
+  const existing = db.watchlists.findById(body.id);
   if (!existing) {
     return NextResponse.json(
       { error: "Watchlist not found" },
@@ -100,13 +98,18 @@ export async function PUT(request: Request) {
     );
   }
 
-  const updates: Parameters<typeof watchlistsRepo.update>[1] = {};
+  const updates: {
+    name?: string;
+    description?: string | null;
+    icon?: string;
+    translateEnabled?: number;
+  } = {};
   if (body.name !== undefined) updates.name = body.name.trim();
   if (body.description !== undefined) updates.description = body.description?.trim() || null;
   if (body.icon !== undefined) updates.icon = body.icon.trim();
   if (body.translateEnabled !== undefined) updates.translateEnabled = body.translateEnabled;
 
-  const updated = watchlistsRepo.update(body.id, updates);
+  const updated = db.watchlists.update(body.id, updates);
 
   return NextResponse.json({ success: true, data: updated });
 }
@@ -116,7 +119,7 @@ export async function PUT(request: Request) {
  * Delete a watchlist and all its members, posts, and logs (CASCADE).
  */
 export async function DELETE(request: Request) {
-  const { user, error } = await requireAuth();
+  const { db, error } = await requireAuth();
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
@@ -137,8 +140,8 @@ export async function DELETE(request: Request) {
     );
   }
 
-  // Verify ownership
-  const existing = watchlistsRepo.findByIdAndUserId(id, user.id);
+  // Verify ownership (ScopedDB already filters by userId)
+  const existing = db.watchlists.findById(id);
   if (!existing) {
     return NextResponse.json(
       { error: "Watchlist not found" },
@@ -146,7 +149,7 @@ export async function DELETE(request: Request) {
     );
   }
 
-  watchlistsRepo.deleteById(id);
+  db.watchlists.deleteById(id);
 
   return NextResponse.json({ success: true, data: { deleted: true } });
 }

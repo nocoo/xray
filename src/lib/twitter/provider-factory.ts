@@ -3,7 +3,7 @@
 // Resolves credentials from the database for multi-tenant isolation.
 // =============================================================================
 
-import * as credentialsRepo from "@/db/repositories/credentials";
+import { ScopedDB } from "@/db/scoped";
 import type { ITwitterProvider } from "./types";
 import { TweAPIProvider } from "./tweapi-provider";
 import { MockTwitterProvider } from "./mock-provider";
@@ -27,7 +27,8 @@ export function createProviderForUser(
     return new MockTwitterProvider();
   }
 
-  const creds = credentialsRepo.findByUserId(userId);
+  const db = new ScopedDB(userId);
+  const creds = db.credentials.find();
   if (!creds?.tweapiKey) {
     return null;
   }
