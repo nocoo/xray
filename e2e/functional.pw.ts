@@ -459,3 +459,154 @@ test.describe("watchlist member CRUD", () => {
     await expect(page.locator("body")).not.toContainText("@removeme");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Settings CRUD — credentials, AI config, webhooks
+// ---------------------------------------------------------------------------
+
+test.describe("credentials CRUD", () => {
+  test("save and view API credentials", async ({ page }) => {
+    await page.goto("/settings");
+    await expect(page.locator("h1")).toContainText("Settings");
+
+    // Should show "Not configured" initially
+    await expect(page.locator("body")).toContainText("Not configured", {
+      timeout: 10_000,
+    });
+
+    // Enter edit mode
+    await page.getByRole("button", { name: "Configure" }).click();
+
+    // Fill in credentials
+    await page
+      .getByPlaceholder("Enter your TweAPI key")
+      .fill("test-tweapi-key-123");
+    await page
+      .getByPlaceholder("Enter your Twitter cookie")
+      .fill("test-cookie-value");
+
+    // Save
+    await page.getByRole("button", { name: "Save" }).click();
+
+    // Success message
+    await expect(page.locator("body")).toContainText(
+      "Credentials saved successfully",
+      { timeout: 5_000 },
+    );
+
+    // Should now show "Configured"
+    await expect(page.locator("body")).toContainText("Configured");
+  });
+
+  test("delete API credentials", async ({ page }) => {
+    await page.goto("/settings");
+
+    // First configure credentials
+    await page.getByRole("button", { name: "Configure" }).click();
+    await page
+      .getByPlaceholder("Enter your TweAPI key")
+      .fill("to-delete-key");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.locator("body")).toContainText("Configured", {
+      timeout: 5_000,
+    });
+
+    // Delete credentials
+    await page.getByRole("button", { name: "Delete" }).click();
+
+    // Should revert to "Not configured"
+    await expect(page.locator("body")).toContainText("Credentials deleted", {
+      timeout: 5_000,
+    });
+  });
+});
+
+test.describe("AI settings", () => {
+  test("configure AI provider and save", async ({ page }) => {
+    await page.goto("/ai-settings");
+    await expect(page.locator("h1")).toContainText("AI Settings");
+
+    // Select provider
+    await page.locator("select").first().selectOption("anthropic");
+
+    // Model should auto-populate with default
+    await expect(page.locator("select").nth(1)).toHaveValue(
+      "claude-sonnet-4-20250514",
+    );
+
+    // Enter API key
+    await page
+      .getByPlaceholder("Enter your API key")
+      .fill("sk-test-key-123");
+
+    // Save
+    await page.getByRole("button", { name: /Save/ }).click();
+
+    // Should show "Saved" briefly
+    await expect(
+      page.getByRole("button", { name: /Saved/ }),
+    ).toBeVisible({ timeout: 5_000 });
+  });
+
+  test("custom provider shows extra fields", async ({ page }) => {
+    await page.goto("/ai-settings");
+
+    // Select custom provider
+    await page.locator("select").first().selectOption("custom");
+
+    // Should show base URL and SDK protocol fields
+    await expect(
+      page.getByPlaceholder("https://api.example.com/v1"),
+    ).toBeVisible();
+    await expect(page.locator("body")).toContainText("SDK Protocol");
+
+    // Fill custom fields
+    await page
+      .getByPlaceholder("https://api.example.com/v1")
+      .fill("https://api.custom.ai/v1");
+    await page.getByPlaceholder("Enter model name").fill("custom-model-7b");
+    await page.getByPlaceholder("Enter your API key").fill("sk-custom-key");
+
+    // Save
+    await page.getByRole("button", { name: /Save/ }).click();
+    await expect(
+      page.getByRole("button", { name: /Saved/ }),
+    ).toBeVisible({ timeout: 5_000 });
+  });
+});
+
+test.describe("webhook management", () => {
+  test("create webhook key and see one-time display", async ({ page }) => {
+    await page.goto("/webhooks");
+    await expect(page.locator("h1")).toContainText("Webhooks");
+
+    // Create a new key
+    await page.getByRole("button", { name: "New Key" }).click();
+
+    // Should show the one-time key display
+    await expect(page.locator("body")).toContainText("shown once", {
+      timeout: 10_000,
+    });
+
+    // A key prefix should appear in the list
+    await expect(page.locator("code")).toBeVisible();
+  });
+
+  test("delete webhook key", async ({ page }) => {
+    await page.goto("/webhooks");
+
+    // Create a key first
+    await page.getByRole("button", { name: "New Key" }).click();
+    await expect(page.locator("body")).toContainText("shown once", {
+      timeout: 10_000,
+    });
+
+    // Delete the key
+    await page.getByTitle("Delete").first().click();
+
+    // Should show deletion confirmation
+    await expect(page.locator("body")).toContainText("Webhook deleted", {
+      timeout: 5_000,
+    });
+  });
+});
