@@ -41,8 +41,8 @@ export function useColumns(): number {
     function calc() {
       let baseCols = 1;
       for (let i = 0; i < widthMqls.length; i++) {
-        if (widthMqls[i]!.matches) {
-          baseCols = WIDTH_BREAKPOINTS[i]!.cols;
+        if (widthMqls[i]?.matches) {
+          baseCols = WIDTH_BREAKPOINTS[i]?.cols ?? 1;
           break;
         }
       }

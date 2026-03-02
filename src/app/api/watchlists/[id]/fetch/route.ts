@@ -117,7 +117,8 @@ export async function POST(_request: Request, ctx: RouteContext) {
       for (let i = 0; i < members.length; i++) {
         checkAborted();
 
-        const member = members[i]!;
+        const member = members[i];
+        if (!member) continue;
         let memberNew = 0;
         let memberError: string | undefined;
         let memberTweetsReceived = 0;

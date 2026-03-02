@@ -44,8 +44,8 @@ export const MemberCard = memo(function MemberCard({
           className="h-[90px] w-[90px] rounded-full bg-muted mb-2"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
+            target.parentElement?.insertAdjacentHTML("beforeend", `<div class="flex h-[90px] w-[90px] items-center justify-center rounded-full bg-muted text-2xl font-medium">${member.twitterUsername[0]?.toUpperCase() ?? "?"}</div>`);
             target.style.display = "none";
-            target.parentElement!.innerHTML = `<div class="flex h-[90px] w-[90px] items-center justify-center rounded-full bg-muted text-2xl font-medium">${member.twitterUsername[0]?.toUpperCase() ?? "?"}</div>`;
           }}
         />
       </a>

@@ -239,7 +239,8 @@ export async function translateBatch(
     );
 
     for (let j = 0; j < results.length; j++) {
-      const settled = results[j]!;
+      const settled = results[j];
+      if (!settled) continue;
       if (settled.status === "fulfilled") {
         translated.push({
           postId: settled.value.postId,
@@ -248,7 +249,8 @@ export async function translateBatch(
           quotedTranslatedText: settled.value.quotedTranslatedText,
         });
       } else {
-        const post = batch[j]!;
+        const post = batch[j];
+        if (!post) continue;
         const message = settled.reason instanceof Error
           ? settled.reason.message
           : String(settled.reason);

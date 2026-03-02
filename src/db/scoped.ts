@@ -867,7 +867,8 @@ class SettingsRepo {
         .set({ value, updatedAt: now })
         .where(and(eq(settings.userId, this.userId), eq(settings.key, key)))
         .run();
-      return this.findByKey(key)!;
+      const result = this.findByKey(key);
+      if (result) return result;
     }
 
     return db

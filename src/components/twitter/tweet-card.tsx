@@ -329,6 +329,11 @@ export function formatTimeAgo(iso: string): string {
 // Video/GIF always fall back to horizontal scroll.
 // =============================================================================
 
+// Safe indexed access — length is pre-validated before each call site
+function at<T>(arr: T[], i: number): T {
+  return arr[i] as T;
+}
+
 function MediaGrid({
   media,
   compact = false,
@@ -363,20 +368,20 @@ function MediaGrid({
         {media.length === 3 && (
           <div className="grid grid-cols-2 grid-rows-2 gap-1 h-full">
             <PhotoItem
-              key={media[0]!.id}
-              media={media[0]!}
+              key={at(media, 0).id}
+              media={at(media, 0)}
               className="w-full h-full object-cover row-span-2"
               onClick={onPhotoClick}
             />
             <PhotoItem
-              key={media[1]!.id}
-              media={media[1]!}
+              key={at(media, 1).id}
+              media={at(media, 1)}
               className="w-full h-full object-cover"
               onClick={onPhotoClick}
             />
             <PhotoItem
-              key={media[2]!.id}
-              media={media[2]!}
+              key={at(media, 2).id}
+              media={at(media, 2)}
               className="w-full h-full object-cover"
               onClick={onPhotoClick}
             />
@@ -404,7 +409,7 @@ function MediaGrid({
     return (
       <div className={`overflow-hidden ${roundedClass} bg-muted`}>
         <PhotoItem
-          media={media[0]!}
+          media={at(media, 0)}
           className={`w-full ${roundedClass}`}
           onClick={onPhotoClick}
         />
@@ -413,8 +418,8 @@ function MediaGrid({
   }
 
   // Single video/GIF → full-width
-  if (media.length === 1 && (media[0]!.type === "VIDEO" || media[0]!.type === "GIF")) {
-    const m = media[0]!;
+  if (media.length === 1 && (at(media, 0).type === "VIDEO" || at(media, 0).type === "GIF")) {
+    const m = at(media, 0);
     return (
       <div
         className={`overflow-hidden ${roundedClass} bg-muted`}

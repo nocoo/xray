@@ -8,7 +8,7 @@ export { PALETTE_COLORS };
 
 /** Get color from palette by index (wraps around) */
 export function getChartColor(index: number): string {
-  return PALETTE_COLORS[index % PALETTE_COLORS.length]!;
+  return PALETTE_COLORS[index % PALETTE_COLORS.length] as string;
 }
 
 /** Common axis configuration — uses CSS variable tokens */

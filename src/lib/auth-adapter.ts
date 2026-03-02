@@ -75,7 +75,7 @@ export function SqliteAdapter(): Adapter {
       return {
         id,
         name: user.name ?? null,
-        email: user.email!,
+        email: user.email ?? "",
         emailVerified: user.emailVerified ?? null,
         image: user.image ?? null,
       };
@@ -141,8 +141,11 @@ export function SqliteAdapter(): Adapter {
 
       if (setClauses.length === 0) {
         // Nothing to update — return the existing user
-        const existing = await this.getUser!(user.id!);
-        return existing!;
+        if (user.id) {
+          const existing = await this.getUser?.(user.id);
+          if (existing) return existing;
+        }
+        return { id: user.id ?? "", name: null, email: "", emailVerified: null, image: null };
       }
 
       params.push(user.id);

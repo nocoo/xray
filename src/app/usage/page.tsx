@@ -500,7 +500,7 @@ function DailyTooltip({
     <div className="rounded-md border bg-popover px-3 py-2 text-sm shadow-md">
       <p className="font-medium">{label}</p>
       <p className="text-muted-foreground">
-        {payload[0]!.value.toLocaleString()} requests
+        {payload[0]?.value?.toLocaleString()} requests
       </p>
     </div>
   );
@@ -514,7 +514,8 @@ function EndpointTooltip({
   payload?: { payload: { endpoint: string; total: number } }[];
 }) {
   if (!active || !payload?.length) return null;
-  const data = payload[0]!.payload;
+  const data = payload[0]?.payload;
+  if (!data) return null;
   return (
     <div className="rounded-md border bg-popover px-3 py-2 text-sm shadow-md">
       <p className="font-medium font-mono text-xs">{data.endpoint}</p>

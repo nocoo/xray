@@ -148,10 +148,10 @@ export default function WatchlistDetailPage() {
       // Find shortest column
       let minIdx = 0;
       for (let c = 1; c < columnCount; c++) {
-        if (heights[c]! < heights[minIdx]!) minIdx = c;
+        if ((heights[c] ?? 0) < (heights[minIdx] ?? 0)) minIdx = c;
       }
-      cols[minIdx]!.push(post);
-      heights[minIdx]! += h;
+      cols[minIdx]?.push(post);
+      heights[minIdx] = (heights[minIdx] ?? 0) + h;
     }
 
     return cols;
@@ -431,7 +431,10 @@ export default function WatchlistDetailPage() {
                   };
                 }
                 if (d.current < updated.length) {
-                  updated[d.current] = { ...updated[d.current]!, status: "fetching" };
+                  const current = updated[d.current];
+                  if (current) {
+                    updated[d.current] = { ...current, status: "fetching" };
+                  }
                 }
                 return updated;
               });

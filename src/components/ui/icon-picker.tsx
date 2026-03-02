@@ -125,7 +125,8 @@ export function IconPicker({
         >
           <div className="grid grid-cols-6 gap-1">
             {WATCHLIST_ICON_KEYS.map((key) => {
-              const ItemIcon = WATCHLIST_ICONS[key]!;
+              const ItemIcon = WATCHLIST_ICONS[key];
+              if (!ItemIcon) return null;
               const isSelected = key === value;
               return (
                 <button

@@ -110,35 +110,36 @@ function createDatabase(filename: string): DbInstance {
  * Idempotent — skips users that already have watchlists.
  */
 function migrateToMultiWatchlist(): void {
+  if (!sqlite) throw new Error("Database not initialized");
   // Find user_ids that have members without a watchlist_id
-  const rows = sqlite!.prepare(
+  const rows = sqlite.prepare(
     `SELECT DISTINCT user_id FROM watchlist_members WHERE watchlist_id IS NULL`
   ).all() as Array<{ user_id: string }>;
 
   if (rows.length === 0) return;
 
   const now = Math.floor(Date.now() / 1000);
-  const insertWl = sqlite!.prepare(
+  const insertWl = sqlite.prepare(
     `INSERT INTO watchlists (user_id, name, icon, translate_enabled, created_at) VALUES (?, 'Default', 'eye', 1, ?)`
   );
-  const updateMembers = sqlite!.prepare(
+  const updateMembers = sqlite.prepare(
     `UPDATE watchlist_members SET watchlist_id = ? WHERE user_id = ? AND watchlist_id IS NULL`
   );
-  const updatePosts = sqlite!.prepare(
+  const updatePosts = sqlite.prepare(
     `UPDATE fetched_posts SET watchlist_id = ? WHERE user_id = ? AND watchlist_id IS NULL`
   );
-  const updateLogs = sqlite!.prepare(
+  const updateLogs = sqlite.prepare(
     `UPDATE fetch_logs SET watchlist_id = ? WHERE user_id = ? AND watchlist_id IS NULL`
   );
 
   // Also migrate settings keys: watchlist.X → watchlist.{id}.X
-  const readSettings = sqlite!.prepare(
+  const readSettings = sqlite.prepare(
     `SELECT key, value FROM settings WHERE user_id = ? AND key LIKE 'watchlist.%' AND key NOT LIKE 'watchlist.%.%'`
   );
-  const deleteOldSetting = sqlite!.prepare(
+  const deleteOldSetting = sqlite.prepare(
     `DELETE FROM settings WHERE user_id = ? AND key = ?`
   );
-  const insertNewSetting = sqlite!.prepare(
+  const insertNewSetting = sqlite.prepare(
     `INSERT OR REPLACE INTO settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)`
   );
 
@@ -146,7 +147,7 @@ function migrateToMultiWatchlist(): void {
     const userId = row.user_id;
     insertWl.run(userId, now);
     // Get the auto-generated watchlist id
-    const wl = sqlite!.prepare(
+    const wl = sqlite.prepare(
       `SELECT id FROM watchlists WHERE user_id = ? ORDER BY id DESC LIMIT 1`
     ).get(userId) as { id: number };
     const wlId = wl.id;
@@ -169,7 +170,7 @@ function migrateToMultiWatchlist(): void {
   // Drop the old unique index and recreate with watchlist_id scope.
   // This is idempotent: IF EXISTS handles first run, subsequent runs are no-ops.
   try {
-    sqlite!.exec(`DROP INDEX IF EXISTS fetched_posts_user_tweet_uniq`);
+    sqlite.exec(`DROP INDEX IF EXISTS fetched_posts_user_tweet_uniq`);
   } catch { /* index may not exist */ }
   // The new index is created by the CREATE UNIQUE INDEX IF NOT EXISTS above.
 }
@@ -179,7 +180,8 @@ function migrateToMultiWatchlist(): void {
  * Idempotent — safe to call multiple times.
  */
 export function initSchema(): void {
-  sqlite!.exec(`
+  if (!sqlite) throw new Error("Database not initialized");
+  sqlite.exec(`
     -- NextAuth tables
     CREATE TABLE IF NOT EXISTS user (
       id TEXT PRIMARY KEY,
@@ -317,7 +319,7 @@ export function initSchema(): void {
   `);
 
   // Create fetch_logs table early so safeAddColumn and migrateToMultiWatchlist can reference it.
-  sqlite!.exec(`
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS fetch_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
@@ -336,7 +338,7 @@ export function initSchema(): void {
   // Each ALTER TABLE is wrapped in try/catch because SQLite lacks ADD COLUMN IF NOT EXISTS.
   const safeAddColumn = (sql: string) => {
     try {
-      sqlite!.exec(sql);
+      sqlite.exec(sql);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       // Only silence "duplicate column" errors; surface anything else.
@@ -354,7 +356,7 @@ export function initSchema(): void {
 
   // Indexes that depend on watchlist_id — MUST run AFTER safeAddColumn adds the column.
   // For fresh DBs the column exists from CREATE TABLE; for legacy DBs safeAddColumn just added it.
-  sqlite!.exec(`
+  sqlite.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS fetched_posts_watchlist_tweet_uniq
       ON fetched_posts (watchlist_id, tweet_id);
     CREATE UNIQUE INDEX IF NOT EXISTS watchlist_members_wl_username_uniq
@@ -415,7 +417,8 @@ export function resetTestDb(): void {
 
   initSchema();
 
-  sqlite!.exec(`
+  if (!sqlite) return;
+  sqlite.exec(`
     DELETE FROM fetch_logs;
     DELETE FROM fetched_posts;
     DELETE FROM watchlist_member_tags;
@@ -455,7 +458,8 @@ export function seedUser(
   name = "Test User",
   email?: string
 ): void {
-  sqlite!.prepare(
+  if (!sqlite) throw new Error("Database not initialized");
+  sqlite.prepare(
     `INSERT OR IGNORE INTO user (id, name, email) VALUES (?, ?, ?)`
   ).run(id, name, email ?? null);
 }

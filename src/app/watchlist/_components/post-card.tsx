@@ -38,7 +38,7 @@ export const WatchlistPostCard = memo(function WatchlistPostCard({
 
   const displayTweet = useMemo(() => {
     if (lang !== "zh" || !hasTranslation) return post.tweet;
-    const t = { ...post.tweet, text: translatedText! };
+    const t = { ...post.tweet, text: translatedText ?? post.tweet.text };
     if (t.quoted_tweet && quotedTranslatedText) {
       t.quoted_tweet = { ...t.quoted_tweet, text: quotedTranslatedText };
     }

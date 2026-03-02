@@ -79,18 +79,20 @@ export async function POST(request: Request, ctx: RouteContext) {
     });
 
     if (result.translated.length > 0) {
-      const translated = result.translated[0]!;
-      return NextResponse.json({
-        success: true,
-        data: {
-          translated: 1,
-          errors: errorMessages,
-          remaining,
-          translatedText: translated.translatedText,
-          commentText: translated.commentText,
-          quotedTranslatedText: translated.quotedTranslatedText ?? null,
-        },
-      });
+      const translated = result.translated[0];
+      if (translated) {
+        return NextResponse.json({
+          success: true,
+          data: {
+            translated: 1,
+            errors: errorMessages,
+            remaining,
+            translatedText: translated.translatedText,
+            commentText: translated.commentText,
+            quotedTranslatedText: translated.quotedTranslatedText ?? null,
+          },
+        });
+      }
     }
     return NextResponse.json({
       success: true,
@@ -157,7 +159,8 @@ export async function POST(request: Request, ctx: RouteContext) {
           for (let j = 0; j < results.length; j++) {
             if (aborted) break;
             completedCount++;
-            const settled = results[j]!;
+            const settled = results[j];
+            if (!settled) continue;
 
             if (settled.status === "fulfilled") {
               translatedCount++;
@@ -175,7 +178,8 @@ export async function POST(request: Request, ctx: RouteContext) {
                 ),
               );
             } else {
-              const post = batch[j]!;
+              const post = batch[j];
+              if (!post) continue;
               const message = settled.reason instanceof Error
                 ? settled.reason.message
                 : String(settled.reason);
