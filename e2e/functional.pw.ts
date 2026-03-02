@@ -316,3 +316,146 @@ test.describe("watchlist CRUD lifecycle", () => {
     await expect(page.locator("body")).toContainText("New Watchlist");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Watchlist member CRUD + tag flow
+// ---------------------------------------------------------------------------
+
+test.describe("watchlist member CRUD", () => {
+  /**
+   * Helper: create a watchlist and return its detail page URL.
+   * Every test in this describe block gets a fresh watchlist.
+   */
+  async function createWatchlist(
+    page: import("@playwright/test").Page,
+    name: string,
+  ) {
+    await page.goto("/watchlist");
+    await page.getByRole("button", { name: "New Watchlist" }).click();
+    await page.getByPlaceholder("e.g. Crypto KOLs").fill(name);
+    await page.getByRole("button", { name: "Create" }).click();
+    await page.waitForURL(/\/watchlist\/\d+/, { timeout: 10_000 });
+  }
+
+  test("add member to watchlist", async ({ page }) => {
+    await createWatchlist(page, "Member Test WL");
+
+    // Should be on the detail page with 0 members
+    await expect(page.locator("body")).toContainText("Member Test WL");
+
+    // Click "Add User"
+    await page.getByRole("button", { name: "Add User" }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+
+    // Fill in username and note
+    await page.getByPlaceholder("elonmusk").fill("testmember");
+    await page
+      .getByPlaceholder("Why are you tracking this user?")
+      .fill("E2E test member");
+
+    // Submit
+    await page.getByRole("button", { name: "Add" }).click();
+
+    // Dialog should close and member should appear
+    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+    await expect(page.locator("body")).toContainText("@testmember", {
+      timeout: 10_000,
+    });
+    await expect(page.locator("body")).toContainText("E2E test member");
+  });
+
+  test("add member with inline tag creation", async ({ page }) => {
+    await createWatchlist(page, "Tag Test WL");
+
+    // Add a member with a new tag
+    await page.getByRole("button", { name: "Add User" }).click();
+    await page.getByPlaceholder("elonmusk").fill("taggeduser");
+
+    // Create a new tag inline
+    const tagInput = page.getByPlaceholder("New tag name...");
+    await tagInput.fill("VIP");
+    await tagInput.press("Enter");
+
+    // The new tag should appear as selected
+    await expect(page.locator("body")).toContainText("VIP");
+
+    // Submit the member
+    await page.getByRole("button", { name: "Add" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+
+    // Member should appear with the tag
+    await expect(page.locator("body")).toContainText("@taggeduser", {
+      timeout: 10_000,
+    });
+    await expect(page.locator("body")).toContainText("VIP");
+  });
+
+  test("edit member note", async ({ page }) => {
+    await createWatchlist(page, "Edit Member WL");
+
+    // Add a member first
+    await page.getByRole("button", { name: "Add User" }).click();
+    await page.getByPlaceholder("elonmusk").fill("editmember");
+    await page
+      .getByPlaceholder("Why are you tracking this user?")
+      .fill("Original note");
+    await page.getByRole("button", { name: "Add" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+    await expect(page.locator("body")).toContainText("@editmember", {
+      timeout: 10_000,
+    });
+
+    // Hover over member card and click edit
+    const memberCard = page.locator("div", { hasText: "@editmember" }).first();
+    await memberCard.hover();
+    await memberCard.locator('button[title="Edit"]').click({ force: true });
+
+    // Edit dialog should open
+    await expect(page.getByRole("dialog")).toBeVisible();
+
+    // Update the note
+    const noteInput = page.getByPlaceholder(
+      "Why are you tracking this user?",
+    );
+    await noteInput.clear();
+    await noteInput.fill("Updated note");
+
+    // Save
+    await page.getByRole("button", { name: "Save" }).click();
+
+    // Dialog should close and updated note should appear
+    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+    await expect(page.locator("body")).toContainText("Updated note", {
+      timeout: 10_000,
+    });
+  });
+
+  test("remove member from watchlist", async ({ page }) => {
+    await createWatchlist(page, "Remove Member WL");
+
+    // Add a member first
+    await page.getByRole("button", { name: "Add User" }).click();
+    await page.getByPlaceholder("elonmusk").fill("removeme");
+    await page.getByRole("button", { name: "Add" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+    await expect(page.locator("body")).toContainText("@removeme", {
+      timeout: 10_000,
+    });
+
+    // Hover over member card and click remove
+    const memberCard = page.locator("div", { hasText: "@removeme" }).first();
+    await memberCard.hover();
+    await memberCard.locator('button[title="Remove"]').click({ force: true });
+
+    // Confirmation dialog
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.locator("body")).toContainText("Remove @removeme?");
+
+    // Confirm removal
+    await page.getByRole("button", { name: "Remove" }).click();
+
+    // Dialog should close and member should be gone
+    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+    await expect(page.locator("body")).not.toContainText("@removeme");
+  });
+});
