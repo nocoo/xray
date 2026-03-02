@@ -14,8 +14,8 @@ bun test src/__tests__/auth.test.ts src/__tests__/crypto.test.ts src/__tests__/v
 # Lint
 bun run lint
 
-# Next.js API E2E tests
-bun test src/__tests__/e2e/ --timeout 30000
+# Next.js API E2E tests (server auto-starts on port 17027 with auth bypass)
+bun test src/__tests__/e2e/ --timeout 60000
 
 # Playwright browser E2E tests
 npx playwright test --timeout 30000
