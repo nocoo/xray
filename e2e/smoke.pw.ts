@@ -23,6 +23,10 @@ test.describe("page load smoke tests", () => {
     { path: "/messages", title: "Messages" },
     { path: "/usage", title: "Usage" },
     { path: "/settings", title: "Settings" },
+    { path: "/watchlist", title: "Watchlists" },
+    { path: "/ai-settings", title: "AI Settings" },
+    { path: "/webhooks", title: "Webhooks" },
+    { path: "/login", title: "Access Required" },
   ];
 
   for (const { path, title } of pages) {
@@ -134,5 +138,43 @@ test.describe("settings page", () => {
     await expect(page.locator("body")).toContainText("Credits");
     await expect(page.locator("body")).toContainText("API Credentials");
     await expect(page.locator("body")).toContainText("Webhook");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Watchlist empty state
+// ---------------------------------------------------------------------------
+
+test.describe("watchlist page", () => {
+  test("renders empty state when no watchlists exist", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (err) => errors.push(err.message));
+
+    await page.goto("/watchlist");
+
+    await expect(page.locator("h1")).toContainText("Watchlists");
+    await expect(page.locator("body")).toContainText("No watchlists yet", {
+      timeout: 10_000,
+    });
+
+    expect(errors).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// User connections page (via mock user)
+// ---------------------------------------------------------------------------
+
+test.describe("user connections", () => {
+  test("loads connections page for a user", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (err) => errors.push(err.message));
+
+    await page.goto("/users/testuser/connections");
+
+    await expect(page.locator("h1")).toContainText("Connections");
+    await expect(page.locator("body")).toContainText("@testuser");
+
+    expect(errors).toEqual([]);
   });
 });
