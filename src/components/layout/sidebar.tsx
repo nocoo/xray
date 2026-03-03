@@ -21,6 +21,7 @@ import {
   Webhook,
   Brain,
   ChevronRight,
+  ChevronUp,
   Plus,
 } from "lucide-react";
 import { cn, getAvatarColor } from "@/lib/utils";
@@ -37,7 +38,7 @@ import { resolveIcon } from "@/components/ui/icon-picker";
 import { useSidebar } from "./sidebar-context";
 
 // =============================================================================
-// Navigation structure — grouped sections
+// Navigation structure — collapsible groups
 // =============================================================================
 
 interface NavItem {
@@ -52,36 +53,44 @@ interface NavSection {
   items: NavItem[];
 }
 
-/** Sections rendered BEFORE the dynamic watchlists group */
-const topSections: NavSection[] = [
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+  defaultOpen?: boolean;
+}
+
+/** All groups — each is independently collapsible in the expanded sidebar. */
+const NAV_GROUPS: NavGroup[] = [
   {
-    title: null,
+    label: "Dashboard",
+    defaultOpen: true,
     items: [
       { href: "/", label: "Dashboard", icon: LayoutDashboard },
     ],
   },
   {
-    title: "Explore World",
+    label: "Explore",
+    defaultOpen: true,
     items: [
       { href: "/tweets", label: "Tweets", icon: Search },
       { href: "/users", label: "Users", icon: Users },
     ],
   },
-];
-
-/** Static items in "My Account" that appear AFTER the watchlists group */
-const myAccountItems: NavItem[] = [
-  { href: "/analytics", label: "Analytics", icon: TrendingUp },
-  { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
-  { href: "/likes", label: "Likes", icon: Heart },
-  { href: "/lists", label: "Lists", icon: List },
-  { href: "/messages", label: "Messages", icon: MessageSquare },
-];
-
-/** Sections rendered AFTER the My Account section */
-const bottomSections: NavSection[] = [
   {
-    title: null,
+    label: "My Account",
+    defaultOpen: true,
+    items: [
+      // Watchlists injected dynamically — these are the static items
+      { href: "/analytics", label: "Analytics", icon: TrendingUp },
+      { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
+      { href: "/likes", label: "Likes", icon: Heart },
+      { href: "/lists", label: "Lists", icon: List },
+      { href: "/messages", label: "Messages", icon: MessageSquare },
+    ],
+  },
+  {
+    label: "Settings",
+    defaultOpen: true,
     items: [
       { href: "/usage", label: "Usage", icon: BarChart3 },
       { href: "/webhooks", label: "Webhooks", icon: Webhook },
@@ -93,9 +102,10 @@ const bottomSections: NavSection[] = [
 
 // Legacy exports for compatibility (flat list of all static items)
 const navSections: NavSection[] = [
-  ...topSections,
-  { title: "My Account", items: [{ href: "/watchlist", label: "Watchlists", icon: Eye }, ...myAccountItems] },
-  ...bottomSections,
+  { title: null, items: NAV_GROUPS[0]!.items },
+  { title: "Explore World", items: NAV_GROUPS[1]!.items },
+  { title: "My Account", items: [{ href: "/watchlist", label: "Watchlists", icon: Eye }, ...NAV_GROUPS[2]!.items] },
+  { title: null, items: NAV_GROUPS[3]!.items },
 ];
 const allNavItems = navSections.flatMap((s) => s.items);
 
@@ -206,13 +216,67 @@ function CollapsedNavLink({
   );
 }
 
-/** Section header (expanded mode). */
-function SectionHeader({ title }: { title: string }) {
+// =============================================================================
+// Collapsible group (expanded mode) — CSS Grid animation, no Radix needed
+// =============================================================================
+
+function NavGroupSection({
+  group,
+  pathname,
+  children,
+}: {
+  group: NavGroup;
+  pathname: string;
+  /** Optional extra content injected before the static items (e.g. WatchlistGroup) */
+  children?: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(group.defaultOpen ?? true);
+
   return (
-    <div className="px-3 pb-1 pt-2">
-      <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
-        {title}
-      </span>
+    <div>
+      {/* Group header — clickable to toggle */}
+      <div className="px-3 mt-2">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="flex w-full items-center justify-between px-3 py-2.5"
+        >
+          <span className="text-sm font-normal text-muted-foreground">
+            {group.label}
+          </span>
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center">
+            <ChevronUp
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                !open && "rotate-180",
+              )}
+              strokeWidth={1.5}
+            />
+          </span>
+        </button>
+      </div>
+
+      {/* Group content — CSS Grid height animation */}
+      <div
+        className="grid overflow-hidden"
+        style={{
+          gridTemplateRows: open ? "1fr" : "0fr",
+          transition: "grid-template-rows 200ms ease-out",
+        }}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="flex flex-col gap-0.5 px-3">
+            {children}
+            {group.items.map((item) => (
+              <ExpandedNavLink
+                key={item.href}
+                item={item}
+                pathname={pathname}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -361,44 +425,19 @@ export function Sidebar() {
               </TooltipContent>
             </Tooltip>
 
-            {/* Navigation — collapsed: flat icon list */}
+            {/* Navigation — collapsed: grouped icon list */}
             <nav className="flex-1 flex flex-col items-center gap-1 overflow-y-auto pt-1">
-              {/* Top sections */}
-              {topSections.map((section, sIdx) => (
-                <div key={`top-${sIdx}`} className="flex flex-col items-center gap-1">
-                  {sIdx > 0 && <div className="my-1 h-px w-6 bg-border" />}
-                  {section.items.map((item) => (
+              {NAV_GROUPS.map((group, gIdx) => (
+                <div key={group.label} className="flex flex-col items-center gap-1">
+                  {gIdx > 0 && <div className="my-1 h-px w-6 bg-border" />}
+                  {/* Inject Watchlists icon in "My Account" group */}
+                  {group.label === "My Account" && (
                     <CollapsedNavLink
-                      key={item.href}
-                      item={item}
+                      item={{ href: "/watchlist", label: "Watchlists", icon: Eye }}
                       pathname={pathname}
                     />
-                  ))}
-                </div>
-              ))}
-
-              {/* My Account section with watchlists */}
-              <div className="flex flex-col items-center gap-1">
-                <div className="my-1 h-px w-6 bg-border" />
-                {/* Watchlists icon — links to /watchlist */}
-                <CollapsedNavLink
-                  item={{ href: "/watchlist", label: "Watchlists", icon: Eye }}
-                  pathname={pathname}
-                />
-                {myAccountItems.map((item) => (
-                  <CollapsedNavLink
-                    key={item.href}
-                    item={item}
-                    pathname={pathname}
-                  />
-                ))}
-              </div>
-
-              {/* Bottom sections */}
-              {bottomSections.map((section, sIdx) => (
-                <div key={`bot-${sIdx}`} className="flex flex-col items-center gap-1">
-                  <div className="my-1 h-px w-6 bg-border" />
-                  {section.items.map((item) => (
+                  )}
+                  {group.items.map((item) => (
                     <CollapsedNavLink
                       key={item.href}
                       item={item}
@@ -478,52 +517,23 @@ export function Sidebar() {
               </div>
             </div>
 
-            {/* Navigation — expanded: grouped sections with headers */}
+            {/* Navigation — expanded: collapsible groups */}
             <nav className="flex-1 overflow-y-auto pt-1">
-              <div className="flex flex-col gap-0.5 px-3">
-                {/* Top sections */}
-                {topSections.map((section, sIdx) => (
-                  <div key={`top-${sIdx}`}>
-                    {sIdx > 0 && <div className="my-2 h-px bg-border mx-1" />}
-                    {section.title && <SectionHeader title={section.title} />}
-                    {section.items.map((item) => (
-                      <ExpandedNavLink
-                        key={item.href}
-                        item={item}
-                        pathname={pathname}
-                      />
-                    ))}
-                  </div>
-                ))}
-
-                {/* My Account section */}
-                <div className="my-2 h-px bg-border mx-1" />
-                <SectionHeader title="My Account" />
-                <WatchlistGroup
-                  watchlists={watchlists}
-                  pathname={pathname}
-                />
-                {myAccountItems.map((item) => (
-                  <ExpandedNavLink
-                    key={item.href}
-                    item={item}
+              <div className="flex flex-col">
+                {NAV_GROUPS.map((group) => (
+                  <NavGroupSection
+                    key={group.label}
+                    group={group}
                     pathname={pathname}
-                  />
-                ))}
-
-                {/* Bottom sections */}
-                {bottomSections.map((section, sIdx) => (
-                  <div key={`bot-${sIdx}`}>
-                    <div className="my-2 h-px bg-border mx-1" />
-                    {section.title && <SectionHeader title={section.title} />}
-                    {section.items.map((item) => (
-                      <ExpandedNavLink
-                        key={item.href}
-                        item={item}
+                  >
+                    {/* Inject WatchlistGroup inside "My Account" */}
+                    {group.label === "My Account" && (
+                      <WatchlistGroup
+                        watchlists={watchlists}
                         pathname={pathname}
                       />
-                    ))}
-                  </div>
+                    )}
+                  </NavGroupSection>
                 ))}
               </div>
             </nav>
