@@ -112,6 +112,8 @@ export default function WatchlistDetailPage() {
   const [translateProgress, setTranslateProgress] = useState<TranslateProgress | null>(null);
   const [translateSummary, setTranslateSummary] = useState<string | null>(null);
   const [pipelinePhase, setPipelinePhase] = useState<PipelinePhase>("idle");
+  const pipelinePhaseRef = useRef<PipelinePhase>("idle");
+  useEffect(() => { pipelinePhaseRef.current = pipelinePhase; }, [pipelinePhase]);
 
   // Fetched posts
   const [posts, setPosts] = useState<FetchedPostData[]>([]);
@@ -137,13 +139,13 @@ export default function WatchlistDetailPage() {
     const heights = new Array<number>(columnCount).fill(0);
 
     for (const post of visiblePosts) {
-      // Estimate card height: base + text lines + media + quoted tweet
+      // Estimate card height using STATIC content only — dynamic fields
+      // (translatedText, commentText) are excluded so that column
+      // assignments remain stable when translations arrive via SSE.
       let h = 80; // base (author row + action bar + padding)
       h += Math.ceil((post.text?.length ?? 0) / 60) * 20; // ~20px per line (60 chars)
       if (post.tweet.media && post.tweet.media.length > 0) h += 200;
       if (post.tweet.quoted_tweet) h += 120;
-      if (post.translatedText) h += 40; // AI insight bar
-      if (post.commentText) h += 50;
 
       // Find shortest column
       let minIdx = 0;
@@ -245,14 +247,16 @@ export default function WatchlistDetailPage() {
   }, [watchlistId]); // only re-run when watchlistId changes
 
   // Refresh posts when switching to posts tab — but NOT while the
-  // fetch SSE stream is running, because it already injects posts
+  // fetch/translate pipeline is running, because it already injects posts
   // in real-time via setPosts().  A competing loadPosts() would
   // overwrite the SSE-injected posts with a stale DB snapshot.
+  // pipelinePhase is read via ref (not a dep) so phase transitions
+  // never trigger a reload — only explicit tab switches do.
   useEffect(() => {
-    if (activeTab === "posts" && !fetchingRef.current && pipelinePhase !== "translating") {
+    if (activeTab === "posts" && !fetchingRef.current && pipelinePhaseRef.current === "idle") {
       loadPosts();
     }
-  }, [activeTab, loadPosts, pipelinePhase]);
+  }, [activeTab, loadPosts]);
 
   // ── Auto-translate via SSE stream ──
 
@@ -401,7 +405,11 @@ export default function WatchlistDetailPage() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let hadCleanup = false;
+
+      // Active member usernames — used to locally purge orphaned posts
+      const activeMemberUsernames = new Set(
+        membersRef.current.map((m) => m.twitterUsername.toLowerCase()),
+      );
 
       while (true) {
         const { done: streamDone, value } = await reader.read();
@@ -413,8 +421,14 @@ export default function WatchlistDetailPage() {
 
             if (eventType === "cleanup") {
               setCleanupInfo({ purgedExpired: d.purgedExpired, purgedOrphans: d.purgedOrphans });
+              // Locally remove posts that the server just purged, so we
+              // don't need a competing loadPosts() call later.
               if (d.purgedExpired > 0 || d.purgedOrphans > 0) {
-                hadCleanup = true;
+                setPosts((prev) =>
+                  prev.filter((p) =>
+                    activeMemberUsernames.has(p.twitterUsername.toLowerCase()),
+                  ),
+                );
               }
             } else if (eventType === "progress") {
               setMemberProgress((prev) => {
@@ -469,11 +483,6 @@ export default function WatchlistDetailPage() {
 
       setFetching(false);
 
-      // Re-fetch full post list if cleanup purged stale entries during the stream
-      if (hadCleanup) {
-        loadPosts();
-      }
-
       // Auto-trigger translate whenever translation is enabled — the server's
       // findUntranslated() decides whether there's actually work to do.
       // Previously gated on `totalNewPosts > 0`, which missed the case where
@@ -483,6 +492,12 @@ export default function WatchlistDetailPage() {
       } else {
         setPipelinePhase("done");
       }
+
+      // Final reconciliation: silently sync local state with the DB to
+      // catch any SSE events that were missed or arrived out-of-order.
+      // This runs AFTER the pipeline is fully done (phase = "done"),
+      // so the tab-switch useEffect won't race with it.
+      loadPosts();
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       setFetchSummary("Network error during fetch");

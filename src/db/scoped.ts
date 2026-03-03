@@ -631,7 +631,7 @@ class PostsRepo {
       .select()
       .from(fetchedPosts)
       .where(eq(fetchedPosts.watchlistId, watchlistId))
-      .orderBy(desc(fetchedPosts.tweetCreatedAt))
+      .orderBy(desc(fetchedPosts.tweetCreatedAt), desc(fetchedPosts.id))
       .limit(limit)
       .all();
   }
@@ -651,7 +651,7 @@ class PostsRepo {
       .where(
         and(eq(fetchedPosts.memberId, memberId), eq(fetchedPosts.watchlistId, watchlistId)),
       )
-      .orderBy(desc(fetchedPosts.tweetCreatedAt))
+      .orderBy(desc(fetchedPosts.tweetCreatedAt), desc(fetchedPosts.id))
       .limit(limit)
       .all();
   }
@@ -663,7 +663,7 @@ class PostsRepo {
       .where(
         and(eq(fetchedPosts.watchlistId, watchlistId), isNull(fetchedPosts.translatedText)),
       )
-      .orderBy(desc(fetchedPosts.fetchedAt))
+      .orderBy(desc(fetchedPosts.fetchedAt), desc(fetchedPosts.id))
       .limit(limit)
       .all();
   }
