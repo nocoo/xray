@@ -34,4 +34,4 @@ COPY --from=builder /app/vite.config.ts ./
 
 EXPOSE 7027
 
-CMD ["bun", "run", "start"]
+CMD ["bun", "node_modules/vinext/dist/cli.js", "start", "--port", "7027"]
