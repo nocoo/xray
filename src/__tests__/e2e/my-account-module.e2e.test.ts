@@ -39,6 +39,54 @@ describe("e2e: my account module", () => {
   }
 
   // ---------------------------------------------------------------------------
+  // Pages — Following
+  // ---------------------------------------------------------------------------
+
+  describe("following page", () => {
+    test("GET /following returns 200 with functional page", async () => {
+      const { status, html } = await fetchPage("/following");
+      expect(status).toBe(200);
+      expect(html).toContain("Following");
+      expect(html).not.toContain("Coming Soon");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Explore API — following
+  // ---------------------------------------------------------------------------
+
+  describe("explore api: following", () => {
+    test("GET /api/explore/users/following?username=mockuser returns user list", async () => {
+      const res = await fetch(
+        `${getBaseUrl()}/api/explore/users/following?username=mockuser`,
+      );
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.success).toBe(true);
+      expect(body.data).toBeArray();
+      expect(body.data.length).toBeGreaterThan(0);
+      // Each item should be a UserInfo with profile_image_url
+      const user = body.data[0];
+      expect(user.id).toBeDefined();
+      expect(user.username).toBeDefined();
+      expect(user.name).toBeDefined();
+      expect(user.profile_image_url).toBeDefined();
+      expect(user.followers_count).toBeDefined();
+      expect(user.following_count).toBeDefined();
+    });
+
+    test("GET /api/explore/users/following without username returns 400", async () => {
+      const res = await fetch(
+        `${getBaseUrl()}/api/explore/users/following`,
+      );
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.success).toBe(false);
+      expect(body.error).toContain("username");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Pages — Bookmarks / Likes / Lists
   // ---------------------------------------------------------------------------
 
