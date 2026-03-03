@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - 2026-03-03
+
+### Added
+
+- **ScopedDB class** — user-scoped database access layer (`ScopedDB`) that binds `userId` at construction time, making row-level security correct by construction; eliminates per-repository `userId` parameter passing
+- **SQLite adapter for NextAuth** — custom adapter (`auth-adapter.ts`) resolves user identity via `account` table JOIN on `(provider, providerAccountId)`, providing stable user IDs across browsers and sessions
+- **Auth context with React.cache** — `getAuthUser()` uses `React.cache` for per-request session deduplication, avoiding redundant `auth()` calls within a single request
+- **Full Playwright E2E suite** — smoke tests, auth enforcement for all routes/methods, watchlist CRUD lifecycle, member CRUD with tag flows, settings/AI config/webhook CRUD, and watchlist fetch SSE flow
+
+### Changed
+
+- **Repository → ScopedDB migration** — all API routes, translation service, and 10+ test files migrated from the old repository pattern to ScopedDB
+- **Tweet card author row** — split into two lines for improved readability
+- **Husky hooks** — restructured to match 4-layer test architecture spec; BDD E2E removed from pre-push hook (run on-demand)
+- **Playwright port** — changed L4 playwright port from 17028 to 27028
+- **Strict ESLint rules** — added stricter lint rules to eslint config
+- Old repository modules deleted (superseded by ScopedDB)
+
+### Fixed
+
+- **Watchlist card instability** — stabilized post cards during fetch/translate pipeline: `pipelinePhaseRef` replaces `pipelinePhase` in useEffect deps, removed `hadCleanup` loadPosts trigger, excluded dynamic fields from masonry height estimation, added post-pipeline reconciliation fetch, and `id DESC` tiebreaker on DB queries
+- **User identity resolution** — resolve user by email to prevent cross-browser auth failures caused by NextAuth generating random UUIDs without an adapter
+- **Legacy users without account rows** — handle `OAuthAccountNotLinked` error for users created before the adapter migration
+- **E2E FK constraint** — seed E2E user row to satisfy foreign key constraints on write operations
+- **8 Playwright failures** — strict locators and test isolation fixes for sidebar link ambiguity and cross-file state leaks
+- **Non-null assertions** — removed all `!` assertions from production code, agent, and scripts
+- **Single video/GIF layout** — render single video or GIF full-width instead of horizontal scroll
+- **Container SIGTERM** — bypass bun script runner to avoid SIGTERM error message on container stop
+
+### Documentation
+
+- 4-layer testing improvement plan and batch 2 completion status
+- ScopedDB migration retrospective entries (18–23)
+- README updated with preview image, vinext badge, and ScopedDB architecture
+
 ## [1.2.3] - 2026-03-02
 
 ### Added
