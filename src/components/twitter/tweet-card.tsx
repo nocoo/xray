@@ -242,6 +242,10 @@ export const TweetCard = memo(function TweetCard({
           value={tweet.metrics.retweet_count}
         />
         <MetricItem
+          icon={<Quote className="h-3.5 w-3.5" />}
+          value={tweet.metrics.quote_count}
+        />
+        <MetricItem
           icon={<Heart className="h-3.5 w-3.5" />}
           value={tweet.metrics.like_count}
         />
