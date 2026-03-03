@@ -87,6 +87,81 @@ describe("e2e: my account module", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Explore API — batch user resolution
+  // ---------------------------------------------------------------------------
+
+  describe("explore api: batch", () => {
+    test("POST /api/explore/users/batch resolves multiple usernames", async () => {
+      const res = await fetch(`${getBaseUrl()}/api/explore/users/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usernames: ["mockuser", "anotheruser"] }),
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.success).toBe(true);
+      expect(body.data.resolved).toBeArray();
+      expect(body.data.resolved.length).toBeGreaterThan(0);
+      expect(body.data.failed).toBeArray();
+      // Each resolved user should be a valid UserInfo
+      const user = body.data.resolved[0];
+      expect(user.id).toBeDefined();
+      expect(user.username).toBeDefined();
+      expect(user.name).toBeDefined();
+    });
+
+    test("POST /api/explore/users/batch strips @ from usernames", async () => {
+      const res = await fetch(`${getBaseUrl()}/api/explore/users/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usernames: ["@mockuser"] }),
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.success).toBe(true);
+      expect(body.data.resolved.length).toBeGreaterThan(0);
+    });
+
+    test("POST /api/explore/users/batch returns 400 for empty array", async () => {
+      const res = await fetch(`${getBaseUrl()}/api/explore/users/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usernames: [] }),
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.success).toBe(false);
+    });
+
+    test("POST /api/explore/users/batch returns 400 for missing body", async () => {
+      const res = await fetch(`${getBaseUrl()}/api/explore/users/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.success).toBe(false);
+    });
+
+    test("POST /api/explore/users/batch deduplicates usernames", async () => {
+      const res = await fetch(`${getBaseUrl()}/api/explore/users/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          usernames: ["mockuser", "@mockuser", "MOCKUSER", "mockuser"],
+        }),
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.success).toBe(true);
+      // Should only resolve once (deduplicated by the server)
+      // The mock provider generates deterministic users, so we check resolved count
+      expect(body.data.resolved.length).toBe(1);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Pages — Bookmarks / Likes / Lists
   // ---------------------------------------------------------------------------
 

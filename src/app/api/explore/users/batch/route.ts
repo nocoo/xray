@@ -76,14 +76,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Sanitize: trim, strip @, deduplicate, remove blanks
-  const cleaned = [
-    ...new Set(
-      usernames
-        .map((u) => (typeof u === "string" ? u.trim().replace(/^@/, "") : ""))
-        .filter(Boolean),
-    ),
-  ];
+  // Sanitize: trim, strip @, deduplicate (case-insensitive), remove blanks
+  const seen = new Set<string>();
+  const cleaned: string[] = [];
+  for (const u of usernames) {
+    const s = typeof u === "string" ? u.trim().replace(/^@/, "") : "";
+    if (s && !seen.has(s.toLowerCase())) {
+      seen.add(s.toLowerCase());
+      cleaned.push(s);
+    }
+  }
 
   if (cleaned.length === 0) {
     return Response.json(
