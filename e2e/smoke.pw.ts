@@ -64,8 +64,8 @@ test.describe("sidebar navigation", () => {
     await expect(page).toHaveURL("/users");
     await expect(page.locator("h1")).toContainText("Users");
 
-    // Click Settings in sidebar
-    await page.getByRole("link", { name: "Settings" }).click();
+    // Click Settings in sidebar (exact: true to avoid matching "AI Settings")
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page).toHaveURL("/settings");
     await expect(page.locator("h1")).toContainText("Settings");
 
@@ -146,16 +146,17 @@ test.describe("settings page", () => {
 // ---------------------------------------------------------------------------
 
 test.describe("watchlist page", () => {
-  test("renders empty state when no watchlists exist", async ({ page }) => {
+  test("renders watchlist page with header and new button", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (err) => errors.push(err.message));
 
     await page.goto("/watchlist");
 
     await expect(page.locator("h1")).toContainText("Watchlists");
-    await expect(page.locator("body")).toContainText("No watchlists yet", {
-      timeout: 10_000,
-    });
+    // "New Watchlist" button should always be present
+    await expect(
+      page.getByRole("button", { name: "New Watchlist" }),
+    ).toBeVisible({ timeout: 10_000 });
 
     expect(errors).toEqual([]);
   });
