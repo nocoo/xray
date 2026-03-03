@@ -59,30 +59,34 @@ export const TweetCard = memo(function TweetCard({
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/users/${tweet.author.username}`}
-              className="font-medium truncate hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {tweet.author.name}
-            </Link>
-            {tweet.author.is_verified && (
-              <Badge variant="default" className="h-4 px-1 text-[10px]">
-                V
-              </Badge>
-            )}
-            <Link
-              href={`/users/${tweet.author.username}`}
-              className="text-sm text-muted-foreground truncate hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              @{tweet.author.username}
-            </Link>
-            <span className="text-sm text-muted-foreground">·</span>
-            <span className="text-sm text-muted-foreground shrink-0">
-              {formatTimeAgo(tweet.created_at)}
-            </span>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1.5">
+              <Link
+                href={`/users/${tweet.author.username}`}
+                className="font-medium truncate hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {tweet.author.name}
+              </Link>
+              {tweet.author.is_verified && (
+                <Badge variant="default" className="h-4 px-1 text-[10px]">
+                  V
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Link
+                href={`/users/${tweet.author.username}`}
+                className="truncate hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                @{tweet.author.username}
+              </Link>
+              <span>·</span>
+              <span className="shrink-0">
+                {formatTimeAgo(tweet.created_at)}
+              </span>
+            </div>
           </div>
 
           {/* Tweet type badges */}
