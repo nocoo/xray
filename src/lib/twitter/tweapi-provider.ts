@@ -300,12 +300,29 @@ export class TweAPIProvider implements ITwitterProvider {
   }
 
   async getUserFollowing(username: string): Promise<UserInfo[]> {
-    const data = await this.request<TweAPIUserListResponse>(
-      "/v1/twitter/user/following",
-      { url: `https://x.com/${username}` },
-    );
-    if (!data.data?.list) return [];
-    return data.data.list.map((user) => normalizeUserInfo(user));
+    const allUsers: UserInfo[] = [];
+    const MAX_PAGES = 20; // safety cap to avoid runaway loops
+    let cursor: string | undefined;
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const body: Record<string, unknown> = {
+        url: `https://x.com/${username}`,
+      };
+      if (cursor) body.cursor = cursor;
+
+      const data = await this.request<TweAPIUserListResponse>(
+        "/v1/twitter/user/following",
+        body,
+      );
+      if (!data.data?.list?.length) break;
+
+      allUsers.push(...data.data.list.map((user) => normalizeUserInfo(user)));
+
+      if (!data.data.next) break;
+      cursor = data.data.next;
+    }
+
+    return allUsers;
   }
 
   async getUserAffiliates(username: string): Promise<UserInfo[]> {

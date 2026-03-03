@@ -584,6 +584,65 @@ describe("TweAPIProvider", () => {
 
       expect(await provider.getUserFollowing("testuser")).toEqual([]);
     });
+
+    test("paginates through multiple pages using cursor", async () => {
+      let callCount = 0;
+      mockFetch.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve(
+            jsonResponse({
+              code: 201,
+              msg: "ok",
+              data: { list: [MOCK_AUTHOR], next: "cursor-page-2" },
+            }),
+          );
+        }
+        // Second page: no next cursor → stop
+        return Promise.resolve(
+          jsonResponse({
+            code: 201,
+            msg: "ok",
+            data: { list: [{ ...MOCK_AUTHOR, id: "456", userName: "user2" }] },
+          }),
+        );
+      });
+
+      const users = await provider.getUserFollowing("testuser");
+      expect(users).toHaveLength(2);
+      expect(callCount).toBe(2);
+
+      // Verify cursor was sent in the second request body
+      const secondCallBody = JSON.parse(mockFetch.mock.calls[1]![1]!.body as string);
+      expect(secondCallBody.cursor).toBe("cursor-page-2");
+    });
+
+    test("stops when page returns empty list", async () => {
+      let callCount = 0;
+      mockFetch.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve(
+            jsonResponse({
+              code: 201,
+              msg: "ok",
+              data: { list: [MOCK_AUTHOR], next: "cursor-page-2" },
+            }),
+          );
+        }
+        return Promise.resolve(
+          jsonResponse({
+            code: 201,
+            msg: "ok",
+            data: { list: [] },
+          }),
+        );
+      });
+
+      const users = await provider.getUserFollowing("testuser");
+      expect(users).toHaveLength(1);
+      expect(callCount).toBe(2);
+    });
   });
 
   describe("getUserAffiliates", () => {
