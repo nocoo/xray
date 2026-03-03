@@ -4,5 +4,4 @@
 # Layer 3: API E2E tests (server auto-starts on port 17027 with auth bypass)
 bun test src/__tests__/e2e/ --timeout 60000
 
-# Layer 4: BDD E2E tests (Playwright browser tests on port 17028)
-npx playwright test --timeout 30000
+# Layer 4: BDD E2E tests — run on-demand via `bun run test:e2e:browser`
