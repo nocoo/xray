@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-03-04
+
+### Added
+
+- **Groups feature** — full CRUD for user-defined groups (`groups` + `group_members` tables), with `/groups` list page and `/groups/[id]` detail page featuring sortable table, search filter, and Twitter export import (drag-and-drop `following.js`)
+- **Twitter profile cache** — shared `twitter_profiles` table with `ProfilesRepo` for global caching of Twitter user data; auto-upserts on every `getUserInfo` and batch resolve call
+- **Profile refresh** — `POST /api/profiles/refresh` for manual profile snapshot updates; per-member refresh buttons on both Watchlist cards and Groups table rows with spinning indicator
+- **Batch user resolution** — `POST /api/explore/users/batch` for bulk username lookup (up to 500); powers import dialogs and profile refresh flows
+- **Profile linking** — `link-profiles` API for both watchlists and groups; automatically resolves `twitter_id` FK from cached profiles
+- **Import from Twitter export** — drag-and-drop or file picker for `following.js` data export files on both Following and Groups pages; `parseTwitterExportFile()` extracted to shared lib
+- **Zhe.to integration** — settings page at `/integrations/zheto` with API key management, and save-to-zheto button in watchlist post-card action bar
+- **Quote count metric** — `quote_count` added to tweet card stats row
+- **71 new unit tests** — 48 for GroupsRepo/GroupMembersRepo, 23 for ProfilesRepo
+
+### Changed
+
+- **Sidebar restructured** — Watchlists and Groups promoted to top-level collapsible sections (matching `NavGroupSection` style); Following page replaced by Groups; Integrations added as new nav group
+- **MemberCard enriched** — displays profile avatar, display name, verified badge, follower count, bio snippet, and tags from cached `twitter_profiles` data
+- **Batch resolve limit** raised from 100 to 500 usernames per request
+
+### Fixed
+
+- **TweAPI domain** — migration script corrected from `tweapi.com` to `api.tweapi.io` with proper camelCase field name mapping
+- **Batch import errors** — error messages now expose actual server response instead of generic failure text
+- **Sidebar section styling** — icons removed from Watchlists/Groups section headers; padding aligned with NavGroupSection
+
 ## [1.2.4] - 2026-03-03
 
 ### Added
