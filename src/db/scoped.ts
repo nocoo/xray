@@ -74,6 +74,8 @@ export interface MemberProfile {
   likeCount: number;
   isVerified: boolean;
   accountCreatedAt: string | null;
+  lastTweetAt: string | null;
+  snapshotAt: number | null;
 }
 
 /** Full member with tags + optional profile data. */
@@ -260,6 +262,14 @@ export class ProfilesRepo {
   /** Find all profiles. */
   findAll(): TwitterProfile[] {
     return db.select().from(twitterProfiles).all();
+  }
+
+  /** Update the last_tweet_at field for a profile by username. */
+  updateLastTweetAt(username: string, lastTweetAt: string): void {
+    db.update(twitterProfiles)
+      .set({ lastTweetAt, updatedAt: Date.now() })
+      .where(eq(twitterProfiles.username, username.toLowerCase()))
+      .run();
   }
 
   /** Convert a profile row to UserInfo for API responses. */
@@ -644,6 +654,8 @@ class MembersRepo {
         likeCount: p.likeCount ?? 0,
         isVerified: p.isVerified === 1,
         accountCreatedAt: p.accountCreatedAt,
+        lastTweetAt: p.lastTweetAt ?? null,
+        snapshotAt: p.snapshotAt ?? null,
       });
     }
     return result;
@@ -696,6 +708,8 @@ class MembersRepo {
       likeCount: p.likeCount ?? 0,
       isVerified: p.isVerified === 1,
       accountCreatedAt: p.accountCreatedAt,
+      lastTweetAt: p.lastTweetAt ?? null,
+      snapshotAt: p.snapshotAt ?? null,
     };
   }
 
@@ -1328,6 +1342,8 @@ export class GroupMembersRepo {
         likeCount: p.likeCount ?? 0,
         isVerified: p.isVerified === 1,
         accountCreatedAt: p.accountCreatedAt,
+        lastTweetAt: p.lastTweetAt ?? null,
+        snapshotAt: p.snapshotAt ?? null,
       });
     }
     return result;
@@ -1363,6 +1379,8 @@ export class GroupMembersRepo {
       likeCount: p.likeCount ?? 0,
       isVerified: p.isVerified === 1,
       accountCreatedAt: p.accountCreatedAt,
+      lastTweetAt: p.lastTweetAt ?? null,
+      snapshotAt: p.snapshotAt ?? null,
     };
   }
 

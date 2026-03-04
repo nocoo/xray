@@ -93,6 +93,8 @@ export const twitterProfiles = sqliteTable(
     /** ISO 8601 timestamp of when the Twitter account was created. */
     accountCreatedAt: text("account_created_at"),
     pinnedTweetId: text("pinned_tweet_id"),
+    /** ISO 8601 timestamp of the user's most recent tweet (populated during refresh). */
+    lastTweetAt: text("last_tweet_at"),
     /** When this snapshot was taken from the Twitter API (ms epoch). */
     snapshotAt: integer("snapshot_at"),
     /** When this row was last written to the DB (ms epoch). */
