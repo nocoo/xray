@@ -1456,22 +1456,43 @@ export class GroupMembersRepo {
       .get();
   }
 
-  /** Batch-create members, skipping duplicates. Returns number inserted. */
+  /** Batch-create members, skipping duplicates. Returns number inserted.
+   *  @deprecated Use batchCreateWithIds instead. */
   batchCreate(groupId: number, usernames: string[]): number {
-    if (usernames.length === 0) return 0;
+    return this.batchCreateWithIds(
+      groupId,
+      usernames.map((u) => ({ username: u })),
+    );
+  }
+
+  /**
+   * Batch-create members with optional pre-resolved twitterId.
+   * When twitterId is provided, it is stored directly (no profile lookup).
+   * When absent, falls back to looking up twitter_profiles by username.
+   * Skips duplicates via ON CONFLICT DO NOTHING.
+   */
+  batchCreateWithIds(
+    groupId: number,
+    members: { username: string; twitterId?: string }[],
+  ): number {
+    if (members.length === 0) return 0;
 
     let inserted = 0;
     const run = getRawSqlite().transaction(() => {
-      for (const raw of usernames) {
-        const username = raw.toLowerCase().replace(/^@/, "");
+      for (const m of members) {
+        const username = m.username.toLowerCase().replace(/^@/, "");
         if (!username) continue;
 
-        // Auto-resolve twitter_id from cached profiles
-        const profile = db
-          .select({ twitterId: twitterProfiles.twitterId })
-          .from(twitterProfiles)
-          .where(eq(twitterProfiles.username, username))
-          .get();
+        // Use provided twitterId, or fall back to profile cache lookup
+        let twitterId = m.twitterId ?? null;
+        if (!twitterId) {
+          const profile = db
+            .select({ twitterId: twitterProfiles.twitterId })
+            .from(twitterProfiles)
+            .where(eq(twitterProfiles.username, username))
+            .get();
+          twitterId = profile?.twitterId ?? null;
+        }
 
         const result = db
           .insert(groupMembers)
@@ -1479,7 +1500,7 @@ export class GroupMembersRepo {
             userId: this.userId,
             groupId,
             twitterUsername: username,
-            twitterId: profile?.twitterId ?? null,
+            twitterId,
             addedAt: new Date(),
           })
           .onConflictDoNothing({

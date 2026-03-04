@@ -18,6 +18,7 @@ import {
   ArrowLeft,
   Check,
   Loader2,
+  Play,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseTwitterExportFile } from "@/lib/twitter-export";
@@ -27,8 +28,10 @@ import { parseTwitterExportFile } from "@/lib/twitter-export";
 // =============================================================================
 
 interface UserCandidate {
-  /** Username or numeric account ID (for twitter export) */
+  /** Twitter username (resolved from API) */
   username: string;
+  /** Twitter numeric ID — used as the primary identity key */
+  twitterId?: string;
   /** Display name from profile resolution */
   displayName?: string;
   /** Avatar URL from profile resolution */
@@ -67,8 +70,9 @@ export default function AddMembersPage() {
   // Shared candidate list across all tabs
   const [candidates, setCandidates] = useState<UserCandidate[]>([]);
 
-  // Existing member usernames (for "already in group" detection)
+  // Existing member identifiers (for "already in group" detection)
   const [existingUsernames, setExistingUsernames] = useState<Set<string>>(new Set());
+  const [existingTwitterIds, setExistingTwitterIds] = useState<Set<string>>(new Set());
   const existingLoaded = useRef(false);
 
   // Group name for breadcrumb
@@ -91,12 +95,13 @@ export default function AddMembersPage() {
 
       const membersJson = await membersRes.json().catch(() => null);
       if (membersRes.ok && membersJson?.success) {
-        const usernames = new Set<string>(
-          (membersJson.data ?? []).map((m: { twitterUsername: string }) =>
-            m.twitterUsername.toLowerCase(),
-          ),
+        const members: { twitterUsername: string; twitterId: string | null }[] = membersJson.data ?? [];
+        setExistingUsernames(
+          new Set(members.map((m) => m.twitterUsername.toLowerCase())),
         );
-        setExistingUsernames(usernames);
+        setExistingTwitterIds(
+          new Set(members.filter((m) => m.twitterId).map((m) => m.twitterId!)),
+        );
       }
 
       const groupsJson = await groupsRes.json().catch(() => null);
@@ -122,26 +127,34 @@ export default function AddMembersPage() {
   const addCandidates = useCallback(
     (newItems: Omit<UserCandidate, "alreadyInGroup" | "selected">[]) => {
       setCandidates((prev) => {
-        const existingSet = new Set(prev.map((c) => c.username.toLowerCase()));
+        const existingByUsername = new Set(prev.map((c) => c.username.toLowerCase()));
+        const existingById = new Set(prev.filter((c) => c.twitterId).map((c) => c.twitterId!));
         const toAdd: UserCandidate[] = [];
 
         for (const item of newItems) {
+          // Dedup: check by twitterId first (stable), then by username
+          if (item.twitterId && existingById.has(item.twitterId)) continue;
           const key = item.username.toLowerCase();
-          if (!existingSet.has(key)) {
-            existingSet.add(key);
-            const inGroup = existingUsernames.has(key);
-            toAdd.push({
-              ...item,
-              alreadyInGroup: inGroup,
-              selected: !inGroup,
-            });
-          }
+          if (existingByUsername.has(key)) continue;
+
+          if (item.twitterId) existingById.add(item.twitterId);
+          existingByUsername.add(key);
+
+          // "Already in group" — match by twitterId (preferred) or username
+          const inGroup =
+            (item.twitterId && existingTwitterIds.has(item.twitterId)) ||
+            existingUsernames.has(key);
+          toAdd.push({
+            ...item,
+            alreadyInGroup: !!inGroup,
+            selected: !inGroup,
+          });
         }
 
         return [...prev, ...toAdd];
       });
     },
-    [existingUsernames],
+    [existingUsernames, existingTwitterIds],
   );
 
   const clearCandidates = useCallback(() => {
@@ -186,7 +199,7 @@ export default function AddMembersPage() {
   const handleSubmit = useCallback(async () => {
     const toAdd = candidates
       .filter((c) => c.selected && !c.alreadyInGroup)
-      .map((c) => c.username);
+      .map((c) => ({ username: c.username, twitterId: c.twitterId }));
 
     if (toAdd.length === 0) return;
 
@@ -197,7 +210,7 @@ export default function AddMembersPage() {
       const res = await fetch(`/api/groups/${groupId}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ usernames: toAdd }),
+        body: JSON.stringify({ members: toAdd }),
       });
       const json = await res.json().catch(() => null);
 
@@ -532,89 +545,166 @@ function ImportFileTab({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
 
-  // Resolving state for Twitter export files
-  const [resolving, setResolving] = useState(false);
-  const [resolveProgress, setResolveProgress] = useState({ done: 0, total: 0, failed: 0 });
+  // ---------------------------------------------------------------------------
+  // Batch queue state — user-paced resolution
+  // ---------------------------------------------------------------------------
+  const BATCH_SIZE = 10;
+
+  /** All account IDs from the parsed export file */
+  const [queue, setQueue] = useState<string[]>([]);
+  /** How many IDs have been dispatched (not just resolved) */
+  const [queueOffset, setQueueOffset] = useState(0);
+  /** Cumulative counters */
+  const [resolved, setResolved] = useState(0);
+  const [failed, setFailed] = useState(0);
+  /** Is a batch currently in-flight? */
+  const [fetching, setFetching] = useState(false);
+  /** Cooldown seconds remaining (counts down after each batch) */
+  const [cooldown, setCooldown] = useState(0);
+
   const abortControllerRef = useRef<AbortController | null>(null);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Batch resolve Twitter IDs → usernames via /api/profiles/refresh
-  // Uses small batches (10) to avoid overwhelming the API, with AbortController
-  // for immediate cancellation mid-flight.
-  const resolveTwitterIds = useCallback(
-    async (accountIds: string[]) => {
-      setResolving(true);
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-      setResolveProgress({ done: 0, total: accountIds.length, failed: 0 });
-      setError(null);
-      setResultInfo(null);
+  const hasQueue = queue.length > 0;
+  const remaining = queue.length - queueOffset;
+  const allDone = hasQueue && remaining === 0;
 
-      const BATCH_SIZE = 10;
-      let totalResolved = 0;
-      let totalFailed = 0;
+  // Cleanup cooldown timer on unmount
+  useEffect(() => {
+    return () => {
+      if (cooldownRef.current) clearInterval(cooldownRef.current);
+    };
+  }, []);
 
-      for (let i = 0; i < accountIds.length; i += BATCH_SIZE) {
-        if (controller.signal.aborted) break;
+  /** Start the cooldown countdown (60 s) after a batch completes. */
+  const startCooldown = useCallback(() => {
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    setCooldown(60);
+    cooldownRef.current = setInterval(() => {
+      setCooldown((prev) => {
+        if (prev <= 1) {
+          if (cooldownRef.current) clearInterval(cooldownRef.current);
+          cooldownRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
 
-        const batch = accountIds.slice(i, i + BATCH_SIZE);
+  /** Resolve the next batch of IDs. */
+  const resolveNextBatch = useCallback(async () => {
+    if (fetching || queueOffset >= queue.length) return;
 
-        try {
-          const res = await fetch("/api/profiles/refresh", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ twitter_ids: batch }),
-            signal: controller.signal,
-          });
-          const json = await res.json().catch(() => null);
+    // Stop cooldown timer when user starts next batch
+    if (cooldownRef.current) {
+      clearInterval(cooldownRef.current);
+      cooldownRef.current = null;
+    }
+    setCooldown(0);
 
-          if (res.ok && json?.success) {
-            const resolved: { id: string; username: string; name: string; profile_image_url: string; followers_count: number; following_count: number }[] = json.data.resolved ?? [];
-            const failed: string[] = json.data.failed ?? [];
+    setFetching(true);
+    setError(null);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
-            if (resolved.length > 0) {
-              addCandidates(
-                resolved.map((u) => ({
-                  username: u.username,
-                  displayName: u.name,
-                  avatarUrl: u.profile_image_url,
-                  followersCount: u.followers_count,
-                  followingCount: u.following_count,
-                })),
-              );
-            }
+    const batch = queue.slice(queueOffset, queueOffset + BATCH_SIZE);
+    const nextOffset = Math.min(queueOffset + BATCH_SIZE, queue.length);
 
-            totalResolved += resolved.length;
-            totalFailed += failed.length;
-          } else {
-            totalFailed += batch.length;
-          }
-        } catch (err) {
-          // AbortError means user cancelled — don't count as failures
-          if (err instanceof DOMException && err.name === "AbortError") break;
-          totalFailed += batch.length;
+    try {
+      const res = await fetch("/api/profiles/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ twitter_ids: batch }),
+        signal: controller.signal,
+      });
+      const json = await res.json().catch(() => null);
+
+      if (res.ok && json?.success) {
+        const resolvedUsers: { id: string; username: string; name: string; profile_image_url: string; followers_count: number; following_count: number }[] = json.data.resolved ?? [];
+        const failedIds: string[] = json.data.failed ?? [];
+
+        if (resolvedUsers.length > 0) {
+          addCandidates(
+            resolvedUsers.map((u) => ({
+              username: u.username,
+              twitterId: u.id,
+              displayName: u.name,
+              avatarUrl: u.profile_image_url,
+              followersCount: u.followers_count,
+              followingCount: u.following_count,
+            })),
+          );
         }
 
-        setResolveProgress({
-          done: Math.min(i + BATCH_SIZE, accountIds.length),
-          total: accountIds.length,
-          failed: totalFailed,
-        });
-      }
-
-      setResolving(false);
-      abortControllerRef.current = null;
-      if (controller.signal.aborted) {
-        setResultInfo(`Cancelled. Resolved ${totalResolved} of ${accountIds.length} accounts.`);
-      } else if (totalFailed > 0) {
-        setResultInfo(
-          `Resolved ${totalResolved} accounts. ${totalFailed} could not be resolved (suspended, deleted, or private).`,
-        );
+        setResolved((prev) => prev + resolvedUsers.length);
+        setFailed((prev) => prev + failedIds.length);
       } else {
-        setResultInfo(`Resolved all ${totalResolved} accounts.`);
+        setFailed((prev) => prev + batch.length);
       }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setFetching(false);
+        abortControllerRef.current = null;
+        return;
+      }
+      setFailed((prev) => prev + batch.length);
+    }
+
+    setQueueOffset(nextOffset);
+    setFetching(false);
+    abortControllerRef.current = null;
+
+    // Start cooldown if there are more batches
+    if (nextOffset < queue.length) {
+      startCooldown();
+    }
+  }, [fetching, queue, queueOffset, addCandidates, startCooldown]);
+
+  /** Stop resolving — clear the queue so user can work with what's resolved. */
+  const stopResolving = useCallback(() => {
+    if (cooldownRef.current) {
+      clearInterval(cooldownRef.current);
+      cooldownRef.current = null;
+    }
+    setCooldown(0);
+    abortControllerRef.current?.abort();
+    setFetching(false);
+
+    const msg = resolved > 0
+      ? `Stopped. Resolved ${resolved} of ${queue.length} accounts.${failed > 0 ? ` ${failed} failed.` : ""}`
+      : "Stopped.";
+    setResultInfo(msg);
+    setQueue([]);
+    setQueueOffset(0);
+    setResolved(0);
+    setFailed(0);
+  }, [queue.length, resolved, failed]);
+
+  /** Called when a Twitter export file is parsed — start the first batch immediately. */
+  const startResolving = useCallback(
+    (accountIds: string[]) => {
+      setQueue(accountIds);
+      setQueueOffset(0);
+      setResolved(0);
+      setFailed(0);
+      setError(null);
+      setResultInfo(null);
     },
-    [addCandidates],
+    [],
   );
+
+  // Auto-start first batch when queue is set and offset is 0
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (queue.length > 0 && queueOffset === 0 && !fetching && !autoStarted.current) {
+      autoStarted.current = true;
+      resolveNextBatch();
+    }
+    if (queue.length === 0) {
+      autoStarted.current = false;
+    }
+  }, [queue, queueOffset, fetching, resolveNextBatch]);
 
   const processContent = useCallback(
     (content: string) => {
@@ -625,7 +715,7 @@ function ImportFileTab({
       const accountIds = parseTwitterExportFile(content);
       if (accountIds && accountIds.length > 0) {
         // Account IDs are numeric — need API resolution to get real usernames
-        resolveTwitterIds(accountIds);
+        startResolving(accountIds);
         return;
       }
 
@@ -653,7 +743,7 @@ function ImportFileTab({
       addCandidates(unique.map((u) => ({ username: u })));
       setResultInfo(`Parsed ${unique.length} usernames from file`);
     },
-    [addCandidates, resolveTwitterIds],
+    [addCandidates, startResolving],
   );
 
   const handleFile = useCallback(
@@ -730,13 +820,13 @@ function ImportFileTab({
           isDragging
             ? "border-primary bg-primary/5"
             : "border-input hover:border-muted-foreground/50",
-          resolving && "pointer-events-none",
+          (fetching || hasQueue) && "pointer-events-none",
         )}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        onClick={() => !resolving && fileInputRef.current?.click()}
+        onClick={() => !fetching && !hasQueue && fileInputRef.current?.click()}
       >
         <FileUp className="h-8 w-8 text-muted-foreground mb-3" />
         <p className="text-sm font-medium">
@@ -754,38 +844,71 @@ function ImportFileTab({
         />
       </div>
 
-      {/* Resolving progress */}
-      {resolving && (
-        <div className="space-y-2">
+      {/* Batch resolution progress */}
+      {hasQueue && (
+        <div className="space-y-3 rounded-lg border p-4">
+          {/* Progress summary */}
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">
-              <Loader2 className="inline h-3.5 w-3.5 animate-spin mr-1.5" />
-              Resolving Twitter IDs... {resolveProgress.done}/{resolveProgress.total}
-              {resolveProgress.failed > 0 && (
+              {fetching && <Loader2 className="inline h-3.5 w-3.5 animate-spin mr-1.5" />}
+              Resolved {resolved} of {queue.length}
+              {failed > 0 && (
                 <span className="text-amber-600 ml-1">
-                  ({resolveProgress.failed} failed)
+                  ({failed} failed)
+                </span>
+              )}
+              {!allDone && !fetching && (
+                <span className="ml-1">
+                  — {remaining} remaining
                 </span>
               )}
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { abortControllerRef.current?.abort(); }}
-              className="text-muted-foreground h-7"
-            >
-              Cancel
-            </Button>
           </div>
+
+          {/* Progress bar */}
           <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
             <div
               className="h-full rounded-full bg-primary transition-all duration-300"
               style={{
-                width: resolveProgress.total > 0
-                  ? `${(resolveProgress.done / resolveProgress.total) * 100}%`
-                  : "0%",
+                width: `${(queueOffset / queue.length) * 100}%`,
               }}
             />
           </div>
+
+          {/* Controls */}
+          {allDone ? (
+            <p className="text-sm text-muted-foreground">
+              All done. {resolved} resolved{failed > 0 ? `, ${failed} failed` : ""}.
+            </p>
+          ) : fetching ? (
+            <p className="text-xs text-muted-foreground">
+              Resolving batch {Math.floor(queueOffset / BATCH_SIZE) + 1} of {Math.ceil(queue.length / BATCH_SIZE)}...
+            </p>
+          ) : (
+            <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                onClick={resolveNextBatch}
+                className="gap-1.5"
+              >
+                <Play className="h-3.5 w-3.5" />
+                Resolve Next {Math.min(BATCH_SIZE, remaining)}
+              </Button>
+              {cooldown > 0 && (
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  suggested wait: {cooldown}s
+                </span>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={stopResolving}
+                className="text-muted-foreground ml-auto"
+              >
+                Stop
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
