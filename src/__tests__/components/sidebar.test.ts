@@ -11,8 +11,8 @@ describe("sidebar navigation", () => {
   // ---------------------------------------------------------------------------
 
   describe("navSections", () => {
-    it("has 5 sections", () => {
-      expect(navSections).toHaveLength(5);
+    it("has 7 sections", () => {
+      expect(navSections).toHaveLength(7);
     });
 
     it("section 0 has no title (top-level items)", () => {
@@ -28,11 +28,23 @@ describe("sidebar navigation", () => {
       ]);
     });
 
-    it("section 2 is My Account", () => {
-      expect(navSections[2]!.title).toBe("My Account");
+    it("section 2 is Watchlists", () => {
+      expect(navSections[2]!.title).toBe("Watchlists");
       expect(navSections[2]!.items.map((i) => i.label)).toEqual([
         "Watchlists",
+      ]);
+    });
+
+    it("section 3 is Groups", () => {
+      expect(navSections[3]!.title).toBe("Groups");
+      expect(navSections[3]!.items.map((i) => i.label)).toEqual([
         "Groups",
+      ]);
+    });
+
+    it("section 4 is My Account", () => {
+      expect(navSections[4]!.title).toBe("My Account");
+      expect(navSections[4]!.items.map((i) => i.label)).toEqual([
         "Analytics",
         "Bookmarks",
         "Likes",
@@ -41,16 +53,16 @@ describe("sidebar navigation", () => {
       ]);
     });
 
-    it("section 3 is Integrations", () => {
-      expect(navSections[3]!.title).toBe("Integrations");
-      expect(navSections[3]!.items.map((i) => i.label)).toEqual([
+    it("section 5 is Integrations", () => {
+      expect(navSections[5]!.title).toBe("Integrations");
+      expect(navSections[5]!.items.map((i) => i.label)).toEqual([
         "zhe.to",
       ]);
     });
 
-    it("section 4 has no title (utility items)", () => {
-      expect(navSections[4]!.title).toBeNull();
-      expect(navSections[4]!.items.map((i) => i.label)).toEqual([
+    it("section 6 has no title (utility items)", () => {
+      expect(navSections[6]!.title).toBeNull();
+      expect(navSections[6]!.items.map((i) => i.label)).toEqual([
         "Usage",
         "Webhooks",
         "AI Settings",
@@ -98,6 +110,8 @@ describe("sidebar navigation", () => {
       expect(labels).toContain("Dashboard");
       expect(labels).toContain("Tweets");
       expect(labels).toContain("Users");
+      expect(labels).toContain("Watchlists");
+      expect(labels).toContain("Groups");
       expect(labels).toContain("Analytics");
       expect(labels).toContain("Bookmarks");
       expect(labels).toContain("Likes");
