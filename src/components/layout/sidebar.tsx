@@ -355,67 +355,77 @@ function WatchlistGroup({
   return (
     <div>
       {/* Watchlists header — matches NavGroupSection style */}
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-3 py-2.5"
-      >
-        <span className="text-sm font-normal text-muted-foreground">
-          Watchlists
-        </span>
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center">
-          <ChevronUp
-            className={cn(
-              "h-4 w-4 text-muted-foreground transition-transform duration-200",
-              !expanded && "rotate-180",
-            )}
-            strokeWidth={1.5}
-          />
-        </span>
-      </button>
+      <div className="px-3 mt-2">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="flex w-full items-center justify-between px-3 py-2.5"
+        >
+          <span className="text-sm font-normal text-muted-foreground">
+            Watchlists
+          </span>
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center">
+            <ChevronUp
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                !expanded && "rotate-180",
+              )}
+              strokeWidth={1.5}
+            />
+          </span>
+        </button>
+      </div>
 
-      {/* Expandable watchlist items */}
-      {expanded && (
-        <div className="ml-3 flex flex-col gap-0.5">
-          {watchlists.map((wl) => {
-            const WlIcon = resolveIcon(wl.icon);
-            const href = `/watchlist/${wl.id}`;
-            const active = isActive(pathname, href);
-            return (
-              <Link
-                key={wl.id}
-                href={href}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-normal transition-colors",
-                  active
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                )}
-              >
-                <div
+      {/* Watchlist items — CSS Grid height animation */}
+      <div
+        className="grid overflow-hidden"
+        style={{
+          gridTemplateRows: expanded ? "1fr" : "0fr",
+          transition: "grid-template-rows 200ms ease-out",
+        }}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="flex flex-col gap-0.5 px-3">
+            {watchlists.map((wl) => {
+              const WlIcon = resolveIcon(wl.icon);
+              const href = `/watchlist/${wl.id}`;
+              const active = isActive(pathname, href);
+              return (
+                <Link
+                  key={wl.id}
+                  href={href}
                   className={cn(
-                    "flex h-5 w-5 items-center justify-center rounded",
-                    getAvatarColor(wl.name),
+                    "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-normal transition-colors",
+                    active
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
                   )}
                 >
-                  <WlIcon className="h-3 w-3 text-white" strokeWidth={2} />
-                </div>
-                <span className="flex-1 text-left truncate">{wl.name}</span>
-              </Link>
-            );
-          })}
-          {/* New watchlist button */}
-          <Link
-            href="/watchlist?new=1"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-normal transition-colors text-muted-foreground/60 hover:bg-accent hover:text-foreground"
-          >
-            <div className="flex h-5 w-5 items-center justify-center rounded border border-dashed border-muted-foreground/30">
-              <Plus className="h-3 w-3" strokeWidth={2} />
-            </div>
-            <span className="flex-1 text-left">New watchlist</span>
-          </Link>
+                  <div
+                    className={cn(
+                      "flex h-5 w-5 items-center justify-center rounded",
+                      getAvatarColor(wl.name),
+                    )}
+                  >
+                    <WlIcon className="h-3 w-3 text-white" strokeWidth={2} />
+                  </div>
+                  <span className="flex-1 text-left truncate">{wl.name}</span>
+                </Link>
+              );
+            })}
+            {/* New watchlist button */}
+            <Link
+              href="/watchlist?new=1"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-normal transition-colors text-muted-foreground/60 hover:bg-accent hover:text-foreground"
+            >
+              <div className="flex h-5 w-5 items-center justify-center rounded border border-dashed border-muted-foreground/30">
+                <Plus className="h-3 w-3" strokeWidth={2} />
+              </div>
+              <span className="flex-1 text-left">New watchlist</span>
+            </Link>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -436,67 +446,77 @@ function GroupsGroup({
   return (
     <div>
       {/* Groups header — matches NavGroupSection style */}
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-3 py-2.5"
-      >
-        <span className="text-sm font-normal text-muted-foreground">
-          Groups
-        </span>
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center">
-          <ChevronUp
-            className={cn(
-              "h-4 w-4 text-muted-foreground transition-transform duration-200",
-              !expanded && "rotate-180",
-            )}
-            strokeWidth={1.5}
-          />
-        </span>
-      </button>
+      <div className="px-3 mt-2">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="flex w-full items-center justify-between px-3 py-2.5"
+        >
+          <span className="text-sm font-normal text-muted-foreground">
+            Groups
+          </span>
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center">
+            <ChevronUp
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                !expanded && "rotate-180",
+              )}
+              strokeWidth={1.5}
+            />
+          </span>
+        </button>
+      </div>
 
-      {/* Expandable group items */}
-      {expanded && (
-        <div className="ml-3 flex flex-col gap-0.5">
-          {groups.map((g) => {
-            const GIcon = resolveIcon(g.icon);
-            const href = `/groups/${g.id}`;
-            const active = isActive(pathname, href);
-            return (
-              <Link
-                key={g.id}
-                href={href}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-normal transition-colors",
-                  active
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                )}
-              >
-                <div
+      {/* Group items — CSS Grid height animation */}
+      <div
+        className="grid overflow-hidden"
+        style={{
+          gridTemplateRows: expanded ? "1fr" : "0fr",
+          transition: "grid-template-rows 200ms ease-out",
+        }}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="flex flex-col gap-0.5 px-3">
+            {groups.map((g) => {
+              const GIcon = resolveIcon(g.icon);
+              const href = `/groups/${g.id}`;
+              const active = isActive(pathname, href);
+              return (
+                <Link
+                  key={g.id}
+                  href={href}
                   className={cn(
-                    "flex h-5 w-5 items-center justify-center rounded",
-                    getAvatarColor(g.name),
+                    "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-normal transition-colors",
+                    active
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
                   )}
                 >
-                  <GIcon className="h-3 w-3 text-white" strokeWidth={2} />
-                </div>
-                <span className="flex-1 text-left truncate">{g.name}</span>
-              </Link>
-            );
-          })}
-          {/* New group button */}
-          <Link
-            href="/groups?new=1"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-normal transition-colors text-muted-foreground/60 hover:bg-accent hover:text-foreground"
-          >
-            <div className="flex h-5 w-5 items-center justify-center rounded border border-dashed border-muted-foreground/30">
-              <Plus className="h-3 w-3" strokeWidth={2} />
-            </div>
-            <span className="flex-1 text-left">New group</span>
-          </Link>
+                  <div
+                    className={cn(
+                      "flex h-5 w-5 items-center justify-center rounded",
+                      getAvatarColor(g.name),
+                    )}
+                  >
+                    <GIcon className="h-3 w-3 text-white" strokeWidth={2} />
+                  </div>
+                  <span className="flex-1 text-left truncate">{g.name}</span>
+                </Link>
+              );
+            })}
+            {/* New group button */}
+            <Link
+              href="/groups?new=1"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-normal transition-colors text-muted-foreground/60 hover:bg-accent hover:text-foreground"
+            >
+              <div className="flex h-5 w-5 items-center justify-center rounded border border-dashed border-muted-foreground/30">
+                <Plus className="h-3 w-3" strokeWidth={2} />
+              </div>
+              <span className="flex-1 text-left">New group</span>
+            </Link>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -694,20 +714,16 @@ export function Sidebar() {
                 ))}
 
                 {/* Watchlists — top-level collapsible section */}
-                <div className="px-3 mt-2">
-                  <WatchlistGroup
-                    watchlists={watchlists}
-                    pathname={pathname}
-                  />
-                </div>
+                <WatchlistGroup
+                  watchlists={watchlists}
+                  pathname={pathname}
+                />
 
                 {/* Groups — top-level collapsible section */}
-                <div className="px-3">
-                  <GroupsGroup
-                    groups={groups}
-                    pathname={pathname}
-                  />
-                </div>
+                <GroupsGroup
+                  groups={groups}
+                  pathname={pathname}
+                />
 
                 {/* Bottom static groups (My Account, Integrations, Settings) */}
                 {BOTTOM_GROUPS.map((group) => (
