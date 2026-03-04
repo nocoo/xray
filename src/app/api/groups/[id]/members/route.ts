@@ -78,18 +78,57 @@ export async function POST(request: Request, ctx: RouteContext) {
 
 /**
  * DELETE /api/groups/[id]/members?id=123
- * Remove a member from the group.
+ * Remove a single member from the group.
+ *
+ * DELETE /api/groups/[id]/members  (body: { ids: number[] })
+ * Batch-remove multiple members from the group.
  */
 export async function DELETE(request: Request, ctx: RouteContext) {
   const { db, error, groupId } = await requireAuthWithGroup(ctx.params);
   if (error) return error;
 
+  // --- Batch delete via JSON body ---
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    let body: { ids?: number[] };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON body" },
+        { status: 400 },
+      );
+    }
+
+    if (!Array.isArray(body.ids) || body.ids.length === 0) {
+      return NextResponse.json(
+        { error: "ids[] is required and must not be empty" },
+        { status: 400 },
+      );
+    }
+
+    // Verify all members belong to this group
+    for (const id of body.ids) {
+      const member = db.groupMembers.findById(id);
+      if (!member || member.groupId !== groupId) {
+        return NextResponse.json(
+          { error: `Member ${id} not found in this group` },
+          { status: 404 },
+        );
+      }
+    }
+
+    const deleted = db.groupMembers.deleteByIds(body.ids);
+    return NextResponse.json({ success: true, data: { deleted } });
+  }
+
+  // --- Single delete via query param ---
   const { searchParams } = new URL(request.url);
   const idStr = searchParams.get("id");
 
   if (!idStr) {
     return NextResponse.json(
-      { error: "Missing 'id' query parameter" },
+      { error: "Missing 'id' query parameter or JSON body with ids[]" },
       { status: 400 },
     );
   }
