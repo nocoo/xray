@@ -238,7 +238,7 @@ export const TweetCard = memo(function TweetCard({
 
       {/* Tweet text */}
       <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap">
-        {displayTweet.text}
+        {linkifyText(displayTweet.text)}
       </p>
 
       {/* Media preview */}
@@ -335,7 +335,7 @@ export const TweetCard = memo(function TweetCard({
 
           {/* Quoted text */}
           <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">
-            {displayTweet.quoted_tweet?.text ?? tweet.quoted_tweet.text}
+            {linkifyText(displayTweet.quoted_tweet?.text ?? tweet.quoted_tweet.text)}
           </p>
 
           {/* Quoted media */}
@@ -550,6 +550,50 @@ function proxyUrl(url: string): string {
 // =============================================================================
 // Helpers
 // =============================================================================
+
+// URL regex — matches http(s) URLs in tweet text.
+// Captures common URL characters including path, query, and fragment.
+const URL_RE = /https?:\/\/[^\s<>"')\]]+/g;
+
+/** Turn URLs in text into clickable <a> links, keep everything else as text. */
+function linkifyText(text: string): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  let lastIdx = 0;
+  let key = 0;
+
+  for (const match of text.matchAll(URL_RE)) {
+    const url = match[0];
+    const start = match.index;
+
+    // Text before this URL
+    if (start > lastIdx) {
+      parts.push(text.slice(lastIdx, start));
+    }
+
+    parts.push(
+      <a
+        key={key++}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-500 hover:underline dark:text-blue-400"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {url}
+      </a>,
+    );
+
+    lastIdx = start + url.length;
+  }
+
+  // Remaining text after the last URL
+  if (lastIdx < text.length) {
+    parts.push(text.slice(lastIdx));
+  }
+
+  // If no URLs found, return the original string (no wrapper needed)
+  return parts.length === 0 ? text : parts;
+}
 
 function MetricItem({
   icon,
