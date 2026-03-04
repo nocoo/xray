@@ -340,6 +340,57 @@ export const settings = sqliteTable(
 );
 
 // ============================================================================
+// Groups — named collections of Twitter users (organized by topic/category)
+// ============================================================================
+
+export const groups = sqliteTable("groups", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  /** Lucide icon name (e.g. "users", "star", "flame"). */
+  icon: text("icon").notNull().default("users"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// ============================================================================
+// Group Members — Twitter users within a group
+// ============================================================================
+
+export const groupMembers = sqliteTable(
+  "group_members",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Which group this member belongs to. */
+    groupId: integer("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    /** Twitter numeric ID — FK to twitter_profiles.twitter_id. NULL for unresolved users. */
+    twitterId: text("twitter_id").references(() => twitterProfiles.twitterId),
+    twitterUsername: text("twitter_username").notNull(),
+    addedAt: integer("added_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => ({
+    /** Prevent duplicate usernames within the same group. */
+    uniqGroupUsername: uniqueIndex("group_members_group_username_uniq").on(
+      t.groupId,
+      t.twitterUsername,
+    ),
+    /** Fast lookup/join by twitter_id. */
+    idxTwitterId: index("group_members_twitter_id_idx").on(t.twitterId),
+  }),
+);
+
+// ============================================================================
 // Type exports
 // ============================================================================
 
@@ -369,3 +420,7 @@ export type Setting = typeof settings.$inferSelect;
 export type NewSetting = typeof settings.$inferInsert;
 export type TwitterProfile = typeof twitterProfiles.$inferSelect;
 export type NewTwitterProfile = typeof twitterProfiles.$inferInsert;
+export type Group = typeof groups.$inferSelect;
+export type NewGroup = typeof groups.$inferInsert;
+export type GroupMember = typeof groupMembers.$inferSelect;
+export type NewGroupMember = typeof groupMembers.$inferInsert;

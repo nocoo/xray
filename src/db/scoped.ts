@@ -26,6 +26,8 @@ import {
   fetchLogs,
   settings,
   twitterProfiles,
+  groups,
+  groupMembers,
   type ApiCredential,
   type NewApiCredential,
   type Webhook,
@@ -43,6 +45,10 @@ import {
   type NewFetchLog,
   type Setting,
   type TwitterProfile,
+  type Group,
+  type NewGroup,
+  type GroupMember,
+  type NewGroupMember,
 } from "@/db/schema";
 import { generateTagColor } from "@/lib/tag-color";
 
@@ -75,6 +81,11 @@ export interface WatchlistMemberFull extends WatchlistMemberWithTags {
   profile: MemberProfile | null;
 }
 
+/** A group member enriched with optional profile data. */
+export interface GroupMemberFull extends GroupMember {
+  profile: MemberProfile | null;
+}
+
 // =============================================================================
 // ScopedDB class
 // =============================================================================
@@ -91,6 +102,8 @@ export class ScopedDB {
   readonly logs: LogsRepo;
   readonly settings: SettingsRepo;
   readonly profiles: ProfilesRepo;
+  readonly groups: GroupsRepo;
+  readonly groupMembers: GroupMembersRepo;
 
   constructor(userId: string) {
     this.userId = userId;
@@ -104,6 +117,8 @@ export class ScopedDB {
     this.logs = new LogsRepo(userId);
     this.settings = new SettingsRepo(userId);
     this.profiles = new ProfilesRepo();
+    this.groups = new GroupsRepo(userId);
+    this.groupMembers = new GroupMembersRepo(userId);
   }
 }
 
@@ -1206,5 +1221,322 @@ class SettingsRepo {
       .where(eq(settings.userId, this.userId))
       .run();
     return result.changes;
+  }
+}
+
+// =============================================================================
+// Groups
+// =============================================================================
+
+export class GroupsRepo {
+  constructor(private userId: string) {}
+
+  findAll(): Group[] {
+    return db
+      .select()
+      .from(groups)
+      .where(eq(groups.userId, this.userId))
+      .orderBy(desc(groups.createdAt))
+      .all();
+  }
+
+  findById(id: number): Group | undefined {
+    return db
+      .select()
+      .from(groups)
+      .where(and(eq(groups.id, id), eq(groups.userId, this.userId)))
+      .get();
+  }
+
+  create(
+    data: Pick<NewGroup, "name"> &
+      Partial<Pick<NewGroup, "description" | "icon">>,
+  ): Group {
+    return db
+      .insert(groups)
+      .values({
+        userId: this.userId,
+        name: data.name,
+        description: data.description ?? null,
+        icon: data.icon ?? "users",
+        createdAt: new Date(),
+      })
+      .returning()
+      .get();
+  }
+
+  update(
+    id: number,
+    data: Partial<Pick<NewGroup, "name" | "description" | "icon">>,
+  ): Group | undefined {
+    const existing = this.findById(id);
+    if (!existing) return undefined;
+
+    return db
+      .update(groups)
+      .set(data)
+      .where(eq(groups.id, id))
+      .returning()
+      .get();
+  }
+
+  deleteById(id: number): boolean {
+    const existing = this.findById(id);
+    if (!existing) return false;
+
+    const result = db.delete(groups).where(eq(groups.id, id)).run();
+    return result.changes > 0;
+  }
+}
+
+// =============================================================================
+// Group Members
+// =============================================================================
+
+export class GroupMembersRepo {
+  constructor(private userId: string) {}
+
+  /** Batch-lookup profiles for members that have a twitter_id. */
+  private batchGetProfiles(members: GroupMember[]): Map<number, MemberProfile> {
+    const result = new Map<number, MemberProfile>();
+    const twitterIds = members
+      .filter((m) => m.twitterId)
+      .map((m) => m.twitterId!);
+    if (twitterIds.length === 0) return result;
+
+    const profiles: TwitterProfile[] = db
+      .select()
+      .from(twitterProfiles)
+      .where(inArray(twitterProfiles.twitterId, twitterIds))
+      .all();
+
+    const profileMap = new Map(profiles.map((p: TwitterProfile) => [p.twitterId, p]));
+
+    for (const m of members) {
+      if (!m.twitterId) continue;
+      const p = profileMap.get(m.twitterId);
+      if (!p) continue;
+      result.set(m.id, {
+        twitterId: p.twitterId,
+        displayName: p.displayName,
+        description: p.description,
+        profileImageUrl: p.profileImageUrl,
+        profileBannerUrl: p.profileBannerUrl,
+        followersCount: p.followersCount ?? 0,
+        followingCount: p.followingCount ?? 0,
+        tweetCount: p.tweetCount ?? 0,
+        likeCount: p.likeCount ?? 0,
+        isVerified: p.isVerified === 1,
+        accountCreatedAt: p.accountCreatedAt,
+      });
+    }
+    return result;
+  }
+
+  /** Enrich members with profile data. */
+  private enrichFull(members: GroupMember[]): GroupMemberFull[] {
+    const profileMap = this.batchGetProfiles(members);
+    return members.map((m) => ({
+      ...m,
+      profile: profileMap.get(m.id) ?? null,
+    }));
+  }
+
+  /** Get a single member's profile. */
+  private getProfileForMember(member: GroupMember): MemberProfile | null {
+    if (!member.twitterId) return null;
+    const p: TwitterProfile | undefined = db
+      .select()
+      .from(twitterProfiles)
+      .where(eq(twitterProfiles.twitterId, member.twitterId))
+      .get();
+    if (!p) return null;
+    return {
+      twitterId: p.twitterId,
+      displayName: p.displayName,
+      description: p.description,
+      profileImageUrl: p.profileImageUrl,
+      profileBannerUrl: p.profileBannerUrl,
+      followersCount: p.followersCount ?? 0,
+      followingCount: p.followingCount ?? 0,
+      tweetCount: p.tweetCount ?? 0,
+      likeCount: p.likeCount ?? 0,
+      isVerified: p.isVerified === 1,
+      accountCreatedAt: p.accountCreatedAt,
+    };
+  }
+
+  findByGroupId(groupId: number): GroupMemberFull[] {
+    const members = db
+      .select()
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, groupId))
+      .all();
+    return this.enrichFull(members);
+  }
+
+  findAll(): GroupMemberFull[] {
+    const members = db
+      .select()
+      .from(groupMembers)
+      .where(eq(groupMembers.userId, this.userId))
+      .all();
+    return this.enrichFull(members);
+  }
+
+  findById(id: number): GroupMemberFull | undefined {
+    const member = db
+      .select()
+      .from(groupMembers)
+      .where(and(eq(groupMembers.id, id), eq(groupMembers.userId, this.userId)))
+      .get();
+    if (!member) return undefined;
+    return {
+      ...member,
+      profile: this.getProfileForMember(member),
+    };
+  }
+
+  findByUsernameAndGroup(
+    twitterUsername: string,
+    groupId: number,
+  ): GroupMember | undefined {
+    return db
+      .select()
+      .from(groupMembers)
+      .where(
+        and(
+          eq(groupMembers.twitterUsername, twitterUsername.toLowerCase()),
+          eq(groupMembers.groupId, groupId),
+        ),
+      )
+      .get();
+  }
+
+  create(
+    data: Pick<NewGroupMember, "groupId" | "twitterUsername">,
+  ): GroupMember {
+    const username = data.twitterUsername.toLowerCase().replace(/^@/, "");
+
+    // Auto-resolve twitter_id from cached profiles
+    const profile = db
+      .select({ twitterId: twitterProfiles.twitterId })
+      .from(twitterProfiles)
+      .where(eq(twitterProfiles.username, username))
+      .get();
+
+    return db
+      .insert(groupMembers)
+      .values({
+        userId: this.userId,
+        groupId: data.groupId,
+        twitterUsername: username,
+        twitterId: profile?.twitterId ?? null,
+        addedAt: new Date(),
+      })
+      .returning()
+      .get();
+  }
+
+  /** Batch-create members, skipping duplicates. Returns number inserted. */
+  batchCreate(groupId: number, usernames: string[]): number {
+    if (usernames.length === 0) return 0;
+
+    let inserted = 0;
+    const run = getRawSqlite().transaction(() => {
+      for (const raw of usernames) {
+        const username = raw.toLowerCase().replace(/^@/, "");
+        if (!username) continue;
+
+        // Auto-resolve twitter_id from cached profiles
+        const profile = db
+          .select({ twitterId: twitterProfiles.twitterId })
+          .from(twitterProfiles)
+          .where(eq(twitterProfiles.username, username))
+          .get();
+
+        const result = db
+          .insert(groupMembers)
+          .values({
+            userId: this.userId,
+            groupId,
+            twitterUsername: username,
+            twitterId: profile?.twitterId ?? null,
+            addedAt: new Date(),
+          })
+          .onConflictDoNothing({
+            target: [groupMembers.groupId, groupMembers.twitterUsername],
+          })
+          .run();
+        inserted += result.changes;
+      }
+    });
+    run();
+    return inserted;
+  }
+
+  /** Backfill twitter_id for members by username lookup. */
+  linkProfilesByUsername(groupId: number): number {
+    const unlinked = db
+      .select()
+      .from(groupMembers)
+      .where(
+        and(
+          eq(groupMembers.groupId, groupId),
+          isNull(groupMembers.twitterId),
+        ),
+      )
+      .all();
+    if (unlinked.length === 0) return 0;
+
+    const usernames = unlinked.map((m: GroupMember) => m.twitterUsername.toLowerCase());
+    const profiles: TwitterProfile[] = db
+      .select()
+      .from(twitterProfiles)
+      .where(inArray(twitterProfiles.username, usernames))
+      .all();
+    const profileMap = new Map(profiles.map((p: TwitterProfile) => [p.username, p.twitterId]));
+
+    let linked = 0;
+    const run = getRawSqlite().transaction(() => {
+      for (const m of unlinked) {
+        const tid = profileMap.get(m.twitterUsername.toLowerCase());
+        if (tid) {
+          db.update(groupMembers)
+            .set({ twitterId: tid })
+            .where(eq(groupMembers.id, m.id))
+            .run();
+          linked++;
+        }
+      }
+    });
+    run();
+    return linked;
+  }
+
+  deleteById(id: number): boolean {
+    const existing = this.findById(id);
+    if (!existing) return false;
+
+    const result = db.delete(groupMembers).where(eq(groupMembers.id, id)).run();
+    return result.changes > 0;
+  }
+
+  /** Delete all members in a group. Returns number deleted. */
+  deleteByGroupId(groupId: number): number {
+    const result = db
+      .delete(groupMembers)
+      .where(eq(groupMembers.groupId, groupId))
+      .run();
+    return result.changes;
+  }
+
+  countByGroupId(groupId: number): number {
+    const row = db
+      .select({ total: count() })
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, groupId))
+      .get();
+    return row?.total ?? 0;
   }
 }
