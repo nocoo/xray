@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout";
 import {
@@ -14,14 +13,8 @@ import {
   Eye,
   Plus,
   RefreshCw,
-  Languages,
-  Clock,
   Loader2,
-  CalendarClock,
-  ScrollText,
-  ChevronDown,
-  ChevronRight,
-  UserCheck,
+  Settings,
 } from "lucide-react";
 import {
   MemberCard,
@@ -29,6 +22,10 @@ import {
   AddMemberDialog,
   EditMemberDialog,
   DeleteMemberDialog,
+  SlidePanel,
+  SettingsPanel,
+  ActivityPanel,
+  PipelineStatus,
 } from "../_components";
 import {
   type TagData,
@@ -37,8 +34,6 @@ import {
   type MemberProgress,
   type TranslateProgress,
   type PipelinePhase,
-  INTERVAL_OPTIONS,
-  RETENTION_OPTIONS,
   useColumns,
   parseSSEBuffer,
 } from "../_lib";
@@ -109,8 +104,11 @@ export default function WatchlistDetailPage() {
     return () => { abortRef.current.abort(); };
   }, []);
 
-  // Fetch + translate progress panel
-  const [progressExpanded, setProgressExpanded] = useState(false);
+  // Side panels
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
+
+  // Fetch + translate progress
   const [memberProgress, setMemberProgress] = useState<MemberProgress[]>([]);
   const [cleanupInfo, setCleanupInfo] = useState<{ purgedExpired: number; purgedOrphans: number } | null>(null);
   const [fetchSummary, setFetchSummary] = useState<string | null>(null);
@@ -426,7 +424,7 @@ export default function WatchlistDetailPage() {
     if (fetchingRef.current) return;
     setFetching(true);
     setPipelinePhase("fetching");
-    setProgressExpanded(true);
+    setActivityOpen(true);
     setCleanupInfo(null);
     setFetchSummary(null);
     setTranslateProgress(null);
@@ -659,15 +657,6 @@ export default function WatchlistDetailPage() {
     [members, filterTagId],
   );
 
-  // Phase label for the progress panel header
-  const phaseLabel = pipelinePhase === "fetching"
-    ? "Fetching..."
-    : pipelinePhase === "translating"
-      ? "Translating..."
-      : pipelinePhase === "done"
-        ? "Done"
-        : null;
-
   return (
     <AppShell
       breadcrumbs={[
@@ -675,249 +664,86 @@ export default function WatchlistDetailPage() {
         { label: watchlistName || `#${watchlistId}` },
       ]}
     >
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {watchlistName || "Watchlist"}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Track Twitter/X users you&apos;re interested in.
-              {members.length > 0 && ` ${members.length} users tracked.`}
-            </p>
+      <div className="space-y-4">
+        {/* ── Toolbar: tabs + status + actions ── */}
+        <div className="flex items-center gap-1">
+          {/* Left: Tab buttons */}
+          <div className="flex items-center">
+            <button
+              onClick={() => setActiveTab("members")}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                activeTab === "members"
+                  ? "bg-secondary text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+              }`}
+            >
+              Members
+              {members.length > 0 && (
+                <span className="ml-1.5 text-xs text-muted-foreground">
+                  ({members.length})
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab("posts")}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                activeTab === "posts"
+                  ? "bg-secondary text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+              }`}
+            >
+              Posts
+              {posts.length > 0 && (
+                <span className="ml-1.5 text-xs text-muted-foreground">
+                  ({posts.length})
+                </span>
+              )}
+            </button>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Center: Pipeline status indicator */}
+          <div className="flex-1 flex justify-center">
+            <PipelineStatus
+              phase={pipelinePhase}
+              fetchSummary={fetchSummary}
+              translateSummary={translateSummary}
+              translateProgress={translateProgress}
+              memberProgress={memberProgress}
+              fetchInterval={fetchInterval}
+              onClick={() => setActivityOpen(true)}
+            />
+          </div>
+
+          {/* Right: Action buttons */}
+          <div className="flex items-center gap-1.5">
+            {activeTab === "members" && (
+              <Button onClick={() => setAddOpen(true)} size="sm">
+                <Plus className="h-4 w-4" />
+                Add
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
-              onClick={doRefreshProfiles}
-              disabled={refreshingProfiles || members.length === 0}
-              title="Refresh all member profiles from Twitter"
+              onClick={doFetch}
+              disabled={fetching || pipelinePhase === "translating" || members.length === 0}
             >
-              {refreshingProfiles ? (
+              {fetching ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <UserCheck className="h-4 w-4" />
+                <RefreshCw className="h-4 w-4" />
               )}
-              {refreshingProfiles ? "Refreshing..." : "Refresh Profiles"}
+              Fetch
             </Button>
-            <Button onClick={() => setAddOpen(true)} size="sm">
-              <Plus className="h-4 w-4" />
-              Add User
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setSettingsOpen(true)}
+              title="Settings"
+            >
+              <Settings className="h-4 w-4" />
             </Button>
           </div>
-        </div>
-
-        {/* Controls bar */}
-        <div className="rounded-card bg-card border p-4 space-y-3">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-4 flex-wrap">
-              {/* Interval selector */}
-              <div className="relative flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Interval:</span>
-                <div className="relative">
-                  <select
-                    value={fetchInterval}
-                    onChange={(e) => handleIntervalChange(Number(e.target.value))}
-                    className="h-8 rounded-md border bg-background pl-2 pr-7 text-sm appearance-none cursor-pointer"
-                  >
-                    {INTERVAL_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-              </div>
-
-              {/* Retention selector */}
-              <div className="relative flex items-center gap-2">
-                <CalendarClock className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Retention:</span>
-                <div className="relative">
-                  <select
-                    value={retentionDays}
-                    onChange={(e) => handleRetentionChange(Number(e.target.value))}
-                    className="h-8 rounded-md border bg-background pl-2 pr-7 text-sm appearance-none cursor-pointer"
-                  >
-                    {RETENTION_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={doFetch}
-                disabled={fetching || pipelinePhase === "translating" || members.length === 0}
-              >
-                {fetching ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                {fetching ? "Fetching..." : "Fetch Now"}
-              </Button>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href={`/watchlist/${watchlistId}/logs`}>
-                  <ScrollText className="h-4 w-4" />
-                  Logs
-                </Link>
-              </Button>
-            </div>
-          </div>
-
-          {/* ── Expandable Progress Panel ── */}
-          {pipelinePhase !== "idle" && (
-            <div className="border rounded-lg overflow-hidden bg-background">
-              {/* Header — always visible, clickable to expand/collapse */}
-              <button
-                onClick={() => setProgressExpanded((p) => !p)}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent/50 transition-colors"
-              >
-                {pipelinePhase === "done" ? (
-                  <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${progressExpanded ? "rotate-90" : ""}`} />
-                ) : (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                )}
-                <span className="font-medium">{phaseLabel}</span>
-                {fetchSummary && pipelinePhase !== "fetching" && (
-                  <span className="text-muted-foreground ml-1">— {fetchSummary}</span>
-                )}
-                {pipelinePhase === "translating" && translateProgress && (
-                  <span className="text-muted-foreground ml-1">
-                    — {translateProgress.current}/{translateProgress.total}
-                  </span>
-                )}
-                {translateSummary && pipelinePhase === "done" && (
-                  <span className="text-muted-foreground ml-1">· {translateSummary}</span>
-                )}
-              </button>
-
-              {/* Detail — expanded */}
-              {progressExpanded && (
-                <div className="border-t px-3 py-2 space-y-2 text-xs">
-                  {/* Cleanup info */}
-                  {cleanupInfo && (cleanupInfo.purgedExpired > 0 || cleanupInfo.purgedOrphans > 0) && (
-                    <div className="text-muted-foreground">
-                      Cleanup: {cleanupInfo.purgedExpired > 0 && `${cleanupInfo.purgedExpired} expired`}
-                      {cleanupInfo.purgedExpired > 0 && cleanupInfo.purgedOrphans > 0 && ", "}
-                      {cleanupInfo.purgedOrphans > 0 && `${cleanupInfo.purgedOrphans} orphaned`}
-                    </div>
-                  )}
-
-                  {/* Per-member progress */}
-                  {memberProgress.length > 0 && (
-                    <div className="space-y-1">
-                      {memberProgress.map((mp, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <span className="w-4 text-right text-muted-foreground">{idx + 1}.</span>
-                          {mp.status === "pending" && (
-                            <span className="text-muted-foreground/50">@{mp.username}</span>
-                          )}
-                          {mp.status === "fetching" && (
-                            <>
-                              <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
-                              <span className="text-blue-600 dark:text-blue-400">@{mp.username}</span>
-                              <span className="text-muted-foreground">requesting...</span>
-                            </>
-                          )}
-                          {mp.status === "done" && (
-                            <>
-                              <span className="text-green-600 dark:text-green-400">@{mp.username}</span>
-                              <span className="text-muted-foreground">
-                                {mp.tweetsReceived} received
-                                {(mp.filtered ?? 0) > 0 && `, ${mp.filtered} filtered`}
-                                , {mp.newPosts} new
-                              </span>
-                            </>
-                          )}
-                          {mp.status === "error" && (
-                            <>
-                              <span className="text-red-600 dark:text-red-400">@{mp.username}</span>
-                              <span className="text-red-500 truncate">{mp.error}</span>
-                            </>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Translate progress */}
-                  {(pipelinePhase === "translating" || (pipelinePhase === "done" && translateSummary)) && (
-                    <div className="pt-1 border-t">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Languages className="h-3 w-3" />
-                        <span className="font-medium">Translation</span>
-                        {pipelinePhase === "translating" && translateProgress && (
-                          <>
-                            <span>{translateProgress.current}/{translateProgress.total}</span>
-                            {translateProgress.errors > 0 && (
-                              <span className="text-red-500">{translateProgress.errors} errors</span>
-                            )}
-                          </>
-                        )}
-                        {pipelinePhase === "done" && translateSummary && (
-                          <span>{translateSummary}</span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Settings save error (auto-dismisses) */}
-        {settingsError && (
-          <div className="rounded-md border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950 px-4 py-2 text-sm text-red-700 dark:text-red-300">
-            {settingsError}
-          </div>
-        )}
-
-        {/* Tab bar */}
-        <div className="flex border-b">
-          <button
-            onClick={() => setActiveTab("members")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "members"
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Members
-            {members.length > 0 && (
-              <span className="ml-1.5 text-xs text-muted-foreground">
-                ({members.length})
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab("posts")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "posts"
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Posts
-            {posts.length > 0 && (
-              <span className="ml-1.5 text-xs text-muted-foreground">
-                ({posts.length})
-              </span>
-            )}
-          </button>
         </div>
 
         {/* Members tab */}
@@ -1079,6 +905,42 @@ export default function WatchlistDetailPage() {
           watchlistId={watchlistId}
         />
       )}
+
+      {/* Settings side panel */}
+      <SlidePanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        title="Settings"
+      >
+        <SettingsPanel
+          fetchInterval={fetchInterval}
+          retentionDays={retentionDays}
+          onIntervalChange={handleIntervalChange}
+          onRetentionChange={handleRetentionChange}
+          onRefreshProfiles={doRefreshProfiles}
+          refreshingProfiles={refreshingProfiles}
+          memberCount={members.length}
+          settingsError={settingsError}
+        />
+      </SlidePanel>
+
+      {/* Activity side panel */}
+      <SlidePanel
+        open={activityOpen}
+        onClose={() => setActivityOpen(false)}
+        title="Activity"
+        width="w-96"
+      >
+        <ActivityPanel
+          watchlistId={watchlistId}
+          pipelinePhase={pipelinePhase}
+          memberProgress={memberProgress}
+          cleanupInfo={cleanupInfo}
+          fetchSummary={fetchSummary}
+          translateProgress={translateProgress}
+          translateSummary={translateSummary}
+        />
+      </SlidePanel>
     </AppShell>
   );
 }
