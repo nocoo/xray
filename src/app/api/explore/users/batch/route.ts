@@ -104,7 +104,8 @@ export async function POST(req: NextRequest) {
         try {
           const info = await provider.getUserInfo(username);
           resolved.push(info);
-        } catch {
+        } catch (err) {
+          console.error(`[batch] Failed to resolve "${username}":`, err instanceof Error ? err.message : err);
           failed.push(username);
         }
       },

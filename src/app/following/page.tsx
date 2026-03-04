@@ -207,10 +207,24 @@ export default function FollowingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ usernames }),
       });
-      const json = await res.json().catch(() => null);
+
+      let json: Record<string, unknown> | null = null;
+      try {
+        json = await res.json();
+      } catch {
+        // Response was not JSON (e.g. HTML error page from Next.js)
+        const text = await res.text().catch(() => "");
+        setImportError(
+          `Server returned ${res.status} (non-JSON). ${text.slice(0, 120)}`,
+        );
+        return;
+      }
 
       if (!res.ok || !json?.success) {
-        setImportError(json?.error ?? "Failed to resolve usernames");
+        setImportError(
+          (json?.error as string) ??
+            `Server returned ${res.status}: ${JSON.stringify(json).slice(0, 200)}`,
+        );
         return;
       }
 
