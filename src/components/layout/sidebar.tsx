@@ -23,6 +23,7 @@ import {
   ChevronRight,
   ChevronUp,
   Plus,
+  LinkIcon,
 } from "lucide-react";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/version";
@@ -89,6 +90,13 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: "Integrations",
+    defaultOpen: true,
+    items: [
+      { href: "/integrations/zheto", label: "zhe.to", icon: LinkIcon },
+    ],
+  },
+  {
     label: "Settings",
     defaultOpen: true,
     items: [
@@ -105,7 +113,8 @@ const navSections: NavSection[] = [
   { title: null, items: NAV_GROUPS[0]!.items },
   { title: "Explore World", items: NAV_GROUPS[1]!.items },
   { title: "My Account", items: [{ href: "/watchlist", label: "Watchlists", icon: Eye }, ...NAV_GROUPS[2]!.items] },
-  { title: null, items: NAV_GROUPS[3]!.items },
+  { title: "Integrations", items: NAV_GROUPS[3]!.items },
+  { title: null, items: NAV_GROUPS[4]!.items },
 ];
 const allNavItems = navSections.flatMap((s) => s.items);
 

@@ -11,8 +11,8 @@ describe("sidebar navigation", () => {
   // ---------------------------------------------------------------------------
 
   describe("navSections", () => {
-    it("has 4 sections", () => {
-      expect(navSections).toHaveLength(4);
+    it("has 5 sections", () => {
+      expect(navSections).toHaveLength(5);
     });
 
     it("section 0 has no title (top-level items)", () => {
@@ -40,9 +40,16 @@ describe("sidebar navigation", () => {
       ]);
     });
 
-    it("section 3 has no title (utility items)", () => {
-      expect(navSections[3]!.title).toBeNull();
+    it("section 3 is Integrations", () => {
+      expect(navSections[3]!.title).toBe("Integrations");
       expect(navSections[3]!.items.map((i) => i.label)).toEqual([
+        "zhe.to",
+      ]);
+    });
+
+    it("section 4 has no title (utility items)", () => {
+      expect(navSections[4]!.title).toBeNull();
+      expect(navSections[4]!.items.map((i) => i.label)).toEqual([
         "Usage",
         "Webhooks",
         "AI Settings",
