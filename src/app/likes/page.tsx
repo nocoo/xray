@@ -1,7 +1,9 @@
 "use client";
 
+import { useCallback } from "react";
 import { AppShell } from "@/components/layout";
 import { TweetCard } from "@/components/twitter/tweet-card";
+import { MasonryGrid } from "@/components/ui/masonry-grid";
 import { LoadingSpinner, ErrorBanner, EmptyState } from "@/components/ui/feedback";
 import { Heart } from "lucide-react";
 import { useFetch } from "@/hooks/use-api";
@@ -9,14 +11,29 @@ import { useFetch } from "@/hooks/use-api";
 import type { Tweet } from "../../../shared/types";
 
 // =============================================================================
-// Likes Page — displays the user's liked tweets
+// Likes Page — displays the user's liked tweets in masonry layout
 // =============================================================================
+
+function estimateTweetHeight(tweet: Tweet): number {
+  let h = 100; // base (author row + action bar + metrics + padding)
+  h += Math.ceil((tweet.text?.length ?? 0) / 60) * 20; // ~20px per line
+  if (tweet.media && tweet.media.length > 0) h += 200;
+  if (tweet.quoted_tweet) h += 120;
+  return h;
+}
 
 export default function LikesPage() {
   const { data: tweets, loading, error } = useFetch<Tweet[]>(
     "/api/explore/likes",
     "Failed to load likes",
   );
+
+  const renderTweet = useCallback(
+    (tweet: Tweet) => <TweetCard tweet={tweet} />,
+    [],
+  );
+
+  const keyExtractor = useCallback((tweet: Tweet) => tweet.id, []);
 
   return (
     <AppShell breadcrumbs={[{ label: "Likes" }]}>
@@ -33,11 +50,12 @@ export default function LikesPage() {
         {error && <ErrorBanner error={error} />}
 
         {!loading && !error && tweets && tweets.length > 0 && (
-          <div className="space-y-4">
-            {tweets.map((tweet) => (
-              <TweetCard key={tweet.id} tweet={tweet} />
-            ))}
-          </div>
+          <MasonryGrid
+            items={tweets}
+            keyExtractor={keyExtractor}
+            estimateHeight={estimateTweetHeight}
+            renderItem={renderTweet}
+          />
         )}
 
         {!loading && !error && (!tweets || tweets.length === 0) && (
