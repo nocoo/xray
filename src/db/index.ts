@@ -263,6 +263,7 @@ export function initSchema(): void {
       user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
       watchlist_id INTEGER NOT NULL REFERENCES watchlists(id) ON DELETE CASCADE,
       twitter_username TEXT NOT NULL,
+      twitter_id TEXT REFERENCES twitter_profiles(twitter_id),
       note TEXT,
       added_at INTEGER NOT NULL,
       fetch_interval_minutes INTEGER
@@ -375,6 +376,7 @@ export function initSchema(): void {
   safeAddColumn(`ALTER TABLE fetched_posts ADD COLUMN quoted_translated_text TEXT`);
   safeAddColumn(`ALTER TABLE fetched_posts ADD COLUMN watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE`);
   safeAddColumn(`ALTER TABLE fetch_logs ADD COLUMN watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE`);
+  safeAddColumn(`ALTER TABLE watchlist_members ADD COLUMN twitter_id TEXT REFERENCES twitter_profiles(twitter_id)`);
 
   // Indexes that depend on watchlist_id — MUST run AFTER safeAddColumn adds the column.
   // For fresh DBs the column exists from CREATE TABLE; for legacy DBs safeAddColumn just added it.
@@ -387,6 +389,8 @@ export function initSchema(): void {
       ON watchlist_members (watchlist_id);
     CREATE INDEX IF NOT EXISTS fetch_logs_watchlist_id_idx
       ON fetch_logs (watchlist_id);
+    CREATE INDEX IF NOT EXISTS watchlist_members_twitter_id_idx
+      ON watchlist_members (twitter_id);
   `);
 
   // --------------------------------------------------------------------------

@@ -185,6 +185,8 @@ export const watchlistMembers = sqliteTable(
       .notNull()
       .references(() => watchlists.id, { onDelete: "cascade" }),
     twitterUsername: text("twitter_username").notNull(),
+    /** Twitter numeric ID — FK to twitter_profiles.twitter_id. NULL for unresolved users. */
+    twitterId: text("twitter_id").references(() => twitterProfiles.twitterId),
     note: text("note"),
     addedAt: integer("added_at", { mode: "timestamp" })
       .notNull()
@@ -198,6 +200,8 @@ export const watchlistMembers = sqliteTable(
       t.watchlistId,
       t.twitterUsername,
     ),
+    /** Fast lookup/join by twitter_id. */
+    idxTwitterId: index("watchlist_members_twitter_id_idx").on(t.twitterId),
   }),
 );
 
