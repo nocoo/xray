@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo, memo } from "react";
+import { useState, useEffect, useMemo, memo, useCallback } from "react";
 import { TweetCard } from "@/components/twitter/tweet-card";
 import {
   ArrowLeftRight,
   Languages,
   Loader2,
   MessageSquareQuote,
+  LinkIcon,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FetchedPostData } from "../_lib/types";
@@ -23,6 +25,7 @@ export const WatchlistPostCard = memo(function WatchlistPostCard({
   const [commentText, setCommentText] = useState(post.commentText);
   const [quotedTranslatedText, setQuotedTranslatedText] = useState(post.quotedTranslatedText);
   const [translating, setTranslating] = useState(false);
+  const [zhetoStatus, setZhetoStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   // Sync from parent when translation arrives via SSE
   useEffect(() => {
@@ -68,6 +71,31 @@ export const WatchlistPostCard = memo(function WatchlistPostCard({
       setTranslating(false);
     }
   };
+
+  const handleSaveToZheto = useCallback(async () => {
+    if (zhetoStatus === "saving" || zhetoStatus === "saved") return;
+    setZhetoStatus("saving");
+    try {
+      const tweetUrl = post.tweet.url;
+      const note = `@${post.tweet.author.username}: ${post.tweet.text.slice(0, 200)}`;
+      const res = await fetch("/api/integrations/zheto/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: tweetUrl, note }),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.success) {
+        setZhetoStatus("saved");
+      } else {
+        setZhetoStatus("error");
+        // Reset to idle after 3s so user can retry
+        setTimeout(() => setZhetoStatus("idle"), 3000);
+      }
+    } catch {
+      setZhetoStatus("error");
+      setTimeout(() => setZhetoStatus("idle"), 3000);
+    }
+  }, [zhetoStatus, post.tweet.url, post.tweet.author.username, post.tweet.text]);
 
   return (
     <div className="shadow-[0_1px_4px_rgba(0,0,0,0.06)] rounded-card animate-in fade-in slide-in-from-top-2 duration-300">
@@ -128,6 +156,37 @@ export const WatchlistPostCard = memo(function WatchlistPostCard({
             {translating ? "Translating..." : "Translate"}
           </button>
         )}
+
+        {/* Save to zhe.to */}
+        <button
+          onClick={handleSaveToZheto}
+          disabled={zhetoStatus === "saving" || zhetoStatus === "saved"}
+          className={cn(
+            "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+            zhetoStatus === "saved"
+              ? "text-emerald-600 dark:text-emerald-400"
+              : zhetoStatus === "error"
+                ? "text-red-500 dark:text-red-400"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent",
+            (zhetoStatus === "saving" || zhetoStatus === "saved") && "opacity-60 cursor-default",
+          )}
+          title="Save to zhe.to"
+        >
+          {zhetoStatus === "saving" ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : zhetoStatus === "saved" ? (
+            <Check className="h-3 w-3" />
+          ) : (
+            <LinkIcon className="h-3 w-3" />
+          )}
+          {zhetoStatus === "saving"
+            ? "Saving..."
+            : zhetoStatus === "saved"
+              ? "Saved"
+              : zhetoStatus === "error"
+                ? "Failed"
+                : "zhe.to"}
+        </button>
       </div>
     </div>
   );
