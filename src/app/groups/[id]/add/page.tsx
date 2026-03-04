@@ -286,7 +286,7 @@ export default function AddMembersPage() {
             <ManualTab addCandidates={addCandidates} />
           )}
           {activeTab === "file" && (
-            <ImportFileTab addCandidates={addCandidates} />
+            <ImportFileTab addCandidates={addCandidates} existingTwitterIds={existingTwitterIds} />
           )}
         </div>
 
@@ -536,8 +536,10 @@ function ManualTab({
 
 function ImportFileTab({
   addCandidates,
+  existingTwitterIds,
 }: {
   addCandidates: (items: Omit<UserCandidate, "alreadyInGroup" | "selected">[]) => void;
+  existingTwitterIds: Set<string>;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -714,8 +716,24 @@ function ImportFileTab({
       // Try Twitter export format first
       const accountIds = parseTwitterExportFile(content);
       if (accountIds && accountIds.length > 0) {
-        // Account IDs are numeric — need API resolution to get real usernames
-        startResolving(accountIds);
+        // Pre-filter: skip IDs already in the group (no API call needed)
+        const newIds = accountIds.filter((id) => !existingTwitterIds.has(id));
+        const skipped = accountIds.length - newIds.length;
+
+        if (newIds.length === 0) {
+          setResultInfo(
+            `All ${accountIds.length} accounts are already in this group.`,
+          );
+          return;
+        }
+
+        if (skipped > 0) {
+          setResultInfo(
+            `${skipped} already in group, ${newIds.length} new accounts to resolve.`,
+          );
+        }
+
+        startResolving(newIds);
         return;
       }
 
@@ -743,7 +761,7 @@ function ImportFileTab({
       addCandidates(unique.map((u) => ({ username: u })));
       setResultInfo(`Parsed ${unique.length} usernames from file`);
     },
-    [addCandidates, startResolving],
+    [addCandidates, startResolving, existingTwitterIds],
   );
 
   const handleFile = useCallback(
