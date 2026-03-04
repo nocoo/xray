@@ -10,12 +10,17 @@ import {
   Eye,
   Bookmark,
   Quote,
-  ExternalLink,
   Image as ImageIcon,
   AtSign,
   Hash,
   X,
+  Languages,
+  ArrowLeftRight,
+  LinkIcon,
+  Loader2,
+  Check,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import type { Tweet, TweetMedia } from "../../../shared/types";
 
@@ -111,17 +116,6 @@ export const TweetCard = memo(function TweetCard({
           </div>
         </div>
 
-        {/* External link */}
-        <a
-          href={tweet.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-          title="Open on X"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <ExternalLink className="h-4 w-4" />
-        </a>
       </div>
 
       {/* Tweet text */}
