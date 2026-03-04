@@ -20,7 +20,6 @@ import {
   Eye,
   Webhook,
   Brain,
-  ChevronRight,
   ChevronUp,
   Plus,
   LinkIcon,
@@ -355,21 +354,24 @@ function WatchlistGroup({
 
   return (
     <div>
-      {/* Watchlists header — clickable to toggle */}
+      {/* Watchlists header — matches NavGroupSection style */}
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-normal transition-colors text-muted-foreground hover:bg-accent hover:text-foreground"
+        className="flex w-full items-center justify-between px-3 py-2.5"
       >
-        <Eye className="h-4 w-4 shrink-0" strokeWidth={1.5} />
-        <span className="flex-1 text-left">Watchlists</span>
-        <ChevronRight
-          className={cn(
-            "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
-            expanded && "rotate-90",
-          )}
-          strokeWidth={1.5}
-        />
+        <span className="text-sm font-normal text-muted-foreground">
+          Watchlists
+        </span>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center">
+          <ChevronUp
+            className={cn(
+              "h-4 w-4 text-muted-foreground transition-transform duration-200",
+              !expanded && "rotate-180",
+            )}
+            strokeWidth={1.5}
+          />
+        </span>
       </button>
 
       {/* Expandable watchlist items */}
@@ -433,21 +435,24 @@ function GroupsGroup({
 
   return (
     <div>
-      {/* Groups header — clickable to toggle */}
+      {/* Groups header — matches NavGroupSection style */}
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-normal transition-colors text-muted-foreground hover:bg-accent hover:text-foreground"
+        className="flex w-full items-center justify-between px-3 py-2.5"
       >
-        <Users className="h-4 w-4 shrink-0" strokeWidth={1.5} />
-        <span className="flex-1 text-left">Groups</span>
-        <ChevronRight
-          className={cn(
-            "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
-            expanded && "rotate-90",
-          )}
-          strokeWidth={1.5}
-        />
+        <span className="text-sm font-normal text-muted-foreground">
+          Groups
+        </span>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center">
+          <ChevronUp
+            className={cn(
+              "h-4 w-4 text-muted-foreground transition-transform duration-200",
+              !expanded && "rotate-180",
+            )}
+            strokeWidth={1.5}
+          />
+        </span>
       </button>
 
       {/* Expandable group items */}
