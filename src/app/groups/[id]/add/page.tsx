@@ -535,23 +535,26 @@ function ImportFileTab({
   // Resolving state for Twitter export files
   const [resolving, setResolving] = useState(false);
   const [resolveProgress, setResolveProgress] = useState({ done: 0, total: 0, failed: 0 });
-  const abortRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Batch resolve Twitter IDs → usernames via /api/profiles/refresh
+  // Uses small batches (10) to avoid overwhelming the API, with AbortController
+  // for immediate cancellation mid-flight.
   const resolveTwitterIds = useCallback(
     async (accountIds: string[]) => {
       setResolving(true);
-      abortRef.current = false;
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
       setResolveProgress({ done: 0, total: accountIds.length, failed: 0 });
       setError(null);
       setResultInfo(null);
 
-      const BATCH_SIZE = 50;
+      const BATCH_SIZE = 10;
       let totalResolved = 0;
       let totalFailed = 0;
 
       for (let i = 0; i < accountIds.length; i += BATCH_SIZE) {
-        if (abortRef.current) break;
+        if (controller.signal.aborted) break;
 
         const batch = accountIds.slice(i, i + BATCH_SIZE);
 
@@ -560,6 +563,7 @@ function ImportFileTab({
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ twitter_ids: batch }),
+            signal: controller.signal,
           });
           const json = await res.json().catch(() => null);
 
@@ -584,7 +588,9 @@ function ImportFileTab({
           } else {
             totalFailed += batch.length;
           }
-        } catch {
+        } catch (err) {
+          // AbortError means user cancelled — don't count as failures
+          if (err instanceof DOMException && err.name === "AbortError") break;
           totalFailed += batch.length;
         }
 
@@ -596,7 +602,8 @@ function ImportFileTab({
       }
 
       setResolving(false);
-      if (abortRef.current) {
+      abortControllerRef.current = null;
+      if (controller.signal.aborted) {
         setResultInfo(`Cancelled. Resolved ${totalResolved} of ${accountIds.length} accounts.`);
       } else if (totalFailed > 0) {
         setResultInfo(
@@ -723,7 +730,7 @@ function ImportFileTab({
           isDragging
             ? "border-primary bg-primary/5"
             : "border-input hover:border-muted-foreground/50",
-          resolving && "pointer-events-none opacity-50",
+          resolving && "pointer-events-none",
         )}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
@@ -763,7 +770,7 @@ function ImportFileTab({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => { abortRef.current = true; }}
+              onClick={() => { abortControllerRef.current?.abort(); }}
               className="text-muted-foreground h-7"
             >
               Cancel
