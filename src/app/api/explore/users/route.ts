@@ -8,6 +8,7 @@
 
 import { NextRequest } from "next/server";
 import { withSessionProvider } from "@/lib/twitter/session-handler";
+import { ProfilesRepo } from "@/db/scoped";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,8 @@ export async function GET(req: NextRequest) {
 
   return withSessionProvider(async (provider) => {
     const info = await provider.getUserInfo(username);
+    // Cache the profile snapshot
+    new ProfilesRepo().upsert(info);
     return Response.json({ success: true, data: info });
   });
 }

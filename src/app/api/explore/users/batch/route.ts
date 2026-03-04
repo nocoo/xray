@@ -8,13 +8,14 @@
 
 import { NextRequest } from "next/server";
 import { withSessionProvider } from "@/lib/twitter/session-handler";
+import { ProfilesRepo } from "@/db/scoped";
 
 import type { UserInfo } from "../../../../../../shared/types";
 
 export const dynamic = "force-dynamic";
 
 /** Max usernames per request to prevent abuse */
-const MAX_USERNAMES = 200;
+const MAX_USERNAMES = 500;
 
 /** Concurrency limit for upstream API calls */
 const CONCURRENCY = 5;
@@ -95,6 +96,7 @@ export async function POST(req: NextRequest) {
   }
 
   return withSessionProvider(async (provider) => {
+    const profiles = new ProfilesRepo();
     const resolved: UserInfo[] = [];
     const failed: string[] = [];
 
@@ -103,6 +105,7 @@ export async function POST(req: NextRequest) {
       async (username) => {
         try {
           const info = await provider.getUserInfo(username);
+          profiles.upsert(info);
           resolved.push(info);
         } catch (err) {
           console.error(`[batch] Failed to resolve "${username}":`, err instanceof Error ? err.message : err);
