@@ -20,6 +20,7 @@ import {
   LinkIcon,
   Loader2,
   Check,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -782,20 +783,24 @@ function PhotoItem({
     [onClick, media.url],
   );
 
-  const img = (
-    <img
-      src={media.url}
-      alt=""
-      className={`${className}${onClick ? " cursor-zoom-in" : ""}`}
-      loading="lazy"
-      onClick={handleClick}
-    />
+  const content = (
+    <div className={cn("relative group", containerClass)}>
+      <img
+        src={media.url}
+        alt=""
+        className={`${className}${onClick ? " cursor-zoom-in" : ""}`}
+        loading="lazy"
+        onClick={handleClick}
+      />
+      {onClick && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-colors pointer-events-none">
+          <Search className="h-6 w-6 text-white opacity-0 group-hover:opacity-90 drop-shadow-md transition-opacity" />
+        </div>
+      )}
+    </div>
   );
 
-  if (containerClass) {
-    return <div className={containerClass}>{img}</div>;
-  }
-  return img;
+  return content;
 }
 
 // =============================================================================
