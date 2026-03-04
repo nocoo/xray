@@ -81,3 +81,40 @@ export async function requireAuthWithWatchlist(
 
   return { db, watchlistId };
 }
+
+/**
+ * Require authentication AND validate a group ID from route params.
+ * Returns a user-scoped DB and validated groupId, or a JSON error response.
+ */
+export async function requireAuthWithGroup(
+  params: Promise<{ id: string }> | { id: string },
+): Promise<
+  | { db: ScopedDB; groupId: number; error?: never }
+  | { db?: never; groupId?: never; error: NextResponse }
+> {
+  const { db, error } = await requireAuth();
+  if (error) return { error };
+
+  const resolved = await params;
+  const groupId = parseInt(resolved.id, 10);
+  if (isNaN(groupId)) {
+    return {
+      error: NextResponse.json(
+        { error: "Invalid group ID" },
+        { status: 400 },
+      ),
+    };
+  }
+
+  const group = db.groups.findById(groupId);
+  if (!group) {
+    return {
+      error: NextResponse.json(
+        { error: "Group not found" },
+        { status: 404 },
+      ),
+    };
+  }
+
+  return { db, groupId };
+}
