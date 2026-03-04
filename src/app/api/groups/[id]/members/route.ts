@@ -27,7 +27,11 @@ export async function POST(request: Request, ctx: RouteContext) {
   const { db, error, groupId } = await requireAuthWithGroup(ctx.params);
   if (error) return error;
 
-  let body: { usernames?: string[]; twitterUsername?: string };
+  let body: {
+    usernames?: string[];
+    members?: { username: string; twitterId?: string }[];
+    twitterUsername?: string;
+  };
   try {
     body = await request.json();
   } catch {
@@ -37,9 +41,22 @@ export async function POST(request: Request, ctx: RouteContext) {
     );
   }
 
-  // Batch add
+  // Batch add (new format with twitterId)
+  if (body.members && Array.isArray(body.members)) {
+    const inserted = db.groupMembers.batchCreateWithIds(groupId, body.members);
+    const total = db.groupMembers.countByGroupId(groupId);
+    return NextResponse.json(
+      { success: true, data: { inserted, total } },
+      { status: 201 },
+    );
+  }
+
+  // Batch add (legacy format — username-only)
   if (body.usernames && Array.isArray(body.usernames)) {
-    const inserted = db.groupMembers.batchCreate(groupId, body.usernames);
+    const inserted = db.groupMembers.batchCreateWithIds(
+      groupId,
+      body.usernames.map((u) => ({ username: u })),
+    );
     const total = db.groupMembers.countByGroupId(groupId);
     return NextResponse.json(
       { success: true, data: { inserted, total } },
