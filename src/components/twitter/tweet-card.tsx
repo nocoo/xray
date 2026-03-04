@@ -39,7 +39,28 @@ export const TweetCard = memo(function TweetCard({
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const card = (
-    <div className={`rounded-card bg-secondary p-4 transition-colors hover:bg-secondary/80 ${className ?? ""}`}>
+    <div className={`relative rounded-card bg-secondary p-4 transition-colors hover:bg-secondary/80 ${className ?? ""}`}>
+      {/* Tweet type badges — top-right corner */}
+      {(tweet.is_retweet || tweet.is_reply || tweet.is_quote) && (
+        <div className="absolute top-2.5 right-2.5 flex items-center gap-1">
+          {tweet.is_retweet && (
+            <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
+              <Repeat2 className="mr-0.5 h-2.5 w-2.5" /> RT
+            </Badge>
+          )}
+          {tweet.is_reply && (
+            <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
+              <MessageCircle className="mr-0.5 h-2.5 w-2.5" /> Reply
+            </Badge>
+          )}
+          {tweet.is_quote && (
+            <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
+              <Quote className="mr-0.5 h-2.5 w-2.5" /> Quote
+            </Badge>
+          )}
+        </div>
+      )}
+
       {/* Author row */}
       <div className="flex items-start gap-3">
         {tweet.author.profile_image_url ? (
@@ -87,25 +108,6 @@ export const TweetCard = memo(function TweetCard({
                 {formatTimeAgo(tweet.created_at)}
               </span>
             </div>
-          </div>
-
-          {/* Tweet type badges */}
-          <div className="flex items-center gap-1.5 mt-0.5">
-            {tweet.is_retweet && (
-              <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
-                <Repeat2 className="mr-0.5 h-2.5 w-2.5" /> RT
-              </Badge>
-            )}
-            {tweet.is_reply && (
-              <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
-                <MessageCircle className="mr-0.5 h-2.5 w-2.5" /> Reply
-              </Badge>
-            )}
-            {tweet.is_quote && (
-              <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
-                <Quote className="mr-0.5 h-2.5 w-2.5" /> Quote
-              </Badge>
-            )}
           </div>
         </div>
 
