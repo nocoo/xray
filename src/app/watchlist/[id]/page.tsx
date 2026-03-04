@@ -21,6 +21,7 @@ import {
   ScrollText,
   ChevronDown,
   ChevronRight,
+  UserCheck,
 } from "lucide-react";
 import {
   MemberCard,
@@ -89,6 +90,9 @@ export default function WatchlistDetailPage() {
 
   // Filter by tag
   const [filterTagId, setFilterTagId] = useState<number | null>(null);
+
+  // Profile refresh state
+  const [refreshingProfiles, setRefreshingProfiles] = useState(false);
 
   // Auto-fetch state
   const [fetchInterval, setFetchInterval] = useState(0);
@@ -257,6 +261,36 @@ export default function WatchlistDetailPage() {
       loadPosts();
     }
   }, [activeTab, loadPosts]);
+
+  // ── Refresh profiles via POST /api/profiles/refresh ──
+
+  const doRefreshProfiles = useCallback(async () => {
+    const usernames = membersRef.current.map((m) => m.twitterUsername);
+    if (usernames.length === 0) return;
+
+    setRefreshingProfiles(true);
+    try {
+      const res = await fetch("/api/profiles/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usernames }),
+        signal: abortRef.current.signal,
+      });
+      if (res.ok) {
+        // Link profiles to members that don't have twitter_id yet
+        await fetch(`${api}/members/link-profiles`, {
+          method: "POST",
+          signal: abortRef.current.signal,
+        });
+        // Reload members to pick up updated profile data
+        await loadData();
+      }
+    } catch {
+      // ignore abort / network errors
+    } finally {
+      setRefreshingProfiles(false);
+    }
+  }, [api, loadData]);
 
   // ── Auto-translate via SSE stream ──
 
@@ -618,6 +652,20 @@ export default function WatchlistDetailPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={doRefreshProfiles}
+              disabled={refreshingProfiles || members.length === 0}
+              title="Refresh all member profiles from Twitter"
+            >
+              {refreshingProfiles ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UserCheck className="h-4 w-4" />
+              )}
+              {refreshingProfiles ? "Refreshing..." : "Refresh Profiles"}
+            </Button>
             <Button onClick={() => setAddOpen(true)} size="sm">
               <Plus className="h-4 w-4" />
               Add User
