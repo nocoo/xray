@@ -17,40 +17,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { UserPlus, Search, Upload, FileUp } from "lucide-react";
+import { parseTwitterExportFile } from "@/lib/twitter-export";
 
 import type { UserInfo } from "../../../shared/types";
-
-// =============================================================================
-// Twitter export file parser
-//
-// Twitter data export produces `following.js` with format:
-//   window.YTD.following.part0 = [ { following: { accountId: "123", ... } }, ... ]
-// We strip the assignment prefix, parse as JSON, and extract accountIds.
-// =============================================================================
-
-interface TwitterExportEntry {
-  following: { accountId: string; userLink?: string };
-}
-
-function parseTwitterExportFile(content: string): string[] | null {
-  // Strip the `window.YTD.following.partN = ` prefix
-  const jsonStart = content.indexOf("[");
-  if (jsonStart === -1) return null;
-
-  try {
-    const data = JSON.parse(content.slice(jsonStart)) as TwitterExportEntry[];
-    if (!Array.isArray(data) || data.length === 0) return null;
-
-    // Validate shape: first entry should have following.accountId
-    if (!data[0]?.following?.accountId) return null;
-
-    return data
-      .map((entry) => entry.following?.accountId)
-      .filter((id): id is string => !!id);
-  } catch {
-    return null;
-  }
-}
 
 // =============================================================================
 // Following Page — look up who a given Twitter user follows + import lists
