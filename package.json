@@ -1,6 +1,6 @@
 {
   "name": "x-ray",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Twitter tech content monitoring system",
   "type": "module",
   "scripts": {

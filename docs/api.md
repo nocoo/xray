@@ -157,7 +157,7 @@ Response:
 ```json
 {
   "status": "ok",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "timestamp": 1771930542862,
   "uptime": 420,
   "runtime": "bun",

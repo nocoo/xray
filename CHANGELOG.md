@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-03-04
+
+### Added
+
+- **Activity assessment columns** — Groups detail table now displays Likes, Last Tweet (relative time), and Activity badge (🟢 Active / 🟡 Low / 🔴 Inactive / — Unknown) computed from tweet recency and frequency
+- **Enhanced Tweets column** — shows tweet count with average tweets/day calculated from account age
+- **Last tweet tracking** — `last_tweet_at` column added to `twitter_profiles` table; populated during profile refresh by fetching the user's most recent tweet via `fetchUserTweets`
+- **Add Members page** — dedicated `/groups/[id]/add` page with 3-tab import flow: From Account (fetch following list), Manual (paste usernames), and Import File (drag-and-drop `following.js`)
+
+### Changed
+
+- **Groups detail table enriched** — profile avatars link to X profiles; @username and display name are clickable; Added column right-aligned; User header left-aligned
+- **Streaming profile refresh** — refresh button now resolves members one-by-one with live progress instead of batch-then-render
+- **Inline add form removed** — replaced by dedicated Add Members page accessible via header button
+
 ## [1.3.0] - 2026-03-04
 
 ### Added
