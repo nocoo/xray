@@ -22,7 +22,7 @@ export function DeleteMemberDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   member: WatchlistMember;
-  onSuccess: () => void;
+  onSuccess: (memberId: number) => void;
   watchlistId: number;
 }) {
   const [deleting, setDeleting] = useState(false);
@@ -35,7 +35,7 @@ export function DeleteMemberDialog({
       });
       if (res.ok) {
         onOpenChange(false);
-        onSuccess();
+        onSuccess(member.id);
       }
     } catch {
       // silent
