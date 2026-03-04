@@ -49,6 +49,27 @@ describe("e2e: my account module", () => {
       expect(html).toContain("Following");
       expect(html).not.toContain("Coming Soon");
     });
+
+    test("page includes Import button for bulk resolution", async () => {
+      const { html } = await fetchPage("/following");
+      expect(html).toContain("Import");
+    });
+
+    test("POST /api/explore/users/batch accepts numeric accountIds (Twitter export)", async () => {
+      // Twitter export provides numeric accountIds, which the batch API
+      // should resolve via the same getUserInfo path as usernames
+      const res = await fetch(`${getBaseUrl()}/api/explore/users/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usernames: ["12345678", "87654321"] }),
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.success).toBe(true);
+      // Mock provider should resolve numeric IDs just like usernames
+      expect(body.data.resolved).toBeArray();
+      expect(body.data.resolved.length).toBeGreaterThan(0);
+    });
   });
 
   // ---------------------------------------------------------------------------
