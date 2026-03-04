@@ -532,6 +532,83 @@ function ImportFileTab({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
 
+  // Resolving state for Twitter export files
+  const [resolving, setResolving] = useState(false);
+  const [resolveProgress, setResolveProgress] = useState({ done: 0, total: 0, failed: 0 });
+  const abortRef = useRef(false);
+
+  // Batch resolve Twitter IDs → usernames via /api/profiles/refresh
+  const resolveTwitterIds = useCallback(
+    async (accountIds: string[]) => {
+      setResolving(true);
+      abortRef.current = false;
+      setResolveProgress({ done: 0, total: accountIds.length, failed: 0 });
+      setError(null);
+      setResultInfo(null);
+
+      const BATCH_SIZE = 50;
+      let totalResolved = 0;
+      let totalFailed = 0;
+
+      for (let i = 0; i < accountIds.length; i += BATCH_SIZE) {
+        if (abortRef.current) break;
+
+        const batch = accountIds.slice(i, i + BATCH_SIZE);
+
+        try {
+          const res = await fetch("/api/profiles/refresh", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ twitter_ids: batch }),
+          });
+          const json = await res.json().catch(() => null);
+
+          if (res.ok && json?.success) {
+            const resolved: { id: string; username: string; name: string; profile_image_url: string; followers_count: number; following_count: number }[] = json.data.resolved ?? [];
+            const failed: string[] = json.data.failed ?? [];
+
+            if (resolved.length > 0) {
+              addCandidates(
+                resolved.map((u) => ({
+                  username: u.username,
+                  displayName: u.name,
+                  avatarUrl: u.profile_image_url,
+                  followersCount: u.followers_count,
+                  followingCount: u.following_count,
+                })),
+              );
+            }
+
+            totalResolved += resolved.length;
+            totalFailed += failed.length;
+          } else {
+            totalFailed += batch.length;
+          }
+        } catch {
+          totalFailed += batch.length;
+        }
+
+        setResolveProgress({
+          done: Math.min(i + BATCH_SIZE, accountIds.length),
+          total: accountIds.length,
+          failed: totalFailed,
+        });
+      }
+
+      setResolving(false);
+      if (abortRef.current) {
+        setResultInfo(`Cancelled. Resolved ${totalResolved} of ${accountIds.length} accounts.`);
+      } else if (totalFailed > 0) {
+        setResultInfo(
+          `Resolved ${totalResolved} accounts. ${totalFailed} could not be resolved (suspended, deleted, or private).`,
+        );
+      } else {
+        setResultInfo(`Resolved all ${totalResolved} accounts.`);
+      }
+    },
+    [addCandidates],
+  );
+
   const processContent = useCallback(
     (content: string) => {
       setError(null);
@@ -540,8 +617,8 @@ function ImportFileTab({
       // Try Twitter export format first
       const accountIds = parseTwitterExportFile(content);
       if (accountIds && accountIds.length > 0) {
-        addCandidates(accountIds.map((id) => ({ username: id })));
-        setResultInfo(`Parsed ${accountIds.length} accounts from Twitter export`);
+        // Account IDs are numeric — need API resolution to get real usernames
+        resolveTwitterIds(accountIds);
         return;
       }
 
@@ -569,7 +646,7 @@ function ImportFileTab({
       addCandidates(unique.map((u) => ({ username: u })));
       setResultInfo(`Parsed ${unique.length} usernames from file`);
     },
-    [addCandidates],
+    [addCandidates, resolveTwitterIds],
   );
 
   const handleFile = useCallback(
@@ -634,6 +711,8 @@ function ImportFileTab({
       <p className="text-sm text-muted-foreground">
         Drag and drop a Twitter/X data export file (
         <code className="text-xs bg-muted px-1 py-0.5 rounded">following.js</code>
+        {" / "}
+        <code className="text-xs bg-muted px-1 py-0.5 rounded">follower.js</code>
         ), or any text file with one username per line.
       </p>
 
@@ -644,12 +723,13 @@ function ImportFileTab({
           isDragging
             ? "border-primary bg-primary/5"
             : "border-input hover:border-muted-foreground/50",
+          resolving && "pointer-events-none opacity-50",
         )}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => !resolving && fileInputRef.current?.click()}
       >
         <FileUp className="h-8 w-8 text-muted-foreground mb-3" />
         <p className="text-sm font-medium">
@@ -666,6 +746,41 @@ function ImportFileTab({
           className="hidden"
         />
       </div>
+
+      {/* Resolving progress */}
+      {resolving && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">
+              <Loader2 className="inline h-3.5 w-3.5 animate-spin mr-1.5" />
+              Resolving Twitter IDs... {resolveProgress.done}/{resolveProgress.total}
+              {resolveProgress.failed > 0 && (
+                <span className="text-amber-600 ml-1">
+                  ({resolveProgress.failed} failed)
+                </span>
+              )}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { abortRef.current = true; }}
+              className="text-muted-foreground h-7"
+            >
+              Cancel
+            </Button>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-300"
+              style={{
+                width: resolveProgress.total > 0
+                  ? `${(resolveProgress.done / resolveProgress.total) * 100}%`
+                  : "0%",
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {error && <ErrorBanner error={error} />}
       {resultInfo && !error && (
