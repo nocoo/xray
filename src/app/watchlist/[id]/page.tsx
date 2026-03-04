@@ -93,6 +93,7 @@ export default function WatchlistDetailPage() {
 
   // Profile refresh state
   const [refreshingProfiles, setRefreshingProfiles] = useState(false);
+  const [refreshingMemberId, setRefreshingMemberId] = useState<number | null>(null);
 
   // Auto-fetch state
   const [fetchInterval, setFetchInterval] = useState(0);
@@ -289,6 +290,33 @@ export default function WatchlistDetailPage() {
       // ignore abort / network errors
     } finally {
       setRefreshingProfiles(false);
+    }
+  }, [api, loadData]);
+
+  // ── Refresh a single member's profile ──
+
+  const refreshMemberProfile = useCallback(async (member: WatchlistMember) => {
+    setRefreshingMemberId(member.id);
+    try {
+      const res = await fetch("/api/profiles/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usernames: [member.twitterUsername] }),
+        signal: abortRef.current.signal,
+      });
+      if (res.ok) {
+        if (!member.twitterId) {
+          await fetch(`${api}/members/link-profiles`, {
+            method: "POST",
+            signal: abortRef.current.signal,
+          });
+        }
+        await loadData();
+      }
+    } catch {
+      // ignore abort / network errors
+    } finally {
+      setRefreshingMemberId(null);
     }
   }, [api, loadData]);
 
@@ -931,6 +959,8 @@ export default function WatchlistDetailPage() {
                     member={member}
                     onEdit={() => setEditMember(member)}
                     onDelete={() => setDeleteMember(member)}
+                    onRefresh={() => refreshMemberProfile(member)}
+                    refreshing={refreshingMemberId === member.id}
                   />
                 ))}
               </div>
