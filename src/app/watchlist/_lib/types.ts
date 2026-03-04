@@ -10,12 +10,29 @@ export interface TagData {
   color: string;
 }
 
+/** Profile snapshot from twitter_profiles cache. */
+export interface MemberProfileData {
+  twitterId: string;
+  displayName: string | null;
+  description: string | null;
+  profileImageUrl: string | null;
+  profileBannerUrl: string | null;
+  followersCount: number;
+  followingCount: number;
+  tweetCount: number;
+  likeCount: number;
+  isVerified: boolean;
+  accountCreatedAt: string | null;
+}
+
 export interface WatchlistMember {
   id: number;
   twitterUsername: string;
+  twitterId: string | null;
   note: string | null;
   addedAt: string;
   tags: TagData[];
+  profile: MemberProfileData | null;
 }
 
 export interface FetchedPostData {

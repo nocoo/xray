@@ -55,6 +55,26 @@ export interface WatchlistMemberWithTags extends WatchlistMember {
   tags: Tag[];
 }
 
+/** Profile snapshot attached to a member (from twitter_profiles LEFT JOIN). */
+export interface MemberProfile {
+  twitterId: string;
+  displayName: string | null;
+  description: string | null;
+  profileImageUrl: string | null;
+  profileBannerUrl: string | null;
+  followersCount: number;
+  followingCount: number;
+  tweetCount: number;
+  likeCount: number;
+  isVerified: boolean;
+  accountCreatedAt: string | null;
+}
+
+/** Full member with tags + optional profile data. */
+export interface WatchlistMemberFull extends WatchlistMemberWithTags {
+  profile: MemberProfile | null;
+}
+
 // =============================================================================
 // ScopedDB class
 // =============================================================================
@@ -577,9 +597,57 @@ class MembersRepo {
     return result;
   }
 
+  /** Batch-lookup profiles for members that have a twitter_id. */
+  private batchGetProfiles(members: WatchlistMember[]): Map<number, MemberProfile> {
+    const result = new Map<number, MemberProfile>();
+    const twitterIds = members
+      .filter((m) => m.twitterId)
+      .map((m) => m.twitterId!);
+    if (twitterIds.length === 0) return result;
+
+    const profiles: TwitterProfile[] = db
+      .select()
+      .from(twitterProfiles)
+      .where(inArray(twitterProfiles.twitterId, twitterIds))
+      .all();
+
+    const profileMap = new Map(profiles.map((p: TwitterProfile) => [p.twitterId, p]));
+
+    for (const m of members) {
+      if (!m.twitterId) continue;
+      const p = profileMap.get(m.twitterId);
+      if (!p) continue;
+      result.set(m.id, {
+        twitterId: p.twitterId,
+        displayName: p.displayName,
+        description: p.description,
+        profileImageUrl: p.profileImageUrl,
+        profileBannerUrl: p.profileBannerUrl,
+        followersCount: p.followersCount ?? 0,
+        followingCount: p.followingCount ?? 0,
+        tweetCount: p.tweetCount ?? 0,
+        likeCount: p.likeCount ?? 0,
+        isVerified: p.isVerified === 1,
+        accountCreatedAt: p.accountCreatedAt,
+      });
+    }
+    return result;
+  }
+
   private enrichWithTags(members: WatchlistMember[]): WatchlistMemberWithTags[] {
     const tagMap = this.batchGetTags(members.map((m) => m.id));
     return members.map((m) => ({ ...m, tags: tagMap.get(m.id) ?? [] }));
+  }
+
+  /** Enrich members with both tags and profile data. */
+  private enrichFull(members: WatchlistMember[]): WatchlistMemberFull[] {
+    const tagMap = this.batchGetTags(members.map((m) => m.id));
+    const profileMap = this.batchGetProfiles(members);
+    return members.map((m) => ({
+      ...m,
+      tags: tagMap.get(m.id) ?? [],
+      profile: profileMap.get(m.id) ?? null,
+    }));
   }
 
   private getTagsForMember(memberId: number): Tag[] {
@@ -592,35 +660,63 @@ class MembersRepo {
     return rows.map((r: { tag: Tag }) => r.tag);
   }
 
-  findByWatchlistId(watchlistId: number): WatchlistMemberWithTags[] {
+  /** Get a single member's profile. */
+  private getProfileForMember(member: WatchlistMember): MemberProfile | null {
+    if (!member.twitterId) return null;
+    const p: TwitterProfile | undefined = db
+      .select()
+      .from(twitterProfiles)
+      .where(eq(twitterProfiles.twitterId, member.twitterId))
+      .get();
+    if (!p) return null;
+    return {
+      twitterId: p.twitterId,
+      displayName: p.displayName,
+      description: p.description,
+      profileImageUrl: p.profileImageUrl,
+      profileBannerUrl: p.profileBannerUrl,
+      followersCount: p.followersCount ?? 0,
+      followingCount: p.followingCount ?? 0,
+      tweetCount: p.tweetCount ?? 0,
+      likeCount: p.likeCount ?? 0,
+      isVerified: p.isVerified === 1,
+      accountCreatedAt: p.accountCreatedAt,
+    };
+  }
+
+  findByWatchlistId(watchlistId: number): WatchlistMemberFull[] {
     const members = db
       .select()
       .from(watchlistMembers)
       .where(eq(watchlistMembers.watchlistId, watchlistId))
       .all();
-    return this.enrichWithTags(members);
+    return this.enrichFull(members);
   }
 
-  findAll(): WatchlistMemberWithTags[] {
+  findAll(): WatchlistMemberFull[] {
     const members = db
       .select()
       .from(watchlistMembers)
       .where(eq(watchlistMembers.userId, this.userId))
       .all();
-    return this.enrichWithTags(members);
+    return this.enrichFull(members);
   }
 
-  findById(id: number): WatchlistMemberWithTags | undefined {
+  findById(id: number): WatchlistMemberFull | undefined {
     const member = db
       .select()
       .from(watchlistMembers)
       .where(and(eq(watchlistMembers.id, id), eq(watchlistMembers.userId, this.userId)))
       .get();
     if (!member) return undefined;
-    return { ...member, tags: this.getTagsForMember(member.id) };
+    return {
+      ...member,
+      tags: this.getTagsForMember(member.id),
+      profile: this.getProfileForMember(member),
+    };
   }
 
-  findByIdAndWatchlist(id: number, watchlistId: number): WatchlistMemberWithTags | undefined {
+  findByIdAndWatchlist(id: number, watchlistId: number): WatchlistMemberFull | undefined {
     const member = db
       .select()
       .from(watchlistMembers)
@@ -633,7 +729,11 @@ class MembersRepo {
       )
       .get();
     if (!member) return undefined;
-    return { ...member, tags: this.getTagsForMember(member.id) };
+    return {
+      ...member,
+      tags: this.getTagsForMember(member.id),
+      profile: this.getProfileForMember(member),
+    };
   }
 
   findByUsernameAndWatchlist(
@@ -655,17 +755,75 @@ class MembersRepo {
   create(
     data: Pick<NewWatchlistMember, "watchlistId" | "twitterUsername" | "note">,
   ): WatchlistMember {
+    const username = data.twitterUsername.toLowerCase().replace(/^@/, "");
+
+    // Auto-resolve twitter_id from cached profiles
+    const profile = db
+      .select({ twitterId: twitterProfiles.twitterId })
+      .from(twitterProfiles)
+      .where(eq(twitterProfiles.username, username))
+      .get();
+
     return db
       .insert(watchlistMembers)
       .values({
         userId: this.userId,
         watchlistId: data.watchlistId,
-        twitterUsername: data.twitterUsername.toLowerCase().replace(/^@/, ""),
+        twitterUsername: username,
+        twitterId: profile?.twitterId ?? null,
         note: data.note ?? null,
         addedAt: new Date(),
       })
       .returning()
       .get();
+  }
+
+  /** Backfill twitter_id for a member after profile resolution. */
+  linkProfile(memberId: number, twitterId: string): void {
+    db.update(watchlistMembers)
+      .set({ twitterId })
+      .where(eq(watchlistMembers.id, memberId))
+      .run();
+  }
+
+  /** Batch-backfill twitter_id for members by username lookup. */
+  linkProfilesByUsername(watchlistId: number): number {
+    // Find members in this watchlist that have no twitter_id
+    const unlinked = db
+      .select()
+      .from(watchlistMembers)
+      .where(
+        and(
+          eq(watchlistMembers.watchlistId, watchlistId),
+          isNull(watchlistMembers.twitterId),
+        ),
+      )
+      .all();
+    if (unlinked.length === 0) return 0;
+
+    const usernames = unlinked.map((m: WatchlistMember) => m.twitterUsername.toLowerCase());
+    const profiles: TwitterProfile[] = db
+      .select()
+      .from(twitterProfiles)
+      .where(inArray(twitterProfiles.username, usernames))
+      .all();
+    const profileMap = new Map(profiles.map((p: TwitterProfile) => [p.username, p.twitterId]));
+
+    let linked = 0;
+    const run = getRawSqlite().transaction(() => {
+      for (const m of unlinked) {
+        const tid = profileMap.get(m.twitterUsername.toLowerCase());
+        if (tid) {
+          db.update(watchlistMembers)
+            .set({ twitterId: tid })
+            .where(eq(watchlistMembers.id, m.id))
+            .run();
+          linked++;
+        }
+      }
+    });
+    run();
+    return linked;
   }
 
   updateNote(id: number, note: string | null): WatchlistMember | undefined {
