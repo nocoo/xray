@@ -60,8 +60,8 @@ interface NavGroup {
   defaultOpen?: boolean;
 }
 
-/** All groups — each is independently collapsible in the expanded sidebar. */
-const NAV_GROUPS: NavGroup[] = [
+/** Static groups rendered before the dynamic Watchlists/Groups sections. */
+const TOP_GROUPS: NavGroup[] = [
   {
     label: "Dashboard",
     defaultOpen: true,
@@ -77,11 +77,14 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/users", label: "Users", icon: Users },
     ],
   },
+];
+
+/** Static groups rendered after the dynamic Watchlists/Groups sections. */
+const BOTTOM_GROUPS: NavGroup[] = [
   {
     label: "My Account",
     defaultOpen: true,
     items: [
-      // Watchlists + Groups injected dynamically — these are the static items
       { href: "/analytics", label: "Analytics", icon: TrendingUp },
       { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
       { href: "/likes", label: "Likes", icon: Heart },
@@ -108,13 +111,18 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+/** All static groups combined — used for collapsed view iteration. */
+const ALL_STATIC_GROUPS = [...TOP_GROUPS, ...BOTTOM_GROUPS];
+
 // Legacy exports for compatibility (flat list of all static items)
 const navSections: NavSection[] = [
-  { title: null, items: NAV_GROUPS[0]!.items },
-  { title: "Explore World", items: NAV_GROUPS[1]!.items },
-  { title: "My Account", items: [{ href: "/watchlist", label: "Watchlists", icon: Eye }, { href: "/groups", label: "Groups", icon: Users }, ...NAV_GROUPS[2]!.items] },
-  { title: "Integrations", items: NAV_GROUPS[3]!.items },
-  { title: null, items: NAV_GROUPS[4]!.items },
+  { title: null, items: TOP_GROUPS[0]!.items },
+  { title: "Explore World", items: TOP_GROUPS[1]!.items },
+  { title: "Watchlists", items: [{ href: "/watchlist", label: "Watchlists", icon: Eye }] },
+  { title: "Groups", items: [{ href: "/groups", label: "Groups", icon: Users }] },
+  { title: "My Account", items: BOTTOM_GROUPS[0]!.items },
+  { title: "Integrations", items: BOTTOM_GROUPS[1]!.items },
+  { title: null, items: BOTTOM_GROUPS[2]!.items },
 ];
 const allNavItems = navSections.flatMap((s) => s.items);
 
@@ -557,22 +565,37 @@ export function Sidebar() {
 
             {/* Navigation — collapsed: grouped icon list */}
             <nav className="flex-1 flex flex-col items-center gap-1 overflow-y-auto pt-1">
-              {NAV_GROUPS.map((group, gIdx) => (
+              {/* Top static groups */}
+              {TOP_GROUPS.map((group, gIdx) => (
                 <div key={group.label} className="flex flex-col items-center gap-1">
                   {gIdx > 0 && <div className="my-1 h-px w-6 bg-border" />}
-                  {/* Inject Watchlists + Groups icons in "My Account" group */}
-                  {group.label === "My Account" && (
-                    <>
-                      <CollapsedNavLink
-                        item={{ href: "/watchlist", label: "Watchlists", icon: Eye }}
-                        pathname={pathname}
-                      />
-                      <CollapsedNavLink
-                        item={{ href: "/groups", label: "Groups", icon: Users }}
-                        pathname={pathname}
-                      />
-                    </>
-                  )}
+                  {group.items.map((item) => (
+                    <CollapsedNavLink
+                      key={item.href}
+                      item={item}
+                      pathname={pathname}
+                    />
+                  ))}
+                </div>
+              ))}
+
+              {/* Watchlists + Groups as their own section */}
+              <div className="flex flex-col items-center gap-1">
+                <div className="my-1 h-px w-6 bg-border" />
+                <CollapsedNavLink
+                  item={{ href: "/watchlist", label: "Watchlists", icon: Eye }}
+                  pathname={pathname}
+                />
+                <CollapsedNavLink
+                  item={{ href: "/groups", label: "Groups", icon: Users }}
+                  pathname={pathname}
+                />
+              </div>
+
+              {/* Bottom static groups */}
+              {BOTTOM_GROUPS.map((group) => (
+                <div key={group.label} className="flex flex-col items-center gap-1">
+                  <div className="my-1 h-px w-6 bg-border" />
                   {group.items.map((item) => (
                     <CollapsedNavLink
                       key={item.href}
@@ -656,26 +679,38 @@ export function Sidebar() {
             {/* Navigation — expanded: collapsible groups */}
             <nav className="flex-1 overflow-y-auto pt-1">
               <div className="flex flex-col">
-                {NAV_GROUPS.map((group) => (
+                {/* Top static groups (Dashboard, Explore) */}
+                {TOP_GROUPS.map((group) => (
                   <NavGroupSection
                     key={group.label}
                     group={group}
                     pathname={pathname}
-                  >
-                    {/* Inject WatchlistGroup + GroupsGroup inside "My Account" */}
-                    {group.label === "My Account" && (
-                      <>
-                        <WatchlistGroup
-                          watchlists={watchlists}
-                          pathname={pathname}
-                        />
-                        <GroupsGroup
-                          groups={groups}
-                          pathname={pathname}
-                        />
-                      </>
-                    )}
-                  </NavGroupSection>
+                  />
+                ))}
+
+                {/* Watchlists — top-level collapsible section */}
+                <div className="px-3 mt-2">
+                  <WatchlistGroup
+                    watchlists={watchlists}
+                    pathname={pathname}
+                  />
+                </div>
+
+                {/* Groups — top-level collapsible section */}
+                <div className="px-3">
+                  <GroupsGroup
+                    groups={groups}
+                    pathname={pathname}
+                  />
+                </div>
+
+                {/* Bottom static groups (My Account, Integrations, Settings) */}
+                {BOTTOM_GROUPS.map((group) => (
+                  <NavGroupSection
+                    key={group.label}
+                    group={group}
+                    pathname={pathname}
+                  />
                 ))}
               </div>
             </nav>
