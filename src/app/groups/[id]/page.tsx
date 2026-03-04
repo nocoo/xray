@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import Link from "next/link";
 import { AppShell } from "@/components/layout";
 import {
   LoadingSpinner,
@@ -25,8 +24,6 @@ import {
   Plus,
   Trash2,
   RefreshCw,
-  Upload,
-  FileUp,
   Search,
   ArrowUpDown,
   ArrowUp,
@@ -35,7 +32,6 @@ import {
 } from "lucide-react";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { resolveIcon } from "@/components/ui/icon-picker";
-import { parseTwitterExportFile } from "@/lib/twitter-export";
 import type { MemberProfileData } from "@/app/watchlist/_lib/types";
 
 // =============================================================================
@@ -84,13 +80,6 @@ export default function GroupDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Add member
-  const [addUsername, setAddUsername] = useState("");
-  const [adding, setAdding] = useState(false);
-
-  // Import dialog
-  const [importOpen, setImportOpen] = useState(false);
-
   // Refresh profiles
   const [refreshing, setRefreshing] = useState(false);
   const [refreshStatus, setRefreshStatus] = useState<string | null>(null);
@@ -113,7 +102,6 @@ export default function GroupDetailPage() {
   // ---------------------------------------------------------------------------
   const loadGroup = useCallback(async () => {
     try {
-      // We get group info from the list endpoint and filter
       const res = await fetch("/api/groups");
       const json = await res.json().catch(() => null);
       if (res.ok && json?.success) {
@@ -144,42 +132,6 @@ export default function GroupDetailPage() {
     setLoading(true);
     Promise.all([loadGroup(), loadMembers()]).finally(() => setLoading(false));
   }, [loadGroup, loadMembers]);
-
-  // ---------------------------------------------------------------------------
-  // Add single member
-  // ---------------------------------------------------------------------------
-  const handleAddMember = useCallback(
-    async (e?: React.FormEvent) => {
-      e?.preventDefault();
-      const username = addUsername.trim().replace(/^@/, "");
-      if (!username) return;
-
-      setAdding(true);
-      setError(null);
-
-      try {
-        const res = await fetch(`/api/groups/${groupId}/members`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ twitterUsername: username }),
-        });
-        const json = await res.json().catch(() => null);
-
-        if (!res.ok) {
-          setError(json?.error ?? "Failed to add member");
-          return;
-        }
-
-        setAddUsername("");
-        await loadMembers();
-      } catch {
-        setError("Network error");
-      } finally {
-        setAdding(false);
-      }
-    },
-    [addUsername, groupId, loadMembers],
-  );
 
   // ---------------------------------------------------------------------------
   // Delete member
@@ -213,12 +165,10 @@ export default function GroupDetailPage() {
     setError(null);
 
     try {
-      // 1. Collect all usernames (prefer twitterId for resolved accounts)
       const identifiers = members.map(
         (m) => m.profile?.twitterId ?? m.twitterUsername,
       );
 
-      // 2. Batch resolve (auto-upserts to twitter_profiles)
       const res = await fetch("/api/explore/users/batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -238,12 +188,10 @@ export default function GroupDetailPage() {
 
       setRefreshStatus("Linking profiles...");
 
-      // 3. Link profiles to members
       await fetch(`/api/groups/${groupId}/members/link-profiles`, {
         method: "POST",
       });
 
-      // 4. Reload members to get updated profile data
       await loadMembers();
 
       if (failed.length > 0) {
@@ -273,7 +221,6 @@ export default function GroupDetailPage() {
           body: JSON.stringify({ usernames: [member.twitterUsername] }),
         });
         if (res.ok) {
-          // Link profile if twitter_id is not yet resolved
           if (!member.twitterId) {
             await fetch(`/api/groups/${groupId}/members/link-profiles`, {
               method: "POST",
@@ -308,7 +255,6 @@ export default function GroupDetailPage() {
   const sortedMembers = useMemo(() => {
     let list = [...members];
 
-    // Filter
     if (filterText.trim()) {
       const q = filterText.trim().toLowerCase();
       list = list.filter(
@@ -319,7 +265,6 @@ export default function GroupDetailPage() {
       );
     }
 
-    // Sort
     const dir = sortDir === "asc" ? 1 : -1;
     list.sort((a, b) => {
       switch (sortField) {
@@ -404,12 +349,11 @@ export default function GroupDetailPage() {
               {refreshing ? "Refreshing..." : "Refresh Profiles"}
             </Button>
             <Button
-              variant="outline"
               size="sm"
-              onClick={() => setImportOpen(true)}
+              onClick={() => routerRef.current.push(`/groups/${groupId}/add`)}
             >
-              <Upload className="h-4 w-4" />
-              Import
+              <Plus className="h-4 w-4" />
+              Add
             </Button>
           </div>
         </div>
@@ -422,26 +366,12 @@ export default function GroupDetailPage() {
           </div>
         )}
 
-        {/* Add member inline */}
-        <form onSubmit={handleAddMember} className="flex gap-2">
-          <Input
-            placeholder="Add member by username (e.g. elonmusk)"
-            value={addUsername}
-            onChange={(e) => setAddUsername(e.target.value)}
-            className="flex-1"
-          />
-          <Button type="submit" size="sm" disabled={adding || !addUsername.trim()}>
-            <Plus className="h-4 w-4" />
-            {adding ? "Adding..." : "Add"}
-          </Button>
-        </form>
-
         {/* Members table */}
         {members.length === 0 ? (
           <EmptyState
             icon={Users}
             title="No members yet."
-            subtitle="Add members manually or import from a file."
+            subtitle="Click Add to start adding members to this group."
           />
         ) : (
           <>
@@ -492,14 +422,6 @@ export default function GroupDetailPage() {
           </>
         )}
       </div>
-
-      {/* Import dialog */}
-      <ImportMembersDialog
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        groupId={groupId}
-        onImported={loadMembers}
-      />
 
       {/* Delete member confirmation */}
       {deleteMember && (
@@ -697,308 +619,5 @@ function MemberRow({
         </div>
       </td>
     </tr>
-  );
-}
-
-// =============================================================================
-// ImportMembersDialog — manual text, file drag-drop, Twitter export
-// =============================================================================
-
-function ImportMembersDialog({
-  open,
-  onOpenChange,
-  groupId,
-  onImported,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  groupId: string;
-  onImported: () => Promise<void>;
-}) {
-  const [importText, setImportText] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
-  const [importProgress, setImportProgress] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [importSource, setImportSource] = useState<
-    "manual" | "twitter-export" | null
-  >(null);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const dragCounter = useRef(0);
-
-  const reset = () => {
-    setImportText("");
-    setImportError(null);
-    setImportProgress(null);
-    setImportSource(null);
-  };
-
-  // ---------------------------------------------------------------------------
-  // Parse textarea → deduplicated usernames/IDs
-  // ---------------------------------------------------------------------------
-  function parseUsernames(text: string): string[] {
-    const seen = new Set<string>();
-    const result: string[] = [];
-
-    for (const raw of text.split(/\n/)) {
-      const cleaned = raw.trim().replace(/^@/, "");
-      if (cleaned && !seen.has(cleaned.toLowerCase())) {
-        seen.add(cleaned.toLowerCase());
-        result.push(cleaned);
-      }
-    }
-
-    return result;
-  }
-
-  // ---------------------------------------------------------------------------
-  // File handling
-  // ---------------------------------------------------------------------------
-  const handleFile = useCallback((file: File) => {
-    setImportError(null);
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      if (!content) {
-        setImportError("Could not read file.");
-        return;
-      }
-
-      // Try parsing as Twitter export
-      const accountIds = parseTwitterExportFile(content);
-      if (accountIds && accountIds.length > 0) {
-        setImportText(accountIds.join("\n"));
-        setImportSource("twitter-export");
-        return;
-      }
-
-      // Fall back: treat as plain text (one username per line)
-      setImportText(content);
-      setImportSource("manual");
-    };
-    reader.onerror = () => {
-      setImportError("Failed to read file.");
-    };
-    reader.readAsText(file);
-  }, []);
-
-  // Drag and drop handlers
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounter.current++;
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounter.current--;
-    if (dragCounter.current === 0) setIsDragging(false);
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }, []);
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dragCounter.current = 0;
-      setIsDragging(false);
-      const file = e.dataTransfer.files[0];
-      if (file) handleFile(file);
-    },
-    [handleFile],
-  );
-
-  const handleFileInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) handleFile(file);
-      e.target.value = "";
-    },
-    [handleFile],
-  );
-
-  // ---------------------------------------------------------------------------
-  // Import: batch add usernames to the group
-  // ---------------------------------------------------------------------------
-  const handleImport = useCallback(async () => {
-    const usernames = parseUsernames(importText);
-
-    if (usernames.length === 0) {
-      setImportError("No valid entries found. Enter one username per line.");
-      return;
-    }
-
-    setImporting(true);
-    setImportError(null);
-    const label = importSource === "twitter-export" ? "account" : "username";
-    setImportProgress(
-      `Adding ${usernames.length} ${label}${usernames.length !== 1 ? "s" : ""} to group...`,
-    );
-
-    try {
-      // 1. Batch add members to group
-      const res = await fetch(`/api/groups/${groupId}/members`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ usernames }),
-      });
-
-      const json = await res.json().catch(() => null);
-
-      if (!res.ok || !json?.success) {
-        setImportError(json?.error ?? "Failed to import members");
-        return;
-      }
-
-      const { inserted, total } = json.data as { inserted: number; total: number };
-
-      // 2. Reload members
-      await onImported();
-
-      // 3. Close dialog
-      reset();
-      onOpenChange(false);
-
-      // Note: duplicates are silently skipped by the batch API
-      if (inserted < usernames.length) {
-        // Some were duplicates
-      }
-    } catch {
-      setImportError("Network error — could not reach API");
-    } finally {
-      setImporting(false);
-      setImportProgress(null);
-    }
-  }, [importText, importSource, groupId, onImported, onOpenChange]);
-
-  const parsedCount = parseUsernames(importText).length;
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) reset();
-        onOpenChange(o);
-      }}
-    >
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Import members</DialogTitle>
-          <DialogDescription>
-            Drag and drop a Twitter/X data export file (
-            <code className="text-xs bg-muted px-1 py-0.5 rounded">
-              following.js
-            </code>
-            ), or paste usernames one per line.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-3">
-          {/* Drop zone / textarea */}
-          <div
-            className={`relative rounded-lg border-2 border-dashed transition-colors ${
-              isDragging
-                ? "border-primary bg-primary/5"
-                : "border-input hover:border-muted-foreground/50"
-            }`}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-          >
-            <textarea
-              value={importText}
-              onChange={(e) => {
-                setImportText(e.target.value);
-                setImportError(null);
-                setImportSource("manual");
-              }}
-              placeholder={"elonmusk\n@karpathy\nvaboredition\nnatfriedman"}
-              rows={10}
-              className="w-full rounded-lg bg-transparent px-4 py-3 text-sm font-mono placeholder:text-muted-foreground focus:outline-none resize-y border-0"
-              disabled={importing}
-            />
-
-            {/* Drag overlay */}
-            {isDragging && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-lg bg-primary/10 pointer-events-none">
-                <FileUp className="h-8 w-8 text-primary mb-2" />
-                <p className="text-sm font-medium text-primary">
-                  Drop following.js here
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* File picker + info row */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={importing}
-                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-              >
-                <FileUp className="h-3.5 w-3.5" />
-                Choose file
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".js,.txt,.csv"
-                onChange={handleFileInput}
-                className="hidden"
-              />
-            </div>
-
-            {parsedCount > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {parsedCount} unique{" "}
-                {importSource === "twitter-export" ? "account" : "username"}
-                {parsedCount !== 1 ? "s" : ""} detected
-                {importSource === "twitter-export" && (
-                  <span className="ml-1 text-primary">(Twitter export)</span>
-                )}
-              </p>
-            )}
-          </div>
-
-          {importError && <ErrorBanner error={importError} />}
-          {importProgress && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <LoadingSpinner className="" size="sm" />
-              {importProgress}
-            </div>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={importing}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleImport}
-            disabled={importing || parsedCount === 0}
-          >
-            <Upload className="h-4 w-4" />
-            {importing
-              ? "Importing..."
-              : `Import ${parsedCount} ${importSource === "twitter-export" ? "account" : "user"}${parsedCount !== 1 ? "s" : ""}`}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
