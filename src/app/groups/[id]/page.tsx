@@ -95,6 +95,9 @@ export default function GroupDetailPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshStatus, setRefreshStatus] = useState<string | null>(null);
 
+  // Per-member refresh
+  const [refreshingMemberId, setRefreshingMemberId] = useState<number | null>(null);
+
   // Delete member confirmation
   const [deleteMember, setDeleteMember] = useState<GroupMember | null>(null);
 
@@ -256,6 +259,36 @@ export default function GroupDetailPage() {
       setRefreshing(false);
     }
   }, [members, groupId, loadMembers]);
+
+  // ---------------------------------------------------------------------------
+  // Refresh a single member's profile
+  // ---------------------------------------------------------------------------
+  const refreshMemberProfile = useCallback(
+    async (member: GroupMember) => {
+      setRefreshingMemberId(member.id);
+      try {
+        const res = await fetch("/api/profiles/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ usernames: [member.twitterUsername] }),
+        });
+        if (res.ok) {
+          // Link profile if twitter_id is not yet resolved
+          if (!member.twitterId) {
+            await fetch(`/api/groups/${groupId}/members/link-profiles`, {
+              method: "POST",
+            });
+          }
+          await loadMembers();
+        }
+      } catch {
+        // ignore network errors
+      } finally {
+        setRefreshingMemberId(null);
+      }
+    },
+    [groupId, loadMembers],
+  );
 
   // ---------------------------------------------------------------------------
   // Sort + filter
@@ -449,6 +482,8 @@ export default function GroupDetailPage() {
                       key={m.id}
                       member={m}
                       onDelete={() => setDeleteMember(m)}
+                      onRefresh={() => refreshMemberProfile(m)}
+                      refreshing={refreshingMemberId === m.id}
                     />
                   ))}
                 </tbody>
@@ -552,9 +587,13 @@ function formatCount(n: number): string {
 function MemberRow({
   member,
   onDelete,
+  onRefresh,
+  refreshing,
 }: {
   member: GroupMember;
   onDelete: () => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }) {
   const p = member.profile;
   const displayName = p?.displayName ?? null;
@@ -634,15 +673,28 @@ function MemberRow({
 
       {/* Actions */}
       <td className="px-4 py-3 text-right">
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={onDelete}
-          title="Remove"
-          className="text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        <div className="inline-flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onRefresh && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={onRefresh}
+              disabled={refreshing}
+              title="Refresh profile"
+            >
+              <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={onDelete}
+            title="Remove"
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
       </td>
     </tr>
   );

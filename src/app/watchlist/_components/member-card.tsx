@@ -3,7 +3,7 @@
 import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Users } from "lucide-react";
+import { Pencil, RefreshCw, Trash2, Users } from "lucide-react";
 import type { WatchlistMember } from "../_lib/types";
 
 // We intentionally use <img> for external Twitter profile images.
@@ -18,10 +18,14 @@ export const MemberCard = memo(function MemberCard({
   member,
   onEdit,
   onDelete,
+  onRefresh,
+  refreshing,
 }: {
   member: WatchlistMember;
   onEdit: () => void;
   onDelete: () => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }) {
   const p = member.profile;
   const displayName = p?.displayName ?? null;
@@ -31,6 +35,17 @@ export const MemberCard = memo(function MemberCard({
     <div className="rounded-card bg-card border p-4 flex flex-col items-center text-center group relative">
       {/* Hover actions — top-right corner */}
       <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {onRefresh && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={onRefresh}
+            disabled={refreshing}
+            title="Refresh profile"
+          >
+            <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
+          </Button>
+        )}
         <Button variant="ghost" size="icon-xs" onClick={onEdit} title="Edit">
           <Pencil className="h-3 w-3" />
         </Button>
