@@ -1,31 +1,20 @@
 "use client";
 
-import { useState, useEffect, useMemo, memo, useCallback } from "react";
+import { useState, useEffect, useMemo, memo } from "react";
 import { TweetCard } from "@/components/twitter/tweet-card";
-import {
-  ArrowLeftRight,
-  Languages,
-  Loader2,
-  MessageSquareQuote,
-  LinkIcon,
-  Check,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { FetchedPostData } from "../_lib/types";
 
 export const WatchlistPostCard = memo(function WatchlistPostCard({
   post,
-  watchlistId,
 }: {
   post: FetchedPostData;
-  watchlistId: number;
 }) {
-  const [lang, setLang] = useState<"zh" | "en">(post.translatedText ? "zh" : "en");
+  // Track SSE-synced translation data from parent
   const [translatedText, setTranslatedText] = useState(post.translatedText);
   const [commentText, setCommentText] = useState(post.commentText);
-  const [quotedTranslatedText, setQuotedTranslatedText] = useState(post.quotedTranslatedText);
-  const [translating, setTranslating] = useState(false);
-  const [zhetoStatus, setZhetoStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [quotedTranslatedText, setQuotedTranslatedText] = useState(
+    post.quotedTranslatedText,
+  );
 
   // Sync from parent when translation arrives via SSE
   useEffect(() => {
@@ -33,161 +22,25 @@ export const WatchlistPostCard = memo(function WatchlistPostCard({
       setTranslatedText(post.translatedText);
       setCommentText(post.commentText);
       setQuotedTranslatedText(post.quotedTranslatedText);
-      setLang("zh");
     }
   }, [post.translatedText, post.commentText, post.quotedTranslatedText, translatedText]);
 
-  const hasTranslation = !!translatedText;
-
-  const displayTweet = useMemo(() => {
-    if (lang !== "zh" || !hasTranslation) return post.tweet;
-    const t = { ...post.tweet, text: translatedText ?? post.tweet.text };
-    if (t.quoted_tweet && quotedTranslatedText) {
-      t.quoted_tweet = { ...t.quoted_tweet, text: quotedTranslatedText };
-    }
-    return t;
-  }, [lang, hasTranslation, post.tweet, translatedText, quotedTranslatedText]);
-
-  const showComment = lang === "zh" && commentText;
-
-  const handleTranslate = async () => {
-    setTranslating(true);
-    try {
-      const res = await fetch(`/api/watchlists/${watchlistId}/translate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId: post.id }),
-      });
-      const json = await res.json().catch(() => null);
-      if (res.ok && json?.success && json.data.translatedText) {
-        setTranslatedText(json.data.translatedText);
-        setCommentText(json.data.commentText ?? null);
-        setQuotedTranslatedText(json.data.quotedTranslatedText ?? null);
-        setLang("zh");
-      }
-    } catch {
-      // silent
-    } finally {
-      setTranslating(false);
-    }
-  };
-
-  const handleSaveToZheto = useCallback(async () => {
-    if (zhetoStatus === "saving" || zhetoStatus === "saved") return;
-    setZhetoStatus("saving");
-    try {
-      const tweetUrl = post.tweet.url;
-      const note = `@${post.tweet.author.username}: ${post.tweet.text.slice(0, 200)}`;
-      const res = await fetch("/api/integrations/zheto/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: tweetUrl, note }),
-      });
-      const json = await res.json().catch(() => null);
-      if (res.ok && json?.success) {
-        setZhetoStatus("saved");
-      } else {
-        setZhetoStatus("error");
-        // Reset to idle after 3s so user can retry
-        setTimeout(() => setZhetoStatus("idle"), 3000);
-      }
-    } catch {
-      setZhetoStatus("error");
-      setTimeout(() => setZhetoStatus("idle"), 3000);
-    }
-  }, [zhetoStatus, post.tweet.url, post.tweet.author.username, post.tweet.text]);
+  const initialTranslation = useMemo(() => {
+    if (!translatedText) return undefined;
+    return {
+      translatedText,
+      commentText,
+      quotedTranslatedText,
+    };
+  }, [translatedText, commentText, quotedTranslatedText]);
 
   return (
     <div className="shadow-[0_1px_4px_rgba(0,0,0,0.06)] rounded-card animate-in fade-in slide-in-from-top-2 duration-300">
       <TweetCard
-        tweet={displayTweet}
+        tweet={post.tweet}
         linkToDetail={false}
-        className={cn(
-          "border border-border",
-          showComment ? "rounded-b-none" : hasTranslation ? "rounded-b-none" : "rounded-b-none",
-        )}
+        initialTranslation={initialTranslation}
       />
-
-      {/* AI Commentary — shown when viewing translation */}
-      {showComment && (
-        <div className="relative border border-t-0 border-border bg-gradient-to-r from-violet-50/80 via-fuchsia-50/50 to-amber-50/40 dark:from-violet-950/30 dark:via-fuchsia-950/20 dark:to-amber-950/10 px-3 py-2.5">
-          <div className="flex gap-2">
-            <MessageSquareQuote className="h-3.5 w-3.5 mt-0.5 shrink-0 text-violet-500 dark:text-violet-400" />
-            <div className="flex-1 min-w-0">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-600/80 dark:text-violet-400/80">
-                AI Insight
-              </span>
-              <p className="mt-0.5 text-sm text-foreground/80 leading-relaxed">
-                {commentText}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Per-card action bar */}
-      <div className="flex items-center gap-1 px-2 py-1.5 border border-t-0 rounded-b-[14px] bg-card">
-        {hasTranslation ? (
-          <button
-            onClick={() => setLang((l) => (l === "zh" ? "en" : "zh"))}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
-              lang === "zh"
-                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent",
-            )}
-            title={lang === "zh" ? "Show original" : "Show translation"}
-          >
-            <ArrowLeftRight className="h-3 w-3" />
-            {lang === "zh" ? "中文" : "EN"}
-          </button>
-        ) : (
-          <button
-            onClick={handleTranslate}
-            disabled={translating}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
-            title="Translate this post"
-          >
-            {translating ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Languages className="h-3 w-3" />
-            )}
-            {translating ? "Translating..." : "Translate"}
-          </button>
-        )}
-
-        {/* Save to zhe.to */}
-        <button
-          onClick={handleSaveToZheto}
-          disabled={zhetoStatus === "saving" || zhetoStatus === "saved"}
-          className={cn(
-            "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
-            zhetoStatus === "saved"
-              ? "text-emerald-600 dark:text-emerald-400"
-              : zhetoStatus === "error"
-                ? "text-red-500 dark:text-red-400"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent",
-            (zhetoStatus === "saving" || zhetoStatus === "saved") && "opacity-60 cursor-default",
-          )}
-          title="Save to zhe.to"
-        >
-          {zhetoStatus === "saving" ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : zhetoStatus === "saved" ? (
-            <Check className="h-3 w-3" />
-          ) : (
-            <LinkIcon className="h-3 w-3" />
-          )}
-          {zhetoStatus === "saving"
-            ? "Saving..."
-            : zhetoStatus === "saved"
-              ? "Saved"
-              : zhetoStatus === "error"
-                ? "Failed"
-                : "zhe.to"}
-        </button>
-      </div>
     </div>
   );
 });

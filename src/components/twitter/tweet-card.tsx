@@ -21,6 +21,7 @@ import {
   Loader2,
   Check,
   Search,
+  MessageSquareQuote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -491,6 +492,24 @@ export const TweetCard = memo(function TweetCard({
     </div>
   ) : null;
 
+  // AI Insight — shown when viewing translated text and commentText exists
+  const showComment = lang === "zh" && !!commentText;
+  const aiInsight = showComment ? (
+    <div className="relative border border-t-0 border-border bg-gradient-to-r from-violet-50/80 via-fuchsia-50/50 to-amber-50/40 dark:from-violet-950/30 dark:via-fuchsia-950/20 dark:to-amber-950/10 px-3 py-2.5">
+      <div className="flex gap-2">
+        <MessageSquareQuote className="h-3.5 w-3.5 mt-0.5 shrink-0 text-violet-500 dark:text-violet-400" />
+        <div className="flex-1 min-w-0">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-600/80 dark:text-violet-400/80">
+            AI Insight
+          </span>
+          <p className="mt-0.5 text-sm text-foreground/80 leading-relaxed">
+            {commentText}
+          </p>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   if (linkToDetail) {
     return (
       <div>
@@ -501,6 +520,7 @@ export const TweetCard = memo(function TweetCard({
           {card}
         </Link>
         {renderBeforeActionBar}
+        {aiInsight}
         {actionBar}
         <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
       </div>
@@ -511,6 +531,7 @@ export const TweetCard = memo(function TweetCard({
     <div>
       {card}
       {renderBeforeActionBar}
+      {aiInsight}
       {actionBar}
       <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
     </div>

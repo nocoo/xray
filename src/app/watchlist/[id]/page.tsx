@@ -843,7 +843,6 @@ export default function WatchlistDetailPage() {
                         <WatchlistPostCard
                           key={post.id}
                           post={post}
-                          watchlistId={watchlistId}
                         />
                       ))}
                     </div>
