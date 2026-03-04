@@ -60,6 +60,9 @@ type SortField =
   | "followers"
   | "following"
   | "tweets"
+  | "likes"
+  | "lastTweet"
+  | "activity"
   | "addedAt";
 type SortDir = "asc" | "desc";
 
@@ -281,6 +284,18 @@ export default function GroupDetailPage() {
           return dir * ((a.profile?.followingCount ?? 0) - (b.profile?.followingCount ?? 0));
         case "tweets":
           return dir * ((a.profile?.tweetCount ?? 0) - (b.profile?.tweetCount ?? 0));
+        case "likes":
+          return dir * ((a.profile?.likeCount ?? 0) - (b.profile?.likeCount ?? 0));
+        case "lastTweet": {
+          const aTime = a.profile?.lastTweetAt ? new Date(a.profile.lastTweetAt).getTime() : 0;
+          const bTime = b.profile?.lastTweetAt ? new Date(b.profile.lastTweetAt).getTime() : 0;
+          return dir * (aTime - bTime);
+        }
+        case "activity": {
+          const aScore = getActivityScore(a.profile);
+          const bScore = getActivityScore(b.profile);
+          return dir * (aScore - bScore);
+        }
         case "addedAt":
           return dir * a.addedAt.localeCompare(b.addedAt);
         default:
@@ -402,6 +417,9 @@ export default function GroupDetailPage() {
                     <SortHeader field="followers" label="Followers" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-right" />
                     <SortHeader field="following" label="Following" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-right" />
                     <SortHeader field="tweets" label="Tweets" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-right" />
+                    <SortHeader field="likes" label="Likes" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-right" />
+                    <SortHeader field="lastTweet" label="Last Tweet" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-right" />
+                    <SortHeader field="activity" label="Activity" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-center" />
                     <SortHeader field="addedAt" label="Added" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-right" />
                     <th className="px-4 py-3 text-right font-medium text-muted-foreground w-10" />
                   </tr>
@@ -497,6 +515,97 @@ function SortHeader({
 }
 
 // =============================================================================
+// Activity assessment helpers
+// =============================================================================
+
+type ActivityLevel = "active" | "low" | "inactive" | "unknown";
+
+function getActivityLevel(profile: MemberProfileData | null): ActivityLevel {
+  if (!profile) return "unknown";
+
+  const { lastTweetAt, tweetCount, accountCreatedAt } = profile;
+
+  // If we have last tweet date, use it as the primary signal
+  if (lastTweetAt) {
+    const daysSinceLastTweet = (Date.now() - new Date(lastTweetAt).getTime()) / (1000 * 60 * 60 * 24);
+
+    // High-volume accounts (>= 5000 tweets) tweeting in last 90 days → Active
+    if (tweetCount >= 5000 && daysSinceLastTweet <= 90) return "active";
+
+    if (daysSinceLastTweet > 180) return "inactive";   // > 6 months
+    if (daysSinceLastTweet > 90) return "low";          // 3-6 months
+
+    // Tweeted in last 90 days — check yearly rate
+    if (accountCreatedAt) {
+      const accountAgeDays = (Date.now() - new Date(accountCreatedAt).getTime()) / (1000 * 60 * 60 * 24);
+      const tweetsPerYear = accountAgeDays > 0 ? (tweetCount / accountAgeDays) * 365 : 0;
+      if (tweetsPerYear < 5) return "low";
+    }
+
+    return "active";
+  }
+
+  // No lastTweetAt data — fallback to avg tweets/day heuristic
+  if (accountCreatedAt) {
+    const accountAgeDays = (Date.now() - new Date(accountCreatedAt).getTime()) / (1000 * 60 * 60 * 24);
+    const tweetsPerYear = accountAgeDays > 0 ? (tweetCount / accountAgeDays) * 365 : 0;
+    if (tweetsPerYear < 5) return "low";
+  }
+
+  return "unknown";
+}
+
+/** Numeric score for sorting: inactive=0, unknown=1, low=2, active=3. */
+function getActivityScore(profile: MemberProfileData | null): number {
+  const level = getActivityLevel(profile);
+  switch (level) {
+    case "inactive": return 0;
+    case "unknown": return 1;
+    case "low": return 2;
+    case "active": return 3;
+  }
+}
+
+const ACTIVITY_CONFIG: Record<ActivityLevel, { label: string; className: string }> = {
+  active:   { label: "Active",   className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
+  low:      { label: "Low",      className: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  inactive: { label: "Inactive", className: "bg-red-500/10 text-red-600 border-red-500/20" },
+  unknown:  { label: "—",        className: "bg-muted text-muted-foreground border-border" },
+};
+
+function formatAccountAge(createdAt: string): string {
+  const diff = Date.now() - new Date(createdAt).getTime();
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const years = Math.floor(days / 365);
+  const months = Math.floor((days % 365) / 30);
+  if (years > 0) return months > 0 ? `${years}y ${months}m` : `${years}y`;
+  if (months > 0) return `${months}m`;
+  return `${days}d`;
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  if (days < 1) return "today";
+  if (days === 1) return "1d ago";
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  const years = Math.floor(days / 365);
+  return `${years}y ago`;
+}
+
+function formatAvgPerDay(tweetCount: number, createdAt: string): string {
+  const days = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24);
+  if (days <= 0) return "—";
+  const avg = tweetCount / days;
+  if (avg >= 10) return avg.toFixed(0);
+  if (avg >= 1) return avg.toFixed(1);
+  if (avg >= 0.1) return avg.toFixed(2);
+  return "<0.1";
+}
+
+// =============================================================================
 // MemberRow — single table row
 // =============================================================================
 
@@ -522,6 +631,9 @@ function MemberRow({
   const avatarUrl =
     p?.profileImageUrl ??
     `https://unavatar.io/x/${member.twitterUsername}`;
+
+  const activity = getActivityLevel(p);
+  const activityCfg = ACTIVITY_CONFIG[activity];
 
   return (
     <tr className="border-b last:border-b-0 hover:bg-muted/30 transition-colors group">
@@ -580,18 +692,51 @@ function MemberRow({
       </td>
 
       {/* Followers */}
-      <td className="px-4 py-3 text-right tabular-nums">
+      <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
         {p ? formatCount(p.followersCount) : "—"}
       </td>
 
       {/* Following */}
-      <td className="px-4 py-3 text-right tabular-nums">
+      <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
         {p ? formatCount(p.followingCount) : "—"}
       </td>
 
-      {/* Tweets */}
-      <td className="px-4 py-3 text-right tabular-nums">
-        {p ? formatCount(p.tweetCount) : "—"}
+      {/* Tweets + avg/day */}
+      <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
+        {p ? (
+          <div>
+            <span>{formatCount(p.tweetCount)}</span>
+            {p.accountCreatedAt && (
+              <span className="text-muted-foreground/60 ml-1 text-xs">
+                ({formatAvgPerDay(p.tweetCount, p.accountCreatedAt)}/d)
+              </span>
+            )}
+          </div>
+        ) : "—"}
+      </td>
+
+      {/* Likes */}
+      <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
+        {p ? formatCount(p.likeCount) : "—"}
+      </td>
+
+      {/* Last Tweet */}
+      <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
+        {p?.lastTweetAt ? (
+          <span title={new Date(p.lastTweetAt).toLocaleDateString()}>
+            {formatRelativeTime(p.lastTweetAt)}
+          </span>
+        ) : "—"}
+      </td>
+
+      {/* Activity */}
+      <td className="px-4 py-3 text-center">
+        <Badge
+          variant="outline"
+          className={cn("text-[10px] font-medium", activityCfg.className)}
+        >
+          {activityCfg.label}
+        </Badge>
       </td>
 
       {/* Added */}

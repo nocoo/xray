@@ -23,6 +23,8 @@ export interface MemberProfileData {
   likeCount: number;
   isVerified: boolean;
   accountCreatedAt: string | null;
+  lastTweetAt: string | null;
+  snapshotAt: number | null;
 }
 
 export interface WatchlistMember {

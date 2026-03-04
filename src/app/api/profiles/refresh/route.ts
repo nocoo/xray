@@ -125,6 +125,17 @@ export async function POST(req: NextRequest) {
           const info = await provider.getUserInfo(username);
           profiles.upsert(info);
           resolved.push(info);
+
+          // Also fetch the latest tweet to populate last_tweet_at.
+          // This is a best-effort call — failure should not block the profile refresh.
+          try {
+            const tweets = await provider.fetchUserTweets(info.username, { count: 1 });
+            if (tweets.length > 0 && tweets[0]!.created_at) {
+              profiles.updateLastTweetAt(info.username, tweets[0]!.created_at);
+            }
+          } catch {
+            // Timeline fetch can fail for protected/suspended accounts — silently skip.
+          }
         } catch (err) {
           console.error(
             `[profiles/refresh] Failed to resolve "${username}":`,

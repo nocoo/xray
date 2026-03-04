@@ -307,6 +307,7 @@ export function initSchema(): void {
       is_verified INTEGER DEFAULT 0,
       account_created_at TEXT,
       pinned_tweet_id TEXT,
+      last_tweet_at TEXT,
       snapshot_at INTEGER,
       updated_at INTEGER
     );
@@ -401,6 +402,7 @@ export function initSchema(): void {
   safeAddColumn(`ALTER TABLE fetched_posts ADD COLUMN watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE`);
   safeAddColumn(`ALTER TABLE fetch_logs ADD COLUMN watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE CASCADE`);
   safeAddColumn(`ALTER TABLE watchlist_members ADD COLUMN twitter_id TEXT REFERENCES twitter_profiles(twitter_id)`);
+  safeAddColumn(`ALTER TABLE twitter_profiles ADD COLUMN last_tweet_at TEXT`);
 
   // Indexes that depend on watchlist_id — MUST run AFTER safeAddColumn adds the column.
   // For fresh DBs the column exists from CREATE TABLE; for legacy DBs safeAddColumn just added it.
