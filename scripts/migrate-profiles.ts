@@ -22,7 +22,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // ---------------------------------------------------------------------------
 
 const TWEAPI_KEY = "***REMOVED***";
-const TWEAPI_BASE = "https://tweapi.com";
+const TWEAPI_BASE = "https://api.tweapi.io";
 const CONCURRENCY = 5;
 const TIMEOUT_MS = 15_000;
 
@@ -78,21 +78,22 @@ async function fetchUserInfo(username: string): Promise<UserInfo> {
 
     const json = await res.json();
     const d = json.data;
+    // Field names match TweAPI response (camelCase) — see normalizer.ts
     return {
-      id: d.id ?? d.rest_id ?? "",
-      username: (d.username ?? d.screen_name ?? "").toLowerCase(),
-      name: d.name ?? d.username ?? "",
-      description: d.description ?? d.desc ?? undefined,
+      id: d.id ?? "",
+      username: (d.userName ?? "").toLowerCase(),
+      name: d.fullName ?? d.userName ?? "",
+      description: d.description ?? undefined,
       location: d.location ?? undefined,
-      profile_image_url: (d.profile_image_url ?? d.avatar ?? "").replace("_normal", "_400x400"),
-      profile_banner_url: d.profile_banner_url ?? d.header_image ?? undefined,
-      followers_count: d.followers_count ?? d.sub_count ?? 0,
-      following_count: d.following_count ?? d.friends_count ?? 0,
-      tweet_count: d.tweet_count ?? d.media_count ?? 0,
-      like_count: d.like_count ?? d.favourites_count ?? 0,
-      is_verified: Boolean(d.is_verified ?? d.verified ?? d.is_blue_verified),
-      created_at: d.created_at ?? "",
-      pinned_tweet_id: d.pinned_tweet_id ?? d.pinned_tweet_ids_str?.[0] ?? undefined,
+      profile_image_url: (d.profileImage ?? "").replace("_normal", "_400x400"),
+      profile_banner_url: d.profileBanner ?? undefined,
+      followers_count: d.followersCount ?? 0,
+      following_count: d.followingsCount ?? 0,
+      tweet_count: d.statusesCount ?? 0,
+      like_count: d.likeCount ?? 0,
+      is_verified: Boolean(d.isVerified),
+      created_at: d.createdAt ?? "",
+      pinned_tweet_id: d.pinnedTweet ?? undefined,
     };
   } catch (e) {
     clearTimeout(timeoutId);
