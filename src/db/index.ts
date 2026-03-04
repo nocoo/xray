@@ -313,6 +313,30 @@ export function initSchema(): void {
     CREATE UNIQUE INDEX IF NOT EXISTS twitter_profiles_username_uniq
       ON twitter_profiles (username);
 
+    -- Groups
+    CREATE TABLE IF NOT EXISTS groups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      description TEXT,
+      icon TEXT NOT NULL DEFAULT 'users',
+      created_at INTEGER NOT NULL
+    );
+
+    -- Group members
+    CREATE TABLE IF NOT EXISTS group_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      twitter_id TEXT REFERENCES twitter_profiles(twitter_id),
+      twitter_username TEXT NOT NULL,
+      added_at INTEGER NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS group_members_group_username_uniq
+      ON group_members (group_id, twitter_username);
+    CREATE INDEX IF NOT EXISTS group_members_twitter_id_idx
+      ON group_members (twitter_id);
+
     -- Fetched posts (auto-fetch cache with translation)
     CREATE TABLE IF NOT EXISTS fetched_posts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -450,6 +474,8 @@ export function resetTestDb(): void {
     DELETE FROM watchlist_member_tags;
     DELETE FROM watchlist_members;
     DELETE FROM watchlists;
+    DELETE FROM group_members;
+    DELETE FROM groups;
     DELETE FROM tags;
     DELETE FROM usage_stats;
     DELETE FROM webhooks;
