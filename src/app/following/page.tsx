@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { AppShell } from "@/components/layout";
 import { UserCardCompact } from "@/components/twitter/user-card";
 import {
@@ -16,9 +16,41 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { UserPlus, Search, Upload } from "lucide-react";
+import { UserPlus, Search, Upload, FileUp } from "lucide-react";
 
 import type { UserInfo } from "../../../shared/types";
+
+// =============================================================================
+// Twitter export file parser
+//
+// Twitter data export produces `following.js` with format:
+//   window.YTD.following.part0 = [ { following: { accountId: "123", ... } }, ... ]
+// We strip the assignment prefix, parse as JSON, and extract accountIds.
+// =============================================================================
+
+interface TwitterExportEntry {
+  following: { accountId: string; userLink?: string };
+}
+
+function parseTwitterExportFile(content: string): string[] | null {
+  // Strip the `window.YTD.following.partN = ` prefix
+  const jsonStart = content.indexOf("[");
+  if (jsonStart === -1) return null;
+
+  try {
+    const data = JSON.parse(content.slice(jsonStart)) as TwitterExportEntry[];
+    if (!Array.isArray(data) || data.length === 0) return null;
+
+    // Validate shape: first entry should have following.accountId
+    if (!data[0]?.following?.accountId) return null;
+
+    return data
+      .map((entry) => entry.following?.accountId)
+      .filter((id): id is string => !!id);
+  } catch {
+    return null;
+  }
+}
 
 // =============================================================================
 // Following Page — look up who a given Twitter user follows + import lists
@@ -38,6 +70,13 @@ export default function FollowingPage() {
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [importProgress, setImportProgress] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [importSource, setImportSource] = useState<
+    "manual" | "twitter-export" | null
+  >(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragCounter = useRef(0);
 
   // ---------------------------------------------------------------------------
   // Look up following list for a single user
@@ -75,7 +114,7 @@ export default function FollowingPage() {
   );
 
   // ---------------------------------------------------------------------------
-  // Parse textarea → deduplicated usernames
+  // Parse textarea → deduplicated usernames/IDs
   // ---------------------------------------------------------------------------
   function parseUsernames(text: string): string[] {
     const seen = new Set<string>();
@@ -93,19 +132,105 @@ export default function FollowingPage() {
   }
 
   // ---------------------------------------------------------------------------
+  // File handling: read dropped/selected file
+  // ---------------------------------------------------------------------------
+  const handleFile = useCallback((file: File) => {
+    setImportError(null);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      if (!content) {
+        setImportError("Could not read file.");
+        return;
+      }
+
+      // Try parsing as Twitter export
+      const accountIds = parseTwitterExportFile(content);
+      if (accountIds && accountIds.length > 0) {
+        setImportText(accountIds.join("\n"));
+        setImportSource("twitter-export");
+        return;
+      }
+
+      // Fall back: treat as plain text (one username per line)
+      setImportText(content);
+      setImportSource("manual");
+    };
+    reader.onerror = () => {
+      setImportError("Failed to read file.");
+    };
+    reader.readAsText(file);
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Drag-and-drop handlers
+  // ---------------------------------------------------------------------------
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounter.current = 0;
+      setIsDragging(false);
+
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        handleFile(file);
+      }
+    },
+    [handleFile],
+  );
+
+  const handleFileInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        handleFile(file);
+      }
+      // Reset input so re-selecting the same file triggers onChange
+      e.target.value = "";
+    },
+    [handleFile],
+  );
+
+  // ---------------------------------------------------------------------------
   // Import: resolve a list of usernames via batch API
   // ---------------------------------------------------------------------------
   const handleImport = useCallback(async () => {
     const usernames = parseUsernames(importText);
 
     if (usernames.length === 0) {
-      setImportError("No valid usernames found. Enter one username per line.");
+      setImportError("No valid entries found. Enter one username per line.");
       return;
     }
 
     setImporting(true);
     setImportError(null);
-    setImportProgress(`Resolving ${usernames.length} username${usernames.length !== 1 ? "s" : ""}...`);
+    const label = importSource === "twitter-export" ? "account" : "username";
+    setImportProgress(
+      `Resolving ${usernames.length} ${label}${usernames.length !== 1 ? "s" : ""}...`,
+    );
 
     try {
       const res = await fetch("/api/explore/users/batch", {
@@ -127,7 +252,7 @@ export default function FollowingPage() {
 
       if (resolved.length === 0) {
         setImportError(
-          `None of the ${usernames.length} username${usernames.length !== 1 ? "s" : ""} could be resolved.`,
+          `None of the ${usernames.length} ${label}${usernames.length !== 1 ? "s" : ""} could be resolved.`,
         );
         return;
       }
@@ -145,12 +270,13 @@ export default function FollowingPage() {
       // Close dialog and reset
       setImportOpen(false);
       setImportText("");
+      setImportSource(null);
 
       // Show inline notice if some failed
       if (failed.length > 0) {
         setError(
           `Imported ${resolved.length} user${resolved.length !== 1 ? "s" : ""}. ` +
-            `Could not resolve: ${failed.join(", ")}`,
+            `Could not resolve ${failed.length}: ${failed.slice(0, 10).join(", ")}${failed.length > 10 ? "..." : ""}`,
         );
       }
     } catch {
@@ -159,7 +285,7 @@ export default function FollowingPage() {
       setImporting(false);
       setImportProgress(null);
     }
-  }, [importText]);
+  }, [importText, importSource]);
 
   const parsedCount = parseUsernames(importText).length;
 
@@ -204,6 +330,7 @@ export default function FollowingPage() {
             type="button"
             onClick={() => {
               setImportError(null);
+              setImportSource(null);
               setImportOpen(true);
             }}
             className="inline-flex items-center gap-2 rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
@@ -243,30 +370,83 @@ export default function FollowingPage() {
           <DialogHeader>
             <DialogTitle>Import usernames</DialogTitle>
             <DialogDescription>
-              Paste a list of Twitter/X usernames, one per line. The @ symbol is
-              optional and will be stripped automatically.
+              Drag and drop a Twitter/X data export file (
+              <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                following.js
+              </code>
+              ), or paste usernames one per line.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3">
-            <textarea
-              value={importText}
-              onChange={(e) => {
-                setImportText(e.target.value);
-                setImportError(null);
-              }}
-              placeholder={"elonmusk\n@karpathy\nvaboredition\nnatfriedman"}
-              rows={10}
-              className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-y"
-              disabled={importing}
-            />
+            {/* Drop zone / textarea */}
+            <div
+              className={`relative rounded-lg border-2 border-dashed transition-colors ${
+                isDragging
+                  ? "border-primary bg-primary/5"
+                  : "border-input hover:border-muted-foreground/50"
+              }`}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              <textarea
+                value={importText}
+                onChange={(e) => {
+                  setImportText(e.target.value);
+                  setImportError(null);
+                  setImportSource("manual");
+                }}
+                placeholder={"elonmusk\n@karpathy\nvaboredition\nnatfriedman"}
+                rows={10}
+                className="w-full rounded-lg bg-transparent px-4 py-3 text-sm font-mono placeholder:text-muted-foreground focus:outline-none resize-y border-0"
+                disabled={importing}
+              />
 
-            {parsedCount > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {parsedCount} unique username{parsedCount !== 1 ? "s" : ""}{" "}
-                detected
-              </p>
-            )}
+              {/* Drag overlay */}
+              {isDragging && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center rounded-lg bg-primary/10 pointer-events-none">
+                  <FileUp className="h-8 w-8 text-primary mb-2" />
+                  <p className="text-sm font-medium text-primary">
+                    Drop following.js here
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* File picker + info row */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importing}
+                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  <FileUp className="h-3.5 w-3.5" />
+                  Choose file
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".js,.txt,.csv"
+                  onChange={handleFileInput}
+                  className="hidden"
+                />
+              </div>
+
+              {parsedCount > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {parsedCount} unique{" "}
+                  {importSource === "twitter-export" ? "account" : "username"}
+                  {parsedCount !== 1 ? "s" : ""} detected
+                  {importSource === "twitter-export" && (
+                    <span className="ml-1 text-primary">(Twitter export)</span>
+                  )}
+                </p>
+              )}
+            </div>
 
             {importError && <ErrorBanner error={importError} />}
             {importProgress && (
@@ -295,7 +475,7 @@ export default function FollowingPage() {
               <Upload className="h-4 w-4" />
               {importing
                 ? "Importing..."
-                : `Import ${parsedCount} user${parsedCount !== 1 ? "s" : ""}`}
+                : `Import ${parsedCount} ${importSource === "twitter-export" ? "account" : "user"}${parsedCount !== 1 ? "s" : ""}`}
             </button>
           </DialogFooter>
         </DialogContent>
