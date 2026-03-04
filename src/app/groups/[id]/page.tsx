@@ -28,7 +28,6 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  ExternalLink,
 } from "lucide-react";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { resolveIcon } from "@/components/ui/icon-picker";
@@ -155,57 +154,58 @@ export default function GroupDetailPage() {
   );
 
   // ---------------------------------------------------------------------------
-  // Refresh profiles (resolve via batch API, then link)
+  // Refresh profiles — one-by-one with incremental UI updates
   // ---------------------------------------------------------------------------
   const handleRefreshProfiles = useCallback(async () => {
     if (members.length === 0) return;
 
     setRefreshing(true);
-    setRefreshStatus("Refreshing profiles...");
+    setRefreshStatus(null);
     setError(null);
 
-    try {
-      const identifiers = members.map(
-        (m) => m.profile?.twitterId ?? m.twitterUsername,
-      );
+    let resolved = 0;
+    let failed = 0;
 
-      const res = await fetch("/api/explore/users/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ usernames: identifiers }),
-      });
-      const json = await res.json().catch(() => null);
+    for (const m of members) {
+      const identifier = m.profile?.twitterId ?? m.twitterUsername;
+      setRefreshStatus(`Refreshing ${resolved + failed + 1}/${members.length}: @${m.twitterUsername}...`);
 
-      if (!res.ok || !json?.success) {
-        setError(json?.error ?? "Failed to refresh profiles");
-        return;
+      try {
+        const res = await fetch("/api/profiles/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ usernames: [identifier] }),
+        });
+        const json = await res.json().catch(() => null);
+
+        if (res.ok && json?.success) {
+          // Link profiles if this member has no twitter_id yet
+          if (!m.twitterId) {
+            await fetch(`/api/groups/${groupId}/members/link-profiles`, {
+              method: "POST",
+            });
+          }
+          resolved++;
+        } else {
+          failed++;
+        }
+      } catch {
+        failed++;
       }
 
-      const { resolved, failed } = json.data as {
-        resolved: unknown[];
-        failed: string[];
-      };
-
-      setRefreshStatus("Linking profiles...");
-
-      await fetch(`/api/groups/${groupId}/members/link-profiles`, {
-        method: "POST",
-      });
-
+      // Reload member list after each individual refresh
       await loadMembers();
-
-      if (failed.length > 0) {
-        setRefreshStatus(
-          `Refreshed ${resolved.length} profiles. ${failed.length} could not be resolved.`,
-        );
-      } else {
-        setRefreshStatus(`Refreshed ${resolved.length} profiles.`);
-      }
-    } catch {
-      setError("Network error during profile refresh");
-    } finally {
-      setRefreshing(false);
     }
+
+    if (failed > 0) {
+      setRefreshStatus(
+        `Refreshed ${resolved} profile${resolved !== 1 ? "s" : ""}. ${failed} could not be resolved.`,
+      );
+    } else {
+      setRefreshStatus(`Refreshed ${resolved} profile${resolved !== 1 ? "s" : ""}.`);
+    }
+
+    setRefreshing(false);
   }, [members, groupId, loadMembers]);
 
   // ---------------------------------------------------------------------------
@@ -398,11 +398,11 @@ export default function GroupDetailPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <SortHeader field="displayName" label="User" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
+                    <SortHeader field="displayName" label="User" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortHeader field="followers" label="Followers" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-right" />
                     <SortHeader field="following" label="Following" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-right" />
                     <SortHeader field="tweets" label="Tweets" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-right" />
-                    <SortHeader field="addedAt" label="Added" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
+                    <SortHeader field="addedAt" label="Added" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-right" />
                     <th className="px-4 py-3 text-right font-medium text-muted-foreground w-10" />
                   </tr>
                 </thead>
@@ -528,40 +528,50 @@ function MemberRow({
       {/* User */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
-          <img
-            src={avatarUrl}
-            alt={member.twitterUsername}
-            className="h-9 w-9 rounded-full bg-muted shrink-0"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.style.display = "none";
-            }}
-          />
+          <a
+            href={`https://x.com/${member.twitterUsername}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0"
+          >
+            <img
+              src={avatarUrl}
+              alt={member.twitterUsername}
+              className="h-9 w-9 rounded-full bg-muted hover:opacity-80 transition-opacity"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+              }}
+            />
+          </a>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               {displayName && (
-                <span className="font-medium truncate">{displayName}</span>
+                <a
+                  href={`https://x.com/${member.twitterUsername}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium truncate hover:underline"
+                >
+                  {displayName}
+                </a>
               )}
               {p?.isVerified && (
                 <Badge variant="default" className="h-3.5 px-1 text-[9px] shrink-0">
                   V
                 </Badge>
               )}
-              <a
-                href={`https://x.com/${member.twitterUsername}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 text-muted-foreground hover:text-foreground"
-                title="Open on X"
-              >
-                <ExternalLink className="h-3 w-3" />
-              </a>
             </div>
-            <span className="text-xs text-muted-foreground">
+            <a
+              href={`https://x.com/${member.twitterUsername}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground hover:underline"
+            >
               @{member.twitterUsername}
-            </span>
+            </a>
             {p?.description && (
-              <p className="text-xs text-muted-foreground/70 line-clamp-1 mt-0.5 max-w-[300px]">
+              <p className="text-muted-foreground/70 line-clamp-1 mt-0.5 max-w-[300px]">
                 {p.description}
               </p>
             )}
@@ -585,7 +595,7 @@ function MemberRow({
       </td>
 
       {/* Added */}
-      <td className="px-4 py-3 text-muted-foreground text-xs">
+      <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
         {new Date(member.addedAt).toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
