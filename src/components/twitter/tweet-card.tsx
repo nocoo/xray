@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,6 +11,7 @@ import {
   Bookmark,
   Quote,
   Image as ImageIcon,
+  ExternalLink,
   AtSign,
   Hash,
   X,
@@ -32,19 +33,134 @@ import type { Tweet, TweetMedia } from "../../../shared/types";
 // TweetCard — reusable tweet display component
 // =============================================================================
 
+export interface TweetCardProps {
+  tweet: Tweet;
+  linkToDetail?: boolean;
+  className?: string;
+  /** Hide the bottom action bar (e.g. when a parent component provides its own) */
+  showActionBar?: boolean;
+  /** Pre-populated translation from parent (e.g. SSE-synced watchlist) */
+  initialTranslation?: {
+    translatedText: string;
+    commentText?: string | null;
+    quotedTranslatedText?: string | null;
+  };
+  /** Slot rendered between card body and action bar (e.g. AI Insight) */
+  renderBeforeActionBar?: React.ReactNode;
+}
+
 export const TweetCard = memo(function TweetCard({
   tweet,
   linkToDetail = true,
   className,
-}: {
-  tweet: Tweet;
-  linkToDetail?: boolean;
-  className?: string;
-}) {
+  showActionBar = true,
+  initialTranslation,
+  renderBeforeActionBar,
+}: TweetCardProps) {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
+  // --- Translation state ---
+  const [lang, setLang] = useState<"zh" | "en">(
+    initialTranslation?.translatedText ? "zh" : "en",
+  );
+  const [translatedText, setTranslatedText] = useState(
+    initialTranslation?.translatedText ?? null,
+  );
+  const [commentText, setCommentText] = useState(
+    initialTranslation?.commentText ?? null,
+  );
+  const [quotedTranslatedText, setQuotedTranslatedText] = useState(
+    initialTranslation?.quotedTranslatedText ?? null,
+  );
+  const [translating, setTranslating] = useState(false);
+
+  // --- zhe.to state ---
+  const [zhetoStatus, setZhetoStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+
+  // Sync from parent when initialTranslation changes (SSE push)
+  const prevInitial = initialTranslation?.translatedText;
+  useState(() => {
+    // This runs once on mount; subsequent syncs handled in the effect below
+  });
+  // biome-ignore lint: sync on external prop change
+  useEffect(() => {
+    if (prevInitial && !translatedText) {
+      setTranslatedText(prevInitial);
+      setCommentText(initialTranslation?.commentText ?? null);
+      setQuotedTranslatedText(initialTranslation?.quotedTranslatedText ?? null);
+      setLang("zh");
+    }
+  }, [prevInitial]);
+
+  const hasTranslation = !!translatedText;
+
+  // Build the tweet object with translated text swapped in
+  const displayTweet = useMemo(() => {
+    if (lang !== "zh" || !hasTranslation) return tweet;
+    const t = { ...tweet, text: translatedText ?? tweet.text };
+    if (t.quoted_tweet && quotedTranslatedText) {
+      t.quoted_tweet = { ...t.quoted_tweet, text: quotedTranslatedText };
+    }
+    return t;
+  }, [lang, hasTranslation, tweet, translatedText, quotedTranslatedText]);
+
+  const handleTranslate = useCallback(async () => {
+    if (translating) return;
+    setTranslating(true);
+    try {
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: tweet.text,
+          quotedText: tweet.quoted_tweet?.text ?? undefined,
+        }),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.success && json.data?.translatedText) {
+        setTranslatedText(json.data.translatedText);
+        setCommentText(json.data.commentText ?? null);
+        setQuotedTranslatedText(json.data.quotedTranslatedText ?? null);
+        setLang("zh");
+      }
+    } catch {
+      // silent
+    } finally {
+      setTranslating(false);
+    }
+  }, [translating, tweet.text, tweet.quoted_tweet?.text]);
+
+  const handleSaveToZheto = useCallback(async () => {
+    if (zhetoStatus === "saving" || zhetoStatus === "saved") return;
+    setZhetoStatus("saving");
+    try {
+      const note = `@${tweet.author.username}: ${tweet.text.slice(0, 200)}`;
+      const res = await fetch("/api/integrations/zheto/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: tweet.url, note }),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.success) {
+        setZhetoStatus("saved");
+      } else {
+        setZhetoStatus("error");
+        setTimeout(() => setZhetoStatus("idle"), 3000);
+      }
+    } catch {
+      setZhetoStatus("error");
+      setTimeout(() => setZhetoStatus("idle"), 3000);
+    }
+  }, [zhetoStatus, tweet.url, tweet.author.username, tweet.text]);
+
   const card = (
-    <div className={`relative rounded-card bg-secondary p-4 transition-colors hover:bg-secondary/80 ${className ?? ""}`}>
+    <div className={cn(
+      "relative rounded-card bg-secondary p-4 transition-colors hover:bg-secondary/80",
+      showActionBar && "rounded-b-none border border-border",
+      className,
+    )}>
       {/* Tweet type badges — top-right corner */}
       {(tweet.is_retweet || tweet.is_reply || tweet.is_quote) && (
         <div className="absolute top-2.5 right-2.5 flex items-center gap-1">
@@ -120,7 +236,7 @@ export const TweetCard = memo(function TweetCard({
 
       {/* Tweet text */}
       <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap">
-        {tweet.text}
+        {displayTweet.text}
       </p>
 
       {/* Media preview */}
@@ -191,7 +307,7 @@ export const TweetCard = memo(function TweetCard({
 
           {/* Quoted text */}
           <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">
-            {tweet.quoted_tweet.text}
+            {displayTweet.quoted_tweet?.text ?? tweet.quoted_tweet.text}
           </p>
 
           {/* Quoted media */}
@@ -257,25 +373,120 @@ export const TweetCard = memo(function TweetCard({
     </div>
   );
 
+  const actionBar = showActionBar ? (
+    <div className="flex items-center gap-1 border border-t-0 border-border rounded-b-card bg-card px-2 py-1.5">
+      {/* Open on X */}
+      <a
+        href={tweet.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ExternalLink className="h-3 w-3" />
+        Open
+      </a>
+
+      {/* Translate / Toggle language */}
+      {hasTranslation ? (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setLang((l) => (l === "zh" ? "en" : "zh"));
+          }}
+          className={cn(
+            "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+            lang === "zh"
+              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent",
+          )}
+          title={lang === "zh" ? "Show original" : "Show translation"}
+        >
+          <ArrowLeftRight className="h-3 w-3" />
+          {lang === "zh" ? "中文" : "EN"}
+        </button>
+      ) : (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            handleTranslate();
+          }}
+          disabled={translating}
+          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+          title="Translate this post"
+        >
+          {translating ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Languages className="h-3 w-3" />
+          )}
+          {translating ? "Translating..." : "Translate"}
+        </button>
+      )}
+
+      {/* Save to zhe.to */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          handleSaveToZheto();
+        }}
+        disabled={zhetoStatus === "saving" || zhetoStatus === "saved"}
+        className={cn(
+          "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+          zhetoStatus === "saved"
+            ? "text-emerald-600 dark:text-emerald-400"
+            : zhetoStatus === "error"
+              ? "text-red-500 dark:text-red-400"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent",
+          (zhetoStatus === "saving" || zhetoStatus === "saved") &&
+            "opacity-60 cursor-default",
+        )}
+        title="Save to zhe.to"
+      >
+        {zhetoStatus === "saving" ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : zhetoStatus === "saved" ? (
+          <Check className="h-3 w-3" />
+        ) : (
+          <LinkIcon className="h-3 w-3" />
+        )}
+        {zhetoStatus === "saving"
+          ? "Saving..."
+          : zhetoStatus === "saved"
+            ? "Saved"
+            : zhetoStatus === "error"
+              ? "Failed"
+              : "zhe.to"}
+      </button>
+    </div>
+  ) : null;
+
   if (linkToDetail) {
     return (
-      <>
+      <div>
         <Link
           href={`/tweets/${tweet.id}`}
           className="block focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-card"
         >
           {card}
         </Link>
+        {renderBeforeActionBar}
+        {actionBar}
         <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div>
       {card}
+      {renderBeforeActionBar}
+      {actionBar}
       <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
-    </>
+    </div>
   );
 });
 
