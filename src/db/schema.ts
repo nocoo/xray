@@ -69,6 +69,42 @@ export const verificationTokens = sqliteTable(
 );
 
 // ============================================================================
+// Twitter Profiles — shared profile cache referenced by watchlist & group members
+// ============================================================================
+
+export const twitterProfiles = sqliteTable(
+  "twitter_profiles",
+  {
+    /** Twitter numeric ID — permanent and stable across username changes. */
+    twitterId: text("twitter_id").primaryKey(),
+    /** Current username (lowercase, no @). Updated on each snapshot refresh. */
+    username: text("username").notNull(),
+    displayName: text("display_name"),
+    description: text("description"),
+    location: text("location"),
+    profileImageUrl: text("profile_image_url"),
+    profileBannerUrl: text("profile_banner_url"),
+    followersCount: integer("followers_count").default(0),
+    followingCount: integer("following_count").default(0),
+    tweetCount: integer("tweet_count").default(0),
+    likeCount: integer("like_count").default(0),
+    /** 1 = verified, 0 = not verified. */
+    isVerified: integer("is_verified").default(0),
+    /** ISO 8601 timestamp of when the Twitter account was created. */
+    accountCreatedAt: text("account_created_at"),
+    pinnedTweetId: text("pinned_tweet_id"),
+    /** When this snapshot was taken from the Twitter API (ms epoch). */
+    snapshotAt: integer("snapshot_at"),
+    /** When this row was last written to the DB (ms epoch). */
+    updatedAt: integer("updated_at"),
+  },
+  (t) => ({
+    /** Fast lookup by current username. */
+    uniqUsername: uniqueIndex("twitter_profiles_username_uniq").on(t.username),
+  })
+);
+
+// ============================================================================
 // X-Ray Business Tables
 // ============================================================================
 
@@ -327,3 +363,5 @@ export type FetchLog = typeof fetchLogs.$inferSelect;
 export type NewFetchLog = typeof fetchLogs.$inferInsert;
 export type Setting = typeof settings.$inferSelect;
 export type NewSetting = typeof settings.$inferInsert;
+export type TwitterProfile = typeof twitterProfiles.$inferSelect;
+export type NewTwitterProfile = typeof twitterProfiles.$inferInsert;

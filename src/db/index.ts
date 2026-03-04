@@ -290,6 +290,28 @@ export function initSchema(): void {
       PRIMARY KEY (user_id, key)
     );
 
+    -- Twitter profiles — shared profile cache
+    CREATE TABLE IF NOT EXISTS twitter_profiles (
+      twitter_id TEXT PRIMARY KEY,
+      username TEXT NOT NULL,
+      display_name TEXT,
+      description TEXT,
+      location TEXT,
+      profile_image_url TEXT,
+      profile_banner_url TEXT,
+      followers_count INTEGER DEFAULT 0,
+      following_count INTEGER DEFAULT 0,
+      tweet_count INTEGER DEFAULT 0,
+      like_count INTEGER DEFAULT 0,
+      is_verified INTEGER DEFAULT 0,
+      account_created_at TEXT,
+      pinned_tweet_id TEXT,
+      snapshot_at INTEGER,
+      updated_at INTEGER
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS twitter_profiles_username_uniq
+      ON twitter_profiles (username);
+
     -- Fetched posts (auto-fetch cache with translation)
     CREATE TABLE IF NOT EXISTS fetched_posts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -429,6 +451,7 @@ export function resetTestDb(): void {
     DELETE FROM webhooks;
     DELETE FROM api_credentials;
     DELETE FROM settings;
+    DELETE FROM twitter_profiles;
     DELETE FROM session;
     DELETE FROM account;
     DELETE FROM user;
