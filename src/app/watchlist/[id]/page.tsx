@@ -311,14 +311,22 @@ export default function WatchlistDetailPage() {
             signal: abortRef.current.signal,
           });
         }
-        await loadData();
+        // Reload only this member instead of the entire list
+        const memberRes = await fetch(`${api}/members`, { signal: abortRef.current.signal });
+        const memberJson = await memberRes.json().catch(() => null);
+        if (memberRes.ok && memberJson?.success) {
+          const updated = (memberJson.data as WatchlistMember[])?.find((m) => m.id === member.id);
+          if (updated) {
+            setMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+          }
+        }
       }
     } catch {
       // ignore abort / network errors
     } finally {
       setRefreshingMemberId(null);
     }
-  }, [api, loadData]);
+  }, [api]);
 
   // ── Auto-translate via SSE stream ──
 
@@ -1037,7 +1045,7 @@ export default function WatchlistDetailPage() {
         open={addOpen}
         onOpenChange={setAddOpen}
         allTags={allTags}
-        onSuccess={loadData}
+        onSuccess={(newMember) => setMembers((prev) => [...prev, newMember])}
         onTagCreated={(tag) => setAllTags((prev) => [...prev, tag])}
         watchlistId={watchlistId}
       />
@@ -1049,7 +1057,10 @@ export default function WatchlistDetailPage() {
           onOpenChange={(open) => !open && setEditMember(null)}
           member={editMember}
           allTags={allTags}
-          onSuccess={loadData}
+          onSuccess={(updated) => {
+            setMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+            setEditMember(null);
+          }}
           onTagCreated={(tag) => setAllTags((prev) => [...prev, tag])}
           watchlistId={watchlistId}
         />
@@ -1061,7 +1072,10 @@ export default function WatchlistDetailPage() {
           open={!!deleteMember}
           onOpenChange={(open) => !open && setDeleteMember(null)}
           member={deleteMember}
-          onSuccess={loadData}
+          onSuccess={(memberId) => {
+            setMembers((prev) => prev.filter((m) => m.id !== memberId));
+            setDeleteMember(null);
+          }}
           watchlistId={watchlistId}
         />
       )}

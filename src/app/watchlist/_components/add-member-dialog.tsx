@@ -25,7 +25,7 @@ export function AddMemberDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   allTags: TagData[];
-  onSuccess: () => void;
+  onSuccess: (member: import("../_lib/types").WatchlistMember) => void;
   onTagCreated: (tag: TagData) => void;
   watchlistId: number;
 }) {
@@ -68,7 +68,7 @@ export function AddMemberDialog({
 
       reset();
       onOpenChange(false);
-      onSuccess();
+      onSuccess(json.data);
     } catch {
       setError("Network error");
     } finally {
