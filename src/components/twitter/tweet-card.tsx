@@ -276,29 +276,55 @@ export const TweetCard = memo(function TweetCard({
 
       {/* Quoted tweet — rendered as a compact nested card */}
       {tweet.quoted_tweet && (
-        <div className="mt-3 rounded-lg border border-border p-3 bg-card/50">
+        <div className="relative mt-3 rounded-lg border border-border p-3 bg-card/50">
+          {/* Open quoted tweet on X — top-right */}
+          <a
+            href={tweet.quoted_tweet.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute top-2 right-2 rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title="Open quoted tweet on X"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExternalLink className="h-3 w-3" />
+          </a>
+
           {/* Quoted author row */}
-          <div className="flex items-center gap-2">
-            {tweet.quoted_tweet.author.profile_image_url ? (
-              <img
-                src={tweet.quoted_tweet.author.profile_image_url}
-                alt={tweet.quoted_tweet.author.name}
-                className="h-5 w-5 shrink-0 rounded-full"
-              />
-            ) : (
-              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
-                {tweet.quoted_tweet.author.name[0]}
-              </div>
-            )}
-            <span className="text-xs font-medium truncate">
-              {tweet.quoted_tweet.author.name}
-            </span>
+          <div className="flex items-center gap-2 pr-6">
+            <a
+              href={`https://x.com/${tweet.quoted_tweet.author.username}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {tweet.quoted_tweet.author.profile_image_url ? (
+                <img
+                  src={tweet.quoted_tweet.author.profile_image_url}
+                  alt={tweet.quoted_tweet.author.name}
+                  className="h-5 w-5 shrink-0 rounded-full"
+                />
+              ) : (
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
+                  {tweet.quoted_tweet.author.name[0]}
+                </div>
+              )}
+              <span className="text-xs font-medium truncate">
+                {tweet.quoted_tweet.author.name}
+              </span>
+            </a>
             {tweet.quoted_tweet.author.is_verified && (
               <Badge variant="default" className="h-3.5 px-1 text-[9px]">V</Badge>
             )}
-            <span className="text-xs text-muted-foreground truncate">
+            <a
+              href={`https://x.com/${tweet.quoted_tweet.author.username}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-muted-foreground truncate hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
               @{tweet.quoted_tweet.author.username}
-            </span>
+            </a>
             <span className="text-xs text-muted-foreground">·</span>
             <span className="text-xs text-muted-foreground shrink-0">
               {formatTimeAgo(tweet.quoted_tweet.created_at)}
