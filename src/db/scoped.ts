@@ -11,8 +11,9 @@
  *   scopedDb.credentials.upsert({ tweapiKey, twitterCookie });
  */
 
-import { eq, and, desc, sql, gte, lte, isNull, lt, count, notInArray, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lte, isNull, lt, count, notInArray, inArray, or } from "drizzle-orm";
 import { db, getRawSqlite } from "@/db";
+import type { UserInfo } from "../../shared/types";
 import {
   apiCredentials,
   webhooks,
@@ -24,6 +25,7 @@ import {
   fetchedPosts,
   fetchLogs,
   settings,
+  twitterProfiles,
   type ApiCredential,
   type NewApiCredential,
   type Webhook,
@@ -40,6 +42,7 @@ import {
   type FetchLog,
   type NewFetchLog,
   type Setting,
+  type TwitterProfile,
 } from "@/db/schema";
 import { generateTagColor } from "@/lib/tag-color";
 
@@ -67,6 +70,7 @@ export class ScopedDB {
   readonly posts: PostsRepo;
   readonly logs: LogsRepo;
   readonly settings: SettingsRepo;
+  readonly profiles: ProfilesRepo;
 
   constructor(userId: string) {
     this.userId = userId;
@@ -79,6 +83,158 @@ export class ScopedDB {
     this.posts = new PostsRepo(userId);
     this.logs = new LogsRepo(userId);
     this.settings = new SettingsRepo(userId);
+    this.profiles = new ProfilesRepo();
+  }
+}
+
+// =============================================================================
+// Twitter Profiles (global — not user-scoped)
+// =============================================================================
+
+/**
+ * Shared profile cache for all Twitter users seen by the system.
+ * NOT user-scoped — profiles are global and shared across all app users.
+ */
+export class ProfilesRepo {
+  /** Convert a UserInfo from the Twitter API into DB column format. */
+  private toRow(info: UserInfo): typeof twitterProfiles.$inferInsert {
+    const now = Date.now();
+    return {
+      twitterId: info.id,
+      username: info.username.toLowerCase(),
+      displayName: info.name,
+      description: info.description ?? null,
+      location: info.location ?? null,
+      profileImageUrl: info.profile_image_url,
+      profileBannerUrl: info.profile_banner_url ?? null,
+      followersCount: info.followers_count,
+      followingCount: info.following_count,
+      tweetCount: info.tweet_count,
+      likeCount: info.like_count,
+      isVerified: info.is_verified ? 1 : 0,
+      accountCreatedAt: info.created_at,
+      pinnedTweetId: info.pinned_tweet_id ?? null,
+      snapshotAt: now,
+      updatedAt: now,
+    };
+  }
+
+  /** Convert a DB row back to UserInfo. */
+  private toUserInfo(row: TwitterProfile): UserInfo {
+    return {
+      id: row.twitterId,
+      username: row.username,
+      name: row.displayName ?? row.username,
+      description: row.description ?? undefined,
+      location: row.location ?? undefined,
+      profile_image_url: row.profileImageUrl ?? "",
+      profile_banner_url: row.profileBannerUrl ?? undefined,
+      followers_count: row.followersCount ?? 0,
+      following_count: row.followingCount ?? 0,
+      tweet_count: row.tweetCount ?? 0,
+      like_count: row.likeCount ?? 0,
+      is_verified: row.isVerified === 1,
+      created_at: row.accountCreatedAt ?? "",
+      pinned_tweet_id: row.pinnedTweetId ?? undefined,
+    };
+  }
+
+  /** Insert or update a single profile from a UserInfo object. */
+  upsert(info: UserInfo): TwitterProfile {
+    const row = this.toRow(info);
+    // INSERT OR REPLACE on PK (twitter_id)
+    return db
+      .insert(twitterProfiles)
+      .values(row)
+      .onConflictDoUpdate({
+        target: twitterProfiles.twitterId,
+        set: {
+          username: row.username,
+          displayName: row.displayName,
+          description: row.description,
+          location: row.location,
+          profileImageUrl: row.profileImageUrl,
+          profileBannerUrl: row.profileBannerUrl,
+          followersCount: row.followersCount,
+          followingCount: row.followingCount,
+          tweetCount: row.tweetCount,
+          likeCount: row.likeCount,
+          isVerified: row.isVerified,
+          accountCreatedAt: row.accountCreatedAt,
+          pinnedTweetId: row.pinnedTweetId,
+          snapshotAt: row.snapshotAt,
+          updatedAt: row.updatedAt,
+        },
+      })
+      .returning()
+      .get();
+  }
+
+  /** Batch upsert multiple profiles. Wrapped in a transaction for performance. */
+  batchUpsert(infos: UserInfo[]): TwitterProfile[] {
+    if (infos.length === 0) return [];
+    const results: TwitterProfile[] = [];
+    const run = getRawSqlite().transaction(() => {
+      for (const info of infos) {
+        results.push(this.upsert(info));
+      }
+    });
+    run();
+    return results;
+  }
+
+  /** Find a profile by Twitter numeric ID. */
+  findByTwitterId(twitterId: string): TwitterProfile | undefined {
+    return db
+      .select()
+      .from(twitterProfiles)
+      .where(eq(twitterProfiles.twitterId, twitterId))
+      .get();
+  }
+
+  /** Find a profile by current username (case-insensitive). */
+  findByUsername(username: string): TwitterProfile | undefined {
+    return db
+      .select()
+      .from(twitterProfiles)
+      .where(eq(twitterProfiles.username, username.toLowerCase()))
+      .get();
+  }
+
+  /** Find multiple profiles by Twitter IDs. */
+  findByIds(twitterIds: string[]): TwitterProfile[] {
+    if (twitterIds.length === 0) return [];
+    return db
+      .select()
+      .from(twitterProfiles)
+      .where(inArray(twitterProfiles.twitterId, twitterIds))
+      .all();
+  }
+
+  /** Find multiple profiles by usernames. */
+  findByUsernames(usernames: string[]): TwitterProfile[] {
+    if (usernames.length === 0) return [];
+    const lower = usernames.map((u) => u.toLowerCase());
+    return db
+      .select()
+      .from(twitterProfiles)
+      .where(inArray(twitterProfiles.username, lower))
+      .all();
+  }
+
+  /** Find all profiles. */
+  findAll(): TwitterProfile[] {
+    return db.select().from(twitterProfiles).all();
+  }
+
+  /** Convert a profile row to UserInfo for API responses. */
+  toInfo(row: TwitterProfile): UserInfo {
+    return this.toUserInfo(row);
+  }
+
+  /** Convert multiple rows to UserInfo[]. */
+  toInfos(rows: TwitterProfile[]): UserInfo[] {
+    return rows.map((r) => this.toUserInfo(r));
   }
 }
 
