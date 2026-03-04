@@ -5,3 +5,7 @@ export { WatchlistPostCard } from "./post-card";
 export { AddMemberDialog } from "./add-member-dialog";
 export { EditMemberDialog } from "./edit-member-dialog";
 export { DeleteMemberDialog } from "./delete-member-dialog";
+export { SlidePanel } from "./slide-panel";
+export { SettingsPanel } from "./settings-panel";
+export { ActivityPanel } from "./activity-panel";
+export { PipelineStatus } from "./pipeline-status";
