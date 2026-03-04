@@ -28,6 +28,9 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Pencil,
+  X,
+  Minus,
 } from "lucide-react";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { resolveIcon } from "@/components/ui/icon-picker";
@@ -92,6 +95,11 @@ export default function GroupDetailPage() {
   // Delete member confirmation
   const [deleteMember, setDeleteMember] = useState<GroupMember | null>(null);
 
+  // Batch edit mode
+  const [editMode, setEditMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchDeleting, setBatchDeleting] = useState(false);
+
   // Sort
   const [sortField, setSortField] = useState<SortField>("followers");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -155,6 +163,27 @@ export default function GroupDetailPage() {
     },
     [groupId],
   );
+
+  // ---------------------------------------------------------------------------
+  // Batch edit helpers
+  // ---------------------------------------------------------------------------
+  const toggleEditMode = useCallback(() => {
+    setEditMode((prev) => {
+      if (prev) setSelectedIds(new Set()); // exiting — clear selection
+      return !prev;
+    });
+  }, []);
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+
 
   // ---------------------------------------------------------------------------
   // Refresh profiles — one-by-one with incremental UI updates
@@ -307,6 +336,43 @@ export default function GroupDetailPage() {
   }, [members, filterText, sortField, sortDir]);
 
   // ---------------------------------------------------------------------------
+  // Batch edit helpers (must be after sortedMembers)
+  // ---------------------------------------------------------------------------
+  const toggleSelectAll = useCallback(() => {
+    const visibleIds = sortedMembers.map((m) => m.id);
+    const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(visibleIds));
+    }
+  }, [sortedMembers, selectedIds]);
+
+  const handleBatchDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    setBatchDeleting(true);
+    try {
+      const res = await fetch(`/api/groups/${groupId}/members`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      if (res.ok) {
+        setMembers((prev) => prev.filter((m) => !selectedIds.has(m.id)));
+        setSelectedIds(new Set());
+        setEditMode(false);
+      }
+    } catch {
+      // silent
+    } finally {
+      setBatchDeleting(false);
+    }
+  }, [groupId, selectedIds]);
+
+  const allVisibleSelected = sortedMembers.length > 0 && sortedMembers.every((m) => selectedIds.has(m.id));
+  const someVisibleSelected = sortedMembers.some((m) => selectedIds.has(m.id));
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
   if (loading) {
@@ -354,22 +420,50 @@ export default function GroupDetailPage() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefreshProfiles}
-              disabled={refreshing || members.length === 0}
-            >
-              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
-              {refreshing ? "Refreshing..." : "Refresh Profiles"}
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => routerRef.current.push(`/groups/${groupId}/add`)}
-            >
-              <Plus className="h-4 w-4" />
-              Add
-            </Button>
+            {editMode ? (
+              <>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBatchDelete}
+                  disabled={selectedIds.size === 0 || batchDeleting}
+                >
+                  <Minus className="h-4 w-4" />
+                  {batchDeleting
+                    ? "Removing..."
+                    : `Remove${selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}`}
+                </Button>
+                <Button variant="outline" size="sm" onClick={toggleEditMode}>
+                  <X className="h-4 w-4" />
+                  Done
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefreshProfiles}
+                  disabled={refreshing || members.length === 0}
+                >
+                  <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+                  {refreshing ? "Refreshing..." : "Refresh Profiles"}
+                </Button>
+                {members.length > 0 && (
+                  <Button variant="outline" size="sm" onClick={toggleEditMode}>
+                    <Pencil className="h-4 w-4" />
+                    Edit
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  onClick={() => routerRef.current.push(`/groups/${groupId}/add`)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -413,6 +507,19 @@ export default function GroupDetailPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
+                    {editMode && (
+                      <th className="px-4 py-3 w-10">
+                        <input
+                          type="checkbox"
+                          checked={allVisibleSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected;
+                          }}
+                          onChange={toggleSelectAll}
+                          className="h-4 w-4 rounded border-input accent-primary"
+                        />
+                      </th>
+                    )}
                     <SortHeader field="displayName" label="User" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortHeader field="followers" label="Followers" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-right" />
                     <SortHeader field="following" label="Following" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-right" />
@@ -421,7 +528,9 @@ export default function GroupDetailPage() {
                     <SortHeader field="lastTweet" label="Last Tweet" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-right" />
                     <SortHeader field="activity" label="Activity" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-center" />
                     <SortHeader field="addedAt" label="Added" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="text-right" />
-                    <th className="px-4 py-3 text-right font-medium text-muted-foreground w-10" />
+                    {!editMode && (
+                      <th className="px-4 py-3 text-right font-medium text-muted-foreground w-10" />
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -429,6 +538,9 @@ export default function GroupDetailPage() {
                     <MemberRow
                       key={m.id}
                       member={m}
+                      editMode={editMode}
+                      selected={selectedIds.has(m.id)}
+                      onToggleSelect={() => toggleSelect(m.id)}
                       onDelete={() => setDeleteMember(m)}
                       onRefresh={() => refreshMemberProfile(m)}
                       refreshing={refreshingMemberId === m.id}
@@ -617,11 +729,17 @@ function formatCount(n: number): string {
 
 function MemberRow({
   member,
+  editMode,
+  selected,
+  onToggleSelect,
   onDelete,
   onRefresh,
   refreshing,
 }: {
   member: GroupMember;
+  editMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
   onDelete: () => void;
   onRefresh?: () => void;
   refreshing?: boolean;
@@ -636,7 +754,24 @@ function MemberRow({
   const activityCfg = ACTIVITY_CONFIG[activity];
 
   return (
-    <tr className="border-b last:border-b-0 hover:bg-muted/30 transition-colors group">
+    <tr
+      className={cn(
+        "border-b last:border-b-0 hover:bg-muted/30 transition-colors group",
+        editMode && selected && "bg-primary/5",
+      )}
+      onClick={editMode ? onToggleSelect : undefined}
+    >
+      {/* Checkbox (edit mode only) */}
+      {editMode && (
+        <td className="px-4 py-3 w-10" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={onToggleSelect}
+            className="h-4 w-4 rounded border-input accent-primary"
+          />
+        </td>
+      )}
       {/* User */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
@@ -748,31 +883,33 @@ function MemberRow({
         })}
       </td>
 
-      {/* Actions */}
-      <td className="px-4 py-3 text-right">
-        <div className="inline-flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          {onRefresh && (
+      {/* Actions (hidden in edit mode) */}
+      {!editMode && (
+        <td className="px-4 py-3 text-right">
+          <div className="inline-flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            {onRefresh && (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={onRefresh}
+                disabled={refreshing}
+                title="Refresh profile"
+              >
+                <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon-xs"
-              onClick={onRefresh}
-              disabled={refreshing}
-              title="Refresh profile"
+              onClick={onDelete}
+              title="Remove"
+              className="text-destructive hover:text-destructive"
             >
-              <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
+              <Trash2 className="h-3 w-3" />
             </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={onDelete}
-            title="Remove"
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        </div>
-      </td>
+          </div>
+        </td>
+      )}
     </tr>
   );
 }

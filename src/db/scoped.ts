@@ -1540,6 +1540,21 @@ export class GroupMembersRepo {
     return result.changes > 0;
   }
 
+  /** Delete multiple members by IDs. Returns number deleted. */
+  deleteByIds(ids: number[]): number {
+    if (ids.length === 0) return 0;
+    const result = db
+      .delete(groupMembers)
+      .where(
+        and(
+          inArray(groupMembers.id, ids),
+          eq(groupMembers.userId, this.userId),
+        ),
+      )
+      .run();
+    return result.changes;
+  }
+
   /** Delete all members in a group. Returns number deleted. */
   deleteByGroupId(groupId: number): number {
     const result = db
