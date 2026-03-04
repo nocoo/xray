@@ -211,12 +211,6 @@ export default function GroupDetailPage() {
         const json = await res.json().catch(() => null);
 
         if (res.ok && json?.success) {
-          // Link profiles if this member has no twitter_id yet
-          if (!m.twitterId) {
-            await fetch(`/api/groups/${groupId}/members/link-profiles`, {
-              method: "POST",
-            });
-          }
           resolved++;
         } else {
           failed++;
@@ -228,6 +222,10 @@ export default function GroupDetailPage() {
       // Reload member list after each individual refresh
       await loadMembers();
     }
+
+    // Backfill twitter_id on all members that are still missing it
+    await fetch(`/api/groups/${groupId}/members/link-profiles`, { method: "POST" });
+    await loadMembers();
 
     if (failed > 0) {
       setRefreshStatus(
@@ -253,11 +251,10 @@ export default function GroupDetailPage() {
           body: JSON.stringify({ usernames: [member.twitterUsername] }),
         });
         if (res.ok) {
-          if (!member.twitterId) {
-            await fetch(`/api/groups/${groupId}/members/link-profiles`, {
-              method: "POST",
-            });
-          }
+          // Backfill twitter_id if missing
+          await fetch(`/api/groups/${groupId}/members/link-profiles`, {
+            method: "POST",
+          });
           await loadMembers();
         }
       } catch {
