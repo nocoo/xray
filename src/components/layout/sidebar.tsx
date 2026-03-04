@@ -81,7 +81,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "My Account",
     defaultOpen: true,
     items: [
-      // Watchlists injected dynamically — these are the static items
+      // Watchlists + Groups injected dynamically — these are the static items
       { href: "/analytics", label: "Analytics", icon: TrendingUp },
       { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
       { href: "/likes", label: "Likes", icon: Heart },
@@ -112,7 +112,7 @@ const NAV_GROUPS: NavGroup[] = [
 const navSections: NavSection[] = [
   { title: null, items: NAV_GROUPS[0]!.items },
   { title: "Explore World", items: NAV_GROUPS[1]!.items },
-  { title: "My Account", items: [{ href: "/watchlist", label: "Watchlists", icon: Eye }, ...NAV_GROUPS[2]!.items] },
+  { title: "My Account", items: [{ href: "/watchlist", label: "Watchlists", icon: Eye }, { href: "/groups", label: "Groups", icon: Users }, ...NAV_GROUPS[2]!.items] },
   { title: "Integrations", items: NAV_GROUPS[3]!.items },
   { title: null, items: NAV_GROUPS[4]!.items },
 ];
@@ -158,6 +158,48 @@ function useWatchlists() {
   }, [refresh]);
 
   return { watchlists, loading, refresh };
+}
+
+// =============================================================================
+// Group sidebar data
+// =============================================================================
+
+interface SidebarGroup {
+  id: number;
+  name: string;
+  icon: string;
+}
+
+function useGroups() {
+  const [groups, setGroups] = useState<SidebarGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/groups");
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setGroups(
+          json.data.map((g: { id: number; name: string; icon: string }) => ({
+            id: g.id,
+            name: g.name,
+            icon: g.icon,
+          })),
+        );
+      }
+    } catch {
+      // Silently fail — sidebar should never break the app
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { groups, loading, refresh };
 }
 
 function isActive(pathname: string, href: string): boolean {
@@ -369,6 +411,84 @@ function WatchlistGroup({
 }
 
 // =============================================================================
+// Groups sidebar group (expanded mode)
+// =============================================================================
+
+function GroupsGroup({
+  groups,
+  pathname,
+}: {
+  groups: SidebarGroup[];
+  pathname: string;
+}) {
+  const [expanded, setExpanded] = useState(true);
+
+  return (
+    <div>
+      {/* Groups header — clickable to toggle */}
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-normal transition-colors text-muted-foreground hover:bg-accent hover:text-foreground"
+      >
+        <Users className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+        <span className="flex-1 text-left">Groups</span>
+        <ChevronRight
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
+            expanded && "rotate-90",
+          )}
+          strokeWidth={1.5}
+        />
+      </button>
+
+      {/* Expandable group items */}
+      {expanded && (
+        <div className="ml-3 flex flex-col gap-0.5">
+          {groups.map((g) => {
+            const GIcon = resolveIcon(g.icon);
+            const href = `/groups/${g.id}`;
+            const active = isActive(pathname, href);
+            return (
+              <Link
+                key={g.id}
+                href={href}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-normal transition-colors",
+                  active
+                    ? "bg-accent text-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex h-5 w-5 items-center justify-center rounded",
+                    getAvatarColor(g.name),
+                  )}
+                >
+                  <GIcon className="h-3 w-3 text-white" strokeWidth={2} />
+                </div>
+                <span className="flex-1 text-left truncate">{g.name}</span>
+              </Link>
+            );
+          })}
+          {/* New group button */}
+          <Link
+            href="/groups?new=1"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-normal transition-colors text-muted-foreground/60 hover:bg-accent hover:text-foreground"
+          >
+            <div className="flex h-5 w-5 items-center justify-center rounded border border-dashed border-muted-foreground/30">
+              <Plus className="h-3 w-3" strokeWidth={2} />
+            </div>
+            <span className="flex-1 text-left">New group</span>
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
 // Main Sidebar component
 // =============================================================================
 
@@ -377,6 +497,7 @@ export function Sidebar() {
   const { collapsed, toggle } = useSidebar();
   const { data: session } = useSession();
   const { watchlists } = useWatchlists();
+  const { groups } = useGroups();
 
   // Defer pathname to avoid hydration mismatch — vinext SSR may return a
   // different pathname than the client, causing className diff on active links.
@@ -439,12 +560,18 @@ export function Sidebar() {
               {NAV_GROUPS.map((group, gIdx) => (
                 <div key={group.label} className="flex flex-col items-center gap-1">
                   {gIdx > 0 && <div className="my-1 h-px w-6 bg-border" />}
-                  {/* Inject Watchlists icon in "My Account" group */}
+                  {/* Inject Watchlists + Groups icons in "My Account" group */}
                   {group.label === "My Account" && (
-                    <CollapsedNavLink
-                      item={{ href: "/watchlist", label: "Watchlists", icon: Eye }}
-                      pathname={pathname}
-                    />
+                    <>
+                      <CollapsedNavLink
+                        item={{ href: "/watchlist", label: "Watchlists", icon: Eye }}
+                        pathname={pathname}
+                      />
+                      <CollapsedNavLink
+                        item={{ href: "/groups", label: "Groups", icon: Users }}
+                        pathname={pathname}
+                      />
+                    </>
                   )}
                   {group.items.map((item) => (
                     <CollapsedNavLink
@@ -535,12 +662,18 @@ export function Sidebar() {
                     group={group}
                     pathname={pathname}
                   >
-                    {/* Inject WatchlistGroup inside "My Account" */}
+                    {/* Inject WatchlistGroup + GroupsGroup inside "My Account" */}
                     {group.label === "My Account" && (
-                      <WatchlistGroup
-                        watchlists={watchlists}
-                        pathname={pathname}
-                      />
+                      <>
+                        <WatchlistGroup
+                          watchlists={watchlists}
+                          pathname={pathname}
+                        />
+                        <GroupsGroup
+                          groups={groups}
+                          pathname={pathname}
+                        />
+                      </>
                     )}
                   </NavGroupSection>
                 ))}
