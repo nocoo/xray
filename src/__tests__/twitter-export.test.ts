@@ -80,4 +80,71 @@ describe("parseTwitterExportFile", () => {
 ]  `;
     expect(parseTwitterExportFile(content)).toEqual(["789"]);
   });
+
+  // --- JS object literal format (unquoted keys + trailing commas) ---
+
+  test("parses unquoted keys with trailing commas (following)", () => {
+    const content = `window.YTD.following.part0 = [
+  {
+    following: {
+      accountId: "20567308",
+      userLink: "https://twitter.com/intent/user?user_id=20567308",
+    },
+  },
+  {
+    following: {
+      accountId: "242607677",
+      userLink: "https://twitter.com/intent/user?user_id=242607677",
+    },
+  },
+];`;
+    const result = parseTwitterExportFile(content);
+    expect(result).toEqual(["20567308", "242607677"]);
+  });
+
+  test("parses unquoted keys with trailing commas (follower)", () => {
+    const content = `window.YTD.follower.part0 = [
+  {
+    follower: {
+      accountId: "111222",
+      userLink: "https://twitter.com/intent/user?user_id=111222",
+    },
+  },
+];`;
+    const result = parseTwitterExportFile(content);
+    expect(result).toEqual(["111222"]);
+  });
+
+  test("handles mixed: some entries with trailing commas, some without", () => {
+    const content = `window.YTD.following.part0 = [
+  {
+    following: {
+      accountId: "100",
+      userLink: "https://twitter.com/intent/user?user_id=100"
+    }
+  },
+  {
+    following: {
+      accountId: "200",
+      userLink: "https://twitter.com/intent/user?user_id=200",
+    },
+  }
+]`;
+    const result = parseTwitterExportFile(content);
+    expect(result).toEqual(["100", "200"]);
+  });
+
+  test("handles large unquoted-key export", () => {
+    const entries = Array.from(
+      { length: 500 },
+      (_, i) =>
+        `  {\n    following: {\n      accountId: "${i + 1}",\n    },\n  }`,
+    );
+    const content = `window.YTD.following.part0 = [\n${entries.join(",\n")}\n]`;
+    const result = parseTwitterExportFile(content);
+    expect(result).not.toBeNull();
+    expect(result!.length).toBe(500);
+    expect(result![0]).toBe("1");
+    expect(result![499]).toBe("500");
+  });
 });
