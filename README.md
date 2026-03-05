@@ -171,6 +171,10 @@ docker run -p 7027:7027 -v xray-data:/app/database xray
 - 设置 `XRAY_DATA_DIR` 指向 Volume 挂载路径
 - 设置 `HOSTNAME=0.0.0.0` (Dockerfile 中已内置)
 
+## 🙏 鸣谢
+
+- **[TweAPI](https://tweapi.io)** — 本项目的 Twitter/X 数据全部通过 TweAPI 获取。毫秒级实时推文 API，无需 Twitter 开发者认证，按量付费，开发者友好。感谢作者 [@PennyJoly](https://x.com/PennyJoly) 提供如此优秀的服务。
+
 ## 📄 License
 
 [MIT](LICENSE) © 2026
