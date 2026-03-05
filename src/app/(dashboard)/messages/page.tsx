@@ -6,7 +6,7 @@ import { LoadingSpinner, ErrorBanner, EmptyState } from "@/components/ui/feedbac
 import { Inbox, MessageSquare, Circle } from "lucide-react";
 import { useFetch } from "@/hooks/use-api";
 
-import type { InboxItem } from "../../../shared/types";
+import type { InboxItem } from "../../../../shared/types";
 
 // We intentionally use <img> for external Twitter profile images.
 
