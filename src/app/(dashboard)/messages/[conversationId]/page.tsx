@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useBreadcrumbs } from "@/components/layout";
 import { Loader2, ArrowLeft, MessageSquare } from "lucide-react";
 
-import type { Conversation } from "../../../../shared/types";
+import type { Conversation } from "../../../../../shared/types";
 
 // We intentionally use <img> for external Twitter profile images.
 
