@@ -48,7 +48,8 @@ export function useColumns(): number {
       }
 
       // Height bonus: +1 column on tall screens (capped at MAX_COLS)
-      if (tallMql.matches && baseCols >= 4) {
+      // Only kicks in at 5+ base cols so that 4-col range stays visible.
+      if (tallMql.matches && baseCols >= 5) {
         baseCols = Math.min(baseCols + 1, MAX_COLS);
       }
 
