@@ -7,11 +7,12 @@ import { useState, useEffect } from "react";
 // Only fires when a breakpoint boundary is actually crossed, not on every
 // resize pixel.
 //
-// Width breakpoints:
-//   >= 1920px → 6 cols  (ultra-wide / large external monitor)
-//   >= 1536px → 5 cols  (2xl)
-//   >= 1280px → 4 cols  (xl)
-//   >= 1024px → 3 cols  (lg)
+// Width breakpoints (optimised for ~300-400px card width after sidebar):
+//   >= 2560px → 6 cols  (27" external monitor)
+//   >= 1920px → 5 cols  (1080p full-screen)
+//   >= 1536px → 4 cols  (2xl)
+//   >= 1280px → 3 cols  (xl)
+//   >= 1024px → 2 cols  (lg / laptop narrow window)
 //   >=  640px → 2 cols  (sm)
 //   default   → 1 col
 //
@@ -21,10 +22,11 @@ import { useState, useEffect } from "react";
 // =============================================================================
 
 const WIDTH_BREAKPOINTS = [
-  { query: "(min-width: 1920px)", cols: 6 },
-  { query: "(min-width: 1536px)", cols: 5 }, // 2xl
-  { query: "(min-width: 1280px)", cols: 4 }, // xl
-  { query: "(min-width: 1024px)", cols: 3 }, // lg
+  { query: "(min-width: 2560px)", cols: 6 }, // 27" / QHD
+  { query: "(min-width: 1920px)", cols: 5 }, // 1080p
+  { query: "(min-width: 1536px)", cols: 4 }, // 2xl
+  { query: "(min-width: 1280px)", cols: 3 }, // xl
+  { query: "(min-width: 1024px)", cols: 2 }, // lg
   { query: "(min-width: 640px)", cols: 2 },  // sm
 ];
 
