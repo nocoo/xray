@@ -17,20 +17,22 @@
 </p>
 
 <p align="center">
-  <img src="https://s.zhe.to/dcd0e6e42358/20260302/17ab9eca-f303-4e1e-8c4f-65a0a30e3041.jpg" alt="X-Ray Preview" width="720">
+  <img src="https://s.zhe.to/dcd0e6e42358/20260305/7e86d7bf-2db7-4163-853e-e4d11961db33.jpg" alt="X-Ray Preview" width="720">
 </p>
 
 ---
 
 ## ✨ 功能特点
 
-- 📡 **推文探索** — 搜索全网推文，查看详情与回复链
-- 👤 **用户分析** — 用户画像、时间线、高光推文、关注关系
-- 📊 **个人分析** — 账号指标、趋势图表、书签与点赞管理
+- 📋 **Watchlist 观察名单** — 创建多个观察名单，自动拉取成员推文，SSE 实时推送进度，支持自动翻译与 AI 洞察
+- 👥 **Groups 分组管理** — 自定义分组、批量导入（`following.js` / `followers.js`）、批量编辑与删除、活跃度评估
+- 📡 **推文探索** — 全网推文搜索，详情与回复链，统一操作栏（打开 / 翻译 / 保存到 zhe.to）
+- 👤 **用户分析** — 用户画像、时间线、高光推文、关注关系（Followers / Following / Affiliates）
+- 📊 **个人数据** — 账号指标、趋势图表、书签与点赞（Masonry 瀑布流布局）
 - 💬 **私信查看** — 收件箱浏览与对话线程
-- 🤖 **AI 分析** — Claude 识别高价值内容并生成洞察报告
-- 📝 **Markdown 报告** — 杂志风格报告并同步到 Obsidian
-- 🔒 **隐私优先** — 数据完全存储在本地 SQLite
+- 🤖 **AI 翻译** — 信达雅风格中文翻译 + 锐评，支持单条翻译与批量自动翻译
+- 🔗 **zhe.to 集成** — 一键保存推文到 zhe.to 书签服务
+- 🔒 **隐私优先** — 数据完全存储在本地 SQLite，Google OAuth 认证
 
 ## 🚀 快速开始
 
@@ -86,63 +88,42 @@ bun dev
 x-ray/
 ├── 📂 database/                  # SQLite 数据库文件
 │   └── xray.db                   # 生产数据 (gitignored)
-├── 📂 docs/                      # 项目文档
-│   ├── 01-overview.md            # 项目概览
-│   ├── 02-architecture.md        # 架构设计
-│   ├── 03-run-and-scripts.md     # 运行与脚本
-│   ├── 04-testing.md             # 测试策略
-│   ├── 05-config-and-data.md     # 配置与数据
-│   ├── 06-api-tweapi.md          # TweAPI 接口文档
-│   ├── 07-agent-scripts.md       # Agent 脚本说明
-│   ├── 07-xray-web.md            # Web 端文档
-│   ├── 08-deployment.md          # 部署指南
-│   ├── 09-dashboard-api-roadmap.md # API 路线图
-│   └── api.md                    # REST API 文档
+├── 📂 shared/                    # 跨层共享类型定义
+│   └── types.ts                  # Tweet, UserInfo, Conversation 等
 ├── 📂 agent/                     # AI Agent 原子化工具
 │   ├── 📂 analyze/               # 分析工具
 │   ├── 📂 fetch/                 # 数据拉取
-│   ├── 📂 research/              # 研究分析脚本
 │   └── 📂 workflow/              # 工作流编排
 ├── 📂 scripts/                   # CLI 工具脚本
-│   ├── 📂 lib/                   # 共享库
-│   ├── fetch-tweets.ts           # 拉取推文
-│   ├── fetch-me-data.ts          # 拉取个人数据
-│   ├── generate-watchlist-report.ts # 生成观察名单报告
-│   └── generate-me-report.ts     # 生成个人报告
-├── 📂 skills/                    # Claude Skills (标准化流程)
-│   ├── xray-watchlist/           # 观察名单技能
-│   └── xray-me/                  # 个人分析技能
 ├── 📂 src/
 │   ├── 📂 __tests__/             # 单元测试 + API E2E 测试
-│   ├── 📂 app/                   # Next.js App Router
-│   │   ├── 📂 api/               # API 路由
-│   │   ├── 📂 analytics/         # 个人分析页面
-│   │   ├── 📂 tweets/            # 推文探索页面
-│   │   ├── 📂 users/             # 用户分析页面
-│   │   ├── 📂 bookmarks/         # 书签页面
-│   │   ├── 📂 likes/             # 点赞页面
-│   │   ├── 📂 lists/             # 列表页面
-│   │   ├── 📂 messages/          # 私信页面
-│   │   ├── 📂 usage/             # 用量统计页面
-│   │   ├── 📂 settings/          # 设置页面
-│   │   └── page.tsx              # 仪表盘 (首页)
+│   ├── 📂 app/
+│   │   ├── 📂 api/               # API 路由 (session auth + webhook auth)
+│   │   └── 📂 (dashboard)/       # 认证页面 (共享 AppShell 布局)
+│   │       ├── 📂 watchlist/     # 观察名单 (列表/详情/日志)
+│   │       ├── 📂 groups/        # 分组管理
+│   │       ├── 📂 tweets/        # 推文探索
+│   │       ├── 📂 users/         # 用户分析
+│   │       ├── 📂 bookmarks/     # 书签 (Masonry 布局)
+│   │       ├── 📂 likes/         # 点赞 (Masonry 布局)
+│   │       ├── 📂 messages/      # 私信
+│   │       ├── 📂 analytics/     # 个人分析
+│   │       ├── 📂 settings/      # 设置
+│   │       ├── 📂 integrations/  # 第三方集成 (zhe.to)
+│   │       └── layout.tsx        # 共享布局 + useBreadcrumbs
 │   ├── 📂 components/            # UI 组件
 │   │   ├── 📂 layout/            # 布局组件 (Sidebar, AppShell)
-│   │   ├── 📂 twitter/           # Twitter 业务组件
-│   │   └── 📂 ui/                # shadcn/ui 基础组件
+│   │   ├── 📂 twitter/           # Twitter 业务组件 (TweetCard, UserCard)
+│   │   └── 📂 ui/                # shadcn/ui + MasonryGrid
+│   ├── 📂 hooks/                 # 自定义 Hooks
+│   │   ├── use-api.ts            # useFetch, useSearch, useMutation
+│   │   └── use-columns.ts        # 响应式列数 (matchMedia)
 │   ├── 📂 db/                    # 数据库层
 │   │   ├── schema.ts             # Drizzle schema
 │   │   ├── scoped.ts             # ScopedDB — 按用户隔离的 CRUD
 │   │   └── index.ts              # 连接管理
-│   ├── 📂 lib/                   # 工具函数
-│   │   ├── 📂 twitter/           # Twitter Provider 层
-│   │   ├── auth-adapter.ts       # NextAuth SQLite adapter
-│   │   ├── auth-context.ts       # React.cache 认证上下文
-│   │   └── version.ts            # 版本管理 (读取 package.json)
-│   └── auth.ts                   # NextAuth 配置 (JWT + adapter)
-├── 📂 tests/                     # Agent / 脚本测试
+│   └── 📂 lib/                   # 工具函数与 Provider 层
 ├── .env.example                  # 环境变量示例
-├── drizzle.config.ts             # Drizzle ORM 配置
 ├── Dockerfile                    # Docker 容器化
 └── package.json                  # 版本 & 依赖 (唯一版本源)
 ```
