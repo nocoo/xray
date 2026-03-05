@@ -21,7 +21,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Config
 // ---------------------------------------------------------------------------
 
-const TWEAPI_KEY = "***REMOVED***";
+const TWEAPI_KEY = process.env.TWEAPI_KEY;
+if (!TWEAPI_KEY) {
+  console.error("Error: TWEAPI_KEY environment variable is required");
+  process.exit(1);
+}
 const TWEAPI_BASE = "https://api.tweapi.io";
 const CONCURRENCY = 5;
 const TIMEOUT_MS = 15_000;
