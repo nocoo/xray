@@ -5,19 +5,20 @@ import { usePathname } from "next/navigation";
 import { Menu, Github } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { SidebarProvider, useSidebar } from "./sidebar-context";
+import { BreadcrumbsProvider, useBreadcrumbsValue } from "./breadcrumbs-context";
 import { ThemeToggle } from "./theme-toggle";
 import { Breadcrumbs } from "./breadcrumbs";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface AppShellProps {
   children: React.ReactNode;
-  breadcrumbs?: { label: string; href?: string }[];
 }
 
-function AppShellInner({ children, breadcrumbs = [] }: AppShellProps) {
+function AppShellInner({ children }: { children: React.ReactNode }) {
   const isMobile = useIsMobile();
   const { mobileOpen, setMobileOpen } = useSidebar();
   const pathname = usePathname();
+  const breadcrumbs = useBreadcrumbsValue();
 
   // Close mobile sidebar on route change
   useEffect(() => {
@@ -100,10 +101,12 @@ function AppShellInner({ children, breadcrumbs = [] }: AppShellProps) {
   );
 }
 
-export function AppShell({ children, breadcrumbs = [] }: AppShellProps) {
+export function AppShell({ children }: AppShellProps) {
   return (
     <SidebarProvider>
-      <AppShellInner breadcrumbs={breadcrumbs}>{children}</AppShellInner>
+      <BreadcrumbsProvider>
+        <AppShellInner>{children}</AppShellInner>
+      </BreadcrumbsProvider>
     </SidebarProvider>
   );
 }
