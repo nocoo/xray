@@ -1,4 +1,4 @@
-import type { Tweet } from "../../../../shared/types";
+import type { Tweet } from "../../../../../shared/types";
 
 // =============================================================================
 // Shared types for watchlist pages (mirroring API response shapes)
