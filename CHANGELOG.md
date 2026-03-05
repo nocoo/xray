@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-03-05
+
+### Fixed
+
+- **Masonry column breakpoints** — evenly spaced 3/4/5-col breakpoints at 512px intervals (1024/1536/2048) for balanced coverage across screen sizes; raised tall-screen bonus threshold to 5+ base cols so that the 4-column range is no longer skipped
+
 ## [1.6.0] - 2026-03-05
 
 ### Added
