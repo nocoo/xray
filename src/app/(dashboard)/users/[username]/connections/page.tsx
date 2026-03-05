@@ -6,7 +6,7 @@ import { useBreadcrumbs } from "@/components/layout";
 import { UserCardCompact } from "@/components/twitter/user-card";
 import { Loader2 } from "lucide-react";
 
-import type { UserInfo } from "../../../../../shared/types";
+import type { UserInfo } from "../../../../../../shared/types";
 
 // =============================================================================
 // Tab definitions
