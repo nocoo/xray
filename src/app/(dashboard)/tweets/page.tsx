@@ -9,7 +9,7 @@ import { ErrorBanner, EmptyState } from "@/components/ui/feedback";
 import { Search, ArrowUpDown, Loader2 } from "lucide-react";
 import { useSearch } from "@/hooks/use-api";
 
-import type { Tweet } from "../../../shared/types";
+import type { Tweet } from "../../../../shared/types";
 
 // =============================================================================
 // Tweets Search Page
