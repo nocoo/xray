@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Search } from "lucide-react";
 
-import type { UserInfo, Tweet } from "../../../../shared/types";
+import type { UserInfo, Tweet } from "../../../../../shared/types";
 
 // =============================================================================
 // Tab definitions
