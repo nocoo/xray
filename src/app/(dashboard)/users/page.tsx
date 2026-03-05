@@ -10,7 +10,7 @@ import { ErrorBanner, EmptyState } from "@/components/ui/feedback";
 import { Search, Loader2 } from "lucide-react";
 import { useSearch } from "@/hooks/use-api";
 
-import type { UserInfo } from "../../../shared/types";
+import type { UserInfo } from "../../../../shared/types";
 
 // =============================================================================
 // Users Search Page
