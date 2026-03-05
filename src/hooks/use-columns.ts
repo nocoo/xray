@@ -9,21 +9,25 @@ import { useState, useEffect } from "react";
 //
 // Width breakpoints (optimised for ~300-400px card width after sidebar):
 //   >= 2560px → 6 cols  (27" external monitor)
-//   >= 1920px → 5 cols  (1080p full-screen)
-//   >= 1280px → 4 cols  (xl — MacBook full-screen / typical desktop)
+//   >= 2048px → 5 cols  (large desktop)
+//   >= 1536px → 4 cols  (2xl / MacBook full-screen)
 //   >= 1024px → 3 cols  (lg)
 //   >=  768px → 2 cols  (md / tablet)
 //   default   → 1 col
 //
+// 3/4/5-col breakpoints are evenly spaced at ~512px intervals across
+// the 1024–2560px range for balanced coverage.
+//
 // Height bonus: on very tall screens (>= 1200px tall) and wide enough
 // (>= 1280px), add 1 extra column (capped at 6) to utilise the vertical
-// real-estate better.
+// real-estate better. Only kicks in at 5+ base cols so that 4-col range
+// stays visible.
 // =============================================================================
 
 const WIDTH_BREAKPOINTS = [
   { query: "(min-width: 2560px)", cols: 6 }, // 27" / QHD
-  { query: "(min-width: 1920px)", cols: 5 }, // 1080p
-  { query: "(min-width: 1280px)", cols: 4 }, // xl
+  { query: "(min-width: 2048px)", cols: 5 }, // large desktop
+  { query: "(min-width: 1536px)", cols: 4 }, // 2xl
   { query: "(min-width: 1024px)", cols: 3 }, // lg
   { query: "(min-width: 768px)", cols: 2 },  // md
 ];
