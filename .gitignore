@@ -56,3 +56,6 @@ npm-debug.log*
 # Next.js / vinext
 next-env.d.ts
 tsconfig.tsbuildinfo
+
+# BFG repo cleaner output
+..bfg-report/
