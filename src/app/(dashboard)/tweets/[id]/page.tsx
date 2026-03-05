@@ -6,7 +6,7 @@ import { useBreadcrumbs } from "@/components/layout";
 import { TweetCard } from "@/components/twitter/tweet-card";
 import { Loader2, MessageCircle } from "lucide-react";
 
-import type { Tweet } from "../../../../shared/types";
+import type { Tweet } from "../../../../../shared/types";
 
 // =============================================================================
 // Tweet Detail Page — shows tweet details + reply thread
