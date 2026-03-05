@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { resolveIcon } from "@/components/ui/icon-picker";
-import type { MemberProfileData } from "@/app/watchlist/_lib/types";
+import type { MemberProfileData } from "@/app/(dashboard)/watchlist/_lib/types";
 
 // =============================================================================
 // Types
