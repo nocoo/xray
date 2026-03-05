@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-03-05
+
+### Added
+
+- **Unified TweetCard action bar** — every tweet card now displays a consistent bottom bar with Open (external link), Translate (inline 信达雅), and zhe.to Save buttons; replaces per-page ad-hoc actions
+- **Generic `/api/translate` endpoint** — standalone translation route for any tweet by ID, decoupled from the watchlist pipeline
+- **Linkify tweet text** — URLs in tweet text (t.co and other https links) are now clickable with external link styling
+- **Photo hover zoom overlay** — magnifying glass icon appears on hover over photo grid items
+- **Quoted tweet author clickable** — quoted tweet author name and avatar now link to the user's X profile with external link icon
+- **Masonry layout for bookmarks & likes** — bookmarks and likes pages now use the shared `MasonryGrid` component for responsive column layout
+- **Batch edit mode for groups** — group detail page supports multi-select members with batch delete
+- **`followers.js` export format** — twitter export parser now supports `followers.js` in addition to `following.js`
+- **User-paced batch resolution** — import dialog uses cooldown timer between batches and deduplicates by `twitterId` to avoid redundant API calls
+
+### Changed
+
+- **`(dashboard)` route group** — all authenticated pages moved into `src/app/(dashboard)/` with a shared `layout.tsx` and `useBreadcrumbs` hook, replacing per-page `<AppShell>` wrappers
+- **WatchlistPostCard simplified** — delegates rendering and action bar entirely to `TweetCard`, reducing the component to a thin wrapper
+- **Tweet type badges relocated** — Reply, Quote, and Retweet badges moved from inline to the card's top-right corner
+- **Author row streamlined** — external link icon removed from the tweet card author row (now available in the action bar)
+- **Watchlist header compressed** — 5-zone header consolidated into a single toolbar row
+
+### Fixed
+
+- **Route group import paths** — 15 TypeScript errors across 10 files from the `(dashboard)` migration; all `shared/types` relative imports updated for the extra nesting level, and `@/app/watchlist/` alias corrected to `@/app/(dashboard)/watchlist/`
+- **Watchlist member CRUD reactivity** — member add/edit/delete now uses local state updates instead of triggering a full page reload
+- **Twitter export parser** — handles unquoted JS keys, trailing commas, and numeric IDs (resolves to real usernames before import)
+- **Import dedup** — pre-filters export IDs against existing group members to skip already-imported users
+- **Batch resolve stability** — reduced batch size to 10, added `AbortController` for instant cancel, removed drop zone opacity flash
+
 ## [1.4.0] - 2026-03-04
 
 ### Added
