@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useBreadcrumbs } from "@/components/layout";
 import { Loader2, List, Users, Eye } from "lucide-react";
 
-import type { TwitterList } from "../../../shared/types";
+import type { TwitterList } from "../../../../shared/types";
 
 // =============================================================================
 // Lists Page — displays the user's Twitter lists
