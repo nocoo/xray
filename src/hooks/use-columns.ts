@@ -10,10 +10,9 @@ import { useState, useEffect } from "react";
 // Width breakpoints (optimised for ~300-400px card width after sidebar):
 //   >= 2560px → 6 cols  (27" external monitor)
 //   >= 1920px → 5 cols  (1080p full-screen)
-//   >= 1440px → 4 cols  (common MacBook scaled / 2xl-)
-//   >= 1280px → 3 cols  (xl)
-//   >= 1024px → 2 cols  (lg / laptop narrow window)
-//   >=  640px → 2 cols  (sm)
+//   >= 1280px → 4 cols  (xl — MacBook full-screen / typical desktop)
+//   >= 1024px → 3 cols  (lg)
+//   >=  768px → 2 cols  (md / tablet)
 //   default   → 1 col
 //
 // Height bonus: on very tall screens (>= 1200px tall) and wide enough
@@ -24,10 +23,9 @@ import { useState, useEffect } from "react";
 const WIDTH_BREAKPOINTS = [
   { query: "(min-width: 2560px)", cols: 6 }, // 27" / QHD
   { query: "(min-width: 1920px)", cols: 5 }, // 1080p
-  { query: "(min-width: 1440px)", cols: 4 }, // common MacBook scaled
-  { query: "(min-width: 1280px)", cols: 3 }, // xl
-  { query: "(min-width: 1024px)", cols: 2 }, // lg
-  { query: "(min-width: 640px)", cols: 2 },  // sm
+  { query: "(min-width: 1280px)", cols: 4 }, // xl
+  { query: "(min-width: 1024px)", cols: 3 }, // lg
+  { query: "(min-width: 768px)", cols: 2 },  // md
 ];
 
 const TALL_SCREEN_QUERY = "(min-height: 1200px) and (min-width: 1280px)";
