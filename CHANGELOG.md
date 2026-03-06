@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-03-06
+
+### Added
+
+- **vinext 0.0.21 upgrade** — 12 versions of fixes from vinext 0.0.9, improving RSC compatibility, font handling, and route handler stability
+
+### Changed
+
+- **ESLint 9 → 10** — major ESLint upgrade with typescript-eslint bumped to 8.56.1
+- **AI SDK upgraded** — `ai` and `@ai-sdk/openai` bumped to latest patch versions
+- **lucide-react 0.575.0 → 0.577.0** — icon library patch upgrade
+- **Semver ranges tightened** — `typescript` narrowed from `^5.0.0` to `^5.9.3`, `vite` from `^7.0.0` to `^7.3.1` to match installed versions
+- **Unused dependencies removed** — `@auth/drizzle-adapter`, `zod`, and `@vitejs/plugin-rsc` dropped from package.json
+
+### Fixed
+
+- **TweAPI key leak** — removed hardcoded API key from source; now reads exclusively from `TWEAPI_API_KEY` env var
+
+### Documentation
+
+- README updated with new preview image and refreshed feature list
+- TweAPI acknowledgement added to README
+
+### Housekeeping
+
+- Removed one-time migration script (`migrate-profiles.ts`)
+- Cleaned up `.bfg-report/` artifacts and added pattern to `.gitignore`
+
 ## [1.6.1] - 2026-03-05
 
 ### Fixed
