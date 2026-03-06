@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-03-06
+
+### Documentation
+
+- **Architecture doc rewritten** — reflects current vinext + ScopedDB stack with updated module structure
+- **Overview doc updated** — web dashboard as primary purpose, refreshed feature descriptions
+- **Run & scripts doc rewritten** — web app workflow as primary, scripts as secondary
+- **Config doc rewritten** — environment variables as primary configuration method
+- **Deployment doc updated** — vinext build/start commands, TWEAPI_API_KEY env var, fixed version reference
+- **API doc updated** — added 8 missing webhook API endpoints (lists, messages, conversation, credits, usage, analytics, bookmarks, likes)
+- **README refreshed** — added missing features (lists, AI settings, webhooks, usage), test scripts, and docs reference
+- **Project structure tree updated** — all pages, services, and directories reflected
+- Removed obsolete migration plan (`07-xray-web.md`)
+- Fixed playwright port, eslint version, and pre-push status in testing doc
+- Added TWEAPI_API_KEY to `.env.example` and README env vars section
+- Fixed Docker volume mount path and added required env vars to deployment doc
+
 ## [1.7.0] - 2026-03-06
 
 ### Added
