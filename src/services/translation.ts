@@ -16,6 +16,10 @@ import {
   type AiProvider,
   type SdkType,
 } from "@/services/ai";
+import { DEFAULT_TRANSLATION_TEMPLATE } from "@/services/prompt-defaults";
+
+// Re-export for convenience (server-side consumers can import from here)
+export { DEFAULT_TRANSLATION_TEMPLATE, PROMPT_TEMPLATE_VARIABLES } from "@/services/prompt-defaults";
 
 // ── Types ──
 
@@ -48,66 +52,42 @@ function loadAiSettingsForUser(userId: string) {
     model: map.get("ai.model") ?? "",
     baseURL: map.get("ai.baseURL") ?? "",
     sdkType: map.get("ai.sdkType") ?? "",
+    translationPrompt: map.get("ai.translationPrompt") ?? "",
   };
 }
 
-// ── Prompt ──
+// ── Prompt template ──
 
-const TRANSLATION_PROMPT = `你是一位兼具"信达雅"功力的翻译家，同时也是一位对世界充满好奇心的顶级报刊编辑。
+/**
+ * Render a prompt template with Mustache-style conditional blocks and variable substitution.
+ *
+ * 1. Process conditional blocks: `{{#引用原文}}...{{/引用原文}}`
+ *    - If `引用原文` is provided and non-empty → keep block content, substitute variable inside
+ *    - If absent or empty → remove entire block
+ * 2. Substitute value variables: `{{推文内容}}`, `{{引用原文}}`
+ * 3. Unknown variables are left as-is (no error, no removal)
+ * 4. If template is empty or missing `{{推文内容}}`, falls back to DEFAULT_TRANSLATION_TEMPLATE
+ */
+export function renderPrompt(template: string, vars: { 推文内容: string; 引用原文?: string }): string {
+  let t = template;
 
-请对以下推文完成两项任务，并严格按照指定格式输出：
+  // Fallback to default if template is empty or missing the required variable
+  if (!t.trim() || !t.includes("{{推文内容}}")) {
+    t = DEFAULT_TRANSLATION_TEMPLATE;
+  }
 
-## 任务一：翻译
-以"信达雅"标准将推文翻译为简体中文。
-- 保留技术术语、专有名词和 @提及原文不译。
-- 保留 #话题标签 原文不译。
-- 若推文本身已是中文，原样返回。
-- 保持原文的语气和风格。
+  // 1. Process conditional blocks: {{#引用原文}}...{{/引用原文}}
+  t = t.replace(
+    /\{\{#引用原文\}\}([\s\S]*?)\{\{\/引用原文\}\}/g,
+    (_, content) => (vars.引用原文 ? content : ""),
+  );
 
-## 任务二：锐评
-用1-2句中文写一段编辑锐评——以顶级报刊编辑的视角，用充满好奇心的笔触，点评这条推文为什么值得关注、背后有什么有趣的信号或洞察。要求犀利、有信息增量、不浮夸。
+  // 2. Substitute variables
+  t = t.replace(/\{\{推文内容\}\}/g, vars.推文内容);
+  t = t.replace(/\{\{引用原文\}\}/g, vars.引用原文 ?? "");
 
-## 输出格式（严格遵守，不要添加任何额外文字）
-
-[翻译]
-{翻译内容}
-
-[锐评]
-{锐评内容}
-
-推文内容：
-`;
-
-const TRANSLATION_WITH_QUOTE_PROMPT = `你是一位兼具"信达雅"功力的翻译家，同时也是一位对世界充满好奇心的顶级报刊编辑。
-
-以下推文引用了另一条推文。请对两条推文都进行翻译，并给出一段综合锐评。
-
-## 任务一：翻译推文正文
-以"信达雅"标准将推文正文翻译为简体中文。
-- 保留技术术语、专有名词和 @提及原文不译。
-- 保留 #话题标签 原文不译。
-- 若推文本身已是中文，原样返回。
-- 保持原文的语气和风格。
-
-## 任务二：翻译引用原文
-以同样标准翻译被引用的推文。
-
-## 任务三：锐评
-用1-2句中文写一段编辑锐评——以顶级报刊编辑的视角，结合推文正文和引用原文的上下文，点评这条推文为什么值得关注、背后有什么有趣的信号或洞察。要求犀利、有信息增量、不浮夸。
-
-## 输出格式（严格遵守，不要添加任何额外文字）
-
-[翻译]
-{推文正文的翻译}
-
-[引用翻译]
-{被引用推文的翻译}
-
-[锐评]
-{锐评内容}
-
-推文正文：
-`;
+  return t.trim();
+}
 
 // ── Response parser ──
 
@@ -199,12 +179,12 @@ export async function translateText(
 
   const client = createAiClient(config);
 
-  let prompt: string;
-  if (quotedText) {
-    prompt = TRANSLATION_WITH_QUOTE_PROMPT + text + "\n\n引用原文：\n" + quotedText;
-  } else {
-    prompt = TRANSLATION_PROMPT + text;
-  }
+  // Use custom template or fall back to default
+  const template = settings.translationPrompt || DEFAULT_TRANSLATION_TEMPLATE;
+  const prompt = renderPrompt(template, {
+    推文内容: text,
+    引用原文: quotedText,
+  });
 
   const { text: rawResponse } = await generateText({
     model: client(config.model),

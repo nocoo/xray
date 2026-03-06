@@ -20,6 +20,7 @@ function readAiSettings(db: ScopedDB) {
     model: map.get("ai.model") ?? "",
     baseURL: map.get("ai.baseURL") ?? "",
     sdkType: (map.get("ai.sdkType") ?? "") as SdkType | "",
+    translationPrompt: map.get("ai.translationPrompt") ?? "",
   };
 }
 
@@ -56,6 +57,7 @@ export async function PUT(request: Request) {
     model?: string;
     baseURL?: string;
     sdkType?: string;
+    translationPrompt?: string;
   };
 
   try {
@@ -99,6 +101,15 @@ export async function PUT(request: Request) {
   }
   if (body.sdkType !== undefined) {
     db.settings.upsert("ai.sdkType", body.sdkType);
+  }
+
+  // Translation prompt — empty string means "use default" (delete the override)
+  if (body.translationPrompt !== undefined) {
+    if (body.translationPrompt) {
+      db.settings.upsert("ai.translationPrompt", body.translationPrompt);
+    } else {
+      db.settings.deleteSetting("ai.translationPrompt");
+    }
   }
 
   const updated = readAiSettings(db);
