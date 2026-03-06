@@ -17,9 +17,9 @@ Railway (asia-southeast1)
 
 Three-stage build using `oven/bun:1`:
 
-1. **deps** — `bun install --frozen-lockfile`
-2. **builder** — `bun run build` (Next.js standalone output)
-3. **runner** — Copy standalone output, static files, public assets; start with `bun server.js`
+1. **deps** — `bun install --frozen-lockfile` (includes native build tools for better-sqlite3)
+2. **builder** — `bun run build` (vinext build → `dist/`)
+3. **runner** — Copy `dist/`, `public/`, `node_modules/`, config files; start with `bun node_modules/vinext/dist/cli.js start --port 7027`
 
 Key environment variables set in Dockerfile:
 
@@ -33,6 +33,7 @@ Key environment variables set in Dockerfile:
 
 | Variable | Purpose |
 |----------|---------|
+| `TWEAPI_API_KEY` | TweAPI API key for Twitter data |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | `NEXTAUTH_SECRET` | JWT signing secret |
@@ -50,7 +51,7 @@ SQLite database is stored on a Railway volume mounted at `/data`. The `XRAY_DATA
 
 ```
 GET /api/live
-→ {"status":"ok","version":"1.4.0","checks":{"database":"ok"}}
+→ {"status":"ok","version":"1.7.0","checks":{"database":"ok"}}
 ```
 
 ## Gotchas
@@ -64,9 +65,9 @@ Railway's custom `startCommand` behaves differently depending on the builder:
 
 **Fix**: Do NOT set a custom `startCommand` when using DOCKERFILE builder. Rely on the Dockerfile's `CMD` and `ENV` directives instead.
 
-### 2. Next.js standalone requires HOSTNAME=0.0.0.0
+### 2. vinext requires HOSTNAME=0.0.0.0
 
-Without `ENV HOSTNAME=0.0.0.0` in the Dockerfile, Next.js standalone `server.js` binds to the container's internal hostname (e.g., `6783221ac502`). Railway's reverse proxy cannot reach it.
+Without `ENV HOSTNAME=0.0.0.0` in the Dockerfile, the server binds to the container's internal hostname (e.g., `6783221ac502`). Railway's reverse proxy cannot reach it.
 
 **Fix**: Always set `ENV HOSTNAME=0.0.0.0` in the Dockerfile.
 
@@ -83,6 +84,7 @@ docker build -t xray .
 docker run -p 7027:7027 \
   -v $(pwd)/data:/data \
   -e XRAY_DATA_DIR=/data \
+  -e TWEAPI_API_KEY=... \
   -e GOOGLE_CLIENT_ID=... \
   -e GOOGLE_CLIENT_SECRET=... \
   -e NEXTAUTH_SECRET=... \
