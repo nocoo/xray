@@ -63,6 +63,60 @@ curl -H "X-Webhook-Key: xrk_..." \
   "https://xray.hexly.ai/api/twitter/users/karpathy/tweets?count=10"
 ```
 
+#### GET `/api/twitter/users/{username}/timeline`
+
+Fetch a user's timeline (all tweet types).
+
+```bash
+curl -H "X-Webhook-Key: xrk_..." \
+  "https://xray.hexly.ai/api/twitter/users/karpathy/timeline"
+```
+
+#### GET `/api/twitter/users/{username}/replies`
+
+Fetch a user's replies.
+
+```bash
+curl -H "X-Webhook-Key: xrk_..." \
+  "https://xray.hexly.ai/api/twitter/users/karpathy/replies"
+```
+
+#### GET `/api/twitter/users/{username}/highlights`
+
+Fetch a user's highlighted tweets.
+
+```bash
+curl -H "X-Webhook-Key: xrk_..." \
+  "https://xray.hexly.ai/api/twitter/users/karpathy/highlights"
+```
+
+#### GET `/api/twitter/users/{username}/followers`
+
+Fetch a user's followers.
+
+```bash
+curl -H "X-Webhook-Key: xrk_..." \
+  "https://xray.hexly.ai/api/twitter/users/karpathy/followers"
+```
+
+#### GET `/api/twitter/users/{username}/following`
+
+Fetch accounts a user is following.
+
+```bash
+curl -H "X-Webhook-Key: xrk_..." \
+  "https://xray.hexly.ai/api/twitter/users/karpathy/following"
+```
+
+#### GET `/api/twitter/users/{username}/affiliates`
+
+Fetch a user's affiliated accounts.
+
+```bash
+curl -H "X-Webhook-Key: xrk_..." \
+  "https://xray.hexly.ai/api/twitter/users/karpathy/affiliates"
+```
+
 #### GET `/api/twitter/users/{username}/search`
 
 Search within a specific user's tweets.
@@ -100,6 +154,15 @@ Fetch details of a specific tweet by ID.
 ```bash
 curl -H "X-Webhook-Key: xrk_..." \
   "https://xray.hexly.ai/api/twitter/tweets/1234567890"
+```
+
+#### GET `/api/twitter/tweets/{id}/replies`
+
+Fetch replies to a specific tweet.
+
+```bash
+curl -H "X-Webhook-Key: xrk_..." \
+  "https://xray.hexly.ai/api/twitter/tweets/1234567890/replies"
 ```
 
 ### Account Endpoints (Your Twitter Account)
@@ -142,6 +205,24 @@ curl -H "X-Webhook-Key: xrk_..." \
   "https://xray.hexly.ai/api/twitter/me/lists"
 ```
 
+#### GET `/api/twitter/me/inbox`
+
+Fetch your DM inbox.
+
+```bash
+curl -H "X-Webhook-Key: xrk_..." \
+  "https://xray.hexly.ai/api/twitter/me/inbox"
+```
+
+#### GET `/api/twitter/me/messages/{conversationId}`
+
+Fetch a specific DM conversation thread.
+
+```bash
+curl -H "X-Webhook-Key: xrk_..." \
+  "https://xray.hexly.ai/api/twitter/me/messages/abc123"
+```
+
 ### Health Check
 
 #### GET `/api/live`
@@ -157,7 +238,7 @@ Response:
 ```json
 {
   "status": "ok",
-  "version": "1.4.0",
+  "version": "1.7.0",
   "timestamp": 1771930542862,
   "uptime": 420,
   "runtime": "bun",
