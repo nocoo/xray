@@ -177,11 +177,15 @@ x-ray/
 | `bun run build` | 生产构建 |
 | `bun start` | 启动生产服务器 |
 | `bun test` | 运行单元测试 |
+| `bun run test:coverage` | 运行测试并生成覆盖率报告 |
+| `bun run test:e2e:browser` | 运行 Playwright 浏览器 E2E 测试 |
 | `bun run lint` | ESLint 检查 |
 | `bun run db:push` | 推送 schema 到数据库 |
 | `bun run db:studio` | 打开 Drizzle Studio |
 | `bun run db:generate` | 生成数据库迁移文件 |
 | `bun run db:migrate` | 执行数据库迁移 |
+
+> 📖 **详细文档**: 更多关于架构、测试、部署和 API 的文档请参阅 [`docs/`](docs/) 目录
 
 ## 🚢 部署
 
