@@ -138,7 +138,7 @@ x-ray/
 | 组件 | 选型 |
 |------|------|
 | ⚡ Runtime | [Bun](https://bun.sh) |
-| 🖥️ Framework | [vinext](https://github.com/nicolo-ribaudo/vinext) (Vite + Next.js API on Cloudflare Workers) |
+| 🖥️ Framework | [vinext](https://github.com/nicolo-ribaudo/vinext) (Vite + Next.js RSC) |
 | 📝 Language | TypeScript (strict mode) |
 | 🗄️ Database | SQLite + [Drizzle ORM](https://orm.drizzle.team) |
 | 🔐 Auth | [NextAuth.js](https://next-auth.js.org) (Google OAuth + custom SQLite adapter) |
