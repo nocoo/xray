@@ -53,6 +53,9 @@ cp .env.example .env
 编辑 `.env` 文件，配置以下内容：
 
 ```bash
+# TweAPI API Key (Twitter 数据源, 从 https://tweapi.io 获取)
+TWEAPI_API_KEY=your-tweapi-key
+
 # Google OAuth 配置 (从 Google Cloud Console 获取)
 # https://console.cloud.google.com/apis/credentials
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
@@ -66,6 +69,8 @@ ALLOWED_EMAILS=your-email@gmail.com
 ```
 
 > 💡 **提示**: Google OAuth 回调地址设置为 `http://localhost:7027/api/auth/callback/google`
+>
+> 💡 **提示**: `TWEAPI_API_KEY` 也可以在登录后通过 Settings 页面配置，但推荐在 `.env` 中设置作为默认值
 
 ### 3️⃣ 初始化数据库
 
