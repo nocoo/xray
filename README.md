@@ -95,46 +95,65 @@ bun dev
 
 ```
 x-ray/
-├── 📂 database/                  # SQLite 数据库文件
-│   └── xray.db                   # 生产数据 (gitignored)
-├── 📂 shared/                    # 跨层共享类型定义
-│   └── types.ts                  # Tweet, UserInfo, Conversation 等
-├── 📂 agent/                     # AI Agent 原子化工具
-│   ├── 📂 analyze/               # 分析工具
-│   ├── 📂 fetch/                 # 数据拉取
-│   └── 📂 workflow/              # 工作流编排
-├── 📂 scripts/                   # CLI 工具脚本
 ├── 📂 src/
-│   ├── 📂 __tests__/             # 单元测试 + API E2E 测试
+│   ├── auth.ts                    # NextAuth 配置 (Google OAuth + JWT)
+│   ├── proxy.ts                   # 中间件 (认证 + 代理)
 │   ├── 📂 app/
-│   │   ├── 📂 api/               # API 路由 (session auth + webhook auth)
-│   │   └── 📂 (dashboard)/       # 认证页面 (共享 AppShell 布局)
-│   │       ├── 📂 watchlist/     # 观察名单 (列表/详情/日志)
-│   │       ├── 📂 groups/        # 分组管理
-│   │       ├── 📂 tweets/        # 推文探索
-│   │       ├── 📂 users/         # 用户分析
-│   │       ├── 📂 bookmarks/     # 书签 (Masonry 布局)
-│   │       ├── 📂 likes/         # 点赞 (Masonry 布局)
-│   │       ├── 📂 messages/      # 私信
-│   │       ├── 📂 analytics/     # 个人分析
-│   │       ├── 📂 settings/      # 设置
-│   │       ├── 📂 integrations/  # 第三方集成 (zhe.to)
-│   │       └── layout.tsx        # 共享布局 + useBreadcrumbs
-│   ├── 📂 components/            # UI 组件
-│   │   ├── 📂 layout/            # 布局组件 (Sidebar, AppShell)
-│   │   ├── 📂 twitter/           # Twitter 业务组件 (TweetCard, UserCard)
-│   │   └── 📂 ui/                # shadcn/ui + MasonryGrid
-│   ├── 📂 hooks/                 # 自定义 Hooks
-│   │   ├── use-api.ts            # useFetch, useSearch, useMutation
-│   │   └── use-columns.ts        # 响应式列数 (matchMedia)
-│   ├── 📂 db/                    # 数据库层
-│   │   ├── schema.ts             # Drizzle schema
-│   │   ├── scoped.ts             # ScopedDB — 按用户隔离的 CRUD
-│   │   └── index.ts              # 连接管理
-│   └── 📂 lib/                   # 工具函数与 Provider 层
-├── .env.example                  # 环境变量示例
-├── Dockerfile                    # Docker 容器化
-└── package.json                  # 版本 & 依赖 (唯一版本源)
+│   │   ├── 📂 api/                # API 路由 (session auth + webhook auth)
+│   │   │   ├── 📂 watchlists/     # 观察名单 CRUD + SSE 抓取
+│   │   │   ├── 📂 groups/         # 分组管理
+│   │   │   ├── 📂 twitter/        # Twitter 数据代理 (webhook auth)
+│   │   │   ├── 📂 explore/        # 推文搜索 (session auth)
+│   │   │   ├── 📂 translate/      # AI 翻译
+│   │   │   ├── 📂 profiles/       # Twitter 资料缓存
+│   │   │   ├── 📂 tags/           # 标签管理
+│   │   │   ├── 📂 integrations/   # zhe.to 集成
+│   │   │   └── ...                # credentials, credits, media, settings, usage, webhooks
+│   │   ├── 📂 (dashboard)/        # 认证页面 (共享 AppShell 布局)
+│   │   │   ├── page.tsx           # Dashboard 首页
+│   │   │   ├── 📂 watchlist/      # 观察名单 (列表/详情/日志)
+│   │   │   ├── 📂 groups/         # 分组管理
+│   │   │   ├── 📂 tweets/         # 推文探索
+│   │   │   ├── 📂 users/          # 用户分析
+│   │   │   ├── 📂 bookmarks/      # 书签 (Masonry 布局)
+│   │   │   ├── 📂 likes/          # 点赞 (Masonry 布局)
+│   │   │   ├── 📂 lists/          # Twitter Lists
+│   │   │   ├── 📂 messages/       # 私信
+│   │   │   ├── 📂 analytics/      # 个人分析
+│   │   │   ├── 📂 usage/          # API 用量统计
+│   │   │   ├── 📂 webhooks/       # Webhook 管理
+│   │   │   ├── 📂 settings/       # 设置
+│   │   │   ├── 📂 ai-settings/    # AI 提供商配置
+│   │   │   ├── 📂 integrations/   # 第三方集成 (zhe.to)
+│   │   │   └── layout.tsx         # 共享布局 + useBreadcrumbs
+│   │   └── 📂 login/              # 登录页
+│   ├── 📂 components/
+│   │   ├── 📂 layout/             # 布局组件 (AppShell, Sidebar, Breadcrumbs)
+│   │   ├── 📂 twitter/            # Twitter 业务组件 (TweetCard, UserCard)
+│   │   └── 📂 ui/                 # shadcn/ui + MasonryGrid
+│   ├── 📂 hooks/                  # useFetch, useSearch, useMutation, useColumns, useMobile
+│   ├── 📂 services/               # AI 翻译服务
+│   ├── 📂 db/
+│   │   ├── schema.ts              # Drizzle ORM schema (16 tables)
+│   │   ├── scoped.ts              # ScopedDB — 按用户隔离的 CRUD (行级安全)
+│   │   └── index.ts               # 连接管理 (Bun/Node 双驱动)
+│   ├── 📂 lib/
+│   │   ├── auth-adapter.ts        # NextAuth 自定义 SQLite adapter
+│   │   ├── crypto.ts              # 加密工具 (Webhook Key)
+│   │   ├── 📂 twitter/            # TweAPI Provider 层 (ITwitterProvider 接口)
+│   │   └── ...                    # api-helpers, utils, palette, tag-color, version
+│   └── 📂 __tests__/              # 单元测试 + API E2E 测试
+├── 📂 agent/                      # AI Agent 工具 (分析/抓取/研究/工作流)
+├── 📂 e2e/                        # Playwright 浏览器 E2E 测试
+├── 📂 tests/                      # Agent/脚本集成测试
+├── 📂 scripts/                    # CLI 工具脚本
+├── 📂 shared/                     # 跨层共享类型定义
+├── 📂 docs/                       # 详细文档 (架构/测试/部署/API)
+├── 📂 database/                   # SQLite 数据库文件 (gitignored)
+├── 📂 drizzle/                    # Drizzle 数据库迁移文件
+├── .env.example                   # 环境变量示例
+├── Dockerfile                     # Docker 容器化 (多阶段构建)
+└── package.json                   # 版本 & 依赖 (唯一版本源)
 ```
 
 ## 🛠️ 技术栈
