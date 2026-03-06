@@ -166,15 +166,23 @@ x-ray/
 
 ```bash
 docker build -t xray .
-docker run -p 7027:7027 -v xray-data:/app/database xray
+docker run -p 7027:7027 \
+  -e TWEAPI_API_KEY=your-key \
+  -e GOOGLE_CLIENT_ID=your-id \
+  -e GOOGLE_CLIENT_SECRET=your-secret \
+  -e NEXTAUTH_SECRET=your-secret \
+  -e ALLOWED_EMAILS=you@example.com \
+  -e XRAY_DATA_DIR=/data \
+  -v xray-data:/data \
+  xray
 ```
 
 ### Railway
 
 项目支持 Railway 一键部署，使用 Dockerfile builder。数据库文件挂载到 Volume 以持久化：
 
-- 设置 `XRAY_DATA_DIR` 指向 Volume 挂载路径
-- 设置 `HOSTNAME=0.0.0.0` (Dockerfile 中已内置)
+- 设置 `XRAY_DATA_DIR` 指向 Volume 挂载路径（如 `/data`）
+- `HOSTNAME=0.0.0.0` 已在 Dockerfile 中内置
 
 ## 🙏 鸣谢
 
