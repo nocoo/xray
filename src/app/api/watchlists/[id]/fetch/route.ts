@@ -195,6 +195,7 @@ export async function POST(_request: Request, ctx: RouteContext) {
               translatedText: p.translatedText,
               commentText: p.commentText,
               quotedTranslatedText: p.quotedTranslatedText,
+              translationError: p.translationError ?? null,
               translatedAt: p.translatedAt,
               tweetCreatedAt: p.tweetCreatedAt,
               fetchedAt: p.fetchedAt,

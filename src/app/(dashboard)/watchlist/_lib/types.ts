@@ -45,6 +45,7 @@ export interface FetchedPostData {
   translatedText: string | null;
   commentText: string | null;
   quotedTranslatedText: string | null;
+  translationError: string | null;
   translatedAt: string | null;
   tweetCreatedAt: string;
   fetchedAt: string;

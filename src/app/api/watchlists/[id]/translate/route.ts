@@ -51,6 +51,10 @@ export async function POST(request: Request, ctx: RouteContext) {
     if (!post || post.watchlistId !== watchlistId) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
+    // Clear any previous error so this acts as a retry
+    if (post.translationError) {
+      db.posts.clearTranslationError(singlePostId);
+    }
     let tweet;
     try {
       tweet = JSON.parse(post.tweetJson);
@@ -63,6 +67,9 @@ export async function POST(request: Request, ctx: RouteContext) {
     const result = await translateBatch(db.userId, postsToTranslate);
     for (const t of result.translated) {
       db.posts.updateTranslation(t.postId, t.translatedText, t.commentText, t.quotedTranslatedText);
+    }
+    for (const e of result.errors) {
+      db.posts.updateTranslationError(e.postId, e.error);
     }
     const remaining = db.posts.countUntranslated(watchlistId);
     const errorMessages = result.errors.map((e) => e.error);
@@ -184,6 +191,8 @@ export async function POST(request: Request, ctx: RouteContext) {
                 ? settled.reason.message
                 : String(settled.reason);
               errorMessages.push(message);
+              // Persist the error to the post so UI can display it
+              db.posts.updateTranslationError(post.id, message);
               controller.enqueue(
                 encoder.encode(
                   sseMessage("error", {
@@ -199,6 +208,7 @@ export async function POST(request: Request, ctx: RouteContext) {
         }
 
         const remaining = db.posts.countUntranslated(watchlistId);
+        const failed = db.posts.countFailed(watchlistId);
 
         db.logs.insert({
           watchlistId,
@@ -218,6 +228,7 @@ export async function POST(request: Request, ctx: RouteContext) {
                 translated: translatedCount,
                 errors: errorMessages,
                 remaining,
+                failed,
               }),
             ),
           );
@@ -244,6 +255,9 @@ export async function POST(request: Request, ctx: RouteContext) {
   const result = await translateBatch(db.userId, postsToTranslate);
   for (const t of result.translated) {
     db.posts.updateTranslation(t.postId, t.translatedText, t.commentText, t.quotedTranslatedText);
+  }
+  for (const e of result.errors) {
+    db.posts.updateTranslationError(e.postId, e.error);
   }
   const remaining = db.posts.countUntranslated(watchlistId);
   const errorMessages = result.errors.map((e) => e.error);

@@ -1004,7 +1004,11 @@ class PostsRepo {
       .select()
       .from(fetchedPosts)
       .where(
-        and(eq(fetchedPosts.watchlistId, watchlistId), isNull(fetchedPosts.translatedText)),
+        and(
+          eq(fetchedPosts.watchlistId, watchlistId),
+          isNull(fetchedPosts.translatedText),
+          isNull(fetchedPosts.translationError),
+        ),
       )
       .orderBy(desc(fetchedPosts.fetchedAt), desc(fetchedPosts.id))
       .limit(limit)
@@ -1058,7 +1062,17 @@ class PostsRepo {
         commentText,
         quotedTranslatedText: quotedTranslatedText ?? null,
         translatedAt: new Date(),
+        translationError: null, // clear any previous error on success
       })
+      .where(eq(fetchedPosts.id, id))
+      .returning()
+      .get();
+  }
+
+  updateTranslationError(id: number, error: string): FetchedPost | undefined {
+    return db
+      .update(fetchedPosts)
+      .set({ translationError: error })
       .where(eq(fetchedPosts.id, id))
       .returning()
       .get();
@@ -1086,10 +1100,37 @@ class PostsRepo {
       .select({ total: count() })
       .from(fetchedPosts)
       .where(
-        and(eq(fetchedPosts.watchlistId, watchlistId), isNull(fetchedPosts.translatedText)),
+        and(
+          eq(fetchedPosts.watchlistId, watchlistId),
+          isNull(fetchedPosts.translatedText),
+          isNull(fetchedPosts.translationError),
+        ),
       )
       .get();
     return row?.total ?? 0;
+  }
+
+  countFailed(watchlistId: number): number {
+    const row = db
+      .select({ total: count() })
+      .from(fetchedPosts)
+      .where(
+        and(
+          eq(fetchedPosts.watchlistId, watchlistId),
+          isNull(fetchedPosts.translatedText),
+          sql`${fetchedPosts.translationError} IS NOT NULL`,
+        ),
+      )
+      .get();
+    return row?.total ?? 0;
+  }
+
+  /** Clear translation error for a post, making it eligible for retry. */
+  clearTranslationError(id: number): void {
+    db.update(fetchedPosts)
+      .set({ translationError: null })
+      .where(eq(fetchedPosts.id, id))
+      .run();
   }
 
   purgeOlderThan(watchlistId: number, cutoffIso: string): number {

@@ -401,9 +401,20 @@ export default function WatchlistDetailPage() {
                 total: d.total,
                 errors: (prev?.errors ?? 0) + 1,
               }));
+              // Persist the error message to the post in UI state
+              if (d.postId && d.error) {
+                setPosts((prev) =>
+                  prev.map((p) =>
+                    p.id === d.postId
+                      ? { ...p, translationError: d.error }
+                      : p
+                  )
+                );
+              }
             } else if (eventType === "done") {
               setTranslateSummary(
                 `Translated ${d.translated} post${d.translated !== 1 ? "s" : ""}` +
+                  (d.failed > 0 ? ` · ${d.failed} failed` : "") +
                   (d.remaining > 0 ? ` · ${d.remaining} remaining` : "") +
                   (d.errors?.length ? ` · ${d.errors.length} errors` : "")
               );
@@ -843,6 +854,7 @@ export default function WatchlistDetailPage() {
                         <WatchlistPostCard
                           key={post.id}
                           post={post}
+                          watchlistId={watchlistId}
                         />
                       ))}
                     </div>

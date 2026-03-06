@@ -272,6 +272,8 @@ export const fetchedPosts = sqliteTable(
     quotedTranslatedText: text("quoted_translated_text"),
     /** When the translation was completed. */
     translatedAt: integer("translated_at", { mode: "timestamp" }),
+    /** Error message from the last translation attempt (null = no error / not attempted). */
+    translationError: text("translation_error"),
   },
   (t) => ({
     /** Prevent duplicate tweets per watchlist — enables onConflictDoNothing. */

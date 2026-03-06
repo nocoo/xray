@@ -359,6 +359,137 @@ describe("repositories/fetched-posts", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // translationError — updateTranslationError, countFailed, clearTranslationError
+  // ---------------------------------------------------------------------------
+
+  describe("updateTranslationError", () => {
+    test("persists error string on a post", () => {
+      const member = seedMember("u1", wlId);
+      const post = insertOne(scopedDb, wlId, member.id, "t1");
+
+      const updated = scopedDb.posts.updateTranslationError(post.id, "API rate limit exceeded");
+      expect(updated).toBeDefined();
+      expect(updated!.translationError).toBe("API rate limit exceeded");
+      expect(updated!.translatedText).toBeNull(); // still untranslated
+    });
+
+    test("returns undefined for non-existent post", () => {
+      const updated = scopedDb.posts.updateTranslationError(999, "some error");
+      expect(updated).toBeUndefined();
+    });
+  });
+
+  describe("clearTranslationError", () => {
+    test("clears a previously set error", () => {
+      const member = seedMember("u1", wlId);
+      const post = insertOne(scopedDb, wlId, member.id, "t1");
+      scopedDb.posts.updateTranslationError(post.id, "timeout");
+
+      scopedDb.posts.clearTranslationError(post.id);
+      const refreshed = scopedDb.posts.findByWatchlistId(wlId).find((p) => p.id === post.id)!;
+      expect(refreshed.translationError).toBeNull();
+    });
+  });
+
+  describe("countFailed", () => {
+    test("returns 0 when no posts", () => {
+      expect(scopedDb.posts.countFailed(wlId)).toBe(0);
+    });
+
+    test("counts posts with error but no translation", () => {
+      const member = seedMember("u1", wlId);
+      scopedDb.posts.insertMany([
+        makePostData(wlId, member.id, "t1"),
+        makePostData(wlId, member.id, "t2"),
+        makePostData(wlId, member.id, "t3"),
+      ]);
+      const posts = scopedDb.posts.findByWatchlistId(wlId);
+
+      // t1: errored (failed)
+      scopedDb.posts.updateTranslationError(posts.find((p) => p.tweetId === "t1")!.id, "fail");
+      // t2: translated (success)
+      scopedDb.posts.updateTranslation(posts.find((p) => p.tweetId === "t2")!.id, "翻译", "锐评");
+      // t3: untranslated (pending)
+
+      expect(scopedDb.posts.countFailed(wlId)).toBe(1);
+    });
+
+    test("does not count posts that were translated after an error", () => {
+      const member = seedMember("u1", wlId);
+      const post = insertOne(scopedDb, wlId, member.id, "t1");
+
+      // First: error
+      scopedDb.posts.updateTranslationError(post.id, "timeout");
+      expect(scopedDb.posts.countFailed(wlId)).toBe(1);
+
+      // Then: successful retry (updateTranslation clears error)
+      scopedDb.posts.updateTranslation(post.id, "翻译", "锐评");
+      expect(scopedDb.posts.countFailed(wlId)).toBe(0);
+    });
+  });
+
+  describe("findUntranslated excludes errored posts", () => {
+    test("errored posts are not returned by findUntranslated", () => {
+      const member = seedMember("u1", wlId);
+      scopedDb.posts.insertMany([
+        makePostData(wlId, member.id, "t1"),
+        makePostData(wlId, member.id, "t2"),
+        makePostData(wlId, member.id, "t3"),
+      ]);
+      const posts = scopedDb.posts.findByWatchlistId(wlId);
+
+      // Mark t1 as errored
+      scopedDb.posts.updateTranslationError(posts.find((p) => p.tweetId === "t1")!.id, "fail");
+
+      const untranslated = scopedDb.posts.findUntranslated(wlId);
+      expect(untranslated).toHaveLength(2);
+      expect(untranslated.map((p) => p.tweetId).sort()).toEqual(["t2", "t3"]);
+    });
+
+    test("clearing error makes post eligible again", () => {
+      const member = seedMember("u1", wlId);
+      const post = insertOne(scopedDb, wlId, member.id, "t1");
+
+      scopedDb.posts.updateTranslationError(post.id, "fail");
+      expect(scopedDb.posts.findUntranslated(wlId)).toHaveLength(0);
+
+      scopedDb.posts.clearTranslationError(post.id);
+      expect(scopedDb.posts.findUntranslated(wlId)).toHaveLength(1);
+    });
+  });
+
+  describe("countUntranslated excludes errored posts", () => {
+    test("errored posts are not counted as untranslated", () => {
+      const member = seedMember("u1", wlId);
+      scopedDb.posts.insertMany([
+        makePostData(wlId, member.id, "t1"),
+        makePostData(wlId, member.id, "t2"),
+      ]);
+      const posts = scopedDb.posts.findByWatchlistId(wlId);
+
+      scopedDb.posts.updateTranslationError(posts.find((p) => p.tweetId === "t1")!.id, "fail");
+
+      // Only t2 is genuinely untranslated (no error, no translation)
+      expect(scopedDb.posts.countUntranslated(wlId)).toBe(1);
+    });
+  });
+
+  describe("updateTranslation clears translationError", () => {
+    test("successful translation clears any prior error", () => {
+      const member = seedMember("u1", wlId);
+      const post = insertOne(scopedDb, wlId, member.id, "t1");
+
+      scopedDb.posts.updateTranslationError(post.id, "timeout");
+      const errored = scopedDb.posts.findByWatchlistId(wlId).find((p) => p.id === post.id)!;
+      expect(errored.translationError).toBe("timeout");
+
+      const updated = scopedDb.posts.updateTranslation(post.id, "翻译", "锐评");
+      expect(updated!.translationError).toBeNull();
+      expect(updated!.translatedText).toBe("翻译");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // purgeOlderThan
   // ---------------------------------------------------------------------------
 
