@@ -30,9 +30,13 @@
 - 👤 **用户分析** — 用户画像、时间线、高光推文、关注关系（Followers / Following / Affiliates）
 - 📊 **个人数据** — 账号指标、趋势图表、书签与点赞（Masonry 瀑布流布局）
 - 💬 **私信查看** — 收件箱浏览与对话线程
+- 📃 **Lists 列表** — 浏览 Twitter Lists
 - 🤖 **AI 翻译** — 信达雅风格中文翻译 + 锐评，支持单条翻译与批量自动翻译
+- ⚙️ **AI 设置** — 多 AI 提供商配置（OpenAI / Anthropic / Google / GLM / DeepSeek / Grok / Ollama）
 - 🔗 **zhe.to 集成** — 一键保存推文到 zhe.to 书签服务
-- 🔒 **隐私优先** — 数据完全存储在本地 SQLite，Google OAuth 认证
+- 🔑 **Webhooks** — 生成 Webhook Key，支持外部系统通过 API 访问 Twitter 数据
+- 📈 **Usage 用量统计** — API 调用量追踪与统计面板
+- 🔒 **隐私优先** — 数据完全存储在本地 SQLite，Google OAuth 认证，ScopedDB 行级安全隔离
 
 ## 🚀 快速开始
 
