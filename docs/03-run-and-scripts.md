@@ -1,29 +1,59 @@
-# 运行方式与脚本
+# Running & Scripts
 
-## 环境准备
+## Web Application (Primary)
 
 ```bash
+# Install dependencies
 bun install
-cp config/config.example.json config/config.json
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your credentials (TWEAPI_API_KEY, Google OAuth, etc.)
+
+# Initialize database
+bun run db:push
+
+# Start development server
+bun dev
+# Open http://localhost:7027
 ```
 
-## 运行方式
+### Common Commands
 
-本项目没有传统 dev server，主要通过脚本或 Skills 运行。
+| Command | Description |
+|---------|-------------|
+| `bun dev` | Development server (port 7027) |
+| `bun run build` | Production build |
+| `bun start` | Production server |
+| `bun test` | Unit tests |
+| `bun run test:coverage` | Tests with coverage report |
+| `bun run test:e2e:browser` | Playwright browser E2E tests |
+| `bun run lint` | ESLint check |
+| `bun run db:push` | Push schema to database |
+| `bun run db:studio` | Open Drizzle Studio |
 
-### Skills 入口
+## CLI Scripts (Legacy / Agent)
 
-- `/xray-watchlist`：观察名单拉取 + 分析 + 报告生成
-- `/xray-me`：个人分析数据拉取 + 报告生成
+Standalone scripts for automated analysis, independent of the web app:
 
-### 常用脚本
+```bash
+bun run scripts/fetch-tweets.ts        # Fetch watchlist tweets
+bun run scripts/fetch-me-data.ts       # Fetch personal analytics data
+bun run scripts/generate-watchlist-report.ts  # Generate watchlist report
+bun run scripts/generate-me-report.ts  # Generate personal analytics report
+bun run scripts/run-watchlist-report.ts # One-click: fetch + validate + generate
+```
 
-- `bun run scripts/fetch-tweets.ts`：拉取观察名单推文
-- `bun run scripts/fetch-me-data.ts`：拉取个人分析数据
-- `bun run scripts/generate-watchlist-report.ts`：生成观察名单报告
-- `bun run scripts/generate-me-report.ts`：生成个人分析报告
-- `bun run scripts/run-watchlist-report.ts`：一键执行拉取 + 校验 + 生成
+## Skills Entry Points
 
-## 数据依赖
+- `/xray-watchlist` — watchlist fetch + analyze + report
+- `/xray-me` — personal data fetch + report
 
-- `data/analyze_output.json` 由分析流程产出，缺失时会阻止生成报告
+## Agent Scripts
+
+See [`07-agent-scripts.md`](07-agent-scripts.md) for the full agent capability map.
+
+```bash
+bun run agent/index.ts          # Main agent entry point
+bun run agent/workflow/hourly.ts # Hourly scheduled workflow
+```
