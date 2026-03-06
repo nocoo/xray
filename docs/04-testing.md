@@ -21,7 +21,7 @@ bun test --coverage
 # API E2E tests (starts dev server on port 17027)
 bun test src/__tests__/e2e/ --timeout 60000
 
-# BDD E2E / Playwright (starts dev server on port 17028)
+# BDD E2E / Playwright (starts dev server on port 27028)
 npx playwright test
 ```
 
@@ -35,7 +35,7 @@ Runs on every commit — catches quality issues early:
 ### pre-push
 Runs before every push — validates integration:
 1. **API E2E** — all RESTful endpoints against live server
-2. **BDD E2E** — Playwright browser tests for core flows
+2. ~~**BDD E2E** — Playwright browser tests for core flows~~ (currently runs on-demand via `bun run test:e2e:browser`)
 
 ## Coverage
 
@@ -45,11 +45,11 @@ Thresholds configured in `bunfig.toml`:
 
 Excluded from coverage:
 - Test files themselves (`coverageSkipTestFiles = true`)
-- Generated UI components (sidebar, avatar, tooltip, badge)
+- Generated UI components (sidebar, sidebar-context, avatar, tooltip, badge)
 
 ## ESLint
 
-Config: `eslint.config.mjs` (ESLint 9 flat config)
+Config: `eslint.config.mjs` (ESLint 10 flat config)
 
 Base: `typescript-eslint/recommended` + additional strict rules:
 - `no-explicit-any` — forbids `any` type
@@ -69,7 +69,7 @@ TypeScript itself runs in strict mode with `noUncheckedIndexedAccess`.
 |------|---------|
 | 7027 | Development server (`bun run dev`) |
 | 17027 | API E2E test server (auth bypassed) |
-| 17028 | Playwright BDD E2E server |
+| 27028 | Playwright BDD E2E server |
 | 17029 | Auth enforcement test server (no bypass) |
 
 ### Auth Bypass
@@ -87,7 +87,7 @@ Each test tier gets its own SQLite database:
 | `database/xray.db` | Production/development |
 | `database/xray.e2e.db` | API E2E tests (port 17027) |
 | `database/xray.noauth.db` | Auth enforcement tests (port 17029) |
-| `database/xray.playwright.db` | Playwright tests (port 17028) |
+| `database/xray.playwright.db` | Playwright tests (port 27028) |
 
 ## Test File Conventions
 
