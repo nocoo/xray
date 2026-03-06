@@ -16,8 +16,7 @@ const eslintConfig = defineConfig([
     "tests/**",
     // Playwright E2E tests (not React code)
     "e2e/**",
-    // Python file mis-named as .ts
-    "scripts/fix-translations.ts",
+
   ]),
   // Key rules from typescript-eslint strict preset (no type-checking required)
   {
