@@ -15,7 +15,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "prepare": "husky"
+    "prepare": "husky",
+    "watchlist": "bun run scripts/manage-watchlist.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
