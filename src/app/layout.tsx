@@ -18,8 +18,17 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXTAUTH_URL ?? "http://localhost:3000"
+  ),
   title: "X-Ray — Twitter Intelligence Dashboard",
   description: "Monitor and analyze Twitter/X content with AI-powered insights",
+  openGraph: {
+    title: "X-Ray — Twitter Intelligence Dashboard",
+    description:
+      "Monitor and analyze Twitter/X content with AI-powered insights",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
