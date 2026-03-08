@@ -711,14 +711,19 @@ describe("POST /api/watchlists/[id]/translate", () => {
       translated: number;
       errors: string[];
       remaining: number;
+      failed: number;
     };
     expect(d.translated).toBe(0);
     expect(d.errors).toHaveLength(1);
-    expect(d.remaining).toBe(1); // still untranslated
+    // The post has a translation_error set, so countUntranslated excludes it —
+    // it's now in the "failed" bucket, not the "untranslated" bucket.
+    expect(d.remaining).toBe(0);
+    expect(d.failed).toBe(1);
 
-    // Verify post was NOT updated in DB
+    // Verify post was NOT translated but HAS a translation error in DB
     const posts = scopedDb.posts.findByWatchlistId(watchlistId);
     expect(posts[0]!.translatedText).toBeNull();
+    expect(posts[0]!.translationError).toContain("API rate limit exceeded");
   });
 
   test("stream mode respects limit parameter", async () => {
@@ -750,5 +755,204 @@ describe("POST /api/watchlists/[id]/translate", () => {
     const d = doneEvent!.data as { translated: number; remaining: number };
     expect(d.translated).toBe(2);
     expect(d.remaining).toBe(3);
+  });
+
+  // ---------------------------------------------------------------------------
+  // New SSE events: start + translating (sliding-window concurrency)
+  // ---------------------------------------------------------------------------
+
+  test("stream mode emits 'start' event with total count", async () => {
+    scopedDb.settings.upsert("ai.provider", "minimax");
+    scopedDb.settings.upsert("ai.apiKey", "test-key");
+    scopedDb.settings.upsert("ai.model", "MiniMax-M2.5");
+
+    const member = seedMember("testuser");
+    seedPost(member.id, "t1", "testuser");
+    seedPost(member.id, "t2", "testuser");
+    seedPost(member.id, "t3", "testuser");
+
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlists/1/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stream: true }),
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(200);
+
+    const events = await parseSSE(res);
+
+    // First event should be 'start' with total
+    const startEvents = events.filter((e) => e.event === "start");
+    expect(startEvents).toHaveLength(1);
+    const startData = startEvents[0]!.data as { total: number };
+    expect(startData.total).toBe(3);
+
+    // 'start' must come before any 'translating' or 'translated' events
+    const startIdx = events.findIndex((e) => e.event === "start");
+    const firstTranslatingIdx = events.findIndex((e) => e.event === "translating");
+    expect(startIdx).toBeLessThan(firstTranslatingIdx);
+  });
+
+  test("stream mode emits 'translating' event per post with preview", async () => {
+    scopedDb.settings.upsert("ai.provider", "minimax");
+    scopedDb.settings.upsert("ai.apiKey", "test-key");
+    scopedDb.settings.upsert("ai.model", "MiniMax-M2.5");
+
+    const member = seedMember("testuser");
+    seedPost(member.id, "t1", "testuser");
+    seedPost(member.id, "t2", "testuser");
+
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlists/1/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stream: true }),
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(200);
+
+    const events = await parseSSE(res);
+
+    // Should have 2 'translating' events (one per post)
+    const translatingEvents = events.filter((e) => e.event === "translating");
+    expect(translatingEvents).toHaveLength(2);
+
+    // Each 'translating' event has postId and preview text
+    for (const te of translatingEvents) {
+      const d = te.data as { postId: number; preview: string };
+      expect(d.postId).toBeGreaterThan(0);
+      expect(d.preview).toBeTruthy();
+      expect(typeof d.preview).toBe("string");
+    }
+
+    // Each 'translating' event should precede its corresponding 'translated' event
+    for (const te of translatingEvents) {
+      const postId = (te.data as { postId: number }).postId;
+      const translatingIdx = events.indexOf(te);
+      const translatedIdx = events.findIndex(
+        (e) => e.event === "translated" && (e.data as { postId: number }).postId === postId,
+      );
+      expect(translatedIdx).toBeGreaterThan(translatingIdx);
+    }
+  });
+
+  test("stream mode 'done' event includes failed count", async () => {
+    scopedDb.settings.upsert("ai.provider", "minimax");
+    scopedDb.settings.upsert("ai.apiKey", "test-key");
+    scopedDb.settings.upsert("ai.model", "MiniMax-M2.5");
+
+    const member = seedMember("testuser");
+    seedPost(member.id, "t1", "testuser");
+
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlists/1/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stream: true }),
+      }),
+      ctx(),
+    );
+
+    const events = await parseSSE(res);
+    const doneEvent = events.find((e) => e.event === "done")!;
+    const data = doneEvent.data as { translated: number; errors: string[]; remaining: number; failed: number };
+
+    // All succeeded — failed should be 0
+    expect(data.translated).toBe(1);
+    expect(data.failed).toBe(0);
+    expect(data.remaining).toBe(0);
+  });
+
+  test("stream mode emits 'translating' even when translation fails", async () => {
+    scopedDb.settings.upsert("ai.provider", "minimax");
+    scopedDb.settings.upsert("ai.apiKey", "test-key");
+    scopedDb.settings.upsert("ai.model", "MiniMax-M2.5");
+
+    const member = seedMember("testuser");
+    seedPost(member.id, "t1", "testuser");
+
+    mockGenerateText.mockImplementation(() =>
+      Promise.reject(new Error("timeout")),
+    );
+
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlists/1/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stream: true }),
+      }),
+      ctx(),
+    );
+
+    const events = await parseSSE(res);
+
+    // 'translating' is emitted before the attempt, even if it fails
+    const translatingEvents = events.filter((e) => e.event === "translating");
+    expect(translatingEvents).toHaveLength(1);
+
+    // Followed by an 'error' event (not 'translated')
+    const errorEvents = events.filter((e) => e.event === "error");
+    expect(errorEvents).toHaveLength(1);
+
+    const translatedEvents = events.filter((e) => e.event === "translated");
+    expect(translatedEvents).toHaveLength(0);
+  });
+});
+
+// =============================================================================
+// PUT /api/watchlists/[id]/settings — 15-day and 30-day retention
+// =============================================================================
+
+describe("PUT /api/watchlists/[id]/settings — new retention options", () => {
+  test("accepts 15-day retention", async () => {
+    const { PUT } = await import("@/app/api/watchlists/[id]/settings/route");
+    const res = await PUT(
+      new Request("http://localhost/api/watchlists/1/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ retentionDays: 15 }),
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.retentionDays).toBe(15);
+  });
+
+  test("accepts 30-day retention", async () => {
+    const { PUT } = await import("@/app/api/watchlists/[id]/settings/route");
+    const res = await PUT(
+      new Request("http://localhost/api/watchlists/1/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ retentionDays: 30 }),
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.retentionDays).toBe(30);
+  });
+
+  test("rejects 20-day retention (not in allowed list)", async () => {
+    const { PUT } = await import("@/app/api/watchlists/[id]/settings/route");
+    const res = await PUT(
+      new Request("http://localhost/api/watchlists/1/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ retentionDays: 20 }),
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("Invalid retention");
   });
 });

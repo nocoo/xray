@@ -429,6 +429,12 @@ export function initSchema(): void {
 
 /** Get or create the database instance based on XRAY_DB env var. */
 export function getDb(): DbInstance {
+  // In test environment, if a database is already initialized (e.g. via createTestDb()),
+  // reuse it instead of trying to open a file-based database which would be blocked
+  // by the test protection guard.
+  if (isTestEnv() && dbInstance) {
+    return dbInstance;
+  }
   const filename = process.env.XRAY_DB || DEFAULT_DB_FILE;
   return createDatabase(filename);
 }

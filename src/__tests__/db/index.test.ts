@@ -157,6 +157,10 @@ describe("db/index", () => {
 
   describe("production guard", () => {
     test("blocks opening default production database in test env", () => {
+      // Close any existing connection first so getDb() actually tries to open a new one.
+      // With an active dbInstance, getDb() reuses it (by design, so route handlers
+      // pick up the in-memory test DB instead of trying to open xray.db).
+      closeDb();
       // getDb() without XRAY_DB set defaults to the protected database/xray.db
       const originalXrayDb = process.env.XRAY_DB;
       delete process.env.XRAY_DB;
@@ -167,6 +171,8 @@ describe("db/index", () => {
         if (originalXrayDb !== undefined) {
           process.env.XRAY_DB = originalXrayDb;
         }
+        // Restore a test db for any subsequent tests
+        createTestDb();
       }
     });
   });
