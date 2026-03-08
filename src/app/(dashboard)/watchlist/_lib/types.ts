@@ -68,6 +68,8 @@ export interface TranslateProgress {
   total: number;
   lastPostId?: number;
   errors: number;
+  /** Posts currently being translated (up to concurrency limit). */
+  activeSlots: { postId: number; preview: string }[];
 }
 
 export type PipelinePhase = "idle" | "fetching" | "translating" | "done";

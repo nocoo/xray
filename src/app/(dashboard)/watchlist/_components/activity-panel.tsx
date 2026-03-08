@@ -202,6 +202,24 @@ export function ActivityPanel({
                   <span>{translateSummary}</span>
                 )}
               </div>
+              {/* Active translation slots */}
+              {pipelinePhase === "translating" &&
+                translateProgress &&
+                translateProgress.activeSlots.length > 0 && (
+                  <div className="mt-1.5 space-y-1">
+                    {translateProgress.activeSlots.map((slot) => (
+                      <div
+                        key={slot.postId}
+                        className="flex items-center gap-2 text-xs pl-5"
+                      >
+                        <Loader2 className="h-2.5 w-2.5 animate-spin text-purple-400 shrink-0" />
+                        <span className="text-muted-foreground/70 italic truncate">
+                          {slot.preview}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
             </div>
           )}
         </div>

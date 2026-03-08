@@ -375,13 +375,22 @@ export default function WatchlistDetailPage() {
           try {
             const d = JSON.parse(eventData);
             if (eventType === "start") {
-              setTranslateProgress({ current: 0, total: d.total, errors: 0 });
+              setTranslateProgress({ current: 0, total: d.total, errors: 0, activeSlots: [] });
+            } else if (eventType === "translating") {
+              // A post just started translating — add it to activeSlots
+              setTranslateProgress((prev) => {
+                if (!prev) return prev;
+                const slots = [...prev.activeSlots, { postId: d.postId, preview: d.preview }];
+                return { ...prev, activeSlots: slots };
+              });
             } else if (eventType === "translated") {
               setTranslateProgress((prev) => ({
                 current: d.current,
                 total: d.total,
                 lastPostId: d.postId,
                 errors: prev?.errors ?? 0,
+                // Remove finished post from activeSlots
+                activeSlots: (prev?.activeSlots ?? []).filter((s) => s.postId !== d.postId),
               }));
               // Update the post in-place with translation
               setPosts((prev) =>
@@ -402,6 +411,8 @@ export default function WatchlistDetailPage() {
                 current: d.current,
                 total: d.total,
                 errors: (prev?.errors ?? 0) + 1,
+                // Remove failed post from activeSlots
+                activeSlots: (prev?.activeSlots ?? []).filter((s) => s.postId !== d.postId),
               }));
               // Persist the error message to the post in UI state
               if (d.postId && d.error) {

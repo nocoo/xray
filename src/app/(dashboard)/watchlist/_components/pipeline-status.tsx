@@ -1,10 +1,14 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import type { PipelinePhase } from "../_lib";
+import type { PipelinePhase, TranslateProgress } from "../_lib";
 
 // =============================================================================
 // PipelineStatus — compact inline status indicator for the toolbar
+//
+// During translation, shows a progress bar with a cycling preview of the
+// posts currently being translated (active slots from the sliding-window
+// concurrency model). This gives clear visual feedback that work is happening.
 // =============================================================================
 
 interface PipelineStatusProps {
@@ -12,7 +16,7 @@ interface PipelineStatusProps {
   /** e.g. "15 new, 8 translated" */
   fetchSummary: string | null;
   translateSummary: string | null;
-  translateProgress: { current: number; total: number; errors: number } | null;
+  translateProgress: TranslateProgress | null;
   memberProgress: { status: string }[];
   /** Fetch interval in minutes (0 = disabled) */
   fetchInterval: number;
@@ -60,39 +64,97 @@ export function PipelineStatus({
   const totalCount = memberProgress.length;
   const errorCount = memberProgress.filter((m) => m.status === "error").length;
 
-  let dotColor = "bg-blue-500";
-  let label = "";
-
   if (fetching) {
-    dotColor = "bg-blue-500";
-    label = totalCount > 0 ? `Fetching ${doneCount}/${totalCount}` : "Fetching...";
-  } else if (translating) {
-    dotColor = "bg-purple-500";
-    label = translateProgress
-      ? `Translating ${translateProgress.current}/${translateProgress.total}`
-      : "Translating...";
-  } else if (done) {
-    dotColor = errorCount > 0 ? "bg-red-500" : "bg-emerald-500";
+    const label = totalCount > 0 ? `Fetching ${doneCount}/${totalCount}` : "Fetching...";
+    return (
+      <button
+        onClick={onClick}
+        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-accent"
+        title="Click for details"
+      >
+        <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
+        <span className="max-w-[260px] truncate">{label}</span>
+      </button>
+    );
+  }
+
+  if (translating) {
+    return (
+      <button
+        onClick={onClick}
+        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-accent min-w-0"
+        title="Click for details"
+      >
+        <Loader2 className="h-3 w-3 animate-spin text-purple-500 shrink-0" />
+        <TranslatingLabel progress={translateProgress} />
+      </button>
+    );
+  }
+
+  // Done
+  if (done) {
+    const dotColor = errorCount > 0 ? "bg-red-500" : "bg-emerald-500";
     const parts: string[] = [];
     if (fetchSummary) parts.push(fetchSummary);
     if (translateSummary) parts.push(translateSummary);
-    label = parts.join(" · ") || "Done";
+    const label = parts.join(" · ") || "Done";
+
+    return (
+      <button
+        onClick={onClick}
+        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-accent"
+        title="Click for details"
+      >
+        <span className={`inline-block h-2 w-2 rounded-full ${dotColor}`} />
+        <span className="max-w-[260px] truncate">{label}</span>
+      </button>
+    );
   }
 
+  return null;
+}
+
+// =============================================================================
+// TranslatingLabel — rich progress display during translation
+//
+// Layout: [3/15] ████░░░░ "Post preview text being translated..."
+// Shows the first active slot's preview text, cycling automatically as
+// posts complete and new ones start.
+// =============================================================================
+
+function TranslatingLabel({ progress }: { progress: TranslateProgress | null }) {
+  if (!progress) {
+    return <span className="truncate">Translating...</span>;
+  }
+
+  const { current, total, errors, activeSlots } = progress;
+  const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+  // Pick the first active slot preview to show
+  const preview = activeSlots.length > 0 ? activeSlots[0]!.preview : null;
+
   return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-accent"
-      title="Click for details"
-    >
-      {done ? (
-        <span
-          className={`inline-block h-2 w-2 rounded-full ${dotColor}`}
+    <div className="flex items-center gap-2 min-w-0 flex-1">
+      {/* Counter */}
+      <span className="shrink-0 tabular-nums text-foreground/80">
+        {current}/{total}
+      </span>
+      {/* Progress bar */}
+      <div className="w-16 shrink-0 h-1.5 rounded-full bg-muted overflow-hidden">
+        <div
+          className="h-full rounded-full bg-purple-500 transition-[width] duration-300 ease-out"
+          style={{ width: `${pct}%` }}
         />
-      ) : (
-        <Loader2 className={`h-3 w-3 animate-spin ${fetching ? "text-blue-500" : "text-purple-500"}`} />
+      </div>
+      {/* Active post preview */}
+      {preview && (
+        <span className="truncate text-muted-foreground/70 italic min-w-0">
+          {preview}
+        </span>
       )}
-      <span className="max-w-[260px] truncate">{label}</span>
-    </button>
+      {/* Error count */}
+      {errors > 0 && (
+        <span className="shrink-0 text-red-500">{errors} err</span>
+      )}
+    </div>
   );
 }

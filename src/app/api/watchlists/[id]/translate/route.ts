@@ -127,8 +127,15 @@ export async function POST(request: Request, ctx: RouteContext) {
     return { id: p.id, text: p.text, quotedText };
   });
 
-  // ── Stream mode: SSE per-post progress with concurrency pool (max 3) ──
+  // ── Stream mode: SSE with sliding-window concurrency ──
+  // Instead of fixed batches (wait for all 3 → emit → next 3), this uses a
+  // sliding window: as soon as one slot finishes, the next post starts
+  // immediately. Each post emits a "translating" event on start and a
+  // "translated"/"error" event on completion, giving the client real-time
+  // per-slot visibility into what's happening.
   if (streamMode) {
+    // Re-bind after the early-return guard so TS narrows inside closures
+    const scopedDb = db;
     const encoder = new TextEncoder();
     let aborted = false;
     const CONCURRENCY = 3;
@@ -143,77 +150,83 @@ export async function POST(request: Request, ctx: RouteContext) {
         // Emit total count immediately so the client can show "Translating 0/N"
         controller.enqueue(encoder.encode(sseMessage("start", { total })));
 
-        // Process posts in batches of CONCURRENCY
-        for (let batchStart = 0; batchStart < total; batchStart += CONCURRENCY) {
-          if (aborted) break;
+        // Sliding-window concurrency: maintain up to CONCURRENCY in-flight
+        let nextIdx = 0;
 
-          const batchEnd = Math.min(batchStart + CONCURRENCY, total);
-          const batch = postsToTranslate.slice(batchStart, batchEnd);
+        function emit(event: string, data: unknown) {
+          if (!aborted) controller.enqueue(encoder.encode(sseMessage(event, data)));
+        }
 
-          // Run batch concurrently using Promise.allSettled
-          const results = await Promise.allSettled(
-            batch.map(async (post) => {
-              if (aborted) throw new Error("Aborted");
-              const result = await translateText(db.userId, post.text, post.quotedText);
-              db.posts.updateTranslation(
-                post.id,
-                result.translatedText,
-                result.commentText,
-                result.quotedTranslatedText,
-              );
-              return { post, result };
-            }),
-          );
+        /** Truncate to ~60 chars for a status-bar preview. */
+        function preview(text: string): string {
+          const oneLine = text.replace(/\n/g, " ").trim();
+          return oneLine.length > 60 ? oneLine.slice(0, 57) + "..." : oneLine;
+        }
 
-          // Emit SSE events for each result in batch order
-          for (let j = 0; j < results.length; j++) {
-            if (aborted) break;
+        async function processPost(post: typeof postsToTranslate[0]): Promise<void> {
+          // Notify client this post is now in-flight
+          emit("translating", { postId: post.id, preview: preview(post.text) });
+
+          try {
+            if (aborted) return;
+            const result = await translateText(scopedDb.userId, post.text, post.quotedText);
+            scopedDb.posts.updateTranslation(
+              post.id,
+              result.translatedText,
+              result.commentText,
+              result.quotedTranslatedText,
+            );
+            translatedCount++;
             completedCount++;
-            const settled = results[j];
-            if (!settled) continue;
-
-            if (settled.status === "fulfilled") {
-              translatedCount++;
-              const { post, result } = settled.value;
-              controller.enqueue(
-                encoder.encode(
-                  sseMessage("translated", {
-                    postId: post.id,
-                    translatedText: result.translatedText,
-                    commentText: result.commentText,
-                    quotedTranslatedText: result.quotedTranslatedText ?? null,
-                    current: completedCount,
-                    total,
-                  }),
-                ),
-              );
-            } else {
-              const post = batch[j];
-              if (!post) continue;
-              const message = settled.reason instanceof Error
-                ? settled.reason.message
-                : String(settled.reason);
-              errorMessages.push(message);
-              // Persist the error to the post so UI can display it
-              db.posts.updateTranslationError(post.id, message);
-              controller.enqueue(
-                encoder.encode(
-                  sseMessage("error", {
-                    postId: post.id,
-                    error: message,
-                    current: completedCount,
-                    total,
-                  }),
-                ),
-              );
-            }
+            emit("translated", {
+              postId: post.id,
+              translatedText: result.translatedText,
+              commentText: result.commentText,
+              quotedTranslatedText: result.quotedTranslatedText ?? null,
+              current: completedCount,
+              total,
+            });
+          } catch (err) {
+            completedCount++;
+            const message = err instanceof Error ? err.message : String(err);
+            errorMessages.push(message);
+            scopedDb.posts.updateTranslationError(post.id, message);
+            emit("error", {
+              postId: post.id,
+              error: message,
+              current: completedCount,
+              total,
+            });
           }
         }
 
-        const remaining = db.posts.countUntranslated(watchlistId);
-        const failed = db.posts.countFailed(watchlistId);
+        // Launch initial slots
+        await new Promise<void>((resolve) => {
+          let active = 0;
 
-        db.logs.insert({
+          function launch() {
+            while (active < CONCURRENCY && nextIdx < total && !aborted) {
+              const post = postsToTranslate[nextIdx++];
+              if (!post) break;
+              active++;
+              processPost(post).finally(() => {
+                active--;
+                if (nextIdx < total && !aborted) {
+                  launch(); // fill the freed slot immediately
+                }
+                if (active === 0) resolve(); // all done
+              });
+            }
+            if (active === 0) resolve(); // nothing to do
+          }
+
+          launch();
+        });
+
+        const remaining = scopedDb.posts.countUntranslated(watchlistId);
+        const failed = scopedDb.posts.countFailed(watchlistId);
+
+        scopedDb.logs.insert({
           watchlistId,
           type: "translate",
           attempted: total,
@@ -225,16 +238,12 @@ export async function POST(request: Request, ctx: RouteContext) {
         });
 
         if (!aborted) {
-          controller.enqueue(
-            encoder.encode(
-              sseMessage("done", {
-                translated: translatedCount,
-                errors: errorMessages,
-                remaining,
-                failed,
-              }),
-            ),
-          );
+          emit("done", {
+            translated: translatedCount,
+            errors: errorMessages,
+            remaining,
+            failed,
+          });
         }
 
         controller.close();
