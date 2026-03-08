@@ -16,7 +16,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "prepare": "husky",
-    "watchlist": "bun run scripts/manage-watchlist.ts"
+    "watchlist": "bun run scripts/manage-watchlist.ts",
+    "xray-me": "bun run scripts/run-me-report.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
