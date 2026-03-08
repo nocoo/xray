@@ -22,6 +22,7 @@ import {
   Check,
   Search,
   MessageSquareQuote,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +50,8 @@ export interface TweetCardProps {
   };
   /** Slot rendered between card body and action bar (e.g. AI Insight) */
   renderBeforeActionBar?: React.ReactNode;
+  /** Called when the user clicks "Remove" — parent should delete + unmount this card */
+  onRemove?: () => void;
 }
 
 export const TweetCard = memo(function TweetCard({
@@ -58,6 +61,7 @@ export const TweetCard = memo(function TweetCard({
   showActionBar = true,
   initialTranslation,
   renderBeforeActionBar,
+  onRemove,
 }: TweetCardProps) {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
@@ -489,6 +493,22 @@ export const TweetCard = memo(function TweetCard({
               ? "Failed"
               : "zhe.to"}
       </button>
+
+      {/* Remove post */}
+      {onRemove && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onRemove();
+          }}
+          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors ml-auto"
+          title="Remove this post"
+        >
+          <Trash2 className="h-3 w-3" />
+          Remove
+        </button>
+      )}
     </div>
   ) : null;
 

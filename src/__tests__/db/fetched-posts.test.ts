@@ -490,6 +490,37 @@ describe("repositories/fetched-posts", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // deleteById
+  // ---------------------------------------------------------------------------
+
+  describe("deleteById", () => {
+    test("deletes a post by id and returns true", () => {
+      const member = seedMember("u1", wlId);
+      const post = insertOne(scopedDb, wlId, member.id, "t1");
+
+      const result = scopedDb.posts.deleteById(post.id);
+      expect(result).toBe(true);
+      expect(scopedDb.posts.countByWatchlistId(wlId)).toBe(0);
+    });
+
+    test("returns false for non-existent id", () => {
+      const result = scopedDb.posts.deleteById(99999);
+      expect(result).toBe(false);
+    });
+
+    test("does not affect other posts", () => {
+      const member = seedMember("u1", wlId);
+      const p1 = insertOne(scopedDb, wlId, member.id, "t1");
+      insertOne(scopedDb, wlId, member.id, "t2");
+
+      scopedDb.posts.deleteById(p1.id);
+      const remaining = scopedDb.posts.findByWatchlistId(wlId);
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0]!.tweetId).toBe("t2");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // purgeOlderThan
   // ---------------------------------------------------------------------------
 

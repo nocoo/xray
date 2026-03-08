@@ -245,6 +245,9 @@ export default function WatchlistDetailPage() {
     }
   }, [api]);
 
+  const handleRemovePost = useCallback((postId: number) => {
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+  }, []);
   useEffect(() => {
     if (!watchlistId || isNaN(watchlistId)) {
       routerRef.current.replace("/watchlist");
@@ -868,6 +871,7 @@ export default function WatchlistDetailPage() {
                           key={post.id}
                           post={post}
                           watchlistId={watchlistId}
+                          onRemove={handleRemovePost}
                         />
                       ))}
                     </div>

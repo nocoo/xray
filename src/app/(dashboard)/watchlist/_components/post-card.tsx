@@ -8,9 +8,11 @@ import type { FetchedPostData } from "../_lib/types";
 export const WatchlistPostCard = memo(function WatchlistPostCard({
   post,
   watchlistId,
+  onRemove,
 }: {
   post: FetchedPostData;
   watchlistId: number;
+  onRemove?: (postId: number) => void;
 }) {
   // Track SSE-synced translation data from parent
   const [translatedText, setTranslatedText] = useState(post.translatedText);
@@ -46,6 +48,20 @@ export const WatchlistPostCard = memo(function WatchlistPostCard({
       quotedTranslatedText,
     };
   }, [translatedText, commentText, quotedTranslatedText]);
+
+  const handleRemove = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `/api/watchlists/${watchlistId}/posts?postId=${post.id}`,
+        { method: "DELETE" },
+      );
+      if (res.ok) {
+        onRemove?.(post.id);
+      }
+    } catch {
+      // Silently fail — the post stays visible
+    }
+  }, [watchlistId, post.id, onRemove]);
 
   const handleRetry = useCallback(async () => {
     if (retrying) return;
@@ -126,6 +142,7 @@ export const WatchlistPostCard = memo(function WatchlistPostCard({
         linkToDetail={false}
         initialTranslation={initialTranslation}
         renderBeforeActionBar={errorBanner}
+        onRemove={onRemove ? handleRemove : undefined}
       />
     </div>
   );

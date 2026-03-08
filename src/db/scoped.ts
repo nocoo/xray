@@ -1086,6 +1086,15 @@ class PostsRepo {
     return result.changes;
   }
 
+  /** Delete a single post by ID (user-scoped). Returns true if a row was deleted. */
+  deleteById(id: number): boolean {
+    const result = db
+      .delete(fetchedPosts)
+      .where(eq(fetchedPosts.id, id))
+      .run();
+    return result.changes > 0;
+  }
+
   countByWatchlistId(watchlistId: number): number {
     const row = db
       .select({ total: count() })
