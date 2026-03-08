@@ -907,6 +907,90 @@ describe("POST /api/watchlists/[id]/translate", () => {
 });
 
 // =============================================================================
+// DELETE /api/watchlists/[id]/posts?postId=N
+// =============================================================================
+
+describe("DELETE /api/watchlists/[id]/posts", () => {
+  test("deletes a post that belongs to the watchlist", async () => {
+    const member = seedMember("testuser");
+    seedPost(member.id, "t1", "testuser");
+
+    const posts = scopedDb.posts.findByWatchlistId(watchlistId);
+    const postId = posts[0]!.id;
+
+    const { DELETE: deleteFn } = await import("@/app/api/watchlists/[id]/posts/route");
+    const { NextRequest } = await import("next/server");
+    const res = await deleteFn(
+      new NextRequest(`http://localhost/api/watchlists/1/posts?postId=${postId}`),
+      ctx(),
+    );
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.success).toBe(true);
+
+    // Verify post is gone
+    expect(scopedDb.posts.countByWatchlistId(watchlistId)).toBe(0);
+  });
+
+  test("returns 404 for non-existent post", async () => {
+    const { DELETE: deleteFn } = await import("@/app/api/watchlists/[id]/posts/route");
+    const { NextRequest } = await import("next/server");
+    const res = await deleteFn(
+      new NextRequest("http://localhost/api/watchlists/1/posts?postId=99999"),
+      ctx(),
+    );
+    expect(res.status).toBe(404);
+  });
+
+  test("returns 400 when postId is missing", async () => {
+    const { DELETE: deleteFn } = await import("@/app/api/watchlists/[id]/posts/route");
+    const { NextRequest } = await import("next/server");
+    const res = await deleteFn(
+      new NextRequest("http://localhost/api/watchlists/1/posts"),
+      ctx(),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("Missing postId");
+  });
+
+  test("returns 400 for invalid postId", async () => {
+    const { DELETE: deleteFn } = await import("@/app/api/watchlists/[id]/posts/route");
+    const { NextRequest } = await import("next/server");
+    const res = await deleteFn(
+      new NextRequest("http://localhost/api/watchlists/1/posts?postId=abc"),
+      ctx(),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("Invalid postId");
+  });
+
+  test("returns 404 when post belongs to different watchlist", async () => {
+    const member = seedMember("testuser");
+    seedPost(member.id, "t1", "testuser");
+
+    const posts = scopedDb.posts.findByWatchlistId(watchlistId);
+    const postId = posts[0]!.id;
+
+    // Create a second watchlist and try to delete the post from it
+    const wl2 = scopedDb.watchlists.create({ name: "Other WL" });
+
+    const { DELETE: deleteFn } = await import("@/app/api/watchlists/[id]/posts/route");
+    const { NextRequest } = await import("next/server");
+    const res = await deleteFn(
+      new NextRequest(`http://localhost/api/watchlists/${wl2.id}/posts?postId=${postId}`),
+      ctx(wl2.id),
+    );
+    expect(res.status).toBe(404);
+
+    // Post should still exist
+    expect(scopedDb.posts.countByWatchlistId(watchlistId)).toBe(1);
+  });
+});
+
+// =============================================================================
 // PUT /api/watchlists/[id]/settings — 15-day and 30-day retention
 // =============================================================================
 
@@ -939,6 +1023,21 @@ describe("PUT /api/watchlists/[id]/settings — new retention options", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data.retentionDays).toBe(30);
+  });
+
+  test("accepts 90-day retention", async () => {
+    const { PUT } = await import("@/app/api/watchlists/[id]/settings/route");
+    const res = await PUT(
+      new Request("http://localhost/api/watchlists/1/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ retentionDays: 90 }),
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.retentionDays).toBe(90);
   });
 
   test("rejects 20-day retention (not in allowed list)", async () => {

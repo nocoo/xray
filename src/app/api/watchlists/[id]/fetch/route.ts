@@ -17,7 +17,7 @@ import { createProviderForUser } from "@/lib/twitter/provider-factory";
 export const dynamic = "force-dynamic";
 
 const DEFAULT_RETENTION_DAYS = 1;
-const MAX_RETENTION_DAYS = 30;
+const MAX_RETENTION_DAYS = 90;
 
 type RouteContext = { params: Promise<{ id: string }> };
 

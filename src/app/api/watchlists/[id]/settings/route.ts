@@ -4,7 +4,7 @@
  *
  * Settings stored in the generic settings KV table with per-watchlist key namespacing:
  * - watchlist.{id}.fetchIntervalMinutes: auto-fetch interval (0 = disabled)
- * - watchlist.{id}.retentionDays: retention window for fetched posts (1, 3, 7, 15, 30)
+ * - watchlist.{id}.retentionDays: retention window for fetched posts (1, 3, 7, 15, 30, 90)
  *
  * Falls back to global settings if per-watchlist settings are not set.
  */
@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 type RouteContext = { params: Promise<{ id: string }> };
 
 const VALID_INTERVALS = [0, 5, 10, 15, 30, 60, 120, 360, 720, 1440];
-const VALID_RETENTION_DAYS = [1, 3, 7, 15, 30];
+const VALID_RETENTION_DAYS = [1, 3, 7, 15, 30, 90];
 const DEFAULT_RETENTION_DAYS = 1;
 
 function readSettings(db: ScopedDB, watchlistId: number) {
