@@ -335,7 +335,7 @@ export default function WatchlistDetailPage() {
 
   const doStreamTranslate = useCallback(async () => {
     setPipelinePhase("translating");
-    setTranslateProgress({ current: 0, total: 0, errors: 0 });
+    setTranslateProgress(null);
     setTranslateSummary(null);
 
     try {
@@ -374,7 +374,9 @@ export default function WatchlistDetailPage() {
         buffer = parseSSEBuffer(buffer, (eventType, eventData) => {
           try {
             const d = JSON.parse(eventData);
-            if (eventType === "translated") {
+            if (eventType === "start") {
+              setTranslateProgress({ current: 0, total: d.total, errors: 0 });
+            } else if (eventType === "translated") {
               setTranslateProgress((prev) => ({
                 current: d.current,
                 total: d.total,

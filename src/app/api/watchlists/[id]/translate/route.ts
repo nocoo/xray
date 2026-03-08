@@ -140,6 +140,9 @@ export async function POST(request: Request, ctx: RouteContext) {
         const errorMessages: string[] = [];
         const total = postsToTranslate.length;
 
+        // Emit total count immediately so the client can show "Translating 0/N"
+        controller.enqueue(encoder.encode(sseMessage("start", { total })));
+
         // Process posts in batches of CONCURRENCY
         for (let batchStart = 0; batchStart < total; batchStart += CONCURRENCY) {
           if (aborted) break;
