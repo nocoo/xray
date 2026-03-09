@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-03-09
+
+### Added
+
+- **Remove button on post cards** — each post card now has a trash icon button (right-aligned, red hover) that deletes the post via `DELETE /api/watchlists/[id]/posts?postId=N` and removes it from the UI instantly
+- **90-day retention option** — watchlist settings now support 90-day post retention in addition to the existing 1/3/7/15/30-day options
+- **Rich translation progress** — translation pipeline rewritten with sliding-window concurrency and live SSE previews; new `start` and `translating` events provide real-time feedback before each translation completes
+
+### Fixed
+
+- **"Translating 0/0" flash** — eliminated the brief zero-count display that appeared at the start of batch translation
+- **`getDb()` test conflict** — resolved module-level database initialization conflict that caused test failures when importing from `@/db`
+
+### Tests
+
+- 8 new `parseSSEBuffer` unit tests covering chunked streaming and edge cases
+- 5 new DELETE endpoint API tests (success, 404, 400, cross-watchlist rejection)
+- 3 new `deleteById` DB repository tests
+- 90-day retention acceptance test
+- 7 new route tests for settings and posts endpoints
+
 ## [1.8.0] - 2026-03-06
 
 ### Documentation

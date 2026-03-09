@@ -51,7 +51,7 @@ SQLite database is stored on a Railway volume mounted at `/data`. The `XRAY_DATA
 
 ```
 GET /api/live
-→ {"status":"ok","version":"1.8.0","checks":{"database":"ok"}}
+→ {"status":"ok","version":"1.9.0","checks":{"database":"ok"}}
 ```
 
 ## Gotchas
