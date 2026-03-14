@@ -7,20 +7,13 @@ import { MasonryGrid } from "@/components/ui/masonry-grid";
 import { LoadingSpinner, ErrorBanner, EmptyState } from "@/components/ui/feedback";
 import { Bookmark } from "lucide-react";
 import { useFetch } from "@/hooks/use-api";
+import { estimateTweetHeight } from "@/lib/utils";
 
 import type { Tweet } from "../../../../shared/types";
 
 // =============================================================================
 // Bookmarks Page — displays the user's bookmarked tweets in masonry layout
 // =============================================================================
-
-function estimateTweetHeight(tweet: Tweet): number {
-  let h = 100; // base (author row + action bar + metrics + padding)
-  h += Math.ceil((tweet.text?.length ?? 0) / 60) * 20; // ~20px per line
-  if (tweet.media && tweet.media.length > 0) h += 200;
-  if (tweet.quoted_tweet) h += 120;
-  return h;
-}
 
 export default function BookmarksPage() {
   useBreadcrumbs([{ label: "Bookmarks" }]);

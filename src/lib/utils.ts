@@ -40,6 +40,21 @@ export function formatTimeAgo(iso: string): string {
   });
 }
 
+/**
+ * Estimate the rendered pixel height of a tweet card for masonry layout.
+ */
+export function estimateTweetHeight(tweet: {
+  text?: string | null;
+  media?: unknown[] | null;
+  quoted_tweet?: unknown | null;
+}): number {
+  let h = 100; // base (author row + action bar + metrics + padding)
+  h += Math.ceil((tweet.text?.length ?? 0) / 60) * 20; // ~20px per line
+  if (tweet.media && tweet.media.length > 0) h += 200;
+  if (tweet.quoted_tweet) h += 120;
+  return h;
+}
+
 /** Generate a stable hash from a string. */
 function hashString(str: string): number {
   let hash = 0;
