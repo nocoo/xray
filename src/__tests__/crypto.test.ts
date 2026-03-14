@@ -4,6 +4,7 @@ import {
   hashWebhookKey,
   getKeyPrefix,
   verifyWebhookKey,
+  maskSecret,
 } from "@/lib/crypto";
 
 // =============================================================================
@@ -96,6 +97,33 @@ describe("lib/crypto", () => {
     test("constant-time: handles length mismatch", () => {
       const key = generateWebhookKey();
       expect(verifyWebhookKey(key, "short")).toBe(false);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // maskSecret
+  // ---------------------------------------------------------------------------
+
+  describe("maskSecret", () => {
+    test("returns empty string for empty input", () => {
+      expect(maskSecret("")).toBe("");
+    });
+
+    test("masks short strings completely", () => {
+      expect(maskSecret("abc")).toBe("****");
+      expect(maskSecret("12345678")).toBe("****");
+    });
+
+    test("keeps first 4 and last 4 chars for longer strings", () => {
+      expect(maskSecret("abcdefghijkl")).toBe("abcd****ijkl");
+    });
+
+    test("masks API keys correctly", () => {
+      const key = "sk-1234567890abcdef";
+      const masked = maskSecret(key);
+      expect(masked.startsWith("sk-1")).toBe(true);
+      expect(masked.endsWith("cdef")).toBe(true);
+      expect(masked).toContain("*");
     });
   });
 });
