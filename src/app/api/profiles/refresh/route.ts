@@ -13,6 +13,7 @@
 import { NextRequest } from "next/server";
 import { withSessionProvider } from "@/lib/twitter/session-handler";
 import { ProfilesRepo } from "@/db/scoped";
+import { pMap } from "@/lib/utils";
 
 import type { UserInfo } from "../../../../../shared/types";
 
@@ -23,27 +24,6 @@ const CONCURRENCY = 5;
 
 /** Max identifiers per request */
 const MAX_IDENTIFIERS = 500;
-
-async function pMap<T, R>(
-  items: T[],
-  fn: (item: T) => Promise<R>,
-  concurrency: number,
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let idx = 0;
-  async function worker() {
-    while (idx < items.length) {
-      const i = idx++;
-      results[i] = await fn(items[i]!);
-    }
-  }
-  const workers = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    () => worker(),
-  );
-  await Promise.all(workers);
-  return results;
-}
 
 export async function POST(req: NextRequest) {
   let body: { twitter_ids?: unknown; usernames?: unknown };
