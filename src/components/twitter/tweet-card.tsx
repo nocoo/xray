@@ -24,7 +24,7 @@ import {
   MessageSquareQuote,
   Trash2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatCount, formatTimeAgo } from "@/lib/utils";
 
 import type { Tweet, TweetMedia } from "../../../shared/types";
 
@@ -628,27 +628,6 @@ function MetricItem({
       <span className="font-display">{formatCount(value)}</span>
     </div>
   );
-}
-
-export function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString();
-}
-
-export function formatTimeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "now";
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d`;
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
 }
 
 // =============================================================================

@@ -32,7 +32,7 @@ import {
   X,
   Minus,
 } from "lucide-react";
-import { cn, getAvatarColor } from "@/lib/utils";
+import { cn, getAvatarColor, formatCount, formatTimeAgo } from "@/lib/utils";
 import { resolveIcon } from "@/components/ui/icon-picker";
 import type { MemberProfileData } from "@/app/(dashboard)/watchlist/_lib/types";
 
@@ -689,18 +689,6 @@ function formatAccountAge(createdAt: string): string {
   return `${days}d`;
 }
 
-function formatRelativeTime(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days < 1) return "today";
-  if (days === 1) return "1d ago";
-  if (days < 30) return `${days}d ago`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo ago`;
-  const years = Math.floor(days / 365);
-  return `${years}y ago`;
-}
-
 function formatAvgPerDay(tweetCount: number, createdAt: string): string {
   const days = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24);
   if (days <= 0) return "—";
@@ -714,12 +702,6 @@ function formatAvgPerDay(tweetCount: number, createdAt: string): string {
 // =============================================================================
 // MemberRow — single table row
 // =============================================================================
-
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString();
-}
 
 function MemberRow({
   member,
@@ -853,7 +835,7 @@ function MemberRow({
       <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
         {p?.lastTweetAt ? (
           <span title={new Date(p.lastTweetAt).toLocaleDateString()}>
-            {formatRelativeTime(p.lastTweetAt)}
+            {formatTimeAgo(p.lastTweetAt)}
           </span>
         ) : "—"}
       </td>

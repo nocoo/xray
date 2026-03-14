@@ -4,15 +4,10 @@ import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, RefreshCw, Trash2, Users } from "lucide-react";
+import { formatCount } from "@/lib/utils";
 import type { WatchlistMember } from "../_lib/types";
 
 // We intentionally use <img> for external Twitter profile images.
-
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString();
-}
 
 export const MemberCard = memo(function MemberCard({
   member,

@@ -20,7 +20,7 @@ import {
   Loader2,
   Play,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatCount } from "@/lib/utils";
 import { parseTwitterExportFile } from "@/lib/twitter-export";
 
 // =============================================================================
@@ -939,12 +939,6 @@ function ImportFileTab({
 // =============================================================================
 // CandidateList — shared preview list with multi-select
 // =============================================================================
-
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString();
-}
 
 function CandidateList({
   candidates,
