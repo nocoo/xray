@@ -33,7 +33,6 @@ function resolveDbPath(filename: string): string {
 }
 
 const DEFAULT_DB_FILE = "database/xray.db";
-const E2E_DB_FILE = "database/xray.e2e.db";
 
 // Runtime detection: Bun exposes globalThis.Bun, Node.js does not.
 // next dev spawns Node.js workers, so bun:sqlite is unavailable there.
@@ -448,17 +447,6 @@ export function createTestDb(): DbInstance {
     currentDbFile = null;
   }
   return createDatabase(":memory:");
-}
-
-/** Create or reset the E2E test database. Returns the file path. */
-export function createE2EDb(): string {
-  if (sqlite) {
-    sqlite.close();
-    sqlite = null;
-    dbInstance = null;
-  }
-  createDatabase(E2E_DB_FILE);
-  return E2E_DB_FILE;
 }
 
 /** Reset test database by clearing all data. */
