@@ -17,6 +17,7 @@ import {
   Plus,
   Bot,
 } from "lucide-react";
+import { formatDate } from "@/lib/utils";
 
 // =============================================================================
 // Types
@@ -346,18 +347,3 @@ function AiPromptSection() {
   );
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
-
-function formatDate(dateStr: string): string {
-  try {
-    return new Date(dateStr).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
-}

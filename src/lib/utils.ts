@@ -80,6 +80,22 @@ export async function pMap<T, R>(
   return results;
 }
 
+/**
+ * Format an ISO date string as a localized date: "Jan 15, 2026".
+ * Returns the original string on parse failure.
+ */
+export function formatDate(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
 /** Generate a stable hash from a string. */
 function hashString(str: string): number {
   let hash = 0;
