@@ -29,16 +29,7 @@ export const chart = {
 /** Ordered array — use for pie / donut / bar where you need N colors by index. */
 export const CHART_COLORS = Object.values(chart);
 
-/** CSS variable names (without --) matching CHART_COLORS order — for withAlpha(). */
-export const CHART_TOKENS = Array.from(
-  { length: 10 },
-  (_, i) => `chart-${i + 1}`,
-) as readonly string[];
-
 // ── Semantic aliases ──
 
 export const chartAxis = v("chart-axis");
 export const chartMuted = v("chart-muted");
-
-/** Primary chart accent (most-used single color) */
-export const chartPrimary = chart.indigo;

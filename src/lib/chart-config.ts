@@ -18,13 +18,6 @@ export const AXIS_CONFIG = {
   tickLine: false as const,
 } as const;
 
-/** Common tooltip styles */
-export const TOOLTIP_STYLES = {
-  container: "rounded-md border bg-popover px-3 py-2 text-sm shadow-md",
-  title: "font-medium",
-  value: "text-muted-foreground",
-} as const;
-
 /** Common bar radius for rounded corners */
 export const BAR_RADIUS = {
   horizontal: [0, 4, 4, 0] as [number, number, number, number],
@@ -46,11 +39,6 @@ export const RESPONSIVE_CONTAINER_PROPS = {
   minHeight: 0,
   initialDimension: { width: 1, height: 1 },
   debounce: 300,
-} as const;
-
-/** Legend configuration */
-export const LEGEND_CONFIG = {
-  wrapperStyle: { fontSize: 12 },
 } as const;
 
 /** Axis label for muted grid lines */
