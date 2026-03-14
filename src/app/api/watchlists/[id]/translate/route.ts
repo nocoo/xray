@@ -11,17 +11,12 @@
  */
 
 import { NextResponse } from "next/server";
-import { requireAuthWithWatchlist } from "@/lib/api-helpers";
+import { requireAuthWithWatchlist, sseMessage } from "@/lib/api-helpers";
 import { translateBatch, translateText } from "@/services/translation";
 
 export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
-
-/** Format an SSE message. */
-function sseMessage(event: string, data: unknown): string {
-  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-}
 
 export async function POST(request: Request, ctx: RouteContext) {
   const { db, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);

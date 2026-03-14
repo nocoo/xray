@@ -119,3 +119,8 @@ export async function requireAuthWithGroup(
 
   return { db, groupId };
 }
+
+/** Format a Server-Sent Events message. */
+export function sseMessage(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}

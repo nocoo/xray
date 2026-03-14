@@ -11,7 +11,7 @@
  *   - done:     { fetched, newPosts, skippedOld, purged, errors }
  */
 
-import { requireAuthWithWatchlist } from "@/lib/api-helpers";
+import { requireAuthWithWatchlist, sseMessage } from "@/lib/api-helpers";
 import { createProviderForUser } from "@/lib/twitter/provider-factory";
 
 export const dynamic = "force-dynamic";
@@ -25,11 +25,6 @@ function daysAgoIso(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
   return d.toISOString();
-}
-
-/** Format an SSE message. */
-function sseMessage(event: string, data: unknown): string {
-  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
 export async function POST(_request: Request, ctx: RouteContext) {
