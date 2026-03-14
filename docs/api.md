@@ -238,7 +238,7 @@ Response:
 ```json
 {
   "status": "ok",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "timestamp": 1771930542862,
   "uptime": 420,
   "runtime": "bun",

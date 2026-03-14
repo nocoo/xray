@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-03-15
+
+### Refactored
+
+- **Remove dead code** — deleted unused `auth-context.ts`, `useMutation` hook, `createE2EDb()`, and 4 dead chart/palette exports
+- **Extract shared utilities** — consolidated duplicate functions into single shared implementations:
+  - `formatCount` (4 copies → 1 in `utils.ts`)
+  - `formatTimeAgo` (4 copies → 1 in `utils.ts`, with `compact`/`long`/`coarse` style variants)
+  - `estimateTweetHeight` (2 copies → 1 in `utils.ts`)
+  - `pMap` (2 copies → 1 in `utils.ts`)
+  - `sseMessage` (2 copies → 1 in `api-helpers.ts`)
+  - `maskSecret` (2 copies → 1 in `crypto.ts`, with `prefix`/`tail` mode parameter)
+  - `formatDate` (2 copies → 1 in `utils.ts`)
+
+### Fixed
+
+- **AI key masking security** — restored conservative tail-only masking for API keys in AI settings (only last 4 chars visible), preventing the prefix exposure introduced by the maskSecret consolidation
+
+### Tests
+
+- 35 new tests covering all extracted shared utilities (`formatCount`, `formatTimeAgo` × 3 styles, `formatDate`, `estimateTweetHeight`, `pMap`, `maskSecret` × 2 modes)
+
+### Docs
+
+- Removed stale `useMutation` references from README, CHANGELOG, and architecture docs
+
 ## [1.9.0] - 2026-03-09
 
 ### Added
