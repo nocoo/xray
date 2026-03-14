@@ -29,7 +29,7 @@ X-Ray is a full-stack web application for Twitter/X content monitoring. The arch
 
 - **vinext** — Vite-based Next.js RSC implementation, NOT standard Next.js
 - **App Router** — `(dashboard)/` route group with shared AppShell layout
-- **ViewModel hooks** — `useFetch`, `useSearch`, `useMutation` in `src/hooks/use-api.ts`
+- **ViewModel hooks** — `useFetch`, `useSearch` in `src/hooks/use-api.ts`
 - **23 dashboard pages** — watchlists, groups, tweets, users, bookmarks, likes, lists, messages, analytics, usage, webhooks, settings, ai-settings, integrations
 
 ### Auth (src/auth.ts, src/lib/auth-adapter.ts)

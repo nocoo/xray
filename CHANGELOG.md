@@ -339,7 +339,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Playwright browser E2E** — 15 smoke tests covering all pages, sidebar navigation, tweet/user search flows, and settings rendering
 - **Test coverage reporting** — `bun run test:coverage` with 70% line/function threshold via `bunfig.toml`
-- **ViewModel hooks** — `useFetch`, `useSearch`, `useMutation` in `src/hooks/use-api.ts` for clean data-fetching patterns
+- **ViewModel hooks** — `useFetch`, `useSearch` in `src/hooks/use-api.ts` for clean data-fetching patterns
 - **Shared feedback components** — `ErrorBanner`, `EmptyState`, `LoadingSpinner`, `StatusMessage`, `SectionSkeleton` in `src/components/ui/feedback.tsx`
 - **XRayAPIClient** — production API client for scripts using webhook key auth
 - Unit tests for `normalizeCredits` and `normalizeCreditsUsage`

@@ -131,7 +131,7 @@ x-ray/
 │   │   ├── 📂 layout/             # 布局组件 (AppShell, Sidebar, Breadcrumbs)
 │   │   ├── 📂 twitter/            # Twitter 业务组件 (TweetCard, UserCard)
 │   │   └── 📂 ui/                 # shadcn/ui + MasonryGrid
-│   ├── 📂 hooks/                  # useFetch, useSearch, useMutation, useColumns, useMobile
+│   ├── 📂 hooks/                  # useFetch, useSearch, useColumns, useMobile
 │   ├── 📂 services/               # AI 翻译服务
 │   ├── 📂 db/
 │   │   ├── schema.ts              # Drizzle ORM schema (16 tables)
