@@ -39,11 +39,24 @@ export function verifyWebhookKey(key: string, storedHash: string): boolean {
 
 /**
  * Mask a secret string for safe display.
- * Keeps the first 4 and last 4 characters, replacing the middle with asterisks.
- * Short strings (≤8 chars) are fully masked.
+ *
+ * - `"prefix"` (default): keeps the first 4 and last 4 characters.
+ *   Suitable for webhook keys and credentials where the prefix
+ *   is already known / non-sensitive.
+ * - `"tail"`: keeps only the last 4 characters.
+ *   More conservative — use for API keys where even the prefix
+ *   may carry information (e.g. "sk-…").
+ *
+ * Short strings (≤8 chars) are fully masked regardless of mode.
  */
-export function maskSecret(value: string): string {
+export function maskSecret(
+  value: string,
+  mode: "prefix" | "tail" = "prefix",
+): string {
   if (!value) return "";
   if (value.length <= 8) return "****";
+  if (mode === "tail") {
+    return `${"*".repeat(value.length - 4)}${value.slice(-4)}`;
+  }
   return `${value.slice(0, 4)}${"*".repeat(value.length - 8)}${value.slice(-4)}`;
 }

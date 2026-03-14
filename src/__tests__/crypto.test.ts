@@ -114,16 +114,37 @@ describe("lib/crypto", () => {
       expect(maskSecret("12345678")).toBe("****");
     });
 
-    test("keeps first 4 and last 4 chars for longer strings", () => {
+    // --- prefix mode (default) ---
+
+    test("prefix mode: keeps first 4 and last 4 chars", () => {
       expect(maskSecret("abcdefghijkl")).toBe("abcd****ijkl");
+      expect(maskSecret("abcdefghijkl", "prefix")).toBe("abcd****ijkl");
     });
 
-    test("masks API keys correctly", () => {
+    test("prefix mode: masks credentials correctly", () => {
       const key = "sk-1234567890abcdef";
       const masked = maskSecret(key);
       expect(masked.startsWith("sk-1")).toBe(true);
       expect(masked.endsWith("cdef")).toBe(true);
       expect(masked).toContain("*");
+    });
+
+    // --- tail mode ---
+
+    test("tail mode: keeps only last 4 chars", () => {
+      expect(maskSecret("abcdefghijkl", "tail")).toBe("********ijkl");
+    });
+
+    test("tail mode: hides API key prefix", () => {
+      const key = "sk-1234567890abcdef";
+      const masked = maskSecret(key, "tail");
+      expect(masked.startsWith("sk")).toBe(false);
+      expect(masked.startsWith("*")).toBe(true);
+      expect(masked.endsWith("cdef")).toBe(true);
+    });
+
+    test("tail mode: masks short strings completely", () => {
+      expect(maskSecret("short", "tail")).toBe("****");
     });
   });
 });

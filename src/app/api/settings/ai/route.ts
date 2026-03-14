@@ -36,7 +36,7 @@ export async function GET() {
   const settings = readAiSettings(db);
   return NextResponse.json({
     ...settings,
-    apiKey: maskSecret(settings.apiKey),
+    apiKey: maskSecret(settings.apiKey, "tail"),
     hasApiKey: !!settings.apiKey,
   });
 }
@@ -111,7 +111,7 @@ export async function PUT(request: Request) {
   const updated = readAiSettings(db);
   return NextResponse.json({
     ...updated,
-    apiKey: maskSecret(updated.apiKey),
+    apiKey: maskSecret(updated.apiKey, "tail"),
     hasApiKey: !!updated.apiKey,
   });
 }
