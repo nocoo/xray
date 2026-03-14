@@ -232,7 +232,7 @@ export const TweetCard = memo(function TweetCard({
               </Link>
               <span>·</span>
               <span className="shrink-0">
-                {formatTimeAgo(tweet.created_at)}
+                {formatTimeAgo(tweet.created_at, "compact")}
               </span>
             </div>
           </div>
@@ -333,7 +333,7 @@ export const TweetCard = memo(function TweetCard({
             </a>
             <span className="text-xs text-muted-foreground">·</span>
             <span className="text-xs text-muted-foreground shrink-0">
-              {formatTimeAgo(tweet.quoted_tweet.created_at)}
+              {formatTimeAgo(tweet.quoted_tweet.created_at, "compact")}
             </span>
           </div>
 

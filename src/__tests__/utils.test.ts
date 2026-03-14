@@ -97,34 +97,69 @@ describe("src/lib/utils", () => {
   });
 
   describe("formatTimeAgo", () => {
-    test("returns 'just now' for recent dates", () => {
+    // --- long style (default) ---
+    test("long: returns 'just now' for recent dates", () => {
       const now = new Date().toISOString();
       expect(formatTimeAgo(now)).toBe("just now");
     });
 
-    test("returns minutes ago", () => {
+    test("long: returns minutes ago", () => {
       const date = new Date(Date.now() - 5 * 60_000).toISOString();
       expect(formatTimeAgo(date)).toBe("5m ago");
     });
 
-    test("returns hours ago", () => {
+    test("long: returns hours ago", () => {
       const date = new Date(Date.now() - 3 * 60 * 60_000).toISOString();
       expect(formatTimeAgo(date)).toBe("3h ago");
     });
 
-    test("returns days ago", () => {
+    test("long: returns days ago", () => {
       const date = new Date(Date.now() - 5 * 24 * 60 * 60_000).toISOString();
       expect(formatTimeAgo(date)).toBe("5d ago");
     });
 
-    test("returns months ago for 30+ days", () => {
+    test("long: returns locale date for 30+ days", () => {
       const date = new Date(Date.now() - 60 * 24 * 60 * 60_000).toISOString();
-      expect(formatTimeAgo(date)).toBe("2mo ago");
+      const result = formatTimeAgo(date);
+      // Should be a locale date string, not "2mo ago"
+      expect(result).not.toContain("ago");
     });
 
-    test("returns years ago for 365+ days", () => {
+    // --- compact style (tweet cards) ---
+    test("compact: returns 'now' for recent dates", () => {
+      expect(formatTimeAgo(new Date().toISOString(), "compact")).toBe("now");
+    });
+
+    test("compact: no 'ago' suffix", () => {
+      const date = new Date(Date.now() - 5 * 60_000).toISOString();
+      expect(formatTimeAgo(date, "compact")).toBe("5m");
+    });
+
+    test("compact: shows date after 7 days", () => {
+      const date = new Date(Date.now() - 10 * 24 * 60 * 60_000).toISOString();
+      const result = formatTimeAgo(date, "compact");
+      // Should be formatted date like "Jan 15", not "10d"
+      expect(result).not.toMatch(/^\d+d$/);
+    });
+
+    // --- coarse style (group profiles) ---
+    test("coarse: returns 'today' for <1 day", () => {
+      expect(formatTimeAgo(new Date().toISOString(), "coarse")).toBe("today");
+    });
+
+    test("coarse: returns '1d ago' for 1 day", () => {
+      const date = new Date(Date.now() - 1.5 * 24 * 60 * 60_000).toISOString();
+      expect(formatTimeAgo(date, "coarse")).toBe("1d ago");
+    });
+
+    test("coarse: returns months ago", () => {
+      const date = new Date(Date.now() - 60 * 24 * 60 * 60_000).toISOString();
+      expect(formatTimeAgo(date, "coarse")).toBe("2mo ago");
+    });
+
+    test("coarse: returns years ago", () => {
       const date = new Date(Date.now() - 400 * 24 * 60 * 60_000).toISOString();
-      expect(formatTimeAgo(date)).toBe("1y ago");
+      expect(formatTimeAgo(date, "coarse")).toBe("1y ago");
     });
   });
 

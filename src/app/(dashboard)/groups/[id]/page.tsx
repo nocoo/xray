@@ -835,7 +835,7 @@ function MemberRow({
       <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
         {p?.lastTweetAt ? (
           <span title={new Date(p.lastTweetAt).toLocaleDateString()}>
-            {formatTimeAgo(p.lastTweetAt)}
+            {formatTimeAgo(p.lastTweetAt, "coarse")}
           </span>
         ) : "—"}
       </td>

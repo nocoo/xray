@@ -153,7 +153,7 @@ export default function UsagePage() {
             label="Last Used"
             value={
               data?.summary.lastUsedAt
-                ? formatTimeAgo(data.summary.lastUsedAt)
+                ? formatTimeAgo(data.summary.lastUsedAt, "compact")
                 : "Never"
             }
             loading={loading}

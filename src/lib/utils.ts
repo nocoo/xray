@@ -19,25 +19,51 @@ export function formatCount(n: number): string {
 /**
  * Format an ISO date string as a relative time ago.
  *
- * Granularity: now → Xm → Xh → Xd → Xmo → Xy → date.
+ * Styles:
+ * - `"compact"`:  now / 5m / 3h / 5d → "Jan 15" after 7 days (tweet cards)
+ * - `"long"`:     just now / 5m ago / 3h ago / 5d ago → locale date after 30d (messages)
+ * - `"coarse"`:   today / 1d ago / 5d ago / 2mo ago / 1y ago (group profiles)
+ *
+ * Default is `"long"`.
  */
-export function formatTimeAgo(iso: string): string {
+export type TimeAgoStyle = "compact" | "long" | "coarse";
+
+export function formatTimeAgo(
+  iso: string,
+  style: TimeAgoStyle = "long",
+): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60_000);
+  const hours = Math.floor(mins / 60);
+  const days = Math.floor(hours / 24);
+
+  if (style === "compact") {
+    if (mins < 1) return "now";
+    if (mins < 60) return `${mins}m`;
+    if (hours < 24) return `${hours}h`;
+    if (days < 7) return `${days}d`;
+    return new Date(iso).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  if (style === "coarse") {
+    if (days < 1) return "today";
+    if (days === 1) return "1d ago";
+    if (days < 30) return `${days}d ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months}mo ago`;
+    const years = Math.floor(days / 365);
+    return `${years}y ago`;
+  }
+
+  // "long" (default)
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
   if (days < 30) return `${days}d ago`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo ago`;
-  const years = Math.floor(days / 365);
-  if (years > 0) return `${years}y ago`;
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  return new Date(iso).toLocaleDateString();
 }
 
 /**
