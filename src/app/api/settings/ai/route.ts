@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import { isValidProvider, type AiProvider, type SdkType } from "@/services/ai";
+import { maskSecret } from "@/lib/crypto";
 import type { ScopedDB } from "@/db/scoped";
 
 export const dynamic = "force-dynamic";
@@ -26,11 +27,6 @@ function readAiSettings(db: ScopedDB) {
 
 export type AiSettingsResponse = ReturnType<typeof readAiSettings>;
 
-function maskApiKey(key: string): string {
-  if (!key) return "";
-  return `${"*".repeat(Math.max(0, key.length - 4))}${key.slice(-4)}`;
-}
-
 // ── GET ──
 
 export async function GET() {
@@ -40,7 +36,7 @@ export async function GET() {
   const settings = readAiSettings(db);
   return NextResponse.json({
     ...settings,
-    apiKey: maskApiKey(settings.apiKey),
+    apiKey: maskSecret(settings.apiKey),
     hasApiKey: !!settings.apiKey,
   });
 }
@@ -115,7 +111,7 @@ export async function PUT(request: Request) {
   const updated = readAiSettings(db);
   return NextResponse.json({
     ...updated,
-    apiKey: maskApiKey(updated.apiKey),
+    apiKey: maskSecret(updated.apiKey),
     hasApiKey: !!updated.apiKey,
   });
 }

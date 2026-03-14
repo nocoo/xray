@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
+import { maskSecret } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -86,14 +87,4 @@ export async function DELETE() {
   }
 
   return NextResponse.json({ deleted: true });
-}
-
-// =============================================================================
-// Helpers
-// =============================================================================
-
-/** Mask a secret string, showing only the first 4 and last 4 characters. */
-function maskSecret(value: string): string {
-  if (value.length <= 8) return "****";
-  return `${value.slice(0, 4)}${"*".repeat(value.length - 8)}${value.slice(-4)}`;
 }

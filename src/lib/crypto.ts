@@ -36,3 +36,14 @@ export function verifyWebhookKey(key: string, storedHash: string): boolean {
   }
   return result === 0;
 }
+
+/**
+ * Mask a secret string for safe display.
+ * Keeps the first 4 and last 4 characters, replacing the middle with asterisks.
+ * Short strings (≤8 chars) are fully masked.
+ */
+export function maskSecret(value: string): string {
+  if (!value) return "";
+  if (value.length <= 8) return "****";
+  return `${value.slice(0, 4)}${"*".repeat(value.length - 8)}${value.slice(-4)}`;
+}
