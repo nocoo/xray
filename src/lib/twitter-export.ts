@@ -61,7 +61,8 @@ export function parseTwitterExportFile(content: string): string[] | null {
 
   if (!Array.isArray(data) || data.length === 0) return null;
 
-  const first = data[0]!;
+  const first = data[0];
+  if (!first) return null;
 
   // following.js format
   if ("following" in first && first.following?.accountId) {

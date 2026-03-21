@@ -679,16 +679,6 @@ const ACTIVITY_CONFIG: Record<ActivityLevel, { label: string; className: string 
   unknown:  { label: "—",        className: "bg-muted text-muted-foreground border-border" },
 };
 
-function formatAccountAge(createdAt: string): string {
-  const diff = Date.now() - new Date(createdAt).getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const years = Math.floor(days / 365);
-  const months = Math.floor((days % 365) / 30);
-  if (years > 0) return months > 0 ? `${years}y ${months}m` : `${years}y`;
-  if (months > 0) return `${months}m`;
-  return `${days}d`;
-}
-
 function formatAvgPerDay(tweetCount: number, createdAt: string): string {
   const days = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24);
   if (days <= 0) return "—";

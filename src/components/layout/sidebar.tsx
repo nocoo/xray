@@ -110,18 +110,15 @@ const BOTTOM_GROUPS: NavGroup[] = [
   },
 ];
 
-/** All static groups combined — used for collapsed view iteration. */
-const ALL_STATIC_GROUPS = [...TOP_GROUPS, ...BOTTOM_GROUPS];
-
 // Legacy exports for compatibility (flat list of all static items)
 const navSections: NavSection[] = [
-  { title: null, items: TOP_GROUPS[0]!.items },
-  { title: "Explore World", items: TOP_GROUPS[1]!.items },
+  { title: null, items: TOP_GROUPS[0]?.items ?? [] },
+  { title: "Explore World", items: TOP_GROUPS[1]?.items ?? [] },
   { title: "Watchlists", items: [{ href: "/watchlist", label: "Watchlists", icon: Eye }] },
   { title: "Groups", items: [{ href: "/groups", label: "Groups", icon: Users }] },
-  { title: "My Account", items: BOTTOM_GROUPS[0]!.items },
-  { title: "Integrations", items: BOTTOM_GROUPS[1]!.items },
-  { title: null, items: BOTTOM_GROUPS[2]!.items },
+  { title: "My Account", items: BOTTOM_GROUPS[0]?.items ?? [] },
+  { title: "Integrations", items: BOTTOM_GROUPS[1]?.items ?? [] },
+  { title: null, items: BOTTOM_GROUPS[2]?.items ?? [] },
 ];
 const allNavItems = navSections.flatMap((s) => s.items);
 

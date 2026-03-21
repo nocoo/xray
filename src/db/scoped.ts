@@ -11,7 +11,7 @@
  *   scopedDb.credentials.upsert({ tweapiKey, twitterCookie });
  */
 
-import { eq, and, desc, sql, gte, lte, isNull, lt, count, notInArray, inArray, or } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lte, isNull, lt, count, notInArray, inArray } from "drizzle-orm";
 import { db, getRawSqlite } from "@/db";
 import type { UserInfo } from "../../shared/types";
 import {
@@ -627,7 +627,7 @@ class MembersRepo {
     const result = new Map<number, MemberProfile>();
     const twitterIds = members
       .filter((m) => m.twitterId)
-      .map((m) => m.twitterId!);
+      .map((m) => m.twitterId as string);
     if (twitterIds.length === 0) return result;
 
     const profiles: TwitterProfile[] = db
@@ -1365,7 +1365,7 @@ export class GroupMembersRepo {
     const result = new Map<number, MemberProfile>();
     const twitterIds = members
       .filter((m) => m.twitterId)
-      .map((m) => m.twitterId!);
+      .map((m) => m.twitterId as string);
     if (twitterIds.length === 0) return result;
 
     const profiles: TwitterProfile[] = db

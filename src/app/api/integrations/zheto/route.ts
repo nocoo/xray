@@ -3,8 +3,6 @@ import { requireAuth } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
 
-const SETTING_KEYS = ["zheto.webhookUrl", "zheto.folder"] as const;
-
 // =============================================================================
 // GET — read zhe.to integration settings
 // =============================================================================

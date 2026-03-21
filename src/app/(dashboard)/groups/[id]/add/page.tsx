@@ -4,7 +4,6 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useBreadcrumbs } from "@/components/layout";
 import {
-  LoadingSpinner,
   ErrorBanner,
 } from "@/components/ui/feedback";
 import { Button } from "@/components/ui/button";
@@ -100,7 +99,7 @@ export default function AddMembersPage() {
           new Set(members.map((m) => m.twitterUsername.toLowerCase())),
         );
         setExistingTwitterIds(
-          new Set(members.filter((m) => m.twitterId).map((m) => m.twitterId!)),
+          new Set(members.filter((m) => m.twitterId).map((m) => m.twitterId as string)),
         );
       }
 
@@ -128,7 +127,7 @@ export default function AddMembersPage() {
     (newItems: Omit<UserCandidate, "alreadyInGroup" | "selected">[]) => {
       setCandidates((prev) => {
         const existingByUsername = new Set(prev.map((c) => c.username.toLowerCase()));
-        const existingById = new Set(prev.filter((c) => c.twitterId).map((c) => c.twitterId!));
+        const existingById = new Set(prev.filter((c) => c.twitterId).map((c) => c.twitterId as string));
         const toAdd: UserCandidate[] = [];
 
         for (const item of newItems) {

@@ -130,7 +130,7 @@ function TranslatingLabel({ progress }: { progress: TranslateProgress | null }) 
   const { current, total, errors, activeSlots } = progress;
   const pct = total > 0 ? Math.round((current / total) * 100) : 0;
   // Pick the first active slot preview to show
-  const preview = activeSlots.length > 0 ? activeSlots[0]!.preview : null;
+  const preview = activeSlots.length > 0 ? activeSlots[0]?.preview ?? null : null;
 
   return (
     <div className="flex items-center gap-2 min-w-0 flex-1">

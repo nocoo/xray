@@ -95,7 +95,7 @@ export async function pMap<T, R>(
   async function worker() {
     while (idx < items.length) {
       const i = idx++;
-      results[i] = await fn(items[i]!);
+      results[i] = await fn(items[i] as T);
     }
   }
   const workers = Array.from(

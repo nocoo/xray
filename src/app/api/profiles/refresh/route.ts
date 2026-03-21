@@ -110,8 +110,9 @@ export async function POST(req: NextRequest) {
           // This is a best-effort call — failure should not block the profile refresh.
           try {
             const tweets = await provider.fetchUserTweets(info.username, { count: 1 });
-            if (tweets.length > 0 && tweets[0]!.created_at) {
-              profiles.updateLastTweetAt(info.username, tweets[0]!.created_at);
+            const latestTweet = tweets[0];
+            if (tweets.length > 0 && latestTweet?.created_at) {
+              profiles.updateLastTweetAt(info.username, latestTweet.created_at);
             }
           } catch {
             // Timeline fetch can fail for protected/suspended accounts — silently skip.
