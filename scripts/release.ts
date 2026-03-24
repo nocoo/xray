@@ -30,7 +30,7 @@ import * as readline from 'readline';
 // Constants
 // ---------------------------------------------------------------------------
 
-const PROJECT_ROOT = pathResolve(import.meta.dirname!, '..');
+const PROJECT_ROOT = pathResolve(import.meta.dirname ?? '.', '..');
 const PACKAGE_JSON = pathResolve(PROJECT_ROOT, 'package.json');
 const CHANGELOG_MD = pathResolve(PROJECT_ROOT, 'CHANGELOG.md');
 
@@ -249,8 +249,8 @@ function classifyCommits(commits: Commit[]): ChangelogSections {
 
     const match = CONVENTIONAL_RE.exec(subject);
     if (match) {
-      const type = match[1]!.toLowerCase();
-      description = capitalizeFirst(match[2]!.trim());
+      const type = (match[1] ?? '').toLowerCase();
+      description = capitalizeFirst((match[2] ?? '').trim());
       section = COMMIT_TYPE_MAP[type] ?? 'changed';
     } else {
       description = capitalizeFirst(subject.trim());
