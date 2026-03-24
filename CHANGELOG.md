@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.4] - 2026-03-24
+
+### Changed
+- Add superset run config and tweet export script
+- Update retrospective #24 with correct root cause and fix
+- Add retrospective #24 — ReadableStream lock in vinext auth
+
+### Fixed
+- Exclude all api routes from proxy to prevent body consumption
+- Clone request in auth route handler to avoid ReadableStream lock
+
 ## [1.9.3] - 2026-03-24
 
 ### Changed
