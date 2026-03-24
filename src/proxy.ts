@@ -25,12 +25,6 @@ const authHandler = auth((req) => {
 
   const isLoggedIn = !!req.auth;
   const isLoginPage = req.nextUrl.pathname === "/login";
-  const isAuthRoute = req.nextUrl.pathname.startsWith("/api/auth");
-
-  // Allow auth routes through
-  if (isAuthRoute) {
-    return NextResponse.next();
-  }
 
   // Redirect to home if logged in and trying to access login page
   if (isLoginPage && isLoggedIn) {
@@ -52,7 +46,13 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Match all paths except static files and non-auth API routes
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.ico$|.*\\.svg$|api/(?!auth)).*)",
+    // Match all paths except static files and API routes.
+    // ALL /api/* routes are excluded because:
+    // 1. /api/auth/* — proxy's auth() consumes the request body, causing
+    //    MissingCSRF on signout/signin POSTs (body already consumed when
+    //    the route handler tries to read it)
+    // 2. /api/* (non-auth) — already protected by requireAuth() in each
+    //    route handler, so proxy-level auth is redundant
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.ico$|.*\\.svg$|api/).*)",
   ],
 };
