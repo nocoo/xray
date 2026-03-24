@@ -16,6 +16,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "prepare": "husky",
+    "release": "bun run scripts/release.ts",
     "watchlist": "bun run scripts/manage-watchlist.ts",
     "xray-me": "bun run scripts/run-me-report.ts"
   },

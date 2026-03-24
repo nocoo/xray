@@ -1,5 +1,20 @@
 README.md
 
+## Release
+
+Version is managed in `package.json` (single source of truth). Versioning follows SemVer: X (major/breaking), Y (minor/feature), Z (patch/fix). Default bump is Z+1.
+
+> **Full spec**: `search-memory "开发规范：版本号的维护"`
+
+```bash
+bun run release              # Z+1 patch (default)
+bun run release -- minor     # Y+1 minor
+bun run release -- major     # X+1 major
+bun run release -- --dry-run # preview without side effects
+```
+
+The script auto-detects project name and CHANGELOG format, then: bumps version → syncs lockfile → generates CHANGELOG → commits → pushes → tags → creates GitHub release.
+
 ## Retrospective
 
 1. **JWT sessions don't persist users to SQLite** — NextAuth with JWT strategy stores user info in the token only, not in the `user` table. Business tables (`api_credentials`, `webhooks`) have FK constraints to `user(id)`, so INSERT fails with `SQLITE_CONSTRAINT_FOREIGNKEY`. Fix: `ensureUserExists()` in `requireAuth()` auto-creates the user row on first API call.
