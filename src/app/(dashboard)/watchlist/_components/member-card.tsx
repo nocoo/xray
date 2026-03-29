@@ -27,7 +27,7 @@ export const MemberCard = memo(function MemberCard({
   const avatarUrl = p?.profileImageUrl ?? `https://unavatar.io/x/${member.twitterUsername}`;
 
   return (
-    <div className="rounded-card bg-card border p-4 flex flex-col items-center text-center group relative">
+    <div className="rounded-card bg-secondary p-4 flex flex-col items-center text-center group relative">
       {/* Hover actions — top-right corner */}
       <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         {onRefresh && (

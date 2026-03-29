@@ -66,7 +66,7 @@ function InboxCard({ item }: { item: InboxItem }) {
   return (
     <Link
       href={`/messages/${item.conversation_id}`}
-      className="flex items-start gap-3 rounded-card border bg-card p-4 transition-colors hover:bg-accent/50"
+      className="flex items-start gap-3 rounded-card bg-secondary p-4 transition-colors hover:bg-accent/50"
     >
       {/* Avatar */}
       {displayUser?.profile_image_url ? (

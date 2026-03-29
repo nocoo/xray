@@ -282,7 +282,7 @@ export const TweetCard = memo(function TweetCard({
 
       {/* Quoted tweet — rendered as a compact nested card */}
       {tweet.quoted_tweet && (
-        <div className="relative mt-3 rounded-lg border border-border p-3 bg-card/50">
+        <div className="relative mt-3 rounded-lg border border-border p-3 bg-secondary/50">
           {/* Open quoted tweet on X — top-right */}
           <a
             href={tweet.quoted_tweet.url}
@@ -406,7 +406,7 @@ export const TweetCard = memo(function TweetCard({
   );
 
   const actionBar = showActionBar ? (
-    <div className="flex items-center gap-1 border border-t-0 border-border rounded-b-card bg-card px-2 py-1.5">
+    <div className="flex items-center gap-1 border border-t-0 border-border rounded-b-card bg-secondary px-2 py-1.5">
       {/* Open on X */}
       <a
         href={tweet.url}

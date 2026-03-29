@@ -139,7 +139,7 @@ function MessageBubble({
   mediaUrls?: string[];
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-card border bg-card p-4">
+    <div className="flex items-start gap-3 rounded-card bg-secondary p-4">
       {/* Avatar */}
       {senderAvatar ? (
         <img

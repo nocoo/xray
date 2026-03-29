@@ -88,7 +88,7 @@ export default function ListsPage() {
 
 function ListCard({ list }: { list: TwitterList }) {
   return (
-    <div className="rounded-card bg-card border p-4 space-y-3">
+    <div className="rounded-card bg-secondary p-4 space-y-3">
       <div>
         <h3 className="font-medium">{list.name}</h3>
         {list.description && (

@@ -497,7 +497,7 @@ export default function GroupDetailPage() {
             </div>
 
             {/* Table */}
-            <div className="rounded-card border overflow-x-auto">
+            <div className="rounded-card bg-secondary overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">

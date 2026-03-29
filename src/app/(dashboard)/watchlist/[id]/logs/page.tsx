@@ -139,7 +139,7 @@ function LogEntry({ log }: { log: FetchLogEntry }) {
   });
 
   return (
-    <div className="rounded-card bg-card border">
+    <div className="rounded-card bg-secondary">
       <button
         onClick={() => hasErrors && setExpanded(!expanded)}
         className={`w-full p-4 text-left ${hasErrors ? "cursor-pointer hover:bg-secondary/50 transition-colors" : "cursor-default"}`}

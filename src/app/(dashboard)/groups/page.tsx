@@ -115,7 +115,7 @@ export default function GroupsListPage() {
                 <Link
                   key={g.id}
                   href={`/groups/${g.id}`}
-                  className="rounded-card bg-card border p-5 flex flex-col gap-3 hover:border-foreground/20 transition-colors group relative"
+                  className="rounded-card bg-secondary p-5 flex flex-col gap-3 hover:bg-accent/50 transition-colors group relative"
                 >
                   {/* Edit/Delete actions */}
                   <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
