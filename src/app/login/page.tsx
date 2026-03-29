@@ -3,20 +3,31 @@
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { Github } from "lucide-react";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import LoadingScreen from "@/components/loading-screen";
 
-function ScanLine() {
+function Barcode() {
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div
-        className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent animate-pulse"
-        style={{ top: "30%" }}
-      />
-      <div
-        className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent animate-pulse"
-        style={{ top: "60%", animationDelay: "1s" }}
-      />
-    </div>
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 80 24"
+      fill="currentColor"
+      className="h-full opacity-50"
+    >
+      {[0, 4, 7, 10, 14, 17, 19, 23, 26, 29, 32, 36, 39, 42, 45, 48, 52, 55, 58, 61, 64, 67, 70, 74, 77].map(
+        (x, i) => (
+          <rect
+            key={i}
+            x={x}
+            y={0}
+            width={i % 3 === 0 ? 2 : 1}
+            height={24}
+            rx={0.5}
+          />
+        ),
+      )}
+    </svg>
   );
 }
 
@@ -28,66 +39,106 @@ function LoginContent() {
     signIn("google", { callbackUrl: "/" });
   };
 
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const year = today.slice(0, 4);
+
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-background p-4 overflow-hidden">
+    <div className="relative flex min-h-screen flex-col bg-background overflow-hidden">
+      {/* Top-right controls */}
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-1">
+        <a
+          href="https://github.com/nocoo/xray"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="GitHub repository"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+        >
+          <Github
+            className="h-[18px] w-[18px]"
+            aria-hidden="true"
+            strokeWidth={1.5}
+          />
+        </a>
+        <ThemeToggle />
+      </div>
+
       {/* Radial glow */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
           background: [
-            "radial-gradient(ellipse 60% 50% at 50% 50%,",
-            "hsl(var(--primary) / 0.06) 0%,",
-            "hsl(var(--primary) / 0.03) 30%,",
-            "hsl(var(--primary) / 0.01) 60%,",
+            "radial-gradient(ellipse 70% 55% at 50% 50%,",
+            "hsl(var(--foreground) / 0.045) 0%,",
+            "hsl(var(--foreground) / 0.042) 10%,",
+            "hsl(var(--foreground) / 0.036) 20%,",
+            "hsl(var(--foreground) / 0.028) 32%,",
+            "hsl(var(--foreground) / 0.020) 45%,",
+            "hsl(var(--foreground) / 0.012) 58%,",
+            "hsl(var(--foreground) / 0.006) 72%,",
+            "hsl(var(--foreground) / 0.002) 86%,",
             "transparent 100%)",
           ].join(" "),
         }}
       />
 
-      <div className="flex flex-col items-center">
+      <div className="flex flex-1 items-center justify-center p-4">
         {/* Login card — vertical terminal aesthetic */}
         <div
-          className="relative w-80 overflow-hidden rounded-2xl bg-card flex flex-col ring-1 ring-black/[0.08] dark:ring-white/[0.06]"
+          className="relative w-72 aspect-[54/86] overflow-hidden rounded-2xl bg-card flex flex-col ring-1 ring-black/[0.08] dark:ring-white/[0.06]"
           style={{
             boxShadow: [
               "0 1px 2px rgba(0,0,0,0.06)",
               "0 4px 8px rgba(0,0,0,0.04)",
               "0 12px 24px rgba(0,0,0,0.06)",
               "0 24px 48px rgba(0,0,0,0.04)",
+              "0 0 0 0.5px rgba(0,0,0,0.02)",
+              "0 0 60px rgba(0,0,0,0.03)",
             ].join(", "),
           }}
         >
           {/* Header strip */}
-          <div className="relative bg-primary px-5 py-5">
-            <ScanLine />
+          <div className="bg-primary px-5 py-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
+              <div
+                className="h-4 w-8 rounded-full bg-background/80"
+                style={{
+                  boxShadow:
+                    "inset 0 1.5px 3px rgba(0,0,0,0.35), inset 0 -0.5px 1px rgba(255,255,255,0.1)",
+                }}
+              />
+              <div className="flex items-center gap-2">
                 <img
                   src="/logo-24.png"
-                  alt="X-Ray"
-                  width={24}
-                  height={24}
+                  alt="xray"
+                  width={16}
+                  height={16}
+                  className="brightness-0 invert"
                 />
-                <span className="text-base font-semibold text-primary-foreground font-mono tracking-wide">
-                  X-Ray
+                <span className="text-sm font-semibold text-primary-foreground">
+                  xray
                 </span>
               </div>
-              <span className="text-[10px] font-medium uppercase tracking-widest text-primary-foreground/50 font-mono">
-                v1.0
+              <span className="text-[10px] font-medium uppercase tracking-widest text-primary-foreground/60">
+                MONITOR
               </span>
             </div>
-            <p className="mt-2 text-[11px] text-primary-foreground/60 font-mono">
-              Twitter Intelligence Platform
-            </p>
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-[9px] font-mono text-primary-foreground/40 tracking-wider">
+                ID {year}-{today.slice(4)}
+              </span>
+              <div className="h-6 text-primary-foreground">
+                <Barcode />
+              </div>
+            </div>
           </div>
 
           {/* Body */}
-          <div className="flex flex-col items-center px-6 pt-8 pb-6">
+          <div className="flex flex-1 flex-col items-center px-6 pt-8 pb-6">
             {/* Logo */}
-            <div className="h-20 w-20 overflow-hidden rounded-full bg-secondary dark:bg-[#171717] ring-1 ring-border p-2.5">
+            <div className="h-24 w-24 overflow-hidden rounded-full bg-secondary dark:bg-[#171717] ring-1 ring-border p-2.5">
               <img
                 src="/logo-80.png"
-                alt="X-Ray"
+                alt="xray"
                 width={80}
                 height={80}
                 className="h-full w-full object-contain"
@@ -118,7 +169,11 @@ function LoginContent() {
               onClick={handleGoogleLogin}
               className="mt-5 flex w-full items-center justify-center gap-2.5 rounded-xl bg-secondary px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent cursor-pointer"
             >
-              <svg className="h-4 w-4" viewBox="0 0 24 24">
+              <svg
+                aria-hidden="true"
+                className="h-4 w-4"
+                viewBox="0 0 24 24"
+              >
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
                   fill="#4285F4"
@@ -156,6 +211,11 @@ function LoginContent() {
           </div>
         </div>
       </div>
+
+      {/* Site footer */}
+      <footer className="py-4 text-center text-xs text-muted-foreground/50">
+        xray &copy; {new Date().getFullYear()}
+      </footer>
     </div>
   );
 }
