@@ -598,8 +598,16 @@ function SortHeader({
   className?: string;
 }) {
   const active = sortField === field;
+  const ariaSort = active
+    ? sortDir === "asc"
+      ? "ascending"
+      : "descending"
+    : "none";
   return (
-    <th className={cn("px-4 py-3 font-medium text-muted-foreground", className)}>
+    <th
+      className={cn("px-4 py-3 font-medium text-muted-foreground", className)}
+      aria-sort={ariaSort as React.AriaAttributes["aria-sort"]}
+    >
       <button
         type="button"
         onClick={() => onSort(field)}
