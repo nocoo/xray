@@ -76,6 +76,7 @@
   /* Animations */
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-up: fade-up 0.5s ease-out both;
 }
 
 @keyframes accordion-down {
@@ -86,6 +87,11 @@
 @keyframes accordion-up {
   from { height: var(--radix-accordion-content-height); }
   to { height: 0; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /*
@@ -271,4 +277,29 @@
  */
 @utility font-display {
   font-family: var(--font-dm-sans), "DM Sans", system-ui, sans-serif;
+}
+
+@utility fade-up-stagger-1 {
+  animation: fade-up 0.5s ease-out both;
+  animation-delay: 0ms;
+}
+
+@utility fade-up-stagger-2 {
+  animation: fade-up 0.5s ease-out both;
+  animation-delay: 60ms;
+}
+
+@utility fade-up-stagger-3 {
+  animation: fade-up 0.5s ease-out both;
+  animation-delay: 120ms;
+}
+
+@utility fade-up-stagger-4 {
+  animation: fade-up 0.5s ease-out both;
+  animation-delay: 180ms;
+}
+
+@utility fade-up-stagger-5 {
+  animation: fade-up 0.5s ease-out both;
+  animation-delay: 240ms;
 }

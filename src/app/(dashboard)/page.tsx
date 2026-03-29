@@ -89,6 +89,7 @@ export default function DashboardPage() {
             value="Online"
             badge={<Badge variant="default">Active</Badge>}
             loading={loading}
+            stagger={1}
           />
           <StatusCard
             icon={<Key className="size-5" />}
@@ -100,6 +101,7 @@ export default function DashboardPage() {
               </Badge>
             }
             loading={loading}
+            stagger={2}
           />
           <StatusCard
             icon={<Webhook className="size-5" />}
@@ -111,6 +113,7 @@ export default function DashboardPage() {
               </Badge>
             }
             loading={loading}
+            stagger={3}
           />
           <Link href="/usage" className="block">
             <StatusCard
@@ -131,10 +134,11 @@ export default function DashboardPage() {
                 >
                   {usage && usage.summary.totalRequests > 0
                     ? `${usage.summary.uniqueEndpoints} endpoints`
-                    : "No activity"}
+                    : "No activity"}}
                 </Badge>
               }
               loading={loading}
+              stagger={4}
             />
           </Link>
         </div>
@@ -179,18 +183,28 @@ export default function DashboardPage() {
 // Components
 // =============================================================================
 
+const STAGGER_CLASS: Record<number, string> = {
+  1: "fade-up-stagger-1",
+  2: "fade-up-stagger-2",
+  3: "fade-up-stagger-3",
+  4: "fade-up-stagger-4",
+  5: "fade-up-stagger-5",
+};
+
 function StatusCard({
   icon,
   title,
   value,
   badge,
   loading,
+  stagger,
 }: {
   icon: React.ReactNode;
   title: string;
   value: string;
   badge: React.ReactNode;
   loading: boolean;
+  stagger?: number;
 }) {
   if (loading) {
     return (
@@ -202,7 +216,7 @@ function StatusCard({
   }
 
   return (
-    <div className="rounded-card bg-secondary p-4">
+    <div className={`rounded-card bg-secondary p-4 ${stagger ? STAGGER_CLASS[stagger] ?? "" : ""}`}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 text-muted-foreground">
           {icon}

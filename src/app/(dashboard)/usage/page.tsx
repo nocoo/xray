@@ -135,18 +135,21 @@ export default function UsagePage() {
             label="Total Requests"
             value={data ? formatCompact(data.summary.totalRequests) : "—"}
             loading={loading}
+            stagger={1}
           />
           <StatCard
             icon={<Activity className="h-4 w-4" strokeWidth={1.5} />}
             label="Today"
             value={data ? todayTotal.toLocaleString() : "—"}
             loading={loading}
+            stagger={2}
           />
           <StatCard
             icon={<TrendingUp className="h-4 w-4" strokeWidth={1.5} />}
             label="Avg / Day"
             value={data ? avgDaily.toLocaleString() : "—"}
             loading={loading}
+            stagger={3}
           />
           <StatCard
             icon={<Clock className="h-4 w-4" strokeWidth={1.5} />}
@@ -157,6 +160,7 @@ export default function UsagePage() {
                 : "Never"
             }
             loading={loading}
+            stagger={4}
           />
         </div>
 
@@ -413,16 +417,26 @@ function CreditsUsagePanel({
 // Sub-components
 // =============================================================================
 
+const STAGGER_CLASS: Record<number, string> = {
+  1: "fade-up-stagger-1",
+  2: "fade-up-stagger-2",
+  3: "fade-up-stagger-3",
+  4: "fade-up-stagger-4",
+  5: "fade-up-stagger-5",
+};
+
 function StatCard({
   icon,
   label,
   value,
   loading,
+  stagger,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   loading: boolean;
+  stagger?: number;
 }) {
   if (loading) {
     return (
@@ -434,7 +448,7 @@ function StatCard({
   }
 
   return (
-    <div className="rounded-card bg-secondary p-6">
+    <div className={`rounded-card bg-secondary p-6 ${stagger ? STAGGER_CLASS[stagger] ?? "" : ""}`}>
       <div className="flex items-center justify-between">
         <span className="text-sm text-muted-foreground">{label}</span>
         <span className="text-primary">{icon}</span>
