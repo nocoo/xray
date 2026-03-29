@@ -192,7 +192,7 @@ export default function AnalyticsPage() {
                         {label}
                       </span>
                     </div>
-                    <div className="text-xl font-bold font-display">
+                    <div className="text-xl font-bold font-display tabular-nums">
                       {format
                         ? format(value)
                         : formatCompact(value)}

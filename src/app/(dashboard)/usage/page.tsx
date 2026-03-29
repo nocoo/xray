@@ -440,7 +440,7 @@ function StatCard({
         <span className="text-primary">{icon}</span>
       </div>
       <div className="mt-2">
-        <span className="text-2xl font-bold font-display">{value}</span>
+        <span className="text-2xl font-bold font-display tabular-nums">{value}</span>
       </div>
     </div>
   );

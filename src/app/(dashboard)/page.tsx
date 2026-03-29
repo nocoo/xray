@@ -210,7 +210,7 @@ function StatusCard({
         </div>
         {badge}
       </div>
-      <p className="text-lg font-semibold">{value}</p>
+      <p className="text-lg font-semibold font-display tabular-nums">{value}</p>
     </div>
   );
 }
