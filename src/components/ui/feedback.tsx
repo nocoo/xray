@@ -1,5 +1,6 @@
 import { Loader2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // =============================================================================
 // LoadingSpinner — centered spinner for loading states
@@ -88,9 +89,9 @@ export function SectionSkeleton({ title }: { title: string }) {
   return (
     <section className="space-y-4">
       <h2 className="text-lg font-semibold">{title}</h2>
-      <div className="animate-pulse space-y-3">
-        <div className="h-4 w-3/4 rounded bg-muted" />
-        <div className="h-24 rounded-card bg-muted" />
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-24 rounded-card" />
       </div>
     </section>
   );
