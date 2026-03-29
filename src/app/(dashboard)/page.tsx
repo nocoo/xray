@@ -134,7 +134,7 @@ export default function DashboardPage() {
                 >
                   {usage && usage.summary.totalRequests > 0
                     ? `${usage.summary.uniqueEndpoints} endpoints`
-                    : "No activity"}}
+                    : "No activity"}
                 </Badge>
               }
               loading={loading}
