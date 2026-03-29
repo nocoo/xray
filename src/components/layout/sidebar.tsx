@@ -35,6 +35,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { resolveIcon } from "@/components/ui/icon-picker";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useSidebar } from "./sidebar-context";
 
 // =============================================================================
@@ -272,7 +273,7 @@ function CollapsedNavLink({
 }
 
 // =============================================================================
-// Collapsible group (expanded mode) — CSS Grid animation, no Radix needed
+// Collapsible group (expanded mode) — Radix Collapsible + CSS Grid animation
 // =============================================================================
 
 function NavGroupSection({
@@ -288,51 +289,54 @@ function NavGroupSection({
   const [open, setOpen] = useState(group.defaultOpen ?? true);
 
   return (
-    <div>
+    <Collapsible open={open} onOpenChange={setOpen}>
       {/* Group header — clickable to toggle */}
       <div className="px-3 mt-2">
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          className="flex w-full items-center justify-between px-3 py-2.5"
-        >
-          <span className="text-sm font-normal text-muted-foreground">
-            {group.label}
-          </span>
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center">
-            <ChevronUp
-              className={cn(
-                "h-4 w-4 text-muted-foreground transition-transform duration-200",
-                !open && "rotate-180",
-              )}
-              strokeWidth={1.5}
-            />
-          </span>
-        </button>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between px-3 py-2.5"
+          >
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+              {group.label}
+            </span>
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center">
+              <ChevronUp
+                className={cn(
+                  "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200",
+                  !open && "rotate-180",
+                )}
+                strokeWidth={1.5}
+              />
+            </span>
+          </button>
+        </CollapsibleTrigger>
       </div>
 
       {/* Group content — CSS Grid height animation */}
-      <div
-        className="grid overflow-hidden"
-        style={{
-          gridTemplateRows: open ? "1fr" : "0fr",
-          transition: "grid-template-rows 200ms ease-out",
-        }}
-      >
-        <div className="min-h-0 overflow-hidden">
-          <div className="flex flex-col gap-0.5 px-3">
-            {children}
-            {group.items.map((item) => (
-              <ExpandedNavLink
-                key={item.href}
-                item={item}
-                pathname={pathname}
-              />
-            ))}
+      <CollapsibleContent forceMount>
+        <div
+          className="grid overflow-hidden"
+          style={{
+            gridTemplateRows: open ? "1fr" : "0fr",
+            transition: "grid-template-rows 200ms ease-out",
+          }}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="flex flex-col gap-0.5 px-3">
+              {children}
+              {group.items.map((item) => (
+                <ExpandedNavLink
+                  key={item.href}
+                  item={item}
+                  pathname={pathname}
+                />
+              ))}
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -358,13 +362,13 @@ function WatchlistGroup({
           onClick={() => setExpanded(!expanded)}
           className="flex w-full items-center justify-between px-3 py-2.5"
         >
-          <span className="text-sm font-normal text-muted-foreground">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
             Watchlists
           </span>
           <span className="flex h-7 w-7 shrink-0 items-center justify-center">
             <ChevronUp
               className={cn(
-                "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200",
                 !expanded && "rotate-180",
               )}
               strokeWidth={1.5}
@@ -449,13 +453,13 @@ function GroupsGroup({
           onClick={() => setExpanded(!expanded)}
           className="flex w-full items-center justify-between px-3 py-2.5"
         >
-          <span className="text-sm font-normal text-muted-foreground">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
             Groups
           </span>
           <span className="flex h-7 w-7 shrink-0 items-center justify-center">
             <ChevronUp
               className={cn(
-                "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200",
                 !expanded && "rotate-180",
               )}
               strokeWidth={1.5}
