@@ -494,7 +494,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shared Twitter route handler with webhook auth and error mapping
 - Multi-tenant provider factory with user credential lookup
 - Twitter provider layer with TweAPI client, mock provider, and normalizer
-- E2E test infrastructure with mock provider on port 17027
+- E2E test infrastructure with mock provider on port 17007
 - API documentation and AI agent prompt section in Settings page
 - Dockerfile for standalone deployment with static assets
 - `XRAY_DATA_DIR` support for Railway volume-mounted SQLite

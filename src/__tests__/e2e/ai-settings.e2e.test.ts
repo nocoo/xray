@@ -186,7 +186,7 @@ describe("e2e: ai settings", () => {
 
   test("PUT /api/settings/ai rejects invalid JSON body", async () => {
     const res = await fetch(
-      `http://localhost:17027/api/settings/ai`,
+      `http://localhost:17007/api/settings/ai`,
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },

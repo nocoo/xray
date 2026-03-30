@@ -18,7 +18,7 @@ FROM oven/bun:1 AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PORT=7027
+ENV PORT=7007
 ENV HOSTNAME=0.0.0.0
 
 # Create data directory for SQLite volume mount
@@ -32,6 +32,6 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/next.config.ts ./
 COPY --from=builder /app/vite.config.ts ./
 
-EXPOSE 7027
+EXPOSE 7007
 
-CMD ["bun", "node_modules/vinext/dist/cli.js", "start", "--port", "7027"]
+CMD ["bun", "node_modules/vinext/dist/cli.js", "start", "--port", "7007"]

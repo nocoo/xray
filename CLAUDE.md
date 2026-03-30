@@ -23,7 +23,7 @@ The script auto-detects project name and CHANGELOG format, then: bumps version �
 
 3. **Non-JSON error responses crash client-side `res.json()`** — If a server route throws an unhandled exception, Next.js may return an empty body. Client code calling `await res.json()` on a non-ok response must be wrapped in try/catch to avoid cascading failures.
 
-4. **Railway DOCKERFILE builder treats startCommand as exec, not shell** — When using DOCKERFILE builder, Railway's custom `startCommand` is executed in exec mode (not shell). Inline env vars like `PORT=7027 HOSTNAME=0.0.0.0 bun server.js` fail because `PORT=7027` is parsed as the executable name. Fix: remove startCommand entirely and rely on Dockerfile's `CMD` + `ENV` directives. RAILPACK builder runs startCommand in a shell, masking this issue.
+4. **Railway DOCKERFILE builder treats startCommand as exec, not shell** — When using DOCKERFILE builder, Railway's custom `startCommand` is executed in exec mode (not shell). Inline env vars like `PORT=7007 HOSTNAME=0.0.0.0 bun server.js` fail because `PORT=7007` is parsed as the executable name. Fix: remove startCommand entirely and rely on Dockerfile's `CMD` + `ENV` directives. RAILPACK builder runs startCommand in a shell, masking this issue.
 
 5. **Next.js standalone requires HOSTNAME=0.0.0.0 in containers** — Without `ENV HOSTNAME=0.0.0.0`, Next.js standalone `server.js` binds to the container's internal hostname (e.g., `6783221ac502`), making it unreachable by Railway's reverse proxy. Always set `HOSTNAME=0.0.0.0` in the Dockerfile.
 

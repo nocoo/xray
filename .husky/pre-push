@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/h"
 
-# Layer 3: API E2E tests (server auto-starts on port 17027 with auth bypass)
+# Layer 3: API E2E tests (server auto-starts on port 17007 with auth bypass)
 bun test src/__tests__/e2e/ --timeout 60000
 
 # Layer 4: BDD E2E tests — run on-demand via `bun run test:e2e:browser`

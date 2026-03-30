@@ -20,7 +20,7 @@ function createRequest(
   if (options?.webhookKey) {
     headers["x-webhook-key"] = options.webhookKey;
   }
-  return new NextRequest(new URL(url, "http://localhost:7027"), {
+  return new NextRequest(new URL(url, "http://localhost:7007"), {
     method: options?.method ?? "GET",
     headers,
   });
@@ -58,7 +58,7 @@ afterEach(() => {
 
 describe("withTwitterProvider", () => {
   test("returns 401 when no webhook key provided", async () => {
-    const req = createRequest("http://localhost:7027/api/twitter/test");
+    const req = createRequest("http://localhost:7007/api/twitter/test");
     const res = await withTwitterProvider(req, async () => {
       return Response.json({ success: true });
     });
@@ -68,7 +68,7 @@ describe("withTwitterProvider", () => {
   });
 
   test("returns 401 when invalid webhook key provided", async () => {
-    const req = createRequest("http://localhost:7027/api/twitter/test", {
+    const req = createRequest("http://localhost:7007/api/twitter/test", {
       webhookKey: "invalid-key",
     });
     const res = await withTwitterProvider(req, async () => {
@@ -88,7 +88,7 @@ describe("withTwitterProvider", () => {
     const originalEnv = process.env.MOCK_PROVIDER;
     delete process.env.MOCK_PROVIDER;
     try {
-      const req = createRequest("http://localhost:7027/api/twitter/test", {
+      const req = createRequest("http://localhost:7007/api/twitter/test", {
         webhookKey: key,
       });
       const res = await withTwitterProvider(req, async () => {
@@ -105,7 +105,7 @@ describe("withTwitterProvider", () => {
     process.env.MOCK_PROVIDER = "true";
     try {
       const key = setupUserWithWebhook();
-      const req = createRequest("http://localhost:7027/api/twitter/test", {
+      const req = createRequest("http://localhost:7007/api/twitter/test", {
         webhookKey: key,
       });
       const res = await withTwitterProvider(req, async (provider, userId) => {
@@ -128,7 +128,7 @@ describe("withTwitterProvider", () => {
     process.env.MOCK_PROVIDER = "true";
     try {
       const key = setupUserWithWebhook();
-      const req = createRequest("http://localhost:7027/api/twitter/test", {
+      const req = createRequest("http://localhost:7007/api/twitter/test", {
         webhookKey: key,
       });
 
@@ -152,7 +152,7 @@ describe("withTwitterProvider", () => {
     process.env.MOCK_PROVIDER = "true";
     try {
       const key = setupUserWithWebhook();
-      const req = createRequest("http://localhost:7027/api/twitter/test", {
+      const req = createRequest("http://localhost:7007/api/twitter/test", {
         webhookKey: key,
       });
       const res = await withTwitterProvider(req, async () => {
@@ -170,7 +170,7 @@ describe("withTwitterProvider", () => {
     try {
       const key = setupUserWithWebhook();
       const req = createRequest(
-        "http://localhost:7027/api/twitter/users/testuser/tweets",
+        "http://localhost:7007/api/twitter/users/testuser/tweets",
         { webhookKey: key },
       );
       const res = await withTwitterProvider(req, async (provider) => {
@@ -196,7 +196,7 @@ describe("withTwitterProvider", () => {
     process.env.MOCK_PROVIDER = "true";
     try {
       const key = setupUserWithWebhook();
-      const req = createRequest("http://localhost:7027/api/twitter/test", {
+      const req = createRequest("http://localhost:7007/api/twitter/test", {
         webhookKey: key,
       });
       await withTwitterProvider(req, async () => {

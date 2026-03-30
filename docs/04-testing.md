@@ -18,7 +18,7 @@ bun test
 # Unit tests + coverage (90% threshold enforced by bunfig.toml)
 bun test --coverage
 
-# API E2E tests (starts dev server on port 17027)
+# API E2E tests (starts dev server on port 17007)
 bun test src/__tests__/e2e/ --timeout 60000
 
 # BDD E2E / Playwright (starts dev server on port 27028)
@@ -67,8 +67,8 @@ TypeScript itself runs in strict mode with `noUncheckedIndexedAccess`.
 
 | Port | Purpose |
 |------|---------|
-| 7027 | Development server (`bun run dev`) |
-| 17027 | API E2E test server (auth bypassed) |
+| 7007 | Development server (`bun run dev`) |
+| 17007 | API E2E test server (auth bypassed) |
 | 27028 | Playwright BDD E2E server |
 | 17029 | Auth enforcement test server (no bypass) |
 
@@ -85,7 +85,7 @@ Each test tier gets its own SQLite database:
 | Database | Used By |
 |----------|---------|
 | `database/xray.db` | Production/development |
-| `database/xray.e2e.db` | API E2E tests (port 17027) |
+| `database/xray.e2e.db` | API E2E tests (port 17007) |
 | `database/xray.noauth.db` | Auth enforcement tests (port 17029) |
 | `database/xray.playwright.db` | Playwright tests (port 27028) |
 

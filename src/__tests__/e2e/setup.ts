@@ -7,7 +7,7 @@ import { generateWebhookKey, hashWebhookKey, getKeyPrefix } from "@/lib/crypto";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, "../../..");
 
-const E2E_PORT = 17027;
+const E2E_PORT = 17007;
 const E2E_DB = "database/xray.e2e.db";
 
 let serverProcess: Subprocess | null = null;

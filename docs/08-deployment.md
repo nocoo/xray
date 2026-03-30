@@ -9,7 +9,7 @@ Railway (asia-southeast1)
 ├── Service: xray
 │   ├── Builder: DOCKERFILE
 │   ├── Source: GitHub (nocoo/xray, main branch)
-│   ├── Domain: xray.hexly.ai (port 7027)
+│   ├── Domain: xray.hexly.ai (port 7007)
 │   └── Volume: /data (SQLite persistence)
 ```
 
@@ -19,14 +19,14 @@ Three-stage build using `oven/bun:1`:
 
 1. **deps** — `bun install --frozen-lockfile` (includes native build tools for better-sqlite3)
 2. **builder** — `bun run build` (vinext build → `dist/`)
-3. **runner** — Copy `dist/`, `public/`, `node_modules/`, config files; start with `bun node_modules/vinext/dist/cli.js start --port 7027`
+3. **runner** — Copy `dist/`, `public/`, `node_modules/`, config files; start with `bun node_modules/vinext/dist/cli.js start --port 7007`
 
 Key environment variables set in Dockerfile:
 
 | Variable | Value | Purpose |
 |----------|-------|---------|
 | `NODE_ENV` | `production` | Production mode |
-| `PORT` | `7027` | Next.js server port |
+| `PORT` | `7007` | Next.js server port |
 | `HOSTNAME` | `0.0.0.0` | Bind to all interfaces (required for Railway reverse proxy) |
 
 ## Railway Environment Variables
@@ -39,7 +39,7 @@ Key environment variables set in Dockerfile:
 | `NEXTAUTH_SECRET` | JWT signing secret |
 | `NEXTAUTH_URL` | `https://xray.hexly.ai` |
 | `ALLOWED_EMAILS` | Comma-separated email allowlist |
-| `PORT` | `7027` |
+| `PORT` | `7007` |
 | `USE_SECURE_COOKIES` | `true` (HTTPS) |
 | `XRAY_DATA_DIR` | `/data` (volume mount for SQLite) |
 
@@ -60,8 +60,8 @@ GET /api/live
 
 Railway's custom `startCommand` behaves differently depending on the builder:
 
-- **RAILPACK**: runs in a shell — `PORT=7027 bun server.js` works (shell interprets `PORT=7027` as env prefix)
-- **DOCKERFILE**: runs in exec mode — `PORT=7027 bun server.js` fails because `PORT=7027` is parsed as the executable name
+- **RAILPACK**: runs in a shell — `PORT=7007 bun server.js` works (shell interprets `PORT=7007` as env prefix)
+- **DOCKERFILE**: runs in exec mode — `PORT=7007 bun server.js` fails because `PORT=7007` is parsed as the executable name
 
 **Fix**: Do NOT set a custom `startCommand` when using DOCKERFILE builder. Rely on the Dockerfile's `CMD` and `ENV` directives instead.
 
@@ -81,7 +81,7 @@ Railway does not use Dockerfile's `EXPOSE` directive. Port routing is configured
 
 ```bash
 docker build -t xray .
-docker run -p 7027:7027 \
+docker run -p 7007:7007 \
   -v $(pwd)/data:/data \
   -e XRAY_DATA_DIR=/data \
   -e TWEAPI_API_KEY=... \

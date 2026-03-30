@@ -72,7 +72,7 @@ NEXTAUTH_SECRET=your-generated-secret-here
 ALLOWED_EMAILS=your-email@gmail.com
 ```
 
-> 💡 **提示**: Google OAuth 回调地址设置为 `http://localhost:7027/api/auth/callback/google`
+> 💡 **提示**: Google OAuth 回调地址设置为 `http://localhost:7007/api/auth/callback/google`
 >
 > 💡 **提示**: `TWEAPI_API_KEY` 也可以在登录后通过 Settings 页面配置，但推荐在 `.env` 中设置作为默认值
 
@@ -89,7 +89,7 @@ bun run db:push
 bun dev
 ```
 
-打开浏览器访问 👉 [http://localhost:7027](http://localhost:7027)
+打开浏览器访问 👉 [http://localhost:7007](http://localhost:7007)
 
 ## 📁 项目结构
 
@@ -173,7 +173,7 @@ x-ray/
 
 | 命令 | 说明 |
 |------|------|
-| `bun dev` | 启动开发服务器 (端口 7027) |
+| `bun dev` | 启动开发服务器 (端口 7007) |
 | `bun run build` | 生产构建 |
 | `bun start` | 启动生产服务器 |
 | `bun test` | 运行单元测试 |
@@ -193,7 +193,7 @@ x-ray/
 
 ```bash
 docker build -t xray .
-docker run -p 7027:7027 \
+docker run -p 7007:7007 \
   -e TWEAPI_API_KEY=your-key \
   -e GOOGLE_CLIENT_ID=your-id \
   -e GOOGLE_CLIENT_SECRET=your-secret \

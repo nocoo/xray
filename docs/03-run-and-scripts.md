@@ -15,14 +15,14 @@ bun run db:push
 
 # Start development server
 bun dev
-# Open http://localhost:7027
+# Open http://localhost:7007
 ```
 
 ### Common Commands
 
 | Command | Description |
 |---------|-------------|
-| `bun dev` | Development server (port 7027) |
+| `bun dev` | Development server (port 7007) |
 | `bun run build` | Production build |
 | `bun start` | Production server |
 | `bun test` | Unit tests |

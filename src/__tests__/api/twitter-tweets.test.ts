@@ -33,7 +33,7 @@ afterEach(() => {
 function makeRequest(url: string, key?: string): NextRequest {
   const headers: Record<string, string> = {};
   if (key) headers["x-webhook-key"] = key;
-  return new NextRequest(new URL(url, "http://localhost:7027"), {
+  return new NextRequest(new URL(url, "http://localhost:7007"), {
     method: "GET",
     headers,
   });
@@ -47,7 +47,7 @@ describe("GET /api/twitter/tweets/search", () => {
   test("returns search results for query", async () => {
     const { GET } = await import("@/app/api/twitter/tweets/search/route");
     const req = makeRequest(
-      "http://localhost:7027/api/twitter/tweets/search?q=ai+agents",
+      "http://localhost:7007/api/twitter/tweets/search?q=ai+agents",
       webhookKey,
     );
     const res = await GET(req);
@@ -61,7 +61,7 @@ describe("GET /api/twitter/tweets/search", () => {
   test("respects count parameter", async () => {
     const { GET } = await import("@/app/api/twitter/tweets/search/route");
     const req = makeRequest(
-      "http://localhost:7027/api/twitter/tweets/search?q=test&count=5",
+      "http://localhost:7007/api/twitter/tweets/search?q=test&count=5",
       webhookKey,
     );
     const res = await GET(req);
@@ -73,7 +73,7 @@ describe("GET /api/twitter/tweets/search", () => {
   test("returns 400 when q parameter is missing", async () => {
     const { GET } = await import("@/app/api/twitter/tweets/search/route");
     const req = makeRequest(
-      "http://localhost:7027/api/twitter/tweets/search",
+      "http://localhost:7007/api/twitter/tweets/search",
       webhookKey,
     );
     const res = await GET(req);
@@ -83,7 +83,7 @@ describe("GET /api/twitter/tweets/search", () => {
   test("returns 401 without webhook key", async () => {
     const { GET } = await import("@/app/api/twitter/tweets/search/route");
     const req = makeRequest(
-      "http://localhost:7027/api/twitter/tweets/search?q=test",
+      "http://localhost:7007/api/twitter/tweets/search?q=test",
     );
     const res = await GET(req);
     expect(res.status).toBe(401);
@@ -98,7 +98,7 @@ describe("GET /api/twitter/tweets/[id]", () => {
   test("returns tweet details for valid id", async () => {
     const { GET } = await import("@/app/api/twitter/tweets/[id]/route");
     const req = makeRequest(
-      "http://localhost:7027/api/twitter/tweets/123456",
+      "http://localhost:7007/api/twitter/tweets/123456",
       webhookKey,
     );
     const res = await GET(req, {
@@ -113,7 +113,7 @@ describe("GET /api/twitter/tweets/[id]", () => {
   test("returns 401 without webhook key", async () => {
     const { GET } = await import("@/app/api/twitter/tweets/[id]/route");
     const req = makeRequest(
-      "http://localhost:7027/api/twitter/tweets/123456",
+      "http://localhost:7007/api/twitter/tweets/123456",
     );
     const res = await GET(req, {
       params: Promise.resolve({ id: "123456" }),

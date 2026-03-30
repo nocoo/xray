@@ -5,7 +5,7 @@ import { setupE2E, teardownE2E, getBaseUrl, seedWebhookKey } from "./setup";
 // E2E Tests — Twitter API Routes
 //
 // Tests all migrated Twitter API routes against a real Next.js server
-// running on port 17027 with MOCK_PROVIDER=true and E2E_SKIP_AUTH=true.
+// running on port 17007 with MOCK_PROVIDER=true and E2E_SKIP_AUTH=true.
 // =============================================================================
 
 let webhookKey: string;

@@ -4,9 +4,9 @@
   "description": "Twitter tech content monitoring system",
   "type": "module",
   "scripts": {
-    "dev": "vinext dev --port 7027",
+    "dev": "vinext dev --port 7007",
     "build": "vinext build",
-    "start": "vinext start --port 7027",
+    "start": "vinext start --port 7007",
     "lint": "eslint",
     "test": "bun test",
     "test:coverage": "bun test --coverage",

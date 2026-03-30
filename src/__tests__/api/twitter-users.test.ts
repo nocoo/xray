@@ -36,7 +36,7 @@ function makeRequest(
 ): NextRequest {
   const headers: Record<string, string> = {};
   if (key) headers["x-webhook-key"] = key;
-  return new NextRequest(new URL(url, "http://localhost:7027"), {
+  return new NextRequest(new URL(url, "http://localhost:7007"), {
     method: "GET",
     headers,
   });
@@ -52,7 +52,7 @@ describe("GET /api/twitter/users/[username]/tweets", () => {
       "@/app/api/twitter/users/[username]/tweets/route"
     );
     const req = makeRequest(
-      "http://localhost:7027/api/twitter/users/testuser/tweets",
+      "http://localhost:7007/api/twitter/users/testuser/tweets",
       webhookKey,
     );
     const res = await GET(req, { params: Promise.resolve({ username: "testuser" }) });
@@ -69,7 +69,7 @@ describe("GET /api/twitter/users/[username]/tweets", () => {
       "@/app/api/twitter/users/[username]/tweets/route"
     );
     const req = makeRequest(
-      "http://localhost:7027/api/twitter/users/testuser/tweets?count=5",
+      "http://localhost:7007/api/twitter/users/testuser/tweets?count=5",
       webhookKey,
     );
     const res = await GET(req, { params: Promise.resolve({ username: "testuser" }) });
@@ -83,7 +83,7 @@ describe("GET /api/twitter/users/[username]/tweets", () => {
       "@/app/api/twitter/users/[username]/tweets/route"
     );
     const req = makeRequest(
-      "http://localhost:7027/api/twitter/users/testuser/tweets",
+      "http://localhost:7007/api/twitter/users/testuser/tweets",
     );
     const res = await GET(req, { params: Promise.resolve({ username: "testuser" }) });
     expect(res.status).toBe(401);
@@ -100,7 +100,7 @@ describe("GET /api/twitter/users/[username]/info", () => {
       "@/app/api/twitter/users/[username]/info/route"
     );
     const req = makeRequest(
-      "http://localhost:7027/api/twitter/users/testuser/info",
+      "http://localhost:7007/api/twitter/users/testuser/info",
       webhookKey,
     );
     const res = await GET(req, { params: Promise.resolve({ username: "testuser" }) });
@@ -116,7 +116,7 @@ describe("GET /api/twitter/users/[username]/info", () => {
       "@/app/api/twitter/users/[username]/info/route"
     );
     const req = makeRequest(
-      "http://localhost:7027/api/twitter/users/testuser/info",
+      "http://localhost:7007/api/twitter/users/testuser/info",
     );
     const res = await GET(req, { params: Promise.resolve({ username: "testuser" }) });
     expect(res.status).toBe(401);
@@ -133,7 +133,7 @@ describe("GET /api/twitter/users/[username]/search", () => {
       "@/app/api/twitter/users/[username]/search/route"
     );
     const req = makeRequest(
-      "http://localhost:7027/api/twitter/users/testuser/search?q=ai",
+      "http://localhost:7007/api/twitter/users/testuser/search?q=ai",
       webhookKey,
     );
     const res = await GET(req, { params: Promise.resolve({ username: "testuser" }) });
@@ -149,7 +149,7 @@ describe("GET /api/twitter/users/[username]/search", () => {
       "@/app/api/twitter/users/[username]/search/route"
     );
     const req = makeRequest(
-      "http://localhost:7027/api/twitter/users/testuser/search",
+      "http://localhost:7007/api/twitter/users/testuser/search",
       webhookKey,
     );
     const res = await GET(req, { params: Promise.resolve({ username: "testuser" }) });
@@ -161,7 +161,7 @@ describe("GET /api/twitter/users/[username]/search", () => {
       "@/app/api/twitter/users/[username]/search/route"
     );
     const req = makeRequest(
-      "http://localhost:7027/api/twitter/users/testuser/search?q=test",
+      "http://localhost:7007/api/twitter/users/testuser/search?q=test",
     );
     const res = await GET(req, { params: Promise.resolve({ username: "testuser" }) });
     expect(res.status).toBe(401);

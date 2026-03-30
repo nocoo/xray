@@ -273,7 +273,7 @@ describe("auth", () => {
       expect(
         shouldUseSecureCookies({
           NODE_ENV: "test",
-          NEXTAUTH_URL: "http://localhost:7027",
+          NEXTAUTH_URL: "http://localhost:7007",
         })
       ).toBe(false);
     });
@@ -298,17 +298,17 @@ describe("auth", () => {
     }
 
     test("uses origin when no forwarded headers", () => {
-      const url = buildRedirectUrl(null, null, "http://localhost:7027", "/login");
-      expect(url).toBe("http://localhost:7027/login");
+      const url = buildRedirectUrl(null, null, "http://localhost:7007", "/login");
+      expect(url).toBe("http://localhost:7007/login");
     });
 
     test("uses forwarded host with forwarded proto", () => {
-      const url = buildRedirectUrl("xray.example.com", "https", "http://localhost:7027", "/login");
+      const url = buildRedirectUrl("xray.example.com", "https", "http://localhost:7007", "/login");
       expect(url).toBe("https://xray.example.com/login");
     });
 
     test("defaults to https when forwarded host present but no proto", () => {
-      const url = buildRedirectUrl("xray.example.com", null, "http://localhost:7027", "/login");
+      const url = buildRedirectUrl("xray.example.com", null, "http://localhost:7007", "/login");
       expect(url).toBe("https://xray.example.com/login");
     });
 
