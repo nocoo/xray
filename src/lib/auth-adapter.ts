@@ -16,7 +16,7 @@
  */
 
 import type { Adapter } from "@auth/core/adapters";
-import { getRawSqlite } from "@/db";
+import { getRawSqlite, getDb } from "@/db";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -36,7 +36,7 @@ function rowToUser(row: Row) {
 export function SqliteAdapter(): Adapter {
   // Lazy ref — getRawSqlite() may not be ready at import time.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sql = () => getRawSqlite() as any;
+  const sql = () => { getDb(); return getRawSqlite() as any; };
 
   return {
     async createUser(user) {
