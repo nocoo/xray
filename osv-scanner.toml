@@ -35,6 +35,12 @@ reason = "Indirect: next via vinext — no direct upgrade path"
 id = "GHSA-q4gf-8mx6-v5v3"
 reason = "Indirect: next via vinext — no direct upgrade path"
 [[IgnoredVulns]]
+id = "GHSA-ggv3-7p47-pfv8"
+reason = "Indirect: next via vinext — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-h27x-g6w4-24gq"
+reason = "Indirect: next via vinext — no direct upgrade path"
+[[IgnoredVulns]]
 # path-to-regexp 8.3.0 — indirect via vinext
 id = "GHSA-27v5-c462-wpq7"
 reason = "Indirect: path-to-regexp via vinext — no direct upgrade path"
