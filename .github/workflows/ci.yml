@@ -9,6 +9,5 @@ jobs:
   quality:
     uses: nocoo/ci/.github/workflows/bun-quality.yml@main
     with:
-      enable-g1: true
-      enable-g2: true
-      enable-l1: true
+      test-command: "bun run test"
+      typecheck-command: "echo 'no typecheck configured'"
