@@ -24,3 +24,17 @@ reason = "Indirect: serialize-javascript via rollup — no direct upgrade path"
 # srvx 0.11.8 — indirect via vinext
 id = "GHSA-p36q-q72m-gchr"
 reason = "Indirect: srvx via vinext — no direct upgrade path"
+[[IgnoredVulns]]
+# next 16.1.6 — indirect via vinext
+id = "GHSA-jcc7-9wpm-mj36"
+reason = "Indirect: next via vinext — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-mq59-m269-xvcx"
+reason = "Indirect: next via vinext — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-q4gf-8mx6-v5v3"
+reason = "Indirect: next via vinext — no direct upgrade path"
+[[IgnoredVulns]]
+# path-to-regexp 8.3.0 — indirect via vinext
+id = "GHSA-27v5-c462-wpq7"
+reason = "Indirect: path-to-regexp via vinext — no direct upgrade path"
