@@ -1,0 +1,7 @@
+[allowlist]
+description = "Allowlist test fixtures and snapshots"
+paths = [
+  "src/__tests__/",
+  "tests/",
+  ".alma-snapshots/",
+]
