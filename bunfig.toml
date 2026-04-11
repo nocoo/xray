@@ -1,4 +1,5 @@
 [test]
+preload = ["./tests/setup.ts"]
 coverageSkipTestFiles = true
 coveragePathIgnorePatterns = [
   "src/components/layout/sidebar.tsx",
