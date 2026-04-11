@@ -1,31 +1,28 @@
 [[IgnoredVulns]]
-# picomatch 2.3.1/4.0.3 — indirect via vinext/vite
 id = "GHSA-3v7f-55p6-f55p"
 reason = "Indirect: picomatch via vinext — no direct upgrade path"
 [[IgnoredVulns]]
 id = "GHSA-c2c7-rcm5-vvqj"
 reason = "Indirect: picomatch via vinext — no direct upgrade path"
 [[IgnoredVulns]]
-# path-to-regexp 8.3.0 — indirect via vinext
 id = "GHSA-j3q9-mxjg-w52f"
 reason = "Indirect: path-to-regexp via vinext — no direct upgrade path"
 [[IgnoredVulns]]
-# react-server-dom-webpack 19.2.4 — indirect via vinext
+id = "GHSA-27v5-c462-wpq7"
+reason = "Indirect: path-to-regexp via vinext — no direct upgrade path"
+[[IgnoredVulns]]
 id = "GHSA-479c-33wc-g2pg"
 reason = "Indirect: react-server-dom-webpack via vinext — no direct upgrade path"
 [[IgnoredVulns]]
-# serialize-javascript 6.0.2 — indirect via vinext/rollup
 id = "GHSA-5c6j-r48x-rmvq"
 reason = "Indirect: serialize-javascript via rollup — no direct upgrade path"
 [[IgnoredVulns]]
 id = "GHSA-qj8w-gfj5-8c6v"
 reason = "Indirect: serialize-javascript via rollup — no direct upgrade path"
 [[IgnoredVulns]]
-# srvx 0.11.8 — indirect via vinext
 id = "GHSA-p36q-q72m-gchr"
 reason = "Indirect: srvx via vinext — no direct upgrade path"
 [[IgnoredVulns]]
-# next 16.1.6 — indirect via vinext
 id = "GHSA-jcc7-9wpm-mj36"
 reason = "Indirect: next via vinext — no direct upgrade path"
 [[IgnoredVulns]]
@@ -41,12 +38,62 @@ reason = "Indirect: next via vinext — no direct upgrade path"
 id = "GHSA-h27x-g6w4-24gq"
 reason = "Indirect: next via vinext — no direct upgrade path"
 [[IgnoredVulns]]
-# path-to-regexp 8.3.0 — indirect via vinext
-id = "GHSA-27v5-c462-wpq7"
-reason = "Indirect: path-to-regexp via vinext — no direct upgrade path"
+id = "GHSA-3x4c-7xq6-9pq8"
+reason = "Indirect: next via vinext — no direct upgrade path"
 [[IgnoredVulns]]
 id = "GHSA-7r86-cg39-jmmj"
 reason = "Indirect: minimatch via vinext — no direct upgrade path"
 [[IgnoredVulns]]
-id = "GHSA-3x4c-7xq6-9pq8"
-reason = "Indirect: next via vinext — no direct upgrade path"
+id = "GHSA-23c5-xmqv-rm74"
+reason = "Indirect: minimatch via vinext — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-xpcf-pg52-r92g"
+reason = "Indirect: hono via MCP SDK — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-26pp-8wgv-hjvm"
+reason = "Indirect: hono via MCP SDK — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-5pq2-9x2x-5p6w"
+reason = "Indirect: hono via MCP SDK — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-p6xx-57qc-3wxr"
+reason = "Indirect: hono via MCP SDK — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-q5qw-h33p-qvwr"
+reason = "Indirect: hono via MCP SDK — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-r5rp-j6wh-rvv4"
+reason = "Indirect: hono via MCP SDK — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-v8w9-8mx6-g223"
+reason = "Indirect: hono via MCP SDK — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-wmmm-f939-6g9c"
+reason = "Indirect: hono via MCP SDK — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-xf4j-xp2r-rqqx"
+reason = "Indirect: hono via MCP SDK — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-92pp-h63x-v22m"
+reason = "Indirect: @hono/node-server via MCP SDK — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-wc8c-qw6v-h7f6"
+reason = "Indirect: @hono/node-server via MCP SDK — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-v457-wxvj-p9w9"
+reason = "Indirect: @vitejs/plugin-rsc via vinext — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-f886-m6hf-6m8v"
+reason = "Indirect: brace-expansion via vinext — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-67mh-4wv8-2f99"
+reason = "Indirect: esbuild via vinext — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-46wh-pxpv-q5gq"
+reason = "Indirect: express-rate-limit via MCP SDK — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-25h7-pfq9-p65f"
+reason = "Indirect: flatted via vinext — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-rf6f-7fwh-wjgh"
+reason = "Indirect: flatted via vinext — no direct upgrade path"
