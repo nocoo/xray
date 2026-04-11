@@ -1,0 +1,26 @@
+[[IgnoredVulns]]
+# picomatch 2.3.1/4.0.3 — indirect via vinext/vite
+id = "GHSA-3v7f-55p6-f55p"
+reason = "Indirect: picomatch via vinext — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-c2c7-rcm5-vvqj"
+reason = "Indirect: picomatch via vinext — no direct upgrade path"
+[[IgnoredVulns]]
+# path-to-regexp 8.3.0 — indirect via vinext
+id = "GHSA-j3q9-mxjg-w52f"
+reason = "Indirect: path-to-regexp via vinext — no direct upgrade path"
+[[IgnoredVulns]]
+# react-server-dom-webpack 19.2.4 — indirect via vinext
+id = "GHSA-479c-33wc-g2pg"
+reason = "Indirect: react-server-dom-webpack via vinext — no direct upgrade path"
+[[IgnoredVulns]]
+# serialize-javascript 6.0.2 — indirect via vinext/rollup
+id = "GHSA-5c6j-r48x-rmvq"
+reason = "Indirect: serialize-javascript via rollup — no direct upgrade path"
+[[IgnoredVulns]]
+id = "GHSA-qj8w-gfj5-8c6v"
+reason = "Indirect: serialize-javascript via rollup — no direct upgrade path"
+[[IgnoredVulns]]
+# srvx 0.11.8 — indirect via vinext
+id = "GHSA-p36q-q72m-gchr"
+reason = "Indirect: srvx via vinext — no direct upgrade path"
