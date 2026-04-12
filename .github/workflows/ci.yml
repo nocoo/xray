@@ -1,9 +1,11 @@
 name: CI
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   quality:
@@ -11,3 +13,5 @@ jobs:
     with:
       test-command: "find tests src/__tests__ -name '*.test.ts' ! -path '*/e2e/*' -print0 | xargs -0 bun test"
       typecheck-command: "echo 'no typecheck configured'"
+      enable-l2: "false"
+    secrets: inherit
