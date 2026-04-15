@@ -2,7 +2,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import tseslint from "typescript-eslint";
 
 const eslintConfig = defineConfig([
-  ...tseslint.configs.recommended,
+  ...tseslint.configs.strict,
   globalIgnores([
     ".next/**",
     ".next-e2e/**",
@@ -16,19 +16,7 @@ const eslintConfig = defineConfig([
     "tests/**",
     // Playwright E2E tests (not React code)
     "e2e/**",
-
   ]),
-  // Key rules from typescript-eslint strict preset (no type-checking required)
-  {
-    rules: {
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-non-null-assertion": "error",
-      "@typescript-eslint/no-dynamic-delete": "error",
-      "@typescript-eslint/no-extraneous-class": "error",
-      "@typescript-eslint/unified-signatures": "error",
-      "@typescript-eslint/no-invalid-void-type": "error",
-    },
-  },
   // Relax non-null-assertion in test files (common pattern: result!.field)
   {
     files: ["src/__tests__/**"],

@@ -7,7 +7,7 @@
     "dev": "vinext dev --port 7007",
     "build": "vinext build",
     "start": "vinext start --port 7007",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings=0",
     "test": "find tests src/__tests__ -name '*.test.ts' ! -path '*/e2e/*' -print0 | xargs -0 bun test && bun test src/__tests__/e2e/",
     "test:coverage": "bun test --coverage",
     "test:e2e:browser": "npx playwright test",

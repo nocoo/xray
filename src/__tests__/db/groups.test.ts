@@ -95,7 +95,7 @@ describe("repositories/groups", () => {
 
       const mine = groups.findAll();
       expect(mine).toHaveLength(1);
-      expect(mine[0].name).toBe("My Group");
+      expect(mine[0]!.name).toBe("My Group");
     });
 
     test("returns all groups for this user", () => {
@@ -315,16 +315,16 @@ describe("repositories/groupMembers", () => {
 
       const result = members.findByGroupId(groupId);
       expect(result).toHaveLength(1);
-      expect(result[0].profile).not.toBeNull();
-      expect(result[0].profile!.twitterId).toBe("555");
-      expect(result[0].profile!.followersCount).toBe(1000);
+      expect(result[0]!.profile).not.toBeNull();
+      expect(result[0]!.profile!.twitterId).toBe("555");
+      expect(result[0]!.profile!.followersCount).toBe(1000);
     });
 
     test("returns null profile for unresolved members", () => {
       members.create({ groupId, twitterUsername: "noProfile" });
       const result = members.findByGroupId(groupId);
       expect(result).toHaveLength(1);
-      expect(result[0].profile).toBeNull();
+      expect(result[0]!.profile).toBeNull();
     });
   });
 
@@ -417,8 +417,8 @@ describe("repositories/groupMembers", () => {
       expect(linked).toBe(1);
 
       const result = members.findByGroupId(groupId);
-      expect(result[0].twitterId).toBe("888");
-      expect(result[0].profile).not.toBeNull();
+      expect(result[0]!.twitterId).toBe("888");
+      expect(result[0]!.profile).not.toBeNull();
     });
 
     test("returns 0 when all members already linked", () => {
