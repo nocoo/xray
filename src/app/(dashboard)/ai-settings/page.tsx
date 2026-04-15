@@ -272,7 +272,7 @@ function AiConfigSection() {
             <select
               value={settings.provider}
               onChange={(e) => handleProviderChange(e.target.value)}
-              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 pr-8 text-sm"
+              className="mt-1 h-9 w-full rounded-md border border-border bg-secondary px-3 pr-8 text-sm hover:border-foreground/20"
             >
               <option value="">Select a provider...</option>
               {ALL_PROVIDER_IDS.map((id) => {
@@ -301,7 +301,7 @@ function AiConfigSection() {
                       : CUSTOM_MODEL_VALUE
                   }
                   onChange={(e) => handleModelSelect(e.target.value)}
-                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 pr-8 text-sm"
+                  className="mt-1 h-9 w-full rounded-md border border-border bg-secondary px-3 pr-8 text-sm hover:border-foreground/20"
                 >
                   {presetModels.map((m) => (
                     <option key={m} value={m}>
@@ -394,7 +394,7 @@ function AiConfigSection() {
                     sdkType: e.target.value as SdkType | "",
                   }))
                 }
-                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 pr-8 text-sm"
+                className="mt-1 h-9 w-full rounded-md border border-border bg-secondary px-3 pr-8 text-sm hover:border-foreground/20"
               >
                 <option value="openai">OpenAI</option>
                 <option value="anthropic">Anthropic</option>
@@ -667,7 +667,7 @@ function TranslationPromptSection() {
           value={prompt}
           onChange={(e) => handleChange(e.target.value)}
           rows={20}
-          className="w-full resize-y rounded-lg border bg-background px-3 py-2 font-mono text-xs leading-relaxed text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          className="w-full resize-y rounded-lg border border-border bg-secondary px-3 py-2 font-mono text-xs leading-relaxed text-foreground hover:border-foreground/20 focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
         />
 
         {/* Save button */}

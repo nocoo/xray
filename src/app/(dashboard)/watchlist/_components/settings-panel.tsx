@@ -58,7 +58,7 @@ export function SettingsPanel({
           <select
             value={fetchInterval}
             onChange={(e) => onIntervalChange(Number(e.target.value))}
-            className="w-full h-9 rounded-md border bg-background pl-3 pr-8 text-sm appearance-none cursor-pointer"
+            className="w-full h-9 rounded-md border border-border bg-secondary pl-3 pr-8 text-sm appearance-none cursor-pointer hover:border-foreground/20"
           >
             {INTERVAL_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -83,7 +83,7 @@ export function SettingsPanel({
           <select
             value={retentionDays}
             onChange={(e) => onRetentionChange(Number(e.target.value))}
-            className="w-full h-9 rounded-md border bg-background pl-3 pr-8 text-sm appearance-none cursor-pointer"
+            className="w-full h-9 rounded-md border border-border bg-secondary pl-3 pr-8 text-sm appearance-none cursor-pointer hover:border-foreground/20"
           >
             {RETENTION_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
