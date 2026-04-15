@@ -678,7 +678,7 @@ export function Sidebar() {
                     height={24}
                     className="shrink-0"
                   />
-                  <span className="text-lg font-bold tracking-tight font-mono">
+                  <span className="text-lg font-bold tracking-tighter font-mono">
                     X-Ray
                   </span>
                   <Badge
