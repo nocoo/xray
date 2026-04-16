@@ -1,47 +1,21 @@
-import { describe, test, expect, beforeEach } from "bun:test";
-import { createTestDb, resetTestDb } from "@/db";
+import { describe, test, expect } from "bun:test";
 
 describe("GET /api/live", () => {
-  beforeEach(() => {
-    resetTestDb();
-  });
-
-  test("returns ok status with database connectivity", async () => {
-    // Ensure test DB is initialized
-    createTestDb();
-
+  test("returns 200 with expected body", async () => {
     const { GET } = await import("@/app/api/live/route");
     const response = await GET();
     const data = await response.json();
 
     expect(response.status).toBe(200);
     expect(data.status).toBe("ok");
-    expect(typeof data.timestamp).toBe("number");
-    expect(typeof data.uptime).toBe("number");
-    expect(data.checks.database).toBe("ok");
+    expect(typeof data.version).toBe("string");
+    expect(data.component).toBe("xray");
   });
 
-  test("timestamp is close to current time", async () => {
-    createTestDb();
-
-    const before = Date.now();
+  test("sets no-store cache header", async () => {
     const { GET } = await import("@/app/api/live/route");
     const response = await GET();
-    const after = Date.now();
-    const data = await response.json();
 
-    expect(data.timestamp).toBeGreaterThanOrEqual(before);
-    expect(data.timestamp).toBeLessThanOrEqual(after);
-  });
-
-  test("uptime is a non-negative integer", async () => {
-    createTestDb();
-
-    const { GET } = await import("@/app/api/live/route");
-    const response = await GET();
-    const data = await response.json();
-
-    expect(data.uptime).toBeGreaterThanOrEqual(0);
-    expect(Number.isInteger(data.uptime)).toBe(true);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
   });
 });
