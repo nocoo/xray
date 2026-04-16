@@ -97,3 +97,7 @@ reason = "Indirect: flatted via vinext — no direct upgrade path"
 [[IgnoredVulns]]
 id = "GHSA-rf6f-7fwh-wjgh"
 reason = "Indirect: flatted via vinext — no direct upgrade path"
+
+[[IgnoredVulns]]
+id = "GHSA-458j-xx4x-4375"
+reason = "hono 4.12.12 → 4.12.14 medium severity, indirect exposure only"
