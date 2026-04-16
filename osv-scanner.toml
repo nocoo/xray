@@ -47,39 +47,6 @@ reason = "Indirect: minimatch via vinext — no direct upgrade path"
 id = "GHSA-23c5-xmqv-rm74"
 reason = "Indirect: minimatch via vinext — no direct upgrade path"
 [[IgnoredVulns]]
-id = "GHSA-xpcf-pg52-r92g"
-reason = "Indirect: hono via MCP SDK — no direct upgrade path"
-[[IgnoredVulns]]
-id = "GHSA-26pp-8wgv-hjvm"
-reason = "Indirect: hono via MCP SDK — no direct upgrade path"
-[[IgnoredVulns]]
-id = "GHSA-5pq2-9x2x-5p6w"
-reason = "Indirect: hono via MCP SDK — no direct upgrade path"
-[[IgnoredVulns]]
-id = "GHSA-p6xx-57qc-3wxr"
-reason = "Indirect: hono via MCP SDK — no direct upgrade path"
-[[IgnoredVulns]]
-id = "GHSA-q5qw-h33p-qvwr"
-reason = "Indirect: hono via MCP SDK — no direct upgrade path"
-[[IgnoredVulns]]
-id = "GHSA-r5rp-j6wh-rvv4"
-reason = "Indirect: hono via MCP SDK — no direct upgrade path"
-[[IgnoredVulns]]
-id = "GHSA-v8w9-8mx6-g223"
-reason = "Indirect: hono via MCP SDK — no direct upgrade path"
-[[IgnoredVulns]]
-id = "GHSA-wmmm-f939-6g9c"
-reason = "Indirect: hono via MCP SDK — no direct upgrade path"
-[[IgnoredVulns]]
-id = "GHSA-xf4j-xp2r-rqqx"
-reason = "Indirect: hono via MCP SDK — no direct upgrade path"
-[[IgnoredVulns]]
-id = "GHSA-92pp-h63x-v22m"
-reason = "Indirect: @hono/node-server via MCP SDK — no direct upgrade path"
-[[IgnoredVulns]]
-id = "GHSA-wc8c-qw6v-h7f6"
-reason = "Indirect: @hono/node-server via MCP SDK — no direct upgrade path"
-[[IgnoredVulns]]
 id = "GHSA-v457-wxvj-p9w9"
 reason = "Indirect: @vitejs/plugin-rsc via vinext — no direct upgrade path"
 [[IgnoredVulns]]
@@ -100,4 +67,4 @@ reason = "Indirect: flatted via vinext — no direct upgrade path"
 
 [[IgnoredVulns]]
 id = "GHSA-458j-xx4x-4375"
-reason = "hono 4.12.12 → 4.12.14 medium severity, indirect exposure only"
+reason = "hono 4.12.12 in lockfile — fixed in 4.12.14, pending bun install"
