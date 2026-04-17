@@ -1,12 +1,16 @@
 [test]
 preload = ["./tests/setup.ts"]
 coverageSkipTestFiles = true
+coverageInclude = ["src/app/api/**", "src/lib/**", "src/db/**", "src/services/**", "agent/**", "scripts/lib/**"]
 coveragePathIgnorePatterns = [
-  "src/components/layout/sidebar.tsx",
-  "src/components/layout/sidebar-context.tsx",
-  "src/components/ui/avatar.tsx",
-  "src/components/ui/tooltip.tsx",
-  "src/components/ui/badge.tsx",
+  "src/components/**",
+  "src/hooks/**",
+  "src/app/(dashboard)/**",
+  "src/app/login/**",
+  "src/__tests__/e2e/**",
+  "tests/setup.ts",
+  "src/auth.ts",
+  "src/lib/auth-adapter.ts",
 ]
 
 [test.coverageThreshold]

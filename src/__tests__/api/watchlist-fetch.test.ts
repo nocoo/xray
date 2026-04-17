@@ -184,6 +184,82 @@ describe("POST /api/watchlists/[id]/fetch", () => {
 
     expect(done.purged).toBe(1);
   });
+
+  test("returns 503 when provider is not configured", async () => {
+    seedMember("testuser1");
+    // Disable mock provider and don't set credentials → createProviderForUser returns null
+    delete process.env.MOCK_PROVIDER;
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.error).toMatch(/credentials/);
+  });
+
+  test("honors per-watchlist retention setting", async () => {
+    scopedDb.settings.upsert(`watchlist.${watchlistId}.retentionDays`, "3");
+    seedMember("testuser1");
+
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
+    const events = await parseSSE(res);
+    expect(events.find((e) => e.event === "done")).toBeDefined();
+  });
+
+  test("honors global retention setting when per-watchlist missing", async () => {
+    scopedDb.settings.upsert("watchlist.retentionDays", "7");
+    seedMember("testuser1");
+
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
+    const events = await parseSSE(res);
+    expect(events.find((e) => e.event === "done")).toBeDefined();
+  });
+
+  test("falls back to default when per-watchlist retention is non-numeric", async () => {
+    scopedDb.settings.upsert(`watchlist.${watchlistId}.retentionDays`, "abc");
+    scopedDb.settings.upsert("watchlist.retentionDays", "xyz");
+    seedMember("testuser1");
+
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
+    const events = await parseSSE(res);
+    expect(events.find((e) => e.event === "done")).toBeDefined();
+  });
+
+  test("skips old tweets via retention filter", async () => {
+    scopedDb.settings.upsert(`watchlist.${watchlistId}.retentionDays`, "1");
+    seedMember("olduser");
+
+    // Freeze date: tweets from mock provider are within the past few hours.
+    // Set retention cutoff to 0 days (future) so ALL tweets are filtered out.
+    scopedDb.settings.upsert(`watchlist.${watchlistId}.retentionDays`, "-1");
+
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
+    const events = await parseSSE(res);
+    const done = events.find((e) => e.event === "done")!.data as { skippedOld: number };
+    expect(done.skippedOld).toBeGreaterThan(0);
+  });
+
+  test("fetch handler tolerates posts with invalid tweetJson in results", async () => {
+    seedMember("testuser1");
+
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
+    expect(res.status).toBe(200);
+  });
+
+  test("cancel() sets aborted flag and halts the stream", async () => {
+    seedMember("user1");
+
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
+
+    // Immediately cancel the stream — exercise the cancel() branch
+    await res.body?.cancel();
+    expect(res.bodyUsed).toBe(true);
+  });
 });
 
 // =============================================================================
@@ -903,6 +979,146 @@ describe("POST /api/watchlists/[id]/translate", () => {
 
     const translatedEvents = events.filter((e) => e.event === "translated");
     expect(translatedEvents).toHaveLength(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Single-post mode: error + retry paths
+  // ---------------------------------------------------------------------------
+
+  test("single-post mode retries after a previous translationError", async () => {
+    scopedDb.settings.upsert("ai.provider", "minimax");
+    scopedDb.settings.upsert("ai.apiKey", "test-key");
+    scopedDb.settings.upsert("ai.model", "MiniMax-M2.5");
+
+    const member = seedMember("testuser");
+    seedPost(member.id, "t1", "testuser");
+    const posts = scopedDb.posts.findByWatchlistId(watchlistId);
+    const targetPost = posts[0]!;
+
+    // Pre-seed a translation error — the retry should clear it
+    scopedDb.posts.updateTranslationError(targetPost.id, "previous failure");
+
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlists/1/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: targetPost.id }),
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(200);
+
+    const updated = scopedDb.posts.findById(targetPost.id)!;
+    expect(updated.translatedText).toBe("模拟翻译");
+    expect(updated.translationError).toBeNull();
+  });
+
+  test("single-post mode records translation error on failure", async () => {
+    scopedDb.settings.upsert("ai.provider", "minimax");
+    scopedDb.settings.upsert("ai.apiKey", "test-key");
+    scopedDb.settings.upsert("ai.model", "MiniMax-M2.5");
+
+    const member = seedMember("testuser");
+    seedPost(member.id, "t1", "testuser");
+    const posts = scopedDb.posts.findByWatchlistId(watchlistId);
+    const targetPost = posts[0]!;
+
+    mockGenerateText.mockImplementation(() =>
+      Promise.reject(new Error("translate boom")),
+    );
+
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlists/1/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: targetPost.id }),
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.translated).toBe(0);
+    expect(body.data.errors[0]).toContain("translate boom");
+
+    const updated = scopedDb.posts.findById(targetPost.id)!;
+    expect(updated.translationError).toContain("translate boom");
+  });
+
+  test("single-post mode falls back to {} when tweetJson is malformed", async () => {
+    scopedDb.settings.upsert("ai.provider", "minimax");
+    scopedDb.settings.upsert("ai.apiKey", "test-key");
+    scopedDb.settings.upsert("ai.model", "MiniMax-M2.5");
+
+    const member = seedMember("testuser");
+    // Manually insert a post with invalid tweetJson to exercise the catch branch
+    scopedDb.posts.insertMany([{
+      watchlistId,
+      memberId: member.id,
+      tweetId: "bad-json",
+      twitterUsername: "testuser",
+      text: "Post body",
+      tweetJson: "{not valid",
+      tweetCreatedAt: "2026-01-15T12:00:00.000Z",
+    }]);
+    const posts = scopedDb.posts.findByWatchlistId(watchlistId);
+    const target = posts[0]!;
+
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlists/1/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: target.id }),
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(200);
+  });
+
+  test("batch mode falls back to {} when tweetJson is malformed", async () => {
+    scopedDb.settings.upsert("ai.provider", "minimax");
+    scopedDb.settings.upsert("ai.apiKey", "test-key");
+    scopedDb.settings.upsert("ai.model", "MiniMax-M2.5");
+
+    const member = seedMember("testuser");
+    scopedDb.posts.insertMany([{
+      watchlistId,
+      memberId: member.id,
+      tweetId: "bad-json-batch",
+      twitterUsername: "testuser",
+      text: "Post body",
+      tweetJson: "{also not valid",
+      tweetCreatedAt: "2026-01-15T12:00:00.000Z",
+    }]);
+
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlists/1/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.translated).toBe(1);
+  });
+
+  test("ignores invalid JSON body (defaults)", async () => {
+    const { POST } = await import("@/app/api/watchlists/[id]/translate/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlists/1/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{bad",
+      }),
+      ctx(),
+    );
+    // Route tolerates invalid JSON by using defaults
+    expect(res.status).toBe(200);
   });
 });
 

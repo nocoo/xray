@@ -71,6 +71,32 @@ describe("POST /api/tags", () => {
     );
     expect(res.status).toBe(400);
   });
+
+  test("returns 400 for whitespace-only name", async () => {
+    const { POST } = await import("@/app/api/tags/route");
+    const res = await POST(
+      new Request("http://localhost/api/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "   " }),
+      })
+    );
+    expect(res.status).toBe(400);
+  });
+
+  test("returns 400 for invalid JSON body", async () => {
+    const { POST } = await import("@/app/api/tags/route");
+    const res = await POST(
+      new Request("http://localhost/api/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{not valid json",
+      })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/Invalid JSON/);
+  });
 });
 
 describe("DELETE /api/tags", () => {
@@ -102,6 +128,26 @@ describe("DELETE /api/tags", () => {
       new Request("http://localhost/api/tags?id=999", { method: "DELETE" })
     );
     expect(res.status).toBe(404);
+  });
+
+  test("returns 400 for missing id query parameter", async () => {
+    const { DELETE: DEL } = await import("@/app/api/tags/route");
+    const res = await DEL(
+      new Request("http://localhost/api/tags", { method: "DELETE" })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/Missing 'id'/);
+  });
+
+  test("returns 400 for non-numeric id", async () => {
+    const { DELETE: DEL } = await import("@/app/api/tags/route");
+    const res = await DEL(
+      new Request("http://localhost/api/tags?id=abc", { method: "DELETE" })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/Invalid tag ID/);
   });
 });
 
@@ -181,6 +227,39 @@ describe("POST /api/watchlists/[id]/members", () => {
       ctx(),
     );
     expect(res.status).toBe(400);
+  });
+
+  test("returns 400 for invalid JSON body", async () => {
+    const { POST } = await import("@/app/api/watchlists/[id]/members/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlists/1/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{not valid json",
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/Invalid JSON/);
+  });
+
+  test("returns 403 for invalid tagIds", async () => {
+    const { POST } = await import("@/app/api/watchlists/[id]/members/route");
+    const res = await POST(
+      new Request("http://localhost/api/watchlists/1/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          twitterUsername: "valid_user",
+          tagIds: [9999],
+        }),
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toMatch(/Invalid tag IDs/);
   });
 
   test("creates member with tags", async () => {
@@ -271,6 +350,85 @@ describe("PUT /api/watchlists/[id]/members", () => {
     );
     expect(res.status).toBe(404);
   });
+
+  test("returns 400 for missing id", async () => {
+    const { PUT } = await import("@/app/api/watchlists/[id]/members/route");
+    const res = await PUT(
+      new Request("http://localhost/api/watchlists/1/members", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: "x" }),
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/id is required/);
+  });
+
+  test("returns 400 for invalid JSON body", async () => {
+    const { PUT } = await import("@/app/api/watchlists/[id]/members/route");
+    const res = await PUT(
+      new Request("http://localhost/api/watchlists/1/members", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: "{not valid json",
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/Invalid JSON/);
+  });
+
+  test("returns 403 for invalid tagIds on update", async () => {
+    const { POST, PUT } = await import("@/app/api/watchlists/[id]/members/route");
+    // Create member first
+    const createRes = await POST(
+      new Request("http://localhost/api/watchlists/1/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ twitterUsername: "updateable" }),
+      }),
+      ctx(),
+    );
+    const { data: member } = await createRes.json();
+
+    const res = await PUT(
+      new Request("http://localhost/api/watchlists/1/members", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: member.id, tagIds: [9999] }),
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toMatch(/Invalid tag IDs/);
+  });
+
+  test("allows clearing tags with empty tagIds array", async () => {
+    const { POST, PUT } = await import("@/app/api/watchlists/[id]/members/route");
+    const createRes = await POST(
+      new Request("http://localhost/api/watchlists/1/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ twitterUsername: "cleartags" }),
+      }),
+      ctx(),
+    );
+    const { data: member } = await createRes.json();
+
+    const res = await PUT(
+      new Request("http://localhost/api/watchlists/1/members", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: member.id, tagIds: [] }),
+      }),
+      ctx(),
+    );
+    expect(res.status).toBe(200);
+  });
 });
 
 describe("DELETE /api/watchlists/[id]/members", () => {
@@ -314,5 +472,16 @@ describe("DELETE /api/watchlists/[id]/members", () => {
       ctx(),
     );
     expect(res.status).toBe(400);
+  });
+
+  test("returns 400 for non-numeric id", async () => {
+    const { DELETE: DEL } = await import("@/app/api/watchlists/[id]/members/route");
+    const res = await DEL(
+      new Request("http://localhost/api/watchlists/1/members?id=abc", { method: "DELETE" }),
+      ctx(),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/Invalid ID/);
   });
 });
