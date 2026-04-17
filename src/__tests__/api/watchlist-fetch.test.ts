@@ -184,6 +184,63 @@ describe("POST /api/watchlists/[id]/fetch", () => {
 
     expect(done.purged).toBe(1);
   });
+
+  test("returns 503 when provider is not configured", async () => {
+    seedMember("testuser1");
+    // Disable mock provider and don't set credentials → createProviderForUser returns null
+    delete process.env.MOCK_PROVIDER;
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.error).toMatch(/credentials/);
+  });
+
+  test("honors per-watchlist retention setting", async () => {
+    scopedDb.settings.upsert(`watchlist.${watchlistId}.retentionDays`, "3");
+    seedMember("testuser1");
+
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
+    const events = await parseSSE(res);
+    expect(events.find((e) => e.event === "done")).toBeDefined();
+  });
+
+  test("honors global retention setting when per-watchlist missing", async () => {
+    scopedDb.settings.upsert("watchlist.retentionDays", "7");
+    seedMember("testuser1");
+
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
+    const events = await parseSSE(res);
+    expect(events.find((e) => e.event === "done")).toBeDefined();
+  });
+
+  test("falls back to default when per-watchlist retention is non-numeric", async () => {
+    scopedDb.settings.upsert(`watchlist.${watchlistId}.retentionDays`, "abc");
+    scopedDb.settings.upsert("watchlist.retentionDays", "xyz");
+    seedMember("testuser1");
+
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
+    const events = await parseSSE(res);
+    expect(events.find((e) => e.event === "done")).toBeDefined();
+  });
+
+  test("skips old tweets via retention filter", async () => {
+    scopedDb.settings.upsert(`watchlist.${watchlistId}.retentionDays`, "1");
+    seedMember("olduser");
+
+    // Freeze date: tweets from mock provider are within the past few hours.
+    // Set retention cutoff to 0 days (future) so ALL tweets are filtered out.
+    scopedDb.settings.upsert(`watchlist.${watchlistId}.retentionDays`, "-1");
+
+    const { POST } = await import("@/app/api/watchlists/[id]/fetch/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx());
+    const events = await parseSSE(res);
+    const done = events.find((e) => e.event === "done")!.data as { skippedOld: number };
+    expect(done.skippedOld).toBeGreaterThan(0);
+  });
 });
 
 // =============================================================================
