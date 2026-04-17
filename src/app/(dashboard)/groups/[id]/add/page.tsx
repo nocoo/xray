@@ -834,7 +834,7 @@ function ImportFileTab({
           "relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-12 transition-colors cursor-pointer",
           isDragging
             ? "border-primary bg-primary/5"
-            : "border-input hover:border-muted-foreground/50",
+            : "border-border hover:border-muted-foreground/50",
           (fetching || hasQueue) && "pointer-events-none",
         )}
         onDragEnter={handleDragEnter}
@@ -962,7 +962,7 @@ function CandidateList({
           type="checkbox"
           checked={allSelected}
           onChange={onToggleAll}
-          className="h-4 w-4 rounded border-input accent-primary"
+          className="h-4 w-4 rounded border-border accent-primary"
           disabled={selectableCandidates.length === 0}
         />
         <span className="text-xs font-medium text-muted-foreground">
@@ -1006,7 +1006,7 @@ function CandidateRow({
         checked={c.selected}
         onChange={onToggle}
         disabled={c.alreadyInGroup}
-        className="h-4 w-4 rounded border-input accent-primary shrink-0"
+        className="h-4 w-4 rounded border-border accent-primary shrink-0"
       />
 
       <img
