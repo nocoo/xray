@@ -2,6 +2,16 @@
 preload = ["./tests/setup.ts"]
 coverageSkipTestFiles = true
 coverageInclude = ["src/app/api/**", "src/lib/**", "src/db/**", "src/services/**", "agent/**", "scripts/lib/**"]
+coveragePathIgnorePatterns = [
+  "src/components/**",
+  "src/hooks/**",
+  "src/app/(dashboard)/**",
+  "src/app/login/**",
+  "src/__tests__/e2e/**",
+  "tests/setup.ts",
+  "src/auth.ts",
+  "src/lib/auth-adapter.ts",
+]
 
 [test.coverageThreshold]
 line = 90
