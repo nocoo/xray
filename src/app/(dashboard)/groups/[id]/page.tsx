@@ -510,7 +510,7 @@ export default function GroupDetailPage() {
                             if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected;
                           }}
                           onChange={toggleSelectAll}
-                          className="h-4 w-4 rounded border-input accent-primary"
+                          className="h-4 w-4 rounded border-border accent-primary"
                         />
                       </th>
                     )}
@@ -742,7 +742,7 @@ function MemberRow({
             type="checkbox"
             checked={!!selected}
             onChange={onToggleSelect}
-            className="h-4 w-4 rounded border-input accent-primary"
+            className="h-4 w-4 rounded border-border accent-primary"
           />
         </td>
       )}
