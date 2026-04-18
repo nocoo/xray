@@ -106,7 +106,7 @@ async function startServer(opts: {
   };
   if (opts.skipAuth) env.E2E_SKIP_AUTH = "true";
 
-  const proc = spawn(["npx", "vinext", "dev", "--port", String(opts.port)], {
+  const proc = spawn(["bunx", "vinext", "dev", "--port", String(opts.port)], {
     cwd: PROJECT_ROOT,
     env,
     stdout: "pipe",
