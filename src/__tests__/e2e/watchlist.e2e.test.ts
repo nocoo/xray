@@ -46,9 +46,29 @@ interface ApiError {
   error: string;
 }
 
+/**
+ * Wipe every existing watchlist and tag for the e2e user via the public API.
+ * Needed because the L2 runner shares a single DB across all e2e files and
+ * other suites (auto-fetch, watchlist-detail) leave their fixtures behind.
+ */
+async function resetWatchlistsAndTags(): Promise<void> {
+  const wls = await apiRequest<ApiSuccess<{ id: number }[]>>("/api/watchlists");
+  for (const wl of wls.data.data) {
+    await apiRequest(`/api/watchlists?id=${wl.id}`, { method: "DELETE" });
+  }
+  const tags = await apiRequest<ApiSuccess<{ id: number }[]>>("/api/tags");
+  for (const tag of tags.data.data) {
+    await apiRequest(`/api/tags?id=${tag.id}`, { method: "DELETE" });
+  }
+}
+
 describe("e2e: watchlist & tags", () => {
   beforeAll(async () => {
     await setupE2E();
+    // The runner shares one DB across all e2e files. Other tests (auto-fetch,
+    // watchlist-detail) create watchlists without cleaning up, so wipe state
+    // here to guarantee the "initially empty" assertions below hold.
+    await resetWatchlistsAndTags();
   }, 60_000);
 
   afterAll(async () => {

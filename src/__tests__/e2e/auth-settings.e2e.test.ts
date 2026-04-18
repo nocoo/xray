@@ -295,10 +295,16 @@ describe("e2e: auth and settings", () => {
 
       const data = await res.json();
       expect(data.status).toBe("ok");
-      expect(typeof data.timestamp).toBe("number");
+      // Surety-standard liveness payload: timestamp is ISO 8601 string,
+      // uptime is a number (seconds), and database health is reported via
+      // a `database.connected` boolean (see src/app/api/live/route.ts).
+      expect(typeof data.timestamp).toBe("string");
+      expect(() => new Date(data.timestamp).toISOString()).not.toThrow();
       expect(typeof data.uptime).toBe("number");
-      expect(data.checks).toBeDefined();
-      expect(data.checks.database).toBe("ok");
+      expect(typeof data.version).toBe("string");
+      expect(data.component).toBe("xray");
+      expect(data.database).toBeDefined();
+      expect(data.database.connected).toBe(true);
     });
   });
 
