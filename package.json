@@ -10,6 +10,7 @@
     "lint": "eslint --max-warnings=0",
     "test": "find tests src/__tests__ -name '*.test.ts' ! -path '*/e2e/*' -print0 | xargs -0 bun test && bun test src/__tests__/e2e/",
     "test:coverage": "bun test --coverage",
+    "test:e2e:api": "bun test src/__tests__/e2e/ --timeout 90000",
     "test:e2e:browser": "npx playwright test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

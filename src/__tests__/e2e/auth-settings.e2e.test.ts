@@ -295,10 +295,12 @@ describe("e2e: auth and settings", () => {
 
       const data = await res.json();
       expect(data.status).toBe("ok");
-      expect(typeof data.timestamp).toBe("number");
+      expect(typeof data.timestamp).toBe("string");
       expect(typeof data.uptime).toBe("number");
-      expect(data.checks).toBeDefined();
-      expect(data.checks.database).toBe("ok");
+      expect(data.component).toBe("xray");
+      expect(typeof data.version).toBe("string");
+      expect(data.database).toBeDefined();
+      expect(data.database.connected).toBe(true);
     });
   });
 
