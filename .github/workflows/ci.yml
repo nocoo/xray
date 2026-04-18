@@ -13,5 +13,6 @@ jobs:
     with:
       test-command: "find tests src/__tests__ -name '*.test.ts' ! -path '*/e2e/*' -print0 | xargs -0 bun test"
       typecheck-command: "echo 'no typecheck configured'"
-      enable-l2: "false"
+      enable-l2: "true"
+      l2-command: "bun run test:e2e:api"
     secrets: inherit
