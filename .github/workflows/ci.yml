@@ -13,6 +13,32 @@ jobs:
     with:
       test-command: "find tests src/__tests__ -name '*.test.ts' ! -path '*/e2e/*' -print0 | xargs -0 bun test"
       typecheck-command: "echo 'no typecheck configured'"
-      enable-l2: "true"
-      l2-command: "bun run test:e2e:api"
+      enable-l2: "false"
     secrets: inherit
+
+  # L2: API E2E — vinext requires Node 22+ (node:fs/promises glob)
+  l2-api-e2e:
+    name: "L2 API E2E"
+    needs: [quality]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: "L2: API E2E tests"
+        run: bun run test:e2e:api
+        env:
+          CI: "true"
+          E2E_SKIP_AUTH: "true"
