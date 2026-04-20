@@ -1,1 +1,4 @@
 bun run build && bun run test && bun run lint
+
+# G2b: dependency vulnerability scan
+osv-scanner scan --lockfile=bun.lock --config=osv-scanner.toml

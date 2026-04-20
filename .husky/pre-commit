@@ -1,15 +1,5 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/h"
-
-# Layer 2: Lint (zero tolerance for errors/warnings)
+# === Quality Gate: pre-commit ===
+# L1 + G1 + G2a (6DQ standard)
 bun run lint
-
-# Layer 1: Root-level unit tests + coverage (90% threshold enforced by bunfig.toml)
-bun test tests/ --coverage --timeout 30000
-
-# Layer 1: App unit + integration tests + coverage (excludes e2e)
-bun test src/__tests__/auth.test.ts src/__tests__/crypto.test.ts src/__tests__/version.test.ts \
-  src/__tests__/utils.test.ts src/__tests__/ai-service.test.ts \
-  src/__tests__/db/ src/__tests__/api/ src/__tests__/twitter/ src/__tests__/components/ \
-  src/__tests__/services/ src/__tests__/ui/ \
-  --coverage --timeout 30000
+bun run test
+gitleaks protect --staged --no-banner
