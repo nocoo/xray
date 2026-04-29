@@ -21,10 +21,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXTAUTH_URL ?? "http://localhost:3000"
   ),
-  title: "xray - Twitter 数据分析面板",
+  title: "xray - Twitter Analytics Dashboard",
   description: "Monitor and analyze Twitter/X content with AI-powered insights",
   openGraph: {
-    title: "xray - Twitter 数据分析面板",
+    title: "xray - Twitter Analytics Dashboard",
     description:
       "Monitor and analyze Twitter/X content with AI-powered insights",
     type: "website",
