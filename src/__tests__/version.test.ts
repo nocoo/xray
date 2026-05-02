@@ -1,8 +1,9 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
+import { readFileSync } from "fs";
 import { APP_VERSION } from "@/lib/version";
 
 // Read package.json independently to cross-check
-const pkg = await Bun.file("package.json").json();
+const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 
 describe("version", () => {
   test("APP_VERSION matches package.json version", () => {
