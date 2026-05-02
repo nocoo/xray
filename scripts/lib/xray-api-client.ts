@@ -5,6 +5,7 @@
 // using webhook key authentication. Drop-in replacement for TwitterAPIClient.
 // =============================================================================
 
+import { existsSync, readFileSync } from "fs";
 import type {
   Tweet,
   UserInfo,
@@ -218,14 +219,13 @@ export class XRayAPIClient {
 export async function loadAPIKeyConfig(
   configPath = DEFAULT_CONFIG_PATH,
 ): Promise<XRayAPIConfig> {
-  const file = Bun.file(configPath);
-  if (!(await file.exists())) {
+  if (!existsSync(configPath)) {
     throw new Error(
       `API key config not found at ${configPath}. ` +
         `Copy config/api-key.example.json to config/api-key.json and fill in your webhook key.`,
     );
   }
-  const raw = (await file.json()) as Record<string, unknown>;
+  const raw = JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>;
 
   if (!raw.base_url || typeof raw.base_url !== "string") {
     throw new Error(`Missing or invalid "base_url" in ${configPath}`);

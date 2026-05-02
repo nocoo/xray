@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import { getAgentClient } from "../agent/lib/agent-api";
 
 describe("agent/lib/agent-api", () => {
@@ -13,7 +13,7 @@ describe("agent/lib/agent-api", () => {
   });
 
   test("creates client that can perform API call", async () => {
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true, data: [] }),

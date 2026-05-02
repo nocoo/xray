@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import { main } from "../agent/research/check-never-users";
 import { existsSync, rmSync } from "fs";
 import { join } from "path";
@@ -16,7 +16,7 @@ describe("check-never-users main()", () => {
   });
 
   test("fetches all NEVER_USERS and writes output", async () => {
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true, data: [] }),
@@ -32,7 +32,7 @@ describe("check-never-users main()", () => {
 
   test("handles API errors gracefully", async () => {
     let callCount = 0;
-    const mockFetch = mock(() => {
+    const mockFetch = vi.fn(() => {
       callCount++;
       if (callCount === 1) {
         return Promise.resolve({
@@ -69,7 +69,7 @@ describe("check-never-users main()", () => {
       lang: "en",
     };
 
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true, data: [fakeTweet] }),

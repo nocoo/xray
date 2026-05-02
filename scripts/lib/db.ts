@@ -1,6 +1,8 @@
-import { Database } from "bun:sqlite";
+import BetterSqlite3, { type Database as BetterSqlite3Database } from "better-sqlite3";
 import { resolve, dirname } from "path";
 import { mkdirSync, existsSync } from "fs";
+
+export type Database = BetterSqlite3Database;
 
 const DB_PATH = resolve(process.cwd(), "data/x-ray.db");
 const TEST_DB_PATH = resolve(process.cwd(), "data/test-x-ray.db");
@@ -11,12 +13,12 @@ export function getDB(): Database {
   if (!db) {
     const dbPath = isTestMode() ? TEST_DB_PATH : DB_PATH;
     const dbDir = dirname(dbPath);
-    
+
     if (!existsSync(dbDir)) {
       mkdirSync(dbDir, { recursive: true });
     }
-    
-    db = new Database(dbPath);
+
+    db = new BetterSqlite3(dbPath);
     initDB();
   }
   return db;
@@ -30,7 +32,7 @@ export function closeDB(): void {
 }
 
 function isTestMode(): boolean {
-  return process.env.NODE_ENV === "test" || Bun.env.XRAY_TEST_DB === "true";
+  return process.env.NODE_ENV === "test" || process.env.XRAY_TEST_DB === "true";
 }
 
 export function getTestDBPath(): string {
@@ -143,10 +145,10 @@ function initDB(): void {
 export function resetDB(): void {
   const db = getDB();
   db.exec(`
-    DROP TABLE IF EXISTS watchlist;
-    DROP TABLE IF EXISTS tweets;
-    DROP TABLE IF EXISTS processed_tweets;
     DROP TABLE IF EXISTS classifications;
+    DROP TABLE IF EXISTS processed_tweets;
+    DROP TABLE IF EXISTS tweets;
+    DROP TABLE IF EXISTS watchlist;
     DROP TABLE IF EXISTS analytics;
   `);
   initDB();

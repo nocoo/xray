@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect } from "vitest";
 import { buildNeverUsersOutput } from "../agent/research/check-never-users";
 
 describe("check-never-users", () => {

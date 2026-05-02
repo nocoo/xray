@@ -1,7 +1,7 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "vitest";
 import { join } from "path";
 import { tmpdir } from "os";
-import { mkdirSync, rmSync } from "fs";
+import { mkdirSync, rmSync, writeFileSync } from "fs";
 import {
   getTweetType,
   isPureLink,
@@ -825,7 +825,7 @@ describe("tweet-utils", () => {
       };
 
       const filePath = join(tmpDir, "raw_tweets.json");
-      await Bun.write(filePath, JSON.stringify(data));
+      writeFileSync(filePath, JSON.stringify(data));
 
       const result = await loadRawTweets(filePath);
       expect(result.tweets.length).toBe(1);
@@ -890,7 +890,7 @@ describe("tweet-utils", () => {
       };
 
       const filePath = join(tmpDir, "raw_tweets.json");
-      await Bun.write(filePath, JSON.stringify(data));
+      writeFileSync(filePath, JSON.stringify(data));
 
       const result = await loadAndFilterTweets(filePath);
       expect(result.passed.length).toBe(1);

@@ -1,8 +1,11 @@
 /**
  * Test setup file - preloaded before any test runs
  *
- * Creates mock config files needed by scripts that call loadAPIKeyConfig()
+ * - Forces UTC timezone (matches bun:test default) so date-formatting tests are deterministic
+ * - Creates mock config files needed by scripts that call loadAPIKeyConfig()
  */
+
+process.env.TZ = "UTC";
 
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";

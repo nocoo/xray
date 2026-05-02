@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "fs";
 import type { Tweet, RawTweetsFile, TweetThread, TweetMetrics } from "./types";
 
 // =============================================================================
@@ -219,8 +220,10 @@ export function filterTweets(tweets: Tweet[], options: FilterOptions = {}): Filt
 // =============================================================================
 
 export async function loadRawTweets(path: string): Promise<RawTweetsFile> {
-  const file = Bun.file(path);
-  const content = await file.json();
+  if (!existsSync(path)) {
+    throw new Error(`File not found: ${path}`);
+  }
+  const content = JSON.parse(readFileSync(path, "utf8"));
   return content as RawTweetsFile;
 }
 

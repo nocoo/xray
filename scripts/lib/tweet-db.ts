@@ -45,7 +45,7 @@ export interface ClassificationRow {
 
 export function tweetInsert(tweet: Tweet): void {
   const db = getDB();
-  db.query(
+  db.prepare(
     `INSERT OR REPLACE INTO tweets (
       id, text, author_id, author_username, author_name, author_profile_image,
       author_followers_count, author_is_verified,
@@ -90,25 +90,25 @@ export function tweetInsertMany(tweets: Tweet[]): void {
 
 export function tweetGet(id: string): TweetRow | null {
   const db = getDB();
-  return db.query(`SELECT * FROM tweets WHERE id = ?`).get(id) as TweetRow | null;
+  return (db.prepare(`SELECT * FROM tweets WHERE id = ?`).get(id) as TweetRow | undefined) ?? null;
 }
 
 export function tweetGetRecent(limit: number = 100): TweetRow[] {
   const db = getDB();
-  return db.query(`SELECT * FROM tweets ORDER BY created_at DESC LIMIT ?`).all(limit) as TweetRow[];
+  return db.prepare(`SELECT * FROM tweets ORDER BY created_at DESC LIMIT ?`).all(limit) as TweetRow[];
 }
 
 export function tweetGetByFetchedAtRange(from: string, to: string): TweetRow[] {
   const db = getDB();
   return db
-    .query(`SELECT * FROM tweets WHERE fetched_at >= ? AND fetched_at <= ? ORDER BY fetched_at DESC`)
+    .prepare(`SELECT * FROM tweets WHERE fetched_at >= ? AND fetched_at <= ? ORDER BY fetched_at DESC`)
     .all(from, to) as TweetRow[];
 }
 
 export function tweetGetByCreatedAtRange(from: string, to: string): TweetRow[] {
   const db = getDB();
   return db
-    .query(`SELECT * FROM tweets WHERE created_at >= ? AND created_at <= ? ORDER BY created_at DESC`)
+    .prepare(`SELECT * FROM tweets WHERE created_at >= ? AND created_at <= ? ORDER BY created_at DESC`)
     .all(from, to) as TweetRow[];
 }
 
@@ -116,7 +116,7 @@ export function getExistingTweetIds(ids: string[]): Set<string> {
   if (ids.length === 0) return new Set();
   const db = getDB();
   const placeholders = ids.map(() => "?").join(",");
-  const rows = db.query(`SELECT id FROM tweets WHERE id IN (${placeholders})`).all(...ids) as { id: string }[];
+  const rows = db.prepare(`SELECT id FROM tweets WHERE id IN (${placeholders})`).all(...ids) as { id: string }[];
   return new Set(rows.map((r) => r.id));
 }
 
@@ -124,7 +124,7 @@ export function deleteTweetsByIds(ids: string[]): number {
   if (ids.length === 0) return 0;
   const db = getDB();
   const placeholders = ids.map(() => "?").join(",");
-  const result = db.query(`DELETE FROM tweets WHERE id IN (${placeholders})`).run(...ids);
+  const result = db.prepare(`DELETE FROM tweets WHERE id IN (${placeholders})`).run(...ids);
   return result.changes || 0;
 }
 
@@ -132,7 +132,7 @@ export function tweetGetByIds(ids: string[]): TweetRow[] {
   if (ids.length === 0) return [];
   const db = getDB();
   const placeholders = ids.map(() => "?").join(",");
-  return db.query(`SELECT * FROM tweets WHERE id IN (${placeholders})`).all(...ids) as TweetRow[];
+  return db.prepare(`SELECT * FROM tweets WHERE id IN (${placeholders})`).all(...ids) as TweetRow[];
 }
 
 export function tweetToModel(row: TweetRow): Tweet {
@@ -167,13 +167,13 @@ export function tweetToModel(row: TweetRow): Tweet {
 
 export function tweetCount(): number {
   const db = getDB();
-  const result = db.query(`SELECT COUNT(*) as count FROM tweets`).get() as { count: number };
+  const result = db.prepare(`SELECT COUNT(*) as count FROM tweets`).get() as { count: number };
   return result.count;
 }
 
 export function processedMark(tweetId: string, classificationResult: "selected" | "skipped"): void {
   const db = getDB();
-  db.query(
+  db.prepare(
     `INSERT OR REPLACE INTO processed_tweets (tweet_id, processed_at, classification_result) VALUES (?, ?, ?)`
   ).run(tweetId, nowISO(), classificationResult);
 }
@@ -184,7 +184,7 @@ export function processedMarkMany(
 ): void {
   const db = getDB();
   const txn = db.transaction(() => {
-    const stmt = db.query(
+    const stmt = db.prepare(
       `INSERT OR REPLACE INTO processed_tweets (tweet_id, processed_at, classification_result) VALUES (?, ?, ?)`
     );
     const now = nowISO();
@@ -197,23 +197,23 @@ export function processedMarkMany(
 
 export function processedGet(tweetId: string): ProcessedRow | null {
   const db = getDB();
-  return db.query(`SELECT * FROM processed_tweets WHERE tweet_id = ?`).get(tweetId) as ProcessedRow | null;
+  return (db.prepare(`SELECT * FROM processed_tweets WHERE tweet_id = ?`).get(tweetId) as ProcessedRow | undefined) ?? null;
 }
 
 export function processedGetAll(): ProcessedRow[] {
   const db = getDB();
-  return db.query(`SELECT * FROM processed_tweets ORDER BY processed_at DESC`).all() as ProcessedRow[];
+  return db.prepare(`SELECT * FROM processed_tweets ORDER BY processed_at DESC`).all() as ProcessedRow[];
 }
 
 export function processedGetAllIds(): string[] {
   const db = getDB();
-  const rows = db.query(`SELECT tweet_id FROM processed_tweets`).all() as { tweet_id: string }[];
+  const rows = db.prepare(`SELECT tweet_id FROM processed_tweets`).all() as { tweet_id: string }[];
   return rows.map((r) => r.tweet_id);
 }
 
 export function processedCount(): number {
   const db = getDB();
-  const result = db.query(`SELECT COUNT(*) as count FROM processed_tweets`).get() as { count: number };
+  const result = db.prepare(`SELECT COUNT(*) as count FROM processed_tweets`).get() as { count: number };
   return result.count;
 }
 
@@ -228,7 +228,7 @@ export function classificationUpsert(
   }
 ): void {
   const db = getDB();
-  db.query(
+  db.prepare(
     `INSERT OR REPLACE INTO classifications (
       tweet_id, is_tech_related, is_hot_topic, category, relevance_score, reason, classified_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -245,14 +245,14 @@ export function classificationUpsert(
 
 export function classificationGet(tweetId: string): ClassificationRow | null {
   const db = getDB();
-  return db.query(`SELECT * FROM classifications WHERE tweet_id = ?`).get(tweetId) as ClassificationRow | null;
+  return (db.prepare(`SELECT * FROM classifications WHERE tweet_id = ?`).get(tweetId) as ClassificationRow | undefined) ?? null;
 }
 
 export function classificationGetByIds(tweetIds: string[]): ClassificationRow[] {
   if (tweetIds.length === 0) return [];
   const db = getDB();
   const placeholders = tweetIds.map(() => "?").join(",");
-  return db.query(`SELECT * FROM classifications WHERE tweet_id IN (${placeholders})`).all(...tweetIds) as ClassificationRow[];
+  return db.prepare(`SELECT * FROM classifications WHERE tweet_id IN (${placeholders})`).all(...tweetIds) as ClassificationRow[];
 }
 
 export function classificationToModel(row: ClassificationRow) {
@@ -267,7 +267,7 @@ export function classificationToModel(row: ClassificationRow) {
 
 export function classificationGetTechRelated(limit: number = 100): TweetRow[] {
   const db = getDB();
-  return db.query(`
+  return db.prepare(`
     SELECT t.* FROM tweets t
     INNER JOIN classifications c ON t.id = c.tweet_id
     WHERE c.is_tech_related = 1
@@ -278,7 +278,7 @@ export function classificationGetTechRelated(limit: number = 100): TweetRow[] {
 
 export function classificationGetHotTopics(limit: number = 100): TweetRow[] {
   const db = getDB();
-  return db.query(`
+  return db.prepare(`
     SELECT t.* FROM tweets t
     INNER JOIN classifications c ON t.id = c.tweet_id
     WHERE c.is_hot_topic = 1

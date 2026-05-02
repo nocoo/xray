@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import { main } from "../agent/research/search-trump-fed-gold";
 
 describe("search-trump-fed-gold main()", () => {
@@ -26,7 +26,7 @@ describe("search-trump-fed-gold main()", () => {
       lang: "en",
     };
 
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true, data: [fakeTweet] }),
@@ -41,7 +41,7 @@ describe("search-trump-fed-gold main()", () => {
   });
 
   test("handles all errors gracefully", async () => {
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: false,
         status: 503,
@@ -70,7 +70,7 @@ describe("search-trump-fed-gold main()", () => {
       lang: "en",
     });
 
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () =>

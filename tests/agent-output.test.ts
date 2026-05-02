@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import { writeAgentOutput } from "../agent/lib/agent-output";
 import { existsSync, rmSync, mkdirSync } from "fs";
 import { dirname } from "path";

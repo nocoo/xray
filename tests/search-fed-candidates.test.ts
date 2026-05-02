@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect } from "vitest";
 import { buildSearchOutput } from "../agent/research/search-fed-candidates";
 
 describe("search-fed-candidates", () => {

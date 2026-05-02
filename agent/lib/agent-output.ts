@@ -1,5 +1,5 @@
 import { join, dirname } from "path";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
 
 export function getAgentOutputDir(): string {
   return join(process.cwd(), "data", "agent");
@@ -23,6 +23,6 @@ export async function writeAgentOutput<T>(
     mkdirSync(dir, { recursive: true });
   }
 
-  await Bun.write(path, JSON.stringify(payload, null, 2));
+  writeFileSync(path, JSON.stringify(payload, null, 2));
   return path;
 }

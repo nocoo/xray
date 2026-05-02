@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
 import { fetchIncremental, main } from "../agent/fetch/incremental";
 import { watchlistAdd } from "../scripts/lib/watchlist-db";
 import { processedMark, tweetCount, processedCount } from "../scripts/lib/tweet-db";
@@ -76,7 +76,7 @@ describe("agent/fetch/incremental", () => {
     };
 
     let callIndex = 0;
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve(callIndex++ === 0 ? responseAlice : responseBob),
@@ -107,7 +107,7 @@ describe("agent/fetch/incremental", () => {
       ],
     };
 
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve(response),
@@ -128,7 +128,7 @@ describe("agent/fetch/incremental", () => {
     const now = new Date();
     watchlistAdd({ username: "erroruser", url: "https://x.com/erroruser", added_at: now.toISOString() });
 
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: false,
         status: 500,
@@ -152,7 +152,7 @@ describe("agent/fetch/incremental", () => {
     watchlistAdd({ username: "user1", url: "https://x.com/user1", added_at: now.toISOString() });
     watchlistAdd({ username: "user2", url: "https://x.com/user2", added_at: now.toISOString() });
 
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({
@@ -198,7 +198,7 @@ describe("agent/fetch/incremental", () => {
 
       watchlistAdd({ username: "charlie", url: "https://x.com/charlie", added_at: now.toISOString() });
 
-      const mockFetch = mock(() =>
+      const mockFetch = vi.fn(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve({
@@ -219,7 +219,7 @@ describe("agent/fetch/incremental", () => {
       const now = new Date();
       watchlistAdd({ username: "failuser", url: "https://x.com/failuser", added_at: now.toISOString() });
 
-      const mockFetch = mock(() =>
+      const mockFetch = vi.fn(() =>
         Promise.resolve({
           ok: false,
           status: 500,
@@ -240,7 +240,7 @@ describe("agent/fetch/incremental", () => {
       watchlistAdd({ username: "user1", url: "https://x.com/user1", added_at: now.toISOString() });
       watchlistAdd({ username: "user2", url: "https://x.com/user2", added_at: now.toISOString() });
 
-      const mockFetch = mock(() =>
+      const mockFetch = vi.fn(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ success: true, data: [] }),

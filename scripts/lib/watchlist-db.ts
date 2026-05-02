@@ -9,7 +9,7 @@ export interface WatchlistRow {
 
 export function watchlistAdd(user: WatchlistUser): void {
   const db = getDB();
-  db.query(
+  db.prepare(
     `INSERT OR REPLACE INTO watchlist (username, url, added_at) VALUES (?, ?, ?)`
   ).run(user.username, user.url, user.added_at);
 }
@@ -17,26 +17,26 @@ export function watchlistAdd(user: WatchlistUser): void {
 export function watchlistRemove(username: string): boolean {
   const db = getDB();
   const normalized = username.toLowerCase();
-  const result = db.query(`DELETE FROM watchlist WHERE LOWER(username) = ?`).run(normalized);
+  const result = db.prepare(`DELETE FROM watchlist WHERE LOWER(username) = ?`).run(normalized);
   return result.changes > 0;
 }
 
 export function watchlistGet(username: string): WatchlistRow | null {
   const db = getDB();
   const normalized = username.toLowerCase();
-  return db.query(`SELECT * FROM watchlist WHERE LOWER(username) = ?`).get(normalized) as WatchlistRow | null;
+  return (db.prepare(`SELECT * FROM watchlist WHERE LOWER(username) = ?`).get(normalized) as WatchlistRow | undefined) ?? null;
 }
 
 export function watchlistExists(username: string): boolean {
   const db = getDB();
   const normalized = username.toLowerCase();
-  const result = db.query(`SELECT 1 FROM watchlist WHERE LOWER(username) = ?`).get(normalized);
-  return result !== null;
+  const result = db.prepare(`SELECT 1 FROM watchlist WHERE LOWER(username) = ?`).get(normalized);
+  return result != null;
 }
 
 export function watchlistGetAll(): WatchlistRow[] {
   const db = getDB();
-  return db.query(`SELECT * FROM watchlist ORDER BY added_at DESC`).all() as WatchlistRow[];
+  return db.prepare(`SELECT * FROM watchlist ORDER BY added_at DESC`).all() as WatchlistRow[];
 }
 
 export function watchlistToJSON(): Watchlist {
@@ -45,6 +45,6 @@ export function watchlistToJSON(): Watchlist {
 
 export function watchlistCount(): number {
   const db = getDB();
-  const result = db.query(`SELECT COUNT(*) as count FROM watchlist`).get() as { count: number };
+  const result = db.prepare(`SELECT COUNT(*) as count FROM watchlist`).get() as { count: number };
   return result.count;
 }

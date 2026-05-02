@@ -1,6 +1,6 @@
-import { describe, test, expect, mock, afterEach } from "bun:test";
+import { describe, test, expect, vi, afterEach } from "vitest";
 import { XRayAPIClient, loadAPIKeyConfig } from "../scripts/lib/xray-api-client";
-import type { Mock } from "bun:test";
+import type { Mock } from "vitest";
 
 // =============================================================================
 // XRayAPIClient Unit Tests
@@ -60,7 +60,7 @@ describe("XRayAPIClient", () => {
     });
 
     function mockFetch(data: unknown, status = 200) {
-      globalThis.fetch = mock(() =>
+      globalThis.fetch = vi.fn(() =>
         Promise.resolve(
           new Response(JSON.stringify({ success: true, data }), {
             status,
@@ -71,7 +71,7 @@ describe("XRayAPIClient", () => {
     }
 
     function mockFetchError(error: string, status = 401) {
-      globalThis.fetch = mock(() =>
+      globalThis.fetch = vi.fn(() =>
         Promise.resolve(
           new Response(JSON.stringify({ success: false, error }), {
             status,
@@ -118,7 +118,7 @@ describe("XRayAPIClient", () => {
     });
 
     test("throws on success=false response", async () => {
-      globalThis.fetch = mock(() =>
+      globalThis.fetch = vi.fn(() =>
         Promise.resolve(
           new Response(
             JSON.stringify({ success: false, error: "Rate limited" }),
@@ -134,7 +134,7 @@ describe("XRayAPIClient", () => {
     });
 
     test("throws timeout error on abort", async () => {
-      globalThis.fetch = mock(
+      globalThis.fetch = vi.fn(
         (_url: string, init?: RequestInit) =>
           new Promise<Response>((_, reject) => {
             // Listen for abort signal like real fetch does
@@ -175,7 +175,7 @@ describe("XRayAPIClient", () => {
 
     function mockFetchAndCapture() {
       const calls: string[] = [];
-      globalThis.fetch = mock((url: string) => {
+      globalThis.fetch = vi.fn((url: string) => {
         calls.push(url);
         return Promise.resolve(
           new Response(JSON.stringify({ success: true, data: [] }), {
@@ -205,7 +205,7 @@ describe("XRayAPIClient", () => {
     test("getUserAnalytics calls /me/analytics", async () => {
       const calls = mockFetchAndCapture();
       // Mock a full analytics response
-      globalThis.fetch = mock(() =>
+      globalThis.fetch = vi.fn(() =>
         Promise.resolve(
           new Response(
             JSON.stringify({
@@ -296,7 +296,7 @@ describe("XRayAPIClient", () => {
     });
 
     test("getUserAnalyticsWithTimeSeries calls /me/analytics", async () => {
-      globalThis.fetch = mock(() =>
+      globalThis.fetch = vi.fn(() =>
         Promise.resolve(
           new Response(
             JSON.stringify({
@@ -361,7 +361,7 @@ describe("XRayAPIClient", () => {
 
     function mockFetchAndCapture() {
       const calls: string[] = [];
-      globalThis.fetch = mock((url: string) => {
+      globalThis.fetch = vi.fn((url: string) => {
         calls.push(url);
         return Promise.resolve(
           new Response(JSON.stringify({ success: true, data: {} }), {

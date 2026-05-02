@@ -1,12 +1,13 @@
-import { join } from "path";
-import { existsSync, mkdirSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import type { Config, RawTweetsFile, ClassifiedFile, ReportFile, Tweet } from "./types";
 
 // =============================================================================
 // Path Constants
 // =============================================================================
 
-export const PROJECT_ROOT = join(import.meta.dir, "../..");
+export const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 export const CONFIG_PATH = join(PROJECT_ROOT, "config/config.json");
 export const RAW_TWEETS_PATH = join(PROJECT_ROOT, "data/raw_tweets.json");
 export const CLASSIFIED_PATH = join(PROJECT_ROOT, "data/classified.json");
@@ -18,19 +19,18 @@ export const ANALYZE_OUTPUT_PATH = join(PROJECT_ROOT, "data/analyze_output.json"
 // =============================================================================
 
 export async function readJsonFile<T>(path: string): Promise<T> {
-  const file = Bun.file(path);
-  if (!(await file.exists())) {
+  if (!existsSync(path)) {
     throw new Error(`File not found: ${path}`);
   }
-  return await file.json() as T;
+  return JSON.parse(readFileSync(path, "utf8")) as T;
 }
 
 export async function writeJsonFile<T>(path: string, data: T): Promise<void> {
-  await Bun.write(path, JSON.stringify(data, null, 2));
+  writeFileSync(path, JSON.stringify(data, null, 2));
 }
 
 export async function fileExists(path: string): Promise<boolean> {
-  return await Bun.file(path).exists();
+  return existsSync(path);
 }
 
 export type { Tweet } from "./types";
@@ -98,7 +98,7 @@ export async function saveWatchlistReport(mdContent: string, generatedAt: string
     mkdirSync(reportsDir, { recursive: true });
   }
   const path = join(reportsDir, filename);
-  await Bun.write(path, mdContent);
+  writeFileSync(path, mdContent);
   return path;
 }
 

@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import { main } from "../agent/research/search-microsoft";
 
 describe("search-microsoft main()", () => {
@@ -26,7 +26,7 @@ describe("search-microsoft main()", () => {
       lang: "en",
     };
 
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true, data: [fakeTweet] }),
@@ -41,7 +41,7 @@ describe("search-microsoft main()", () => {
   });
 
   test("handles errors without throwing", async () => {
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: false,
         status: 500,

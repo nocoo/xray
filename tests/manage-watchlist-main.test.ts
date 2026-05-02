@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
 import { main } from "../scripts/manage-watchlist";
 import { useTestDB, useRealDB, resetDB } from "../scripts/lib/db";
 import { addUser } from "../scripts/manage-watchlist";

@@ -1,7 +1,7 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "vitest";
 import { join } from "path";
 import { tmpdir } from "os";
-import { mkdirSync, rmSync, existsSync } from "fs";
+import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from "fs";
 import {
   extractUsername,
   isValidUsername,
@@ -276,7 +276,7 @@ describe("utils", () => {
 
     test("reads and parses JSON file", async () => {
       const filePath = join(tmpDir, "test.json");
-      await Bun.write(filePath, JSON.stringify({ hello: "world", count: 42 }));
+      writeFileSync(filePath, JSON.stringify({ hello: "world", count: 42 }));
 
       const result = await readJsonFile<{ hello: string; count: number }>(filePath);
       expect(result.hello).toBe("world");
@@ -305,7 +305,7 @@ describe("utils", () => {
       const filePath = join(tmpDir, "out.json");
       await writeJsonFile(filePath, { key: "value" });
 
-      const content = await Bun.file(filePath).text();
+      const content = readFileSync(filePath, "utf-8");
       expect(content).toBe(JSON.stringify({ key: "value" }, null, 2));
     });
 
@@ -314,7 +314,7 @@ describe("utils", () => {
       await writeJsonFile(filePath, { v: 1 });
       await writeJsonFile(filePath, { v: 2 });
 
-      const result = await Bun.file(filePath).json();
+      const result = JSON.parse(readFileSync(filePath, "utf-8"));
       expect(result.v).toBe(2);
     });
   });
@@ -333,7 +333,7 @@ describe("utils", () => {
 
     test("returns true for existing file", async () => {
       const filePath = join(tmpDir, "exists.txt");
-      await Bun.write(filePath, "hello");
+      writeFileSync(filePath, "hello");
       expect(await fileExists(filePath)).toBe(true);
     });
 
@@ -380,7 +380,7 @@ describe("utils", () => {
       expect(path).toContain(tmpDir);
       expect(path).toMatch(/_report\.json$/);
 
-      const saved = await Bun.file(path).json();
+      const saved = JSON.parse(readFileSync(path, "utf-8"));
       expect(saved.summary.total_fetched).toBe(100);
     });
   });

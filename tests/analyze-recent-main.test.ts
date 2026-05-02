@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
 import { main } from "../agent/analyze/recent";
 import { tweetInsertMany } from "../scripts/lib/tweet-db";
 import { useTestDB, useRealDB, resetDB } from "../scripts/lib/db";

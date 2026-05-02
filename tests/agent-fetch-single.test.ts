@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
 import { fetchUser, main } from "../agent/fetch/single";
 import { processedMark, tweetCount } from "../scripts/lib/tweet-db";
 import { useTestDB, useRealDB, resetDB } from "../scripts/lib/db";
@@ -64,7 +64,7 @@ describe("agent/fetch/single", () => {
       ],
     };
 
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve(response),
@@ -82,7 +82,7 @@ describe("agent/fetch/single", () => {
   });
 
   test("returns error on API failure", async () => {
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: false,
         status: 500,
@@ -121,7 +121,7 @@ describe("agent/fetch/single", () => {
     test("exits 1 when no --user given", async () => {
       process.argv = ["bun", "single.ts"];
 
-      const mockFetch = mock(() =>
+      const mockFetch = vi.fn(() =>
         Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, data: [] }) } as Response)
       );
       globalThis.fetch = mockFetch as unknown as typeof fetch;
@@ -134,7 +134,7 @@ describe("agent/fetch/single", () => {
       const now = new Date();
       const recent = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
 
-      const mockFetch = mock(() =>
+      const mockFetch = vi.fn(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve({
@@ -152,7 +152,7 @@ describe("agent/fetch/single", () => {
     });
 
     test("strips @ from --user param", async () => {
-      const mockFetch = mock(() =>
+      const mockFetch = vi.fn(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ success: true, data: [] }),
@@ -172,7 +172,7 @@ describe("agent/fetch/single", () => {
     });
 
     test("exits 1 on API failure", async () => {
-      const mockFetch = mock(() =>
+      const mockFetch = vi.fn(() =>
         Promise.resolve({
           ok: false,
           status: 500,

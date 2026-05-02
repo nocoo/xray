@@ -1,5 +1,8 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
-import type { Mock } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
+import { existsSync, readFileSync } from "fs";
+import { dirname } from "path";
+import { fileURLToPath } from "url";
+import type { Mock } from "vitest";
 import { deduplicateTweets, fetchAllTweets, type FetchOptions } from "../scripts/fetch-tweets";
 import type { Tweet } from "../scripts/lib/types";
 import { useTestDB, useRealDB, resetDB } from "../scripts/lib/db";
@@ -82,7 +85,7 @@ describe("fetch-tweets", () => {
     });
 
     function mockXRayAPI(tweetsMap: Record<string, Tweet[]>) {
-      globalThis.fetch = mock(async (url: string) => {
+      globalThis.fetch = vi.fn(async (url: string) => {
         // Parse username from /api/twitter/users/{username}/tweets
         const match = url.match(/\/api\/twitter\/users\/([^/]+)\/tweets/);
         if (match) {
@@ -112,12 +115,12 @@ describe("fetch-tweets", () => {
     test("returns error when watchlist is empty", async () => {
       // Write temp config files for loadConfig and createXRayAPIClient
       const { join } = await import("path");
-      const configDir = join(import.meta.dir, "../config");
+      const configDir = join(dirname(fileURLToPath(import.meta.url)), "../config");
       const configPath = join(configDir, "config.json");
       const apiKeyPath = join(configDir, "api-key.json");
 
-      const configExists = await Bun.file(configPath).exists();
-      const apiKeyExists = await Bun.file(apiKeyPath).exists();
+      const configExists = existsSync(configPath);
+      const apiKeyExists = existsSync(apiKeyPath);
 
       if (!configExists || !apiKeyExists) {
         // Skip if config files don't exist (CI/fresh clone)
@@ -132,12 +135,12 @@ describe("fetch-tweets", () => {
 
     test("fetches tweets from watchlist users and saves to DB", async () => {
       const { join } = await import("path");
-      const configDir = join(import.meta.dir, "../config");
+      const configDir = join(dirname(fileURLToPath(import.meta.url)), "../config");
       const configPath = join(configDir, "config.json");
       const apiKeyPath = join(configDir, "api-key.json");
 
-      const configExists = await Bun.file(configPath).exists();
-      const apiKeyExists = await Bun.file(apiKeyPath).exists();
+      const configExists = existsSync(configPath);
+      const apiKeyExists = existsSync(apiKeyPath);
 
       if (!configExists || !apiKeyExists) {
         return; // Skip if config files don't exist
@@ -177,12 +180,12 @@ describe("fetch-tweets", () => {
 
     test("skips processed tweets by default", async () => {
       const { join } = await import("path");
-      const configDir = join(import.meta.dir, "../config");
+      const configDir = join(dirname(fileURLToPath(import.meta.url)), "../config");
       const configPath = join(configDir, "config.json");
       const apiKeyPath = join(configDir, "api-key.json");
 
-      const configExists = await Bun.file(configPath).exists();
-      const apiKeyExists = await Bun.file(apiKeyPath).exists();
+      const configExists = existsSync(configPath);
+      const apiKeyExists = existsSync(apiKeyPath);
 
       if (!configExists || !apiKeyExists) {
         return;
@@ -223,12 +226,12 @@ describe("fetch-tweets", () => {
 
     test("handles API errors gracefully", async () => {
       const { join } = await import("path");
-      const configDir = join(import.meta.dir, "../config");
+      const configDir = join(dirname(fileURLToPath(import.meta.url)), "../config");
       const configPath = join(configDir, "config.json");
       const apiKeyPath = join(configDir, "api-key.json");
 
-      const configExists = await Bun.file(configPath).exists();
-      const apiKeyExists = await Bun.file(apiKeyPath).exists();
+      const configExists = existsSync(configPath);
+      const apiKeyExists = existsSync(apiKeyPath);
 
       if (!configExists || !apiKeyExists) {
         return;
@@ -241,7 +244,7 @@ describe("fetch-tweets", () => {
       });
 
       // Mock API to throw error
-      globalThis.fetch = mock(() =>
+      globalThis.fetch = vi.fn(() =>
         Promise.resolve(
           new Response("Server error", { status: 500 }),
         ),
@@ -256,19 +259,19 @@ describe("fetch-tweets", () => {
 
     test("filters retweets when config says so", async () => {
       const { join } = await import("path");
-      const configDir = join(import.meta.dir, "../config");
+      const configDir = join(dirname(fileURLToPath(import.meta.url)), "../config");
       const configPath = join(configDir, "config.json");
       const apiKeyPath = join(configDir, "api-key.json");
 
-      const configExists = await Bun.file(configPath).exists();
-      const apiKeyExists = await Bun.file(apiKeyPath).exists();
+      const configExists = existsSync(configPath);
+      const apiKeyExists = existsSync(apiKeyPath);
 
       if (!configExists || !apiKeyExists) {
         return;
       }
 
       // Read existing config to check filter_retweets_without_comment setting
-      const config = await Bun.file(configPath).json();
+      const config = JSON.parse(readFileSync(configPath, "utf-8"));
 
       watchlistAdd({
         username: "charlie",
@@ -300,12 +303,12 @@ describe("fetch-tweets", () => {
 
     test("deduplicates tweets from multiple users", async () => {
       const { join } = await import("path");
-      const configDir = join(import.meta.dir, "../config");
+      const configDir = join(dirname(fileURLToPath(import.meta.url)), "../config");
       const configPath = join(configDir, "config.json");
       const apiKeyPath = join(configDir, "api-key.json");
 
-      const configExists = await Bun.file(configPath).exists();
-      const apiKeyExists = await Bun.file(apiKeyPath).exists();
+      const configExists = existsSync(configPath);
+      const apiKeyExists = existsSync(apiKeyPath);
 
       if (!configExists || !apiKeyExists) {
         return;

@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
 import { parseArgs, main } from "../scripts/fetch-tweets";
 import { useTestDB, useRealDB, resetDB } from "../scripts/lib/db";
 import { watchlistAdd } from "../scripts/lib/watchlist-db";
@@ -61,7 +61,7 @@ describe("fetch-tweets main()", () => {
     process.argv = ["bun", "fetch-tweets.ts"];
 
     // Need to mock fetch since createXRayAPIClient reads config but watchlist is empty
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true, data: [] }),
@@ -93,7 +93,7 @@ describe("fetch-tweets main()", () => {
       lang: "en",
     };
 
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true, data: [fakeTweet] }),
@@ -114,7 +114,7 @@ describe("fetch-tweets main()", () => {
       added_at: new Date().toISOString(),
     });
 
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true, data: [] }),

@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect } from "vitest";
 
 // Test the secret scanning patterns
 const DIRECT_KEY_PATTERNS = [

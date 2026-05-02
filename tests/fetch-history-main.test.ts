@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import { main } from "../agent/research/fetch-history";
 
 describe("fetch-history main()", () => {
@@ -29,7 +29,7 @@ describe("fetch-history main()", () => {
       lang: "en",
     });
 
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true, data: [fakeTweet("t1"), fakeTweet("t2")] }),
@@ -44,7 +44,7 @@ describe("fetch-history main()", () => {
   });
 
   test("handles users with no tweets", async () => {
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true, data: [] }),
@@ -59,7 +59,7 @@ describe("fetch-history main()", () => {
 
   test("handles API errors for individual users", async () => {
     let callCount = 0;
-    const mockFetch = mock(() => {
+    const mockFetch = vi.fn(() => {
       callCount++;
       if (callCount === 1) {
         return Promise.resolve({

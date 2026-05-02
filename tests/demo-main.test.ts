@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import { main } from "../agent/research/demo";
 
 describe("demo main()", () => {
@@ -36,7 +36,7 @@ describe("demo main()", () => {
     };
 
     let callIndex = 0;
-    const mockFetch = mock(() => {
+    const mockFetch = vi.fn(() => {
       callIndex++;
       // Odd calls = getUserInfo, Even calls = fetchUserTweets
       if (callIndex % 2 === 1) {
@@ -60,7 +60,7 @@ describe("demo main()", () => {
 
   test("handles errors for individual users without stopping", async () => {
     let callIndex = 0;
-    const mockFetch = mock(() => {
+    const mockFetch = vi.fn(() => {
       callIndex++;
       if (callIndex <= 2) {
         return Promise.resolve({
@@ -90,7 +90,7 @@ describe("demo main()", () => {
   });
 
   test("respects API call limit of 50", async () => {
-    const mockFetch = mock(() =>
+    const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true, data: [] }),

@@ -4,6 +4,9 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Match bun:test's default timezone (UTC) so date-formatting tests are deterministic.
+process.env.TZ ??= 'UTC';
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -13,6 +16,7 @@ export default defineConfig({
   test: {
     pool: 'threads',
     globals: true,
+    setupFiles: ['./tests/setup.ts'],
     include: [
       'src/__tests__/**/*.test.ts',
       'tests/**/*.test.ts',
