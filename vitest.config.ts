@@ -11,12 +11,25 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // next has no `exports` map, so ESM resolution of bare "next/server"
+      // (used by next-auth) fails under vitest. Map it to the .js file.
+      'next/server': path.resolve(__dirname, './node_modules/next/server.js'),
     },
   },
   test: {
-    pool: 'threads',
+    pool: 'forks',
+    // Tests under tests/ share an on-disk SQLite file (data/test-x-ray.db)
+    // via scripts/lib/db.ts, so files cannot run in parallel.
+    fileParallelism: false,
     globals: true,
     setupFiles: ['./tests/setup.ts'],
+    server: {
+      deps: {
+        // next-auth imports bare "next/server" which lacks an exports map;
+        // inlining lets our alias rewrite it to next/server.js.
+        inline: ['next-auth', '@auth/core'],
+      },
+    },
     include: [
       'src/__tests__/**/*.test.ts',
       'tests/**/*.test.ts',

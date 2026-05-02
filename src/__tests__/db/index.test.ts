@@ -34,7 +34,7 @@ describe("db/index", () => {
     test("creates schema tables automatically", () => {
       const raw = getRawSqlite();
       const tables = raw
-        .query(
+        .prepare(
           `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`
         )
         .all()
@@ -79,13 +79,13 @@ describe("db/index", () => {
 
       // Insert a user
       raw
-        .query(
+        .prepare(
           `INSERT INTO user (id, name, email) VALUES ('u1', 'Test User', 'test@example.com')`
         )
         .run();
 
       // Verify insertion
-      const before = raw.query(`SELECT COUNT(*) as cnt FROM user`).get() as {
+      const before = raw.prepare(`SELECT COUNT(*) as cnt FROM user`).get() as {
         cnt: number;
       };
       expect(before.cnt).toBe(1);
@@ -94,7 +94,7 @@ describe("db/index", () => {
       resetTestDb();
 
       // Verify all data cleared
-      const after = raw.query(`SELECT COUNT(*) as cnt FROM user`).get() as {
+      const after = raw.prepare(`SELECT COUNT(*) as cnt FROM user`).get() as {
         cnt: number;
       };
       expect(after.cnt).toBe(0);
@@ -107,7 +107,7 @@ describe("db/index", () => {
       // And the new DB should have tables
       const raw = getRawSqlite();
       const tables = raw
-        .query(`SELECT name FROM sqlite_master WHERE type='table'`)
+        .prepare(`SELECT name FROM sqlite_master WHERE type='table'`)
         .all();
       expect(tables.length).toBeGreaterThan(0);
     });
@@ -122,7 +122,7 @@ describe("db/index", () => {
       const raw = getRawSqlite();
       expect(raw).toBeDefined();
       // Should support query()
-      const result = raw.query("SELECT 1 as val").get() as { val: number };
+      const result = raw.prepare("SELECT 1 as val").get() as { val: number };
       expect(result.val).toBe(1);
     });
 
@@ -186,7 +186,7 @@ describe("db/index", () => {
       // No legacy NULL watchlist_id members — migration should not create any watchlists
       expect(() => initSchema()).not.toThrow();
       const raw = getRawSqlite();
-      const count = (raw.query(`SELECT COUNT(*) as cnt FROM watchlists`).get() as { cnt: number }).cnt;
+      const count = (raw.prepare(`SELECT COUNT(*) as cnt FROM watchlists`).get() as { cnt: number }).cnt;
       expect(count).toBe(0);
     });
   });
@@ -216,7 +216,7 @@ describe("db/index", () => {
       const { seedUser } = await import("@/db");
       seedUser("new-user", "Name", "n@e.com");
       const raw = getRawSqlite();
-      const row = raw.query(`SELECT * FROM user WHERE id = 'new-user'`).get() as {
+      const row = raw.prepare(`SELECT * FROM user WHERE id = 'new-user'`).get() as {
         id: string;
         name: string;
         email: string | null;
@@ -232,7 +232,7 @@ describe("db/index", () => {
       seedUser("idem-user");
       const raw = getRawSqlite();
       const count = (
-        raw.query(`SELECT COUNT(*) as cnt FROM user WHERE id = 'idem-user'`).get() as {
+        raw.prepare(`SELECT COUNT(*) as cnt FROM user WHERE id = 'idem-user'`).get() as {
           cnt: number;
         }
       ).cnt;

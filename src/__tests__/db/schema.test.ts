@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from "vitest";
 import { eq } from "drizzle-orm";
-import { createTestDb, closeDb, db } from "@/db";
+import { createTestDb, closeDb, db, getRawSqlite } from "@/db";
 import {
   users,
   accounts,
@@ -388,8 +388,6 @@ describe("db/schema", () => {
         .run();
 
       // Enable foreign keys (SQLite requires explicit enabling)
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { getRawSqlite } = require("@/db");
       const sqlite = getRawSqlite();
       sqlite.exec("PRAGMA foreign_keys = ON");
 

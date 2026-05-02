@@ -1,4 +1,4 @@
-import { describe, test, expect, afterEach } from "vitest";
+import { describe, test, expect, afterEach, vi } from "vitest";
 
 // =============================================================================
 // Auth Configuration Tests
@@ -11,8 +11,7 @@ import { describe, test, expect, afterEach } from "vitest";
 // Helper to dynamically import auth.ts with fresh env vars
 async function loadAuthModule() {
   // Clear module cache to force re-evaluation with current env
-  const modulePath = require.resolve("@/auth");
-  delete require.cache[modulePath];
+  vi.resetModules();
   return import("@/auth");
 }
 

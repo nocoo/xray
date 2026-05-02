@@ -3,12 +3,27 @@
  *
  * - Forces UTC timezone (matches bun:test default) so date-formatting tests are deterministic
  * - Creates mock config files needed by scripts that call loadAPIKeyConfig()
+ * - Polyfills bun:test custom matchers (e.g. toBeArray) on top of vitest's expect
  */
 
 process.env.TZ = "UTC";
 
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { expect } from "vitest";
+
+expect.extend({
+  toBeArray(received: unknown) {
+    const pass = Array.isArray(received);
+    return {
+      pass,
+      message: () =>
+        pass
+          ? `expected ${this.utils.printReceived(received)} not to be an array`
+          : `expected ${this.utils.printReceived(received)} to be an array`,
+    };
+  },
+});
 
 const configDir = join(process.cwd(), "config");
 
