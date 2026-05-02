@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "vitest";
 import { deduplicateTweets, fetchAllTweets } from "../fetch-tweets";
 import type { Tweet } from "../lib/types";
 import { useTestDB, useRealDB, resetDB } from "../lib/db";
