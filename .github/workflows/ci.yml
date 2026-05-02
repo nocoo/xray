@@ -11,7 +11,7 @@ jobs:
   quality:
     uses: nocoo/base-ci/.github/workflows/bun-quality.yml@v2026.1
     with:
-      test-command: "find tests src/__tests__ -name '*.test.ts' ! -path '*/e2e/*' -print0 | xargs -0 bun test"
+      test-command: "bun run test"
       typecheck-command: "echo 'no typecheck configured'"
       enable-l2: "false"
     secrets: inherit
