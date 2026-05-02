@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import { TweAPIProvider } from "@/lib/twitter/tweapi-provider";
 import {
   UpstreamError,
@@ -66,7 +66,7 @@ describe("TweAPIProvider", () => {
   let mockFetch: ReturnType<typeof mock>;
 
   beforeEach(() => {
-    mockFetch = mock(() => Promise.resolve(jsonResponse({ code: 201, msg: "ok", data: {} })));
+    mockFetch = vi.fn(() => Promise.resolve(jsonResponse({ code: 201, msg: "ok", data: {} })));
     globalThis.fetch = mockFetch as unknown as typeof fetch;
     provider = new TweAPIProvider(BASE_CONFIG);
   });

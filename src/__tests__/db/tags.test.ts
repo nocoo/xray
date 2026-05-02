@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "vitest";
 import { createTestDb, closeDb, db } from "@/db";
 import { users } from "@/db/schema";
 import { ScopedDB } from "@/db/scoped";

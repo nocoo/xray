@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect } from "vitest";
 
 describe("GET /api/live", () => {
   test("returns 200 with expected body", async () => {

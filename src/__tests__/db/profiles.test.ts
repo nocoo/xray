@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "vitest";
 import { createTestDb, closeDb } from "@/db";
 import { ProfilesRepo } from "@/db/scoped";
 import type { UserInfo } from "../../../shared/types";

@@ -5,7 +5,7 @@
  * Covers both built-in providers and the "custom" provider type.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import {
   AI_PROVIDERS,
   ALL_PROVIDER_IDS,

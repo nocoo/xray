@@ -1,11 +1,11 @@
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, vi } from "vitest";
 
 // Store original fetch so we can restore it
 const originalFetch = globalThis.fetch;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function mockFetch(impl: (...args: any[]) => any) {
-  globalThis.fetch = mock(impl) as unknown as typeof fetch;
+  globalThis.fetch = vi.fn(impl) as unknown as typeof fetch;
 }
 
 function makeReq(params: Record<string, string> = {}): Request {

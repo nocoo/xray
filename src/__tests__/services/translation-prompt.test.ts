@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect } from "vitest";
 import { renderPrompt } from "@/services/translation";
 import { DEFAULT_TRANSLATION_TEMPLATE } from "@/services/prompt-defaults";
 

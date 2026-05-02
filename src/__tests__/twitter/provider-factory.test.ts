@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach, afterEach } from "bun:test";
+import { describe, expect, test, beforeEach, afterEach } from "vitest";
 import { createTestDb, closeDb, initSchema, seedUser } from "@/db";
 import { ScopedDB } from "@/db/scoped";
 import { createProviderForUser } from "@/lib/twitter/provider-factory";

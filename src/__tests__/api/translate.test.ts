@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import { createTestDb, closeDb, db } from "@/db";
 import { users } from "@/db/schema";
 import { ScopedDB } from "@/db/scoped";
@@ -7,11 +7,11 @@ import { ScopedDB } from "@/db/scoped";
 // Mock the `ai` module's generateText
 // =============================================================================
 
-const mockGenerateText = mock(() =>
+const mockGenerateText = vi.fn(() =>
   Promise.resolve({ text: "[翻译]\n模拟翻译结果\n\n[锐评]\n这是一条锐评" }),
 );
 
-mock.module("ai", () => ({
+vi.mock("ai", () => ({
   generateText: mockGenerateText,
 }));
 

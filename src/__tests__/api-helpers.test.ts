@@ -1,11 +1,11 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import { createTestDb, closeDb, db } from "@/db";
 import { users } from "@/db/schema";
 import { ScopedDB } from "@/db/scoped";
 
 // Mock NextAuth's auth() so we can exercise the real (non-E2E) auth branch.
-const mockAuth = mock<() => Promise<unknown>>(() => Promise.resolve(null));
-mock.module("@/auth", () => ({
+const mockAuth = vi.fn<() => Promise<unknown>>(() => Promise.resolve(null));
+vi.mock("@/auth", () => ({
   auth: mockAuth,
 }));
 

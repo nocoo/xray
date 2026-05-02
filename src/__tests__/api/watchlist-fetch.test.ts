@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import { createTestDb, closeDb, db } from "@/db";
 import { users, watchlistMembers } from "@/db/schema";
 import { ScopedDB } from "@/db/scoped";
@@ -508,10 +508,10 @@ describe("GET /api/watchlists/[id]/posts", () => {
 // =============================================================================
 
 // Mock generateText for translate route tests
-const mockGenerateText = mock(() =>
+const mockGenerateText = vi.fn(() =>
   Promise.resolve({ text: "模拟翻译" }),
 );
-mock.module("ai", () => ({
+vi.mock("ai", () => ({
   generateText: mockGenerateText,
 }));
 

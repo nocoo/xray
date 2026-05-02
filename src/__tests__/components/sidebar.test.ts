@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { navSections, allNavItems, isActive } from "@/components/layout/sidebar";
 
 // =============================================================================
