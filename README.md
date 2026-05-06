@@ -176,7 +176,7 @@ x-ray/
 | `bun dev` | 启动开发服务器 (端口 7007) |
 | `bun run build` | 生产构建 |
 | `bun start` | 启动生产服务器 |
-| `bun test` | 运行单元测试 |
+| `bun run test` | 运行单元测试 (vitest) |
 | `bun run test:coverage` | 运行测试并生成覆盖率报告 |
 | `bun run test:e2e:browser` | 运行 Playwright 浏览器 E2E 测试 |
 | `bun run lint` | ESLint 检查 |
