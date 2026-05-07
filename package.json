@@ -49,7 +49,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.14",
+    "hono": "^4.12.18",
+    "ip-address": "^10.2.0",
     "lucide-react": "^0.577.0",
     "next-auth": "^5.0.0-beta.30",
     "radix-ui": "^1.4.3",
@@ -64,7 +65,9 @@
     "better-sqlite3"
   ],
   "overrides": {
-    "postcss": ">=8.5.10"
+    "postcss": ">=8.5.10",
+    "hono": ">=4.12.16",
+    "ip-address": ">=10.1.1"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
