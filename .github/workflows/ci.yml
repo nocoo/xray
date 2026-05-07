@@ -13,6 +13,7 @@ jobs:
     with:
       test-command: "bun run test:coverage"
       typecheck-command: "echo 'no typecheck configured'"
+      enable-security: "true"
       enable-l2: "false"
     secrets: inherit
 
