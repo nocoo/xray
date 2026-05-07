@@ -63,7 +63,7 @@ function jsonResponse(data: unknown, status = 200): Response {
 describe("TweAPIProvider", () => {
   const originalFetch = globalThis.fetch;
   let provider: TweAPIProvider;
-  let mockFetch: ReturnType<typeof mock>;
+  let mockFetch: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     mockFetch = vi.fn(() => Promise.resolve(jsonResponse({ code: 201, msg: "ok", data: {} })));

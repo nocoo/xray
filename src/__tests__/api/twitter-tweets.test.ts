@@ -54,7 +54,7 @@ describe("GET /api/twitter/tweets/search", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
-    expect(body.data).toBeArray();
+    expect(Array.isArray(body.data)).toBe(true);
     expect(body.data.length).toBeGreaterThan(0);
   });
 

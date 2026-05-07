@@ -56,7 +56,7 @@ describe("GET /api/twitter/me/analytics", () => {
     expect(body.success).toBe(true);
     expect(body.data.impressions).toBeGreaterThan(0);
     expect(body.data.engagement_rate).toBeGreaterThan(0);
-    expect(body.data.time_series).toBeArray();
+    expect(Array.isArray(body.data.time_series)).toBe(true);
     expect(body.data.time_series.length).toBeGreaterThan(0);
   });
 
@@ -85,7 +85,7 @@ describe("GET /api/twitter/me/bookmarks", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
-    expect(body.data).toBeArray();
+    expect(Array.isArray(body.data)).toBe(true);
     expect(body.data.length).toBeGreaterThan(0);
   });
 
@@ -114,7 +114,7 @@ describe("GET /api/twitter/me/likes", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
-    expect(body.data).toBeArray();
+    expect(Array.isArray(body.data)).toBe(true);
     expect(body.data.length).toBeGreaterThan(0);
   });
 
@@ -143,7 +143,7 @@ describe("GET /api/twitter/me/lists", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
-    expect(body.data).toBeArray();
+    expect(Array.isArray(body.data)).toBe(true);
     expect(body.data.length).toBeGreaterThan(0);
     expect(body.data[0].name).toBeDefined();
     expect(body.data[0].member_count).toBeGreaterThan(0);
