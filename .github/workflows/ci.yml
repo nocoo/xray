@@ -38,6 +38,11 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
 
+      # --ignore-scripts blocks all install scripts including for trustedDependencies.
+      # Re-run the install script only for the native bindings we explicitly trust.
+      - name: Build trusted native bindings
+        run: cd node_modules/better-sqlite3 && bun run install
+
       - name: "L2: API E2E tests"
         run: bun run test:e2e:api
         env:
