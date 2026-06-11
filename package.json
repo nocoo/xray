@@ -31,7 +31,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitest/coverage-v8": "^4.1.8",
     "drizzle-kit": "^0.31.10",
-    "eslint": "^10.2.0",
+    "eslint": "^10.4.1",
     "husky": "^9.1.7",
     "shadcn": "^3.8.5",
     "tailwindcss": "^4.2.2",
