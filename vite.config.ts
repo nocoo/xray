@@ -7,6 +7,6 @@ export default defineConfig({
     allowedHosts: true,
   },
   ssr: {
-    external: ["bun:sqlite", "better-sqlite3"],
+    external: ["bun:sqlite", "better-sqlite3", "@vercel/oidc", "@ai-sdk/gateway"],
   },
 });
