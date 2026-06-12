@@ -42,10 +42,10 @@
     "vitest": "^4.1.8"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.82",
-    "@ai-sdk/openai": "^3.0.69",
+    "@ai-sdk/anthropic": "^3.0.83",
+    "@ai-sdk/openai": "^3.0.70",
     "@radix-ui/react-collapsible": "^1.1.13",
-    "ai": "^6.0.200",
+    "ai": "^6.0.202",
     "better-sqlite3": "^12.8.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
