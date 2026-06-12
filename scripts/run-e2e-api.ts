@@ -103,6 +103,11 @@ async function startServer(opts: {
     GOOGLE_CLIENT_ID: "e2e-test-client-id",
     GOOGLE_CLIENT_SECRET: "e2e-test-client-secret",
     ALLOWED_EMAILS: "e2e@test.com",
+    // vinext 0.1.x writes a project-local dev lockfile that refuses to start a
+    // second `vinext dev` in the same root. This runner spawns two on purpose
+    // (auth-bypass + no-auth), so opt out — port collisions are already
+    // prevented by ensurePortFree() above.
+    VINEXT_NO_DEV_LOCK: "1",
   };
   if (opts.skipAuth) env.E2E_SKIP_AUTH = "true";
 

@@ -15,6 +15,7 @@
     "incremental": true,
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
+    "types": ["node", "bun"],
     "plugins": [
       {
         "name": "next"
