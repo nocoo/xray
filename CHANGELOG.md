@@ -5,6 +5,121 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.9] - 2026-06-12
+
+### Added
+- Upgrade /api/live to surety standard
+- Add /api/live liveness check endpoint (#15)
+- Add fade-up entry animations with staggered delays
+- Add base skeleton.tsx component
+
+### Changed
+- Revert "chore(deps): upgrade vinext to 0.1.1 and vite to 8.0.16"
+- Upgrade shadcn to 4.11.0
+- Upgrade radix-ui to 1.5.0
+- Upgrade vinext to 0.1.1 and vite to 8.0.16
+- Upgrade lucide-react to 1.17.0
+- Extract Github icon from lucide-react 0.577
+- Upgrade @radix-ui/react-collapsible to 1.1.13
+- Upgrade @types/react to 19.2.17
+- Upgrade eslint to 10.4.1
+- Upgrade react and react-dom to 19.2.7
+- Upgrade @vitest/coverage-v8 to 4.1.8
+- Upgrade vitest to 4.1.8
+- Upgrade typescript-eslint to 8.61.0
+- Upgrade @ai-sdk/anthropic to 3.0.82
+- Upgrade @ai-sdk/openai to 3.0.69
+- Upgrade hono to 4.12.25
+- Upgrade next to 16.2.9
+- Upgrade ai to 6.0.200
+- Upgrade next to 16.2.8
+- Upgrade next to 16.2.7
+- Rebuild better-sqlite3 native binding after --ignore-scripts
+- Pass --ignore-scripts to bun install (Shai-Hulud defense)
+- Add L2 API E2E to pre-push gate
+- Explicitly enable security scanning in base-ci
+- Update bun test references to vitest equivalents
+- Update test command from bun test to vitest
+- Enforce L1 coverage gate in hook and CI
+- Use vitest via bun run test
+- Raise thresholds to 95/90/95/95 with targeted excludes
+- Scope vitest coverage to imported files
+- Fix vitest module resolution and bun-only API usage
+- Migrate tests/ from bun:test to vitest
+- Migrate src/__tests__ from bun:test to vitest
+- Replace Bun.file with fs.readFileSync
+- Add @ alias resolution for vitest
+- Migrate fetch-tweets.test from bun:test to vitest
+- Switch test/test:coverage scripts to vitest run
+- Add vitest.config.ts mirroring bunfig coverage targets
+- Add vitest and @vitest/coverage-v8 as devDependencies
+- Fix HTML title language to match UI (xray - Twitter Analytics Dashboard)
+- Unify HTML title to "xray - Twitter 数据分析面板"
+- Upgrade base-ci to v2026.1
+- Add G2 security scanning (gitleaks + osv-scanner)
+- Exclude auth-enforcement from L2 runner (needs dual-server = L3 scope)
+- Align live-check schema and isolate watchlist suite state
+- Use custom L2 job with Node 22 for vinext compatibility
+- Enable L2 API E2E using run-e2e-api runner
+- Refactor e2e setup.ts to verify-only
+- Add scripts/run-e2e-api.ts and test:e2e:api script
+- Add coveragePathIgnorePatterns to exclude UI components
+- Cover fetch retention/cancel and translate error/retry branches
+- Cover seedUser, db proxy, and scripts watchlist helpers
+- Cover auth branches and retention/provider fallbacks
+- Cover invalid JSON, missing id, and tag ownership branches
+- Replace coveragePathIgnorePatterns with coverageInclude
+- Add typecheck script + lint-staged
+- Retrigger
+- Ignore GHSA-458j-xx4x-4375 hono medium CVE
+- Upgrade eslint to tseslint strict config
+- Brand tracking-tight → tracking-tighter
+- Strengthen pre-commit and pre-push hooks
+- Migrate to nocoo/base-ci@v2026
+- Skip e2e tests in CI (too slow without local server)
+- Retrigger CI
+- Trigger CI
+- Add .gitleaks.toml to allowlist test fixtures
+- Fix reusable workflow inputs
+- Add GitHub Actions CI workflow
+- Migrate dev port 7027 → 7007
+
+### Fixed
+- Override qs to >=6.15.2 (CVE)
+- Bump hono to 4.12.21 (CVE)
+- Resolve transitive CVEs via overrides
+- Resolve typecheck errors in test files
+- Upgrade dependencies to fix CVEs and clean osv ignores
+- Override postcss>=8.5.10 for CVE GHSA-qx2v-qp2m-jg93
+- Run vinext via bunx in L2 E2E runner
+- Replace border-input with border-border
+- Update /api/live test assertions for new response format
+- Upgrade hono to fix GHSA-458j-xx4x-4375
+- Remove bg-input/border-input from button outline variant (#14)
+- Add non-null assertions for noUncheckedIndexedAccess
+- Migrate remaining L3 controls in ai-settings and watchlist
+- Migrate Input from bg-input to bg-secondary + border-border
+- 迁移到 base-ci@v2026，禁用 L2 E2E
+- Regenerate lockfile for bun latest
+- Complete OSV ignore list for all indirect CVEs
+- Ignore hono + minimatch indirect CVEs
+- Ignore minimatch + next indirect CVEs
+- Ignore remaining indirect next CVEs
+- Ignore remaining indirect CVEs via vinext
+- Update deps + ignore indirect CVEs
+- Split e2e and unit test runs to avoid global state pollution
+- Add config file mock setup for CI
+- Ensure database is initialized before auth adapter queries
+- Remove duplicate closing brace in dashboard JSX
+- Add tabular-nums and font-display to stat card values
+- Add aria-sort attribute to sortable table headers
+- Remove card border+shadow anti-pattern, use bg-secondary
+- Dashboard group labels, chevron size, collapsible, and breadcrumb aria per basalt B-2 spec
+- Overhaul login page to match basalt spec
+
+### Removed
+- Remove stale hono CVE ignores from osv-scanner.toml
+
 ## [1.9.8] - 2026-06-12
 
 ### Added
