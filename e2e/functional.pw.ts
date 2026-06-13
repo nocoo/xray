@@ -333,9 +333,10 @@ test.describe("watchlist member CRUD", () => {
     // Should be on the detail page with 0 members
     await expect(page.locator("body")).toContainText("Member Test WL");
 
-    // Click "Add User"
-    await page.getByRole("button", { name: "Add User" }).click();
-    await expect(page.getByRole("dialog")).toBeVisible();
+    // Open the Add Member dialog from the page header
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    const addDialog = page.getByRole("dialog", { name: "Add to Watchlist" });
+    await expect(addDialog).toBeVisible();
 
     // Fill in username and note
     await page.getByPlaceholder("elonmusk").fill("testmember");
@@ -343,11 +344,11 @@ test.describe("watchlist member CRUD", () => {
       .getByPlaceholder("Why are you tracking this user?")
       .fill("E2E test member");
 
-    // Submit
-    await page.getByRole("button", { name: "Add" }).click();
+    // Submit (scope inside dialog — header "Add" button is also present)
+    await addDialog.getByRole("button", { name: "Add" }).click();
 
     // Dialog should close and member should appear
-    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+    await expect(addDialog).toBeHidden({ timeout: 5_000 });
     await expect(page.locator("body")).toContainText("@testmember", {
       timeout: 10_000,
     });
@@ -358,7 +359,9 @@ test.describe("watchlist member CRUD", () => {
     await createWatchlist(page, "Tag Test WL");
 
     // Add a member with a new tag
-    await page.getByRole("button", { name: "Add User" }).click();
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    const addDialog = page.getByRole("dialog", { name: "Add to Watchlist" });
+    await expect(addDialog).toBeVisible();
     await page.getByPlaceholder("elonmusk").fill("taggeduser");
 
     // Create a new tag inline
@@ -369,9 +372,9 @@ test.describe("watchlist member CRUD", () => {
     // The new tag should appear as selected
     await expect(page.locator("body")).toContainText("VIP");
 
-    // Submit the member
-    await page.getByRole("button", { name: "Add" }).click();
-    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+    // Submit the member (scope inside dialog)
+    await addDialog.getByRole("button", { name: "Add" }).click();
+    await expect(addDialog).toBeHidden({ timeout: 5_000 });
 
     // Member should appear with the tag
     await expect(page.locator("body")).toContainText("@taggeduser", {
@@ -384,13 +387,15 @@ test.describe("watchlist member CRUD", () => {
     await createWatchlist(page, "Edit Member WL");
 
     // Add a member first
-    await page.getByRole("button", { name: "Add User" }).click();
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    const addDialog = page.getByRole("dialog", { name: "Add to Watchlist" });
+    await expect(addDialog).toBeVisible();
     await page.getByPlaceholder("elonmusk").fill("editmember");
     await page
       .getByPlaceholder("Why are you tracking this user?")
       .fill("Original note");
-    await page.getByRole("button", { name: "Add" }).click();
-    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+    await addDialog.getByRole("button", { name: "Add" }).click();
+    await expect(addDialog).toBeHidden({ timeout: 5_000 });
     await expect(page.locator("body")).toContainText("@editmember", {
       timeout: 10_000,
     });
@@ -400,8 +405,9 @@ test.describe("watchlist member CRUD", () => {
     await memberCard.hover();
     await memberCard.locator('button[title="Edit"]').click({ force: true });
 
-    // Edit dialog should open
-    await expect(page.getByRole("dialog")).toBeVisible();
+    // Edit dialog should open (title is "Edit @editmember")
+    const editDialog = page.getByRole("dialog", { name: /^Edit @editmember/ });
+    await expect(editDialog).toBeVisible();
 
     // Update the note
     const noteInput = page.getByPlaceholder(
@@ -410,11 +416,11 @@ test.describe("watchlist member CRUD", () => {
     await noteInput.clear();
     await noteInput.fill("Updated note");
 
-    // Save
-    await page.getByRole("button", { name: "Save" }).click();
+    // Save (scope inside the edit dialog)
+    await editDialog.getByRole("button", { name: "Save" }).click();
 
     // Dialog should close and updated note should appear
-    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+    await expect(editDialog).toBeHidden({ timeout: 5_000 });
     await expect(page.locator("body")).toContainText("Updated note", {
       timeout: 10_000,
     });
@@ -424,10 +430,12 @@ test.describe("watchlist member CRUD", () => {
     await createWatchlist(page, "Remove Member WL");
 
     // Add a member first
-    await page.getByRole("button", { name: "Add User" }).click();
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    const addDialog = page.getByRole("dialog", { name: "Add to Watchlist" });
+    await expect(addDialog).toBeVisible();
     await page.getByPlaceholder("elonmusk").fill("removeme");
-    await page.getByRole("button", { name: "Add" }).click();
-    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+    await addDialog.getByRole("button", { name: "Add" }).click();
+    await expect(addDialog).toBeHidden({ timeout: 5_000 });
     await expect(page.locator("body")).toContainText("@removeme", {
       timeout: 10_000,
     });
@@ -438,14 +446,14 @@ test.describe("watchlist member CRUD", () => {
     await memberCard.locator('button[title="Remove"]').click({ force: true });
 
     // Confirmation dialog
-    await expect(page.getByRole("dialog")).toBeVisible();
-    await expect(page.locator("body")).toContainText("Remove @removeme?");
+    const removeDialog = page.getByRole("dialog", { name: /^Remove @removeme/ });
+    await expect(removeDialog).toBeVisible();
 
     // Confirm removal
-    await page.getByRole("button", { name: "Remove" }).click();
+    await removeDialog.getByRole("button", { name: "Remove" }).click();
 
     // Dialog should close and member should be gone
-    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+    await expect(removeDialog).toBeHidden({ timeout: 5_000 });
     await expect(page.locator("body")).not.toContainText("@removeme");
   });
 });
@@ -536,12 +544,12 @@ test.describe("AI settings", () => {
       .getByPlaceholder("Enter your API key")
       .fill("sk-test-key-123");
 
-    // Save
-    await page.getByRole("button", { name: /Save/ }).click();
+    // Save (use exact match — "Save Prompt" button is also on the page)
+    await page.getByRole("button", { name: "Save", exact: true }).click();
 
     // Should show "Saved" briefly
     await expect(
-      page.getByRole("button", { name: /Saved/ }),
+      page.getByRole("button", { name: "Saved", exact: true }),
     ).toBeVisible({ timeout: 5_000 });
   });
 
@@ -564,10 +572,10 @@ test.describe("AI settings", () => {
     await page.getByPlaceholder("Enter model name").fill("custom-model-7b");
     await page.getByPlaceholder("Enter your API key").fill("sk-custom-key");
 
-    // Save
-    await page.getByRole("button", { name: /Save/ }).click();
+    // Save (use exact match — "Save Prompt" button is also on the page)
+    await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(
-      page.getByRole("button", { name: /Saved/ }),
+      page.getByRole("button", { name: "Saved", exact: true }),
     ).toBeVisible({ timeout: 5_000 });
   });
 });
@@ -630,26 +638,28 @@ test.describe("watchlist fetch flow", () => {
     await page.waitForURL(/\/watchlist\/\d+/, { timeout: 10_000 });
 
     // Add a member
-    await page.getByRole("button", { name: "Add User" }).click();
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    const addDialog = page.getByRole("dialog", { name: "Add to Watchlist" });
+    await expect(addDialog).toBeVisible();
     await page.getByPlaceholder("elonmusk").fill("fetchuser");
-    await page.getByRole("button", { name: "Add" }).click();
-    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5_000 });
+    await addDialog.getByRole("button", { name: "Add" }).click();
+    await expect(addDialog).toBeHidden({ timeout: 5_000 });
     await expect(page.locator("body")).toContainText("@fetchuser", {
       timeout: 10_000,
     });
 
-    // "Fetch Now" should be enabled
+    // "Fetch" should be enabled once a member is present
     await expect(
-      page.getByRole("button", { name: "Fetch Now" }),
+      page.getByRole("button", { name: "Fetch", exact: true }),
     ).toBeEnabled();
 
-    // Click "Fetch Now" to trigger SSE fetch
-    await page.getByRole("button", { name: "Fetch Now" }).click();
+    // Click "Fetch" to trigger SSE fetch
+    await page.getByRole("button", { name: "Fetch", exact: true }).click();
 
     // The button may briefly show "Fetching..." but with mock provider the SSE
     // stream completes very quickly. Instead of checking the transient state,
-    // wait for the fetch to complete — progress panel shows "Done".
-    await expect(page.locator("body")).toContainText("Done", {
+    // wait for the fetch to complete — activity panel shows "Pipeline complete".
+    await expect(page.locator("body")).toContainText("Pipeline complete", {
       timeout: 30_000,
     });
 
@@ -665,9 +675,9 @@ test.describe("watchlist fetch flow", () => {
       page.getByRole("button", { name: /Posts/ }),
     ).toContainText(/\(\d+\)/, { timeout: 10_000 });
 
-    // "Fetch Now" button should be re-enabled
+    // "Fetch" button should be re-enabled
     await expect(
-      page.getByRole("button", { name: "Fetch Now" }),
+      page.getByRole("button", { name: "Fetch", exact: true }),
     ).toBeEnabled({ timeout: 10_000 });
   });
 });
