@@ -38,7 +38,7 @@ export default defineConfig({
   webServer: {
     command: webServerCommand,
     port: E2E_PORT,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !useProdServer,
     timeout: webServerTimeout,
     env: {
       NODE_ENV: useProdServer ? "production" : "development",
