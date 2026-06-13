@@ -9,7 +9,7 @@ on:
 
 jobs:
   quality:
-    uses: nocoo/base-ci/.github/workflows/bun-quality.yml@v2026.1
+    uses: nocoo/base-ci/.github/workflows/bun-quality.yml@v2026.4
     with:
       test-command: "bun run test:coverage"
       typecheck-command: "echo 'no typecheck configured'"
