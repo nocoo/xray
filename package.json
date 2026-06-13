@@ -52,7 +52,7 @@
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.25",
     "ip-address": "^10.2.0",
-    "lucide-react": "^1.17.0",
+    "lucide-react": "^1.18.0",
     "next": "^16.2.9",
     "next-auth": "^5.0.0-beta.30",
     "radix-ui": "^1.5.0",
