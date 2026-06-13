@@ -54,6 +54,7 @@ playwright-report/
 npm-debug.log*
 
 # Next.js / vinext
+.vinext/
 next-env.d.ts
 tsconfig.tsbuildinfo
 
