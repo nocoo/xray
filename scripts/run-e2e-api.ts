@@ -109,7 +109,12 @@ async function startServer(opts: {
     // prevented by ensurePortFree() above.
     VINEXT_NO_DEV_LOCK: "1",
   };
-  if (opts.skipAuth) env.E2E_SKIP_AUTH = "true";
+  if (opts.skipAuth) {
+    env.E2E_SKIP_AUTH = "true";
+    // Explicit marker required for E2E_SKIP_AUTH to take effect under
+    // NODE_ENV=production — guards against accidental prod injection.
+    env.E2E_TEST_RUNNER = "true";
+  }
 
   const proc = spawn(["bunx", "vinext", "dev", "--port", String(opts.port)], {
     cwd: PROJECT_ROOT,

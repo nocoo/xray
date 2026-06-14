@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import type { Adapter } from "@auth/core/adapters";
+import { isE2EMode } from "@/lib/e2e-mode";
 
 // Get allowed emails from environment variable
 const allowedEmails = (process.env.ALLOWED_EMAILS ?? "")
@@ -98,8 +99,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     async signIn({ user }) {
-      // Skip email check in E2E test environment
-      if (process.env.E2E_SKIP_AUTH === "true") return true;
+      // Skip email check in E2E test environment (gated to non-production unless
+      // an explicit test-runner marker is set — see src/lib/e2e-mode.ts).
+      if (isE2EMode()) return true;
 
       const email = user.email?.toLowerCase();
       if (!email || !allowedEmails.includes(email)) {

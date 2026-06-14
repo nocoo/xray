@@ -44,6 +44,9 @@ export default defineConfig({
       NODE_ENV: useProdServer ? "production" : "development",
       XRAY_DB: "database/xray.playwright.db",
       E2E_SKIP_AUTH: "true",
+      // Explicit marker required for E2E_SKIP_AUTH to take effect under
+      // NODE_ENV=production — guards against accidental prod injection.
+      E2E_TEST_RUNNER: "true",
       MOCK_PROVIDER: "true",
       NEXTAUTH_SECRET: "e2e-test-secret",
       NEXTAUTH_URL: `http://localhost:${E2E_PORT}`,

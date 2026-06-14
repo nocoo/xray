@@ -1,4 +1,5 @@
 import { describe, test, expect, afterEach, vi } from "vitest";
+import { isE2EMode } from "@/lib/e2e-mode";
 
 // =============================================================================
 // Auth Configuration Tests
@@ -23,8 +24,10 @@ describe("auth", () => {
     // Restore env vars
     process.env.ALLOWED_EMAILS = originalEnv.ALLOWED_EMAILS;
     process.env.E2E_SKIP_AUTH = originalEnv.E2E_SKIP_AUTH;
+    process.env.E2E_TEST_RUNNER = originalEnv.E2E_TEST_RUNNER;
     process.env.NEXTAUTH_URL = originalEnv.NEXTAUTH_URL;
     process.env.USE_SECURE_COOKIES = originalEnv.USE_SECURE_COOKIES;
+    vi.unstubAllEnvs();
   });
 
   // ---------------------------------------------------------------------------
@@ -83,13 +86,13 @@ describe("auth", () => {
   // ---------------------------------------------------------------------------
 
   describe("signIn callback", () => {
-    // Replicate the signIn callback logic for direct testing
+    // Replicate the signIn callback logic for direct testing — uses the real
+    // isE2EMode() helper so the production-bypass guard is exercised end-to-end.
     function signInCallback(
       email: string | undefined | null,
       allowedEmails: string[],
-      skipAuth: boolean
     ): boolean {
-      if (skipAuth) return true;
+      if (isE2EMode()) return true;
       const normalizedEmail = email?.toLowerCase();
       if (!normalizedEmail || !allowedEmails.includes(normalizedEmail)) {
         return false;
@@ -97,50 +100,82 @@ describe("auth", () => {
       return true;
     }
 
+    function setEnv(env: {
+      E2E_SKIP_AUTH?: string;
+      E2E_TEST_RUNNER?: string;
+      NODE_ENV?: string;
+    }): void {
+      vi.stubEnv("E2E_SKIP_AUTH", env.E2E_SKIP_AUTH);
+      vi.stubEnv("E2E_TEST_RUNNER", env.E2E_TEST_RUNNER);
+      vi.stubEnv("NODE_ENV", env.NODE_ENV);
+    }
+
     test("allows user with email in allowlist", () => {
+      setEnv({ NODE_ENV: "test" });
       const result = signInCallback(
         "alice@example.com",
         ["alice@example.com", "bob@example.com"],
-        false
       );
       expect(result).toBe(true);
     });
 
     test("rejects user with email not in allowlist", () => {
-      const result = signInCallback(
-        "hacker@evil.com",
-        ["alice@example.com"],
-        false
-      );
+      setEnv({ NODE_ENV: "test" });
+      const result = signInCallback("hacker@evil.com", ["alice@example.com"]);
       expect(result).toBe(false);
     });
 
     test("case-insensitive email matching", () => {
-      const result = signInCallback(
-        "ALICE@EXAMPLE.COM",
-        ["alice@example.com"],
-        false
-      );
+      setEnv({ NODE_ENV: "test" });
+      const result = signInCallback("ALICE@EXAMPLE.COM", ["alice@example.com"]);
       expect(result).toBe(true);
     });
 
     test("rejects when email is undefined", () => {
-      const result = signInCallback(undefined, ["alice@example.com"], false);
+      setEnv({ NODE_ENV: "test" });
+      const result = signInCallback(undefined, ["alice@example.com"]);
       expect(result).toBe(false);
     });
 
     test("rejects when email is null", () => {
-      const result = signInCallback(null, ["alice@example.com"], false);
+      setEnv({ NODE_ENV: "test" });
+      const result = signInCallback(null, ["alice@example.com"]);
       expect(result).toBe(false);
     });
 
     test("rejects when allowlist is empty", () => {
-      const result = signInCallback("alice@example.com", [], false);
+      setEnv({ NODE_ENV: "test" });
+      const result = signInCallback("alice@example.com", []);
       expect(result).toBe(false);
     });
 
-    test("bypasses check when E2E_SKIP_AUTH is true", () => {
-      const result = signInCallback("anyone@example.com", [], true);
+    test("bypasses check in non-production with E2E_SKIP_AUTH=true", () => {
+      setEnv({ E2E_SKIP_AUTH: "true", NODE_ENV: "test" });
+      const result = signInCallback("anyone@example.com", []);
+      expect(result).toBe(true);
+    });
+
+    // ---- production regression --------------------------------------------
+
+    test("production: bare E2E_SKIP_AUTH=true is IGNORED — allowlist still enforced", () => {
+      setEnv({ E2E_SKIP_AUTH: "true", NODE_ENV: "production" });
+      const result = signInCallback("hacker@evil.com", ["alice@example.com"]);
+      expect(result).toBe(false);
+    });
+
+    test("production: bare E2E_SKIP_AUTH=true still allows allowlisted emails", () => {
+      setEnv({ E2E_SKIP_AUTH: "true", NODE_ENV: "production" });
+      const result = signInCallback("alice@example.com", ["alice@example.com"]);
+      expect(result).toBe(true);
+    });
+
+    test("production: E2E_SKIP_AUTH=true + E2E_TEST_RUNNER=true bypasses (CI prod-build path)", () => {
+      setEnv({
+        E2E_SKIP_AUTH: "true",
+        E2E_TEST_RUNNER: "true",
+        NODE_ENV: "production",
+      });
+      const result = signInCallback("anyone@example.com", []);
       expect(result).toBe(true);
     });
   });

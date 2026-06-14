@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { ScopedDB } from "@/db/scoped";
 import { getDb, seedUser } from "@/db";
+import { isE2EMode } from "@/lib/e2e-mode";
 
 // E2E test bypass — when set, skip session auth and use a deterministic user.
 // Read at call-time (not module-load-time) so that tests can set the env var
@@ -22,7 +23,7 @@ export async function requireAuth(): Promise<
   | { db: ScopedDB; error?: never }
   | { db?: never; error: NextResponse }
 > {
-  if (process.env.E2E_SKIP_AUTH === "true") {
+  if (isE2EMode()) {
     // Ensure the database is initialized before seeding — seedUser() uses the
     // raw sqlite driver which is only available after getDb() has been called.
     getDb();
