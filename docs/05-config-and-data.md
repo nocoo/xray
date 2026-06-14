@@ -18,7 +18,8 @@ The web application is configured via `.env` file. See `.env.example` for the fu
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NEXTAUTH_URL` | (auto-detect) | Base URL for auth callbacks |
+| `NEXTAUTH_URL` | (auto-detect) | Canonical base URL for auth callbacks. Strongly recommended in production — auth redirects ignore `X-Forwarded-Host` when this is set. |
+| `TRUSTED_FORWARDED_HOSTS` | (empty) | Comma-separated allowlist of hosts the app will trust from `X-Forwarded-Host` for auth redirects. Only consulted when `NEXTAUTH_URL` is unset. |
 | `USE_SECURE_COOKIES` | `false` | Set `true` behind HTTPS reverse proxy |
 | `XRAY_DATA_DIR` | project root | SQLite data directory (set to `/data` for Docker/Railway) |
 | `XRAY_DB` | `database/xray.db` | Custom database file path |
