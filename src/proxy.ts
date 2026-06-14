@@ -1,20 +1,24 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import {
+  parseTrustedHosts,
+  resolveRedirectUrl,
+} from "@/lib/redirect-url";
 
 // Skip auth in E2E test environment
 const SKIP_AUTH = process.env.E2E_SKIP_AUTH === "true";
 
-// Build redirect URL respecting reverse proxy headers
 function buildRedirectUrl(req: NextRequest, pathname: string): URL {
-  const forwardedHost = req.headers.get("x-forwarded-host");
-  const forwardedProto = req.headers.get("x-forwarded-proto") || "https";
-
-  if (forwardedHost) {
-    return new URL(pathname, `${forwardedProto}://${forwardedHost}`);
-  }
-
-  return new URL(pathname, req.nextUrl.origin);
+  const target = resolveRedirectUrl({
+    forwardedHost: req.headers.get("x-forwarded-host"),
+    forwardedProto: req.headers.get("x-forwarded-proto"),
+    requestOrigin: req.nextUrl.origin,
+    pathname,
+    configuredUrl: process.env.NEXTAUTH_URL || undefined,
+    trustedHosts: parseTrustedHosts(process.env.TRUSTED_FORWARDED_HOSTS),
+  });
+  return new URL(target);
 }
 
 // Next.js 16 proxy convention (replaces middleware.ts)

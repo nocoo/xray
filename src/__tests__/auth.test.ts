@@ -283,33 +283,9 @@ describe("auth", () => {
   // ---------------------------------------------------------------------------
 
   describe("proxy logic", () => {
-    function buildRedirectUrl(
-      forwardedHost: string | null,
-      forwardedProto: string | null,
-      origin: string,
-      pathname: string
-    ): string {
-      if (forwardedHost) {
-        const proto = forwardedProto || "https";
-        return `${proto}://${forwardedHost}${pathname}`;
-      }
-      return `${origin}${pathname}`;
-    }
-
-    test("uses origin when no forwarded headers", () => {
-      const url = buildRedirectUrl(null, null, "http://localhost:7007", "/login");
-      expect(url).toBe("http://localhost:7007/login");
-    });
-
-    test("uses forwarded host with forwarded proto", () => {
-      const url = buildRedirectUrl("xray.example.com", "https", "http://localhost:7007", "/login");
-      expect(url).toBe("https://xray.example.com/login");
-    });
-
-    test("defaults to https when forwarded host present but no proto", () => {
-      const url = buildRedirectUrl("xray.example.com", null, "http://localhost:7007", "/login");
-      expect(url).toBe("https://xray.example.com/login");
-    });
+    // Redirect-URL resolution lives in src/lib/redirect-url.ts and is covered
+    // by src/__tests__/redirect-url.test.ts — see that file for the security
+    // contract around untrusted x-forwarded-host headers (CWE-601).
 
     // Route matching logic
     function routeDecision(
