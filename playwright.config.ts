@@ -42,6 +42,10 @@ export default defineConfig({
     timeout: webServerTimeout,
     env: {
       NODE_ENV: useProdServer ? "production" : "development",
+      // Opt-in marker required by `isE2EAuthBypass()` when the suite runs
+      // against a production-mode build — keeps the bypass scoped to the
+      // E2E runner and blocks accidental prod activation. See e2e-mode.ts.
+      E2E_TEST_RUNNER: "true",
       XRAY_DB: "database/xray.playwright.db",
       E2E_SKIP_AUTH: "true",
       MOCK_PROVIDER: "true",

@@ -5,9 +5,7 @@ import {
   parseTrustedHosts,
   resolveRedirectUrl,
 } from "@/lib/redirect-url";
-
-// Skip auth in E2E test environment
-const SKIP_AUTH = process.env.E2E_SKIP_AUTH === "true";
+import { isE2EAuthBypass } from "@/lib/e2e-mode";
 
 function buildRedirectUrl(req: NextRequest, pathname: string): URL {
   const target = resolveRedirectUrl({
@@ -23,7 +21,7 @@ function buildRedirectUrl(req: NextRequest, pathname: string): URL {
 
 // Next.js 16 proxy convention (replaces middleware.ts)
 const authHandler = auth((req) => {
-  if (SKIP_AUTH) {
+  if (isE2EAuthBypass()) {
     return NextResponse.next();
   }
 

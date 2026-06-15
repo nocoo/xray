@@ -61,6 +61,41 @@ describe("requireAuth", () => {
     expect(result.db).toBeInstanceOf(ScopedDB);
     expect(mockAuth).not.toHaveBeenCalled();
   });
+
+  // STU-643: a stray E2E_SKIP_AUTH=true in production must NOT grant the
+  // e2e-test-user ScopedDB to unauthenticated callers.
+  test("ignores E2E_SKIP_AUTH in production without the test-runner marker", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("E2E_SKIP_AUTH", "true");
+    vi.stubEnv("E2E_TEST_RUNNER", "");
+    mockAuth.mockImplementation(() => Promise.resolve(null));
+    try {
+      const { requireAuth } = await import("@/lib/api-helpers");
+      const result = await requireAuth();
+      expect(result.db).toBeUndefined();
+      expect(result.error).toBeDefined();
+      expect(result.error!.status).toBe(401);
+      expect(mockAuth).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  // The L3 Playwright suite builds a production-mode server but explicitly
+  // opts in via E2E_TEST_RUNNER=true — that combination must still bypass.
+  test("honors E2E_SKIP_AUTH in production when E2E_TEST_RUNNER=true", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("E2E_SKIP_AUTH", "true");
+    vi.stubEnv("E2E_TEST_RUNNER", "true");
+    try {
+      const { requireAuth } = await import("@/lib/api-helpers");
+      const result = await requireAuth();
+      expect(result.db).toBeInstanceOf(ScopedDB);
+      expect(mockAuth).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });
 
 describe("requireAuthWithWatchlist", () => {

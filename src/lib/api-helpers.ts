@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { ScopedDB } from "@/db/scoped";
 import { getDb, seedUser } from "@/db";
+import { isE2EAuthBypass } from "@/lib/e2e-mode";
 
 // E2E test bypass — when set, skip session auth and use a deterministic user.
 // Read at call-time (not module-load-time) so that tests can set the env var
@@ -16,13 +17,15 @@ const E2E_USER_ID = "e2e-test-user";
  * `account` table (provider + providerAccountId), so the session's user.id
  * is already the stable database ID. No ensureUserExists() needed for normal
  * auth flow. However, E2E_SKIP_AUTH bypasses OAuth entirely, so the user row
- * must be seeded explicitly to satisfy FK constraints.
+ * must be seeded explicitly to satisfy FK constraints. The bypass is gated by
+ * `isE2EAuthBypass()` so a stray `E2E_SKIP_AUTH=true` in production cannot
+ * grant unauthenticated callers a write-capable ScopedDB.
  */
 export async function requireAuth(): Promise<
   | { db: ScopedDB; error?: never }
   | { db?: never; error: NextResponse }
 > {
-  if (process.env.E2E_SKIP_AUTH === "true") {
+  if (isE2EAuthBypass()) {
     // Ensure the database is initialized before seeding — seedUser() uses the
     // raw sqlite driver which is only available after getDb() has been called.
     getDb();
