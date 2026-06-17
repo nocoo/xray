@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.85",
-    "@ai-sdk/openai": "^3.0.71",
+    "@ai-sdk/openai": "^3.0.72",
     "@radix-ui/react-collapsible": "^1.1.14",
     "ai": "^6.0.207",
     "better-sqlite3": "^12.11.1",
