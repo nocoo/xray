@@ -184,6 +184,7 @@ x-ray/
 | `bun run db:studio` | 打开 Drizzle Studio |
 | `bun run db:generate` | 生成数据库迁移文件 |
 | `bun run db:migrate` | 执行数据库迁移 |
+| `bun run import:tweetclaw <file>` | 将 [TweetClaw](https://github.com/Xquik-dev/tweetclaw) JSON、JSONL 或 CSV 导出转换为 `data/raw_tweets.json` |
 
 > 📖 **详细文档**: 更多关于架构、测试、部署和 API 的文档请参阅 [`docs/`](docs/) 目录
 

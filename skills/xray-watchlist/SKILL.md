@@ -33,6 +33,18 @@ JSON file at `data/raw_tweets.json` containing:
 }
 ```
 
+### import-tweetclaw-export.ts
+
+**Usage:**
+
+```bash
+bun run scripts/import-tweetclaw-export.ts ./tweetclaw-export.json
+```
+
+Converts a local [TweetClaw](https://github.com/Xquik-dev/tweetclaw) JSON, JSONL,
+or CSV export into `data/raw_tweets.json` so the normal X-Ray analysis and
+reporting workflow can run without a live fetch.
+
 Analyze output at `data/analyze_output.json` (STRICT JSON only):
 ```json
 {

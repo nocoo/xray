@@ -19,6 +19,7 @@
     "prepare": "husky",
     "release": "bun run scripts/release.ts",
     "watchlist": "bun run scripts/manage-watchlist.ts",
+    "import:tweetclaw": "bun run scripts/import-tweetclaw-export.ts",
     "xray-me": "bun run scripts/run-me-report.ts",
     "typecheck": "tsc --noEmit"
   },
