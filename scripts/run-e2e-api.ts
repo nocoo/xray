@@ -90,6 +90,7 @@ async function startServer(opts: {
   port: number;
   db: string;
   skipAuth: boolean;
+  cacheDir: string;
 }): Promise<ServerHandle> {
   console.log(`🌐 Starting ${opts.name} on :${opts.port}...`);
 
@@ -108,6 +109,10 @@ async function startServer(opts: {
     // (auth-bypass + no-auth), so opt out — port collisions are already
     // prevented by ensurePortFree() above.
     VINEXT_NO_DEV_LOCK: "1",
+    // Give each dev server its own vite cacheDir. Without this, both processes
+    // race on node_modules/.vite/deps_ssr and the second `rename(temp → final)`
+    // hits ENOTEMPTY because the first one already committed the directory.
+    VITE_CACHE_DIR: opts.cacheDir,
   };
   if (opts.skipAuth) env.E2E_SKIP_AUTH = "true";
 
@@ -169,12 +174,14 @@ async function main(): Promise<void> {
     port: AUTH_PORT,
     db: AUTH_DB,
     skipAuth: true,
+    cacheDir: "node_modules/.vite-auth",
   });
   const noAuthServer = await startServer({
     name: "no-auth server",
     port: NO_AUTH_PORT,
     db: NO_AUTH_DB,
     skipAuth: false,
+    cacheDir: "node_modules/.vite-noauth",
   });
 
   const [authReady, noAuthReady] = await Promise.all([
