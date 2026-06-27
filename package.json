@@ -45,7 +45,7 @@
     "@ai-sdk/anthropic": "4.0.0",
     "@ai-sdk/openai": "4.0.0",
     "@radix-ui/react-collapsible": "^1.1.14",
-    "ai": "7.0.2",
+    "ai": "7.0.3",
     "better-sqlite3": "^12.11.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
