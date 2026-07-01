@@ -5,10 +5,10 @@
     "": {
       "name": "x-ray",
       "dependencies": {
-        "@ai-sdk/anthropic": "^4.0.3",
-        "@ai-sdk/openai": "^4.0.4",
+        "@ai-sdk/anthropic": "4.0.4",
+        "@ai-sdk/openai": "4.0.4",
         "@radix-ui/react-collapsible": "^1.1.14",
-        "ai": "^7.0.8",
+        "ai": "7.0.8",
         "better-sqlite3": "^12.11.1",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -62,7 +62,7 @@
     "react-server-dom-webpack": ">=19.2.6",
   },
   "packages": {
-    "@ai-sdk/anthropic": ["@ai-sdk/anthropic@4.0.3", "", { "dependencies": { "@ai-sdk/provider": "4.0.1", "@ai-sdk/provider-utils": "5.0.2" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-USlJtQxkpbZy01evFpAOOtkELwDoWFlLrlJDM7B81KTqGVIZ60BMoEfJHZ/G4poK+t7tYFpHgDKalspc4TJKeg=="],
+    "@ai-sdk/anthropic": ["@ai-sdk/anthropic@4.0.4", "", { "dependencies": { "@ai-sdk/provider": "4.0.1", "@ai-sdk/provider-utils": "5.0.2" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-2IJ/wRm812TtjrKmKildWxx9HU1X1jWHgcstmw7rTq16INikv6yazDfzMOEhHpDWxEfNkCFKHR9hWBjA0SkeIw=="],
 
     "@ai-sdk/gateway": ["@ai-sdk/gateway@4.0.6", "", { "dependencies": { "@ai-sdk/provider": "4.0.1", "@ai-sdk/provider-utils": "5.0.2", "@vercel/oidc": "3.2.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-8GjssUxXeTd8tst2fYXNOFbtNNZFv3sG7aq7wKnQYrU2eB3JFR7np6o4F3Snp/fy/rJZSeH28LvjSWq5wkdL8Q=="],
 
