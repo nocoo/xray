@@ -46,7 +46,7 @@
     "@ai-sdk/openai": "4.0.17",
     "@radix-ui/react-collapsible": "^1.1.17",
     "ai": "7.0.34",
-    "better-sqlite3": "^12.11.1",
+    "better-sqlite3": "13.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
