@@ -9,7 +9,7 @@
         "@ai-sdk/openai": "4.0.24",
         "@radix-ui/react-collapsible": "1.1.20",
         "ai": "7.0.42",
-        "better-sqlite3": "13.0.1",
+        "better-sqlite3": "13.0.2",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "drizzle-orm": "^0.45.2",
@@ -675,7 +675,7 @@
 
     "baseline-browser-mapping": ["baseline-browser-mapping@2.10.35", "", { "bin": { "baseline-browser-mapping": "dist/cli.cjs" } }, "sha512-honAfLBde0HAFLdNyBEfuuENkF6zR+ozxqxa/2zJKHBe1qzLqyTSeRKpdPEHAP03rlDGyQOPnCSxnVpVqQo9Mg=="],
 
-    "better-sqlite3": ["better-sqlite3@13.0.1", "", { "dependencies": { "node-addon-api": "^8.0.0" } }, "sha512-LYpmOXdkpQYf4wmlxkdzW01XGlOXNIbjLg45yNkh0FQ4814VbK9PdOFmhZpYbej+EZtR/i3FDdhEG98HqZdgnA=="],
+    "better-sqlite3": ["better-sqlite3@13.0.2", "", { "dependencies": { "node-addon-api": "^8.0.0" } }, "sha512-jW6oufeDhXZaiX9Lw5A+oerVClx4iFrI6uDj1zu7SqUAjak9vbJvA0NEcKLNxHiQHb6kYCoFzzXYV0YOauhV3g=="],
 
     "body-parser": ["body-parser@2.3.0", "", { "dependencies": { "bytes": "^3.1.2", "content-type": "^2.0.0", "debug": "^4.4.3", "http-errors": "^2.0.1", "iconv-lite": "^0.7.2", "on-finished": "^2.4.1", "qs": "^6.15.2", "raw-body": "^3.0.2", "type-is": "^2.1.0" } }, "sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw=="],
 
