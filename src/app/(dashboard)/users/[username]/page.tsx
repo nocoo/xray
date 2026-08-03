@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useBreadcrumbs } from "@/components/layout";
 import { UserCard } from "@/components/twitter/user-card";
@@ -42,6 +42,12 @@ export default function UserProfilePage() {
 
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Cancel any in-flight tab fetch when a new one starts (or the tab changes).
+  // Without this, switching to Search while "recent" is still loading lets the
+  // stale response overwrite `tweets` after the search results already landed,
+  // and keeps `loadingTweets=true` so the search submit button stays disabled.
+  const tabFetchRef = useRef<AbortController | null>(null);
+
   // Fetch user info on mount
   useEffect(() => {
     async function loadUser() {
@@ -69,6 +75,10 @@ export default function UserProfilePage() {
   // Fetch tab content
   const fetchTabContent = useCallback(
     async (tab: TabKey, query?: string) => {
+      tabFetchRef.current?.abort();
+      const controller = new AbortController();
+      tabFetchRef.current = controller;
+
       setLoadingTweets(true);
       setTweetsError(null);
       setTweets([]);
@@ -92,27 +102,38 @@ export default function UserProfilePage() {
             break;
           case "search":
             if (!query?.trim()) {
-              setLoadingTweets(false);
+              if (tabFetchRef.current === controller) {
+                tabFetchRef.current = null;
+                setLoadingTweets(false);
+              }
               return;
             }
             url = `/api/explore/users/tweets?username=${u}&q=${encodeURIComponent(query)}`;
             break;
           default:
-            setLoadingTweets(false);
+            if (tabFetchRef.current === controller) {
+              tabFetchRef.current = null;
+              setLoadingTweets(false);
+            }
             return;
         }
 
-        const res = await fetch(url);
+        const res = await fetch(url, { signal: controller.signal });
         const data = await res.json();
+        if (controller.signal.aborted) return;
         if (!res.ok || !data.success) {
           setTweetsError(data.error ?? "Failed to load content");
         } else {
           setTweets(data.data ?? []);
         }
-      } catch {
+      } catch (err) {
+        if ((err as { name?: string } | null)?.name === "AbortError") return;
         setTweetsError("Network error — could not reach API");
       } finally {
-        setLoadingTweets(false);
+        if (tabFetchRef.current === controller) {
+          tabFetchRef.current = null;
+          setLoadingTweets(false);
+        }
       }
     },
     [username],
@@ -123,7 +144,10 @@ export default function UserProfilePage() {
     if (activeTab !== "search") {
       fetchTabContent(activeTab);
     } else {
+      tabFetchRef.current?.abort();
+      tabFetchRef.current = null;
       setTweets([]);
+      setLoadingTweets(false);
     }
   }, [activeTab, fetchTabContent]);
 
