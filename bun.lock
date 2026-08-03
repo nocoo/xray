@@ -14,7 +14,7 @@
         "clsx": "^2.1.1",
         "drizzle-orm": "^0.45.2",
         "hono": "4.12.33",
-        "ip-address": "^10.3.1",
+        "ip-address": "^10.4.0",
         "lucide-react": "1.28.0",
         "next": "16.2.12",
         "next-auth": "^5.0.0-beta.32",
@@ -58,7 +58,7 @@
     "esbuild": ">=0.28.1",
     "fast-uri": ">=4.1.1",
     "hono": ">=4.12.33",
-    "ip-address": ">=10.3.1",
+    "ip-address": ">=10.4.0",
     "js-yaml": ">=5.2.2",
     "next": ">=16.2.12",
     "postcss": ">=8.5.18",
@@ -979,7 +979,7 @@
 
     "internmap": ["internmap@2.0.3", "", {}, "sha512-5Hh7Y1wQbvY5ooGgPbDaL5iYLAPzMTUrjMulskHLH6wnv/A+1q5rgEaiuqEjB+oxGXIVZs1FF+R/KPN3ZSQYYg=="],
 
-    "ip-address": ["ip-address@10.3.1", "", {}, "sha512-1e9d3kb97NHJTIJDZW9rKqW2h6+dFa50Dy0fpPSMQp2ADje5gvKsXmdiK6dwY5t76TaTt5+P5N1Y/LoToIxP6g=="],
+    "ip-address": ["ip-address@10.4.0", "", {}, "sha512-oSK96Grm3aP6OrS263xVxbNDGVL7rzBtYdpGqlDG8iQdoenDoTs/nkki+DflYbAEE8Xl6o5YxhxlrKvI3nqKXQ=="],
 
     "ipaddr.js": ["ipaddr.js@2.4.0", "", {}, "sha512-9VGk3HGanVE6JoZXHiCpnGy5X0jYDnN4EA4lntFPj+1vIWlFhIylq2CrrCOJH9EAhc5CYhq18F2Av2tgoAPsYQ=="],
 
