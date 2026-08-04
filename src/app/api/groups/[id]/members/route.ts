@@ -101,8 +101,9 @@ export async function POST(request: Request, ctx: RouteContext) {
  * Batch-remove multiple members from the group.
  */
 export async function DELETE(request: Request, ctx: RouteContext) {
-  const { db, error, groupId } = await requireAuthWithGroup(ctx.params);
-  if (error) return error;
+  const authResult = await requireAuthWithGroup(ctx.params);
+  if (authResult.error) return authResult.error;
+  const { db, groupId } = authResult;
 
   // --- Batch delete via JSON body ---
   const contentType = request.headers.get("content-type") ?? "";
