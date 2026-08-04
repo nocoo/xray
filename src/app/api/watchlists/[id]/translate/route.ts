@@ -19,8 +19,9 @@ export const dynamic = "force-dynamic";
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, ctx: RouteContext) {
-  const { db, error, watchlistId } = await requireAuthWithWatchlist(ctx.params);
-  if (error) return error;
+  const authResult = await requireAuthWithWatchlist(ctx.params);
+  if (authResult.error) return authResult.error;
+  const { db, watchlistId } = authResult;
 
   let limit = 20;
   let singlePostId: number | null = null;
