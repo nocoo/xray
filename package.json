@@ -43,7 +43,7 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "4.0.27",
+    "@ai-sdk/anthropic": "4.0.30",
     "@ai-sdk/openai": "4.0.27",
     "@radix-ui/react-collapsible": "1.1.20",
     "ai": "7.0.48",
