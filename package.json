@@ -34,7 +34,7 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "10.8.0",
     "husky": "^9.1.7",
-    "shadcn": "4.16.1",
+    "shadcn": "4.16.2",
     "tailwindcss": "^4.3.3",
     "@typescript/native": "npm:typescript@7.0.2",
     "typescript": "6.0.3",
