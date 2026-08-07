@@ -79,7 +79,7 @@
     "ip-address": ">=10.4.0",
     "js-yaml": ">=5.2.2",
     "next": ">=16.2.12",
-    "postcss": ">=8.5.18",
+    "postcss": ">=8.5.25",
     "qs": ">=6.15.2",
     "react-server-dom-webpack": ">=19.2.6",
     "undici": ">=7.29.0 <8"
