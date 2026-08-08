@@ -51,6 +51,9 @@
   "trustedDependencies": [
     "better-sqlite3",
   ],
+  "patchedDependencies": {
+    "image-size@2.0.2": "patches/image-size@2.0.2.patch",
+  },
   "overrides": {
     "@hono/node-server": ">=2.0.5",
     "@vitejs/plugin-rsc": ">=0.5.33",
