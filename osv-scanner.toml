@@ -4,9 +4,9 @@
 [[IgnoredVulns]]
 id = "GHSA-5p2g-fcmc-qvqq"
 ignoreUntil = 2026-09-07
-reason = "Transitive image-size@2.0.2 is pinned by vinext; no patched release exists as of 2026-08-08; tracked in nocoo/xray#361"
+reason = "image-size@2.0.2 has no fixed release; patches/image-size@2.0.2.patch rejects the malicious HEIF/JXL inputs, with regression coverage tracked in nocoo/xray#361"
 
 [[IgnoredVulns]]
 id = "GHSA-w3rx-r6r6-pgpr"
 ignoreUntil = 2026-09-07
-reason = "Transitive image-size@2.0.2 is pinned by vinext; no patched release exists as of 2026-08-08; tracked in nocoo/xray#361"
+reason = "image-size@2.0.2 has no fixed release; patches/image-size@2.0.2.patch rejects the malicious ICNS input, with regression coverage tracked in nocoo/xray#361"
