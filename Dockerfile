@@ -4,6 +4,7 @@ WORKDIR /app
 # Install build tools for native modules (better-sqlite3)
 RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 COPY package.json bun.lock ./
+COPY patches ./patches
 RUN bun install --frozen-lockfile
 
 # --- Stage 2: Build ---
