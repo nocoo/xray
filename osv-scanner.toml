@@ -1,12 +1,12 @@
-# Temporary, vulnerability-specific exceptions. Keep these narrow and
-# time-bounded so OSV continues to gate every other advisory.
+# Add an [[IgnoredVulns]] block only when no upgrade path exists.
+# Every exception must expire and reference the issue or PR tracking the risk.
 
 [[IgnoredVulns]]
 id = "GHSA-5p2g-fcmc-qvqq"
-ignoreUntil = 2026-09-08
+ignoreUntil = 2026-09-07
 reason = "image-size@2.0.2 has no fixed release; patches/image-size@2.0.2.patch rejects the malicious HEIF/JXL inputs, with regression coverage tracked in nocoo/xray#361"
 
 [[IgnoredVulns]]
 id = "GHSA-w3rx-r6r6-pgpr"
-ignoreUntil = 2026-09-08
+ignoreUntil = 2026-09-07
 reason = "image-size@2.0.2 has no fixed release; patches/image-size@2.0.2.patch rejects the malicious ICNS input, with regression coverage tracked in nocoo/xray#361"
