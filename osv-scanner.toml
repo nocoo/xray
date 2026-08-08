@@ -1,3 +1,7 @@
-# No vulnerabilities are currently ignored.
-# Add an [[IgnoredVulns]] block here only when a CVE has no upgrade path
-# and the false-positive note is captured in a referenced issue / PR.
+[[IgnoredVulns]]
+id = "GHSA-5p2g-fcmc-qvqq"
+reason = "Transitive image-size@2.0.2 via vinext; no fixed release, tracked in https://github.com/nocoo/xray/issues/361"
+
+[[IgnoredVulns]]
+id = "GHSA-w3rx-r6r6-pgpr"
+reason = "Transitive image-size@2.0.2 via vinext; no fixed release, tracked in https://github.com/nocoo/xray/issues/361"
