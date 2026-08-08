@@ -1,3 +1,12 @@
-# No vulnerabilities are currently ignored.
-# Add an [[IgnoredVulns]] block here only when a CVE has no upgrade path
-# and the false-positive note is captured in a referenced issue / PR.
+# Temporary, vulnerability-specific exceptions. Keep these narrow and
+# time-bounded so OSV continues to gate every other advisory.
+
+[[IgnoredVulns]]
+id = "GHSA-5p2g-fcmc-qvqq"
+ignoreUntil = 2026-09-08
+reason = "image-size@2.0.2 has no fixed release; patches/image-size@2.0.2.patch rejects the malicious HEIF/JXL inputs, with regression coverage tracked in nocoo/xray#361"
+
+[[IgnoredVulns]]
+id = "GHSA-w3rx-r6r6-pgpr"
+ignoreUntil = 2026-09-08
+reason = "image-size@2.0.2 has no fixed release; patches/image-size@2.0.2.patch rejects the malicious ICNS input, with regression coverage tracked in nocoo/xray#361"
