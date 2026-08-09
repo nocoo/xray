@@ -18,18 +18,13 @@ describe("toNextRequest", () => {
       body,
     });
 
-    const nextReq = toNextRequest(req);
+    const nextReq = await toNextRequest(req);
 
     expect(nextReq).toBeInstanceOf(NextRequest);
     expect(nextReq.method).toBe("POST");
     expect(nextReq.nextUrl.pathname).toBe("/api/auth/signin/google");
     expect(nextReq.headers.get("cookie")).toBe("session=1");
     expect(await nextReq.text()).toBe(body);
-  });
-
-  test("returns the same instance when already NextRequest", () => {
-    const req = new NextRequest("https://xray.hexly.ai/api/auth/csrf");
-    expect(toNextRequest(req)).toBe(req);
   });
 
   test("does not coerce POST into GET", async () => {
@@ -39,9 +34,16 @@ describe("toNextRequest", () => {
       body: "csrfToken=x",
     });
 
-    const nextReq = toNextRequest(req);
+    const nextReq = await toNextRequest(req);
     expect(nextReq.method).not.toBe("GET");
     expect(nextReq.method).toBe("POST");
+  });
+
+  test("handles GET without body", async () => {
+    const req = new Request("https://xray.hexly.ai/api/auth/csrf");
+    const nextReq = await toNextRequest(req);
+    expect(nextReq.method).toBe("GET");
+    expect(nextReq.nextUrl.pathname).toBe("/api/auth/csrf");
   });
 });
 

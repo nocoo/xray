@@ -1,23 +1,33 @@
 import { NextRequest } from "next/server";
 
 /**
- * Convert a plain Request to NextRequest without dropping method/body.
+ * Build a NextRequest that Auth.js can safely consume.
  *
- * Never use `new NextRequest(url, request)` — production Next builds treat the
- * second argument as RequestInit and ignore Request fields, turning POST into
- * GET with an empty body. That breaks Auth.js sign-in (UnknownAction →
- * Configuration → client JSON parse error on HTML).
+ * Production vinext passes plain Requests whose body streams can deadlock if
+ * fed through `new NextRequest(request)` (stream already locked / half-open).
+ * Always buffer method/headers/body first, then construct explicitly.
+ *
+ * Also never use `new NextRequest(url, request)` — production Next treats the
+ * second arg as RequestInit and drops method/body (POST → GET).
  */
-export function toNextRequest(req: Request): NextRequest {
-  if (req instanceof NextRequest) return req;
-  return new NextRequest(req);
+export async function toNextRequest(req: Request): Promise<NextRequest> {
+  const method = req.method;
+  const headers = new Headers(req.headers);
+  const body =
+    method === "GET" || method === "HEAD" ? undefined : await req.arrayBuffer();
+
+  return new NextRequest(req.url, {
+    method,
+    headers,
+    body,
+  });
 }
 
 /**
  * Rewrite request origin to AUTH_URL / NEXTAUTH_URL while keeping method & body.
  *
  * next-auth's built-in reqWithEnvURL uses the broken NextRequest(url, req)
- * constructor, so we do the rewrite ourselves before calling Auth().
+ * constructor, so route handlers call Auth() with this rewrite instead.
  */
 export async function withCanonicalAuthOrigin(
   req: NextRequest,
@@ -38,7 +48,5 @@ export async function withCanonicalAuthOrigin(
     method: req.method,
     headers: req.headers,
     body,
-    // Required by Fetch when body is a stream/buffer in some runtimes
-    duplex: "half",
   });
 }

@@ -9,7 +9,7 @@ import {
 /**
  * next-auth handlers call reqWithEnvURL → `new NextRequest(url, req)`, which
  * drops POST method/body in production. Invoke Auth.js directly with a correctly
- * rewritten request instead.
+ * rewritten, fully-buffered request instead.
  */
 function prepareConfig(config: NextAuthConfig): NextAuthConfig {
   const prepared: NextAuthConfig = {
@@ -24,7 +24,7 @@ function prepareConfig(config: NextAuthConfig): NextAuthConfig {
 }
 
 async function handler(req: Request): Promise<Response> {
-  const nextReq = await withCanonicalAuthOrigin(toNextRequest(req));
+  const nextReq = await withCanonicalAuthOrigin(await toNextRequest(req));
   return Auth(nextReq, prepareConfig(authConfig));
 }
 
