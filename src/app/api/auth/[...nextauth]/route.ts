@@ -1,22 +1,32 @@
-import { handlers } from "@/auth";
-import { NextRequest } from "next/server";
+import { Auth } from "@auth/core";
+import type { NextAuthConfig } from "next-auth";
+import { authConfig } from "@/auth";
+import {
+  toNextRequest,
+  withCanonicalAuthOrigin,
+} from "@/lib/auth-request";
 
 /**
- * vinext may pass a plain Request to route handlers; next-auth needs NextRequest
- * (nextUrl). Never use `new NextRequest(url, request)` — in production Next's
- * Request subclass that form drops method/body (POST → GET), which makes
- * Auth.js treat sign-in as a page render and throw UnknownAction → Configuration.
- *
- * `new NextRequest(request)` copies method, headers, and body correctly.
+ * next-auth handlers call reqWithEnvURL → `new NextRequest(url, req)`, which
+ * drops POST method/body in production. Invoke Auth.js directly with a correctly
+ * rewritten request instead.
  */
-export function toNextRequest(req: Request): NextRequest {
-  if (req instanceof NextRequest) return req;
-  return new NextRequest(req);
+function prepareConfig(config: NextAuthConfig): NextAuthConfig {
+  const prepared: NextAuthConfig = {
+    ...config,
+    providers: [...config.providers],
+  };
+  prepared.secret ??=
+    process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? undefined;
+  prepared.basePath ??= "/api/auth";
+  prepared.trustHost = true;
+  return prepared;
 }
 
-function wrapHandler(handler: (req: NextRequest) => Promise<Response>) {
-  return (req: Request) => handler(toNextRequest(req));
+async function handler(req: Request): Promise<Response> {
+  const nextReq = await withCanonicalAuthOrigin(toNextRequest(req));
+  return Auth(nextReq, prepareConfig(authConfig));
 }
 
-export const GET = wrapHandler(handlers.GET);
-export const POST = wrapHandler(handlers.POST);
+export const GET = handler;
+export const POST = handler;

@@ -1,4 +1,5 @@
 import NextAuth from "next-auth";
+import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 import type { Adapter } from "@auth/core/adapters";
 import { isE2EAuthBypass } from "@/lib/e2e-mode";
@@ -28,12 +29,13 @@ try {
   // Expected in middleware — bun:sqlite not available
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+/** Shared config — route handlers call Auth() with this to avoid next-auth's broken reqWithEnvURL. */
+export const authConfig = {
   trustHost: true,
   adapter,
   // Use JWT strategy even with adapter — avoids per-request DB session lookups.
   // The adapter handles user creation + account linking on OAuth sign-in only.
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt" as const },
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
@@ -51,7 +53,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         : "authjs.pkce.code_verifier",
       options: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: "lax" as const,
         path: "/",
         secure: useSecureCookies,
       },
@@ -60,7 +62,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       name: useSecureCookies ? "__Secure-authjs.state" : "authjs.state",
       options: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: "lax" as const,
         path: "/",
         secure: useSecureCookies,
       },
@@ -71,7 +73,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         : "authjs.callback-url",
       options: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: "lax" as const,
         path: "/",
         secure: useSecureCookies,
       },
@@ -82,7 +84,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         : "authjs.session-token",
       options: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: "lax" as const,
         path: "/",
         secure: useSecureCookies,
       },
@@ -91,7 +93,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       name: useSecureCookies ? "__Host-authjs.csrf-token" : "authjs.csrf-token",
       options: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: "lax" as const,
         path: "/",
         secure: useSecureCookies,
       },
@@ -126,4 +128,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
-});
+} satisfies NextAuthConfig;
+
+export const { handlers, signIn, signOut, auth } = NextAuth(authConfig);
