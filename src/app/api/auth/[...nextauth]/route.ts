@@ -1,22 +1,21 @@
 import { handlers } from "@/auth";
 import { NextRequest } from "next/server";
 
-// Wrap handlers to ensure request is a NextRequest instance.
-// vinext may pass a standard Request object to route handlers,
-// but next-auth expects NextRequest (with nextUrl property).
-// We clone the request first because the proxy layer's auth() middleware
-// may have already consumed the body ReadableStream — without cloning,
-// @auth/core's getBody() hits "ReadableStream is locked" on the POST
-// handlers for sign-in and sign-out.
+/**
+ * vinext may pass a plain Request to route handlers; next-auth needs NextRequest
+ * (nextUrl). Never use `new NextRequest(url, request)` — in production Next's
+ * Request subclass that form drops method/body (POST → GET), which makes
+ * Auth.js treat sign-in as a page render and throw UnknownAction → Configuration.
+ *
+ * `new NextRequest(request)` copies method, headers, and body correctly.
+ */
+export function toNextRequest(req: Request): NextRequest {
+  if (req instanceof NextRequest) return req;
+  return new NextRequest(req);
+}
+
 function wrapHandler(handler: (req: NextRequest) => Promise<Response>) {
-  return (req: Request) => {
-    const fresh = req.clone();
-    const nextReq =
-      fresh instanceof NextRequest
-        ? fresh
-        : new NextRequest(fresh.url, fresh);
-    return handler(nextReq);
-  };
+  return (req: Request) => handler(toNextRequest(req));
 }
 
 export const GET = wrapHandler(handlers.GET);
