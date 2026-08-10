@@ -1,12 +1,22 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router";
 import { AppShell } from "@/components/layout";
-import { PlaceholderPage } from "./routes/placeholder";
+import { SessionGate } from "@/components/session-gate";
+import { AiSettingsPage } from "@/views/ai-settings-page";
+import { DashboardPage } from "@/views/dashboard-page";
+import { GroupsPage } from "@/views/groups-page";
+import { IntegrationsZhetoPage } from "@/views/integrations-zheto-page";
+import { SettingsPage } from "@/views/settings-page";
+import { TokensPage } from "@/views/tokens-page";
+import { WatchlistDetailPage } from "@/views/watchlist-detail-page";
+import { WatchlistsPage } from "@/views/watchlists-page";
 
 function ShellLayout() {
 	return (
-		<AppShell>
-			<Outlet />
-		</AppShell>
+		<SessionGate>
+			<AppShell>
+				<Outlet />
+			</AppShell>
+		</SessionGate>
 	);
 }
 
@@ -15,59 +25,14 @@ export function App() {
 		<BrowserRouter>
 			<Routes>
 				<Route element={<ShellLayout />}>
-					<Route path="/" element={<PlaceholderPage title="Dashboard" crumbs={[]} />} />
-					<Route
-						path="/watchlist"
-						element={<PlaceholderPage title="Watchlists" crumbs={[{ label: "Watchlists" }]} />}
-					/>
-					<Route
-						path="/watchlist/*"
-						element={
-							<PlaceholderPage
-								title="Watchlist"
-								crumbs={[{ label: "Watchlists", href: "/watchlist" }, { label: "Detail" }]}
-							/>
-						}
-					/>
-					<Route
-						path="/groups"
-						element={<PlaceholderPage title="Groups" crumbs={[{ label: "Groups" }]} />}
-					/>
-					<Route
-						path="/groups/*"
-						element={
-							<PlaceholderPage
-								title="Group"
-								crumbs={[{ label: "Groups", href: "/groups" }, { label: "Detail" }]}
-							/>
-						}
-					/>
-					<Route
-						path="/integrations/zheto"
-						element={
-							<PlaceholderPage
-								title="zhe.to"
-								crumbs={[{ label: "Integrations" }, { label: "zhe.to" }]}
-							/>
-						}
-					/>
-					<Route
-						path="/ai-settings"
-						element={<PlaceholderPage title="AI Settings" crumbs={[{ label: "AI Settings" }]} />}
-					/>
-					<Route
-						path="/settings"
-						element={<PlaceholderPage title="Settings" crumbs={[{ label: "Settings" }]} />}
-					/>
-					<Route
-						path="/settings/tokens"
-						element={
-							<PlaceholderPage
-								title="Push Tokens"
-								crumbs={[{ label: "Settings", href: "/settings" }, { label: "Push Tokens" }]}
-							/>
-						}
-					/>
+					<Route path="/" element={<DashboardPage />} />
+					<Route path="/watchlist" element={<WatchlistsPage />} />
+					<Route path="/watchlist/:id" element={<WatchlistDetailPage />} />
+					<Route path="/groups" element={<GroupsPage />} />
+					<Route path="/integrations/zheto" element={<IntegrationsZhetoPage />} />
+					<Route path="/ai-settings" element={<AiSettingsPage />} />
+					<Route path="/settings" element={<SettingsPage />} />
+					<Route path="/settings/tokens" element={<TokensPage />} />
 				</Route>
 				<Route path="*" element={<Navigate to="/" replace />} />
 			</Routes>
