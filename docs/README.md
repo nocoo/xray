@@ -33,8 +33,8 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 | Phase | Goal | Status (2026-08-10) |
 |-------|------|---------------------|
 | **S1** | Archive v1 → `legacy/v1/`, scaffold monorepo | **done** |
-| **S2** | Login shell + sidebar + mock pages (real CSS) | **partial** — shell/sidebar/CSS done; Access/users/full mock todo |
-| **S3** | 6DQ automation except E2E (pre-commit / pre-push) | todo |
+| **S2** | Login shell + sidebar + mock pages (real CSS) | **done** |
+| **S3** | 6DQ automation except E2E (pre-commit / pre-push) | **done** |
 | **S4** | D1 schema + migrate WL/groups | todo |
 | **S5** | Modules one-by-one + growing Playwright E2E → 2.0.0 | todo |
 
