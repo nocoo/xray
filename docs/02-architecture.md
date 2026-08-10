@@ -79,18 +79,19 @@ Local: **`xray.dev.hexly.ai` → 7007** (Caddy). UI vite + worker wrangler dev.
    - verifies JWT (aud, iss, signature via Access certs)
    - extracts **`sub` (required)** + email
    - **Worker `ALLOWED_EMAILS` is mandatory second gate** (defense in depth; fail closed if unset in prod)
-   - upserts `users` by `(access_iss, access_sub)` unique; email is display + migration match key (normalized lower-case)
+   - upserts `users`: if row exists by email (migrated), bind `access_iss`/`access_sub`; else insert new
 4. Browser mutating APIs: require Access session + **same-origin** (check `Origin`/`Sec-Fetch-Site`); no Bearer mint via CORS wildcards.
 
-### Identity (XR-02)
+### Identity (XR-02, R2-01)
 
 | Field | Rule |
 |-------|------|
 | `users.id` | stable internal UUID |
-| `access_iss` + `access_sub` | **NOT NULL, UNIQUE** — primary login key |
-| `email` | NOT NULL, unique lower-case; used for v1 migration match |
-| Email change | same `sub` updates email; never create second user for same sub |
-| Conflict | migration dry-run reports duplicate emails; manual map file supported |
+| `access_iss` + `access_sub` | **both NULL** (pre-Access migrated) **or both non-NULL**; UNIQUE partial index when bound |
+| `email` | NOT NULL, unique lower-case; migration match key |
+| First Access login | bind iss/sub onto email-matched row |
+| Email change | same `sub` updates email; never second user for same sub |
+| Conflict | migration dry-run; `--map` file |
 
 ### Push agents — `xray-ingest.hexly.ai` (XR-01)
 
@@ -154,17 +155,17 @@ Agent → xray-ingest.hexly.ai
        → validate + limits (XR-08)
        → normalize → CanonicalItem (discriminated)
        → WindowGate
-       → insert items (dedupe policy XR-16)
+       → insert items (dedupe XR-16); ai_status = not_requested
        → ingest_logs
-       → enqueue AI jobs if enabled (XR-06)
+       → **no AI on ingest path** (R2-02)
 ```
 
-### AI execution model (XR-06) — locked MVP
+### AI execution model (XR-06, R2-02) — locked MVP
 
 | Mode | MVP |
 |------|-----|
-| Ingest path | **Never** run unbounded AI inline on full batch |
-| Translate/summary | **Manual** trigger from UI: `POST /api/watchlists/:id/translate` with `limit ≤ 20` **synchronous** bounded batch (Worker wall-clock safe) |
+| Ingest path | **Never** run or enqueue AI |
+| Translate/summary | **Only** manual UI: `POST /api/watchlists/:id/translate` with `limit ≤ 20` **synchronous** bounded batch |
 | Status | per-item `ai_status`: `not_requested \| pending \| succeeded \| failed` |
 | Retry | user re-triggers; failed keeps `translation_error` |
 | Future | CF Queue/Workflow optional; not MVP |
@@ -178,18 +179,32 @@ Agent → xray-ingest.hexly.ai
 | Max text length / item | 20_000 UTF-16 code units |
 | Max meta JSON | 8 KiB |
 | Rate limit | 60 req/min per push token (429 + Retry-After) |
+| Rate limit backend (R2-06) | **Cloudflare Rate Limiting binding** `XRAY_INGEST_RL` on Worker (not in-memory). L2 tests mock binding. |
 | URL schemes | `https:` only in custom.url / media |
 | custom.text | markdown subset; **strip raw HTML**; render with sanitizer; external links `rel=noopener noreferrer` |
 
-## 7. Secrets storage (XR-07) — locked
+## 7. Secrets storage (XR-07, R2-07) — locked
 
 | Secret | Storage |
 |--------|---------|
-| AI API keys, zhe.to tokens | D1 **envelope-encrypted** ciphertext; KEK from Worker secret `XRAY_SECRETS_KEK` |
-| Push token plaintext | shown **once** at mint; only SHA-256 (or argon) **hash** stored |
+| AI API keys, zhe.to tokens | D1 BLOB envelope (below); KEK = Worker secret `XRAY_SECRETS_KEK` (32-byte) |
+| Push token plaintext | shown **once**; store `token_prefix` + **SHA-256** hex `token_hash` only |
 | Logs | never log bearer, AI key, zhe credentials, full payloads |
 
-Key rotation: version byte in ciphertext prefix; dual-KEK read during rotate window.
+### Envelope format (WebCrypto)
+
+```
+ciphertext_blob :=
+  key_version:uint8
+  || nonce:12 bytes          # AES-GCM
+  || ciphertext+tag          # AES-256-GCM
+AAD := utf8(user_id || ":" || field_name)   # e.g. userId:ai.api_key
+```
+
+- Algorithm: **AES-256-GCM** via WebCrypto.
+- KEK never leaves Worker env; no DEK wrap hierarchy in MVP (direct KEK encrypt).
+- Rotate: dual-KEK read (`XRAY_SECRETS_KEK` + `XRAY_SECRETS_KEK_PREV`); rewrite on next save.
+- Corrupt/decrypt fail → 500 with code `secrets_corrupt`; never return ciphertext to client.
 
 ## 8. Push tokens
 
@@ -224,16 +239,23 @@ Full port of v1 behavior — contract in [04](04-features.md) §5.
 | `ENVIRONMENT` | `development` \| `test` \| `production` |
 | `AUTH_DEV_BYPASS` | test/dev only |
 
-## 12. CI (XR-14) — mandatory
+## 12. Quality gates on main (XR-14, R2-04) — locked
 
-| Gate | When |
-|------|------|
-| L1 + G1 + gitleaks | every PR / main push (and pre-commit) |
-| L2 + G2 (osv) | every PR / main push (and pre-push) |
-| L3 Playwright | every PR after S5 introduces e2e; required check on main |
-| Required branch protection | main cannot merge red CI |
+Direct pushes to `main` are allowed (D8). **CI cannot block a direct `git push` after the fact.** Hard gates:
 
-S3 delivers hooks **and** GitHub Actions required checks — not optional.
+| Gate | When | Blocks |
+|------|------|--------|
+| pre-commit L1+G1+gitleaks | every local commit | commit |
+| **pre-push L2+G2** | every `git push` to main | **push** (primary gate) |
+| CI GHA L1/L2/G1/G2 | after push / on PR | status check; release blocked if red |
+| L3 Playwright | CI after S5; **release/M8 blocked** if red | release |
+
+Rules:
+
+1. Do **not** claim CI prevents bad commits from landing on main under direct-push.
+2. Developers **must not** `--no-verify` on push without documented emergency.
+3. Optional short-lived PR still welcome; if used, required checks apply before merge.
+4. `release: 2.0.0` / prod DNS cutover **requires green CI including L3**.
 
 ## 13. Release / cutover checklist (XR-23)
 
