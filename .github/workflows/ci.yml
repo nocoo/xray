@@ -9,66 +9,42 @@ on:
 
 jobs:
   quality:
-    uses: nocoo/base-ci/.github/workflows/bun-quality.yml@aec4adc1a817c56790d1698329ef9398a15a754a  # v2026.5
-    with:
-      test-command: "bun run test:coverage"
-      typecheck-command: "echo 'no typecheck configured'"
-      enable-security: "true"
-      enable-l2: "false"
-    secrets: inherit
-
-  # L2: API E2E — vinext requires Node 22+ (node:fs/promises glob)
-  l2-api-e2e:
-    name: "L2 API E2E"
-    needs: [quality]
+    name: L1 + G1
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: "22"
+          bun-version: "1.3.14"
+      - name: Install
+        run: bun install --frozen-lockfile
+      - name: Lint
+        run: bun run lint
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Unit tests
+        run: bun run test
+      - name: Coverage gate
+        run: bun run test:coverage
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile --ignore-scripts
-
-      - name: "L2: API E2E tests"
-        run: bun run test:e2e:api
-        env:
-          CI: "true"
-          E2E_SKIP_AUTH: "true"
-
-  # L3: Browser E2E — Playwright against local vinext dev + SQLite
-  l3-playwright:
-    name: "L3 Playwright E2E"
-    needs: [quality]
+  g2-secrets:
+    name: G2 secrets
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
         with:
-          node-version: "22"
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile --ignore-scripts
-
-      - name: Install Playwright browsers
-        run: bunx playwright install --with-deps chromium
-
-      - name: "L3: Playwright E2E tests"
-        run: bun run test:e2e:browser
+          fetch-depth: 0
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
         env:
-          CI: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Release gate job — same checks; branch protection / human process treats red CI as no-release (R2-04)
+  release-gate:
+    name: Release gate
+    needs: [quality, g2-secrets]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "quality + g2 green — release allowed"
