@@ -1,135 +1,101 @@
 # 04 — Features (v2 product surface)
 
-Visual/CSS: **complete retain** of shell, sidebar dynamics, tweet cards, density, palette.  
-Logic: MVVM on React Router SPA.
+Visual/CSS: **complete retain**. Logic: MVVM SPA.
 
-## 1. Navigation (target)
+## 1. Navigation
 
 ```
 Dashboard
 Watchlists              (dynamic)
 Groups                  (dynamic)
 Integrations
-  └─ zhe.to             (full keep)
-AI Settings             (standalone — not buried)
+  └─ zhe.to
+AI Settings             (standalone)
 Settings
   ├─ General
-  └─ Push tokens        (mint / revoke / labels)
+  └─ Push tokens
 ```
 
-**Removed**: Explore, My Account, Usage, Webhooks.
-
-**Auth**: no app Google button required; user arrives via **CF Access**. Optional minimal `/unauthorized` if JWT email rejected.
+Removed: Explore, My Account, Usage, Webhooks.  
+Auth: CF Access wall on **browser host** `xray.hexly.ai` (dev: `xray.dev.hexly.ai`).
 
 ## 2. Dashboard
 
 | Block | Data |
 |-------|------|
-| Watchlist / member counts | aggregates |
-| Items in last 24h | `items` by created_at |
-| Pending AI | translated_text IS NULL |
-| Mix breakdown | counts by source_type (optional chip) |
-| Recent ingest_logs | last N push batches |
+| Counts | watchlists, members, items 24h |
+| Pending AI | `ai_status = 'pending' OR (translate_enabled path and ai_status='not_requested' and user opted batch)` — **not** raw `translated_text IS NULL` for custom no-AI items |
+| Mix breakdown | by source_type |
+| Recent ingest_logs | last N |
 
-**VM**: `DashboardVm`.
+## 3. Watchlists
 
-## 3. Watchlists (core)
+### List + CRUD (XR-10)
 
-### List `/watchlist`
-
-- CRUD, icons, `?new=1`
-- Show last ingest time / item counts if available
+Full CRUD on `/watchlist`: create, rename, delete, icon, translate_enabled.  
+APIs: `GET/POST /api/watchlists`, `GET/PATCH/DELETE /api/watchlists/:id`.
 
 ### Detail `/watchlist/:id`
 
 | Capability | Behavior |
 |------------|----------|
-| Members | x.com usernames (+ tags/notes); used to label/filter pushes |
-| Timeline | **mixed** `items` ordered by `created_at`; filter chips: All / x.com / custom |
-| Cards | tweet-card for `x.post`; custom card for `custom` |
-| Translate / Summary | batch AI; progress UI |
-| Push helper | show watchlist id + sample curl (token never shown twice) |
-| Logs | ingest_logs for this WL |
-| **No** auto-refresh / pull-from-network button | |
-
-### API
-
-```
-GET/POST     /api/watchlists
-GET/PATCH/DELETE /api/watchlists/:id
-GET/POST/DELETE  /api/watchlists/:id/members…
-GET          /api/watchlists/:id/items?source_type=&since=
-POST         /api/watchlists/:id/translate
-GET          /api/watchlists/:id/logs
-```
+| Members | source-aware (source_type + handle); tags/notes |
+| Timeline | paginated items; filter All / x.com / custom |
+| Cards | tweet-card / custom card (sanitized markdown) |
+| Translate | bounded batch ≤20; updates ai_status |
+| Push helper | watchlist id + sample curl to **ingest host** |
+| Logs | paginated ingest_logs |
+| **No** pull refresh / cron | |
 
 ### Acceptance
 
-1. Create WL → mint push token → push x.com + custom items → both appear in one timeline.
-2. Filter by source_type works.
-3. AI fills translated_text + summary_text when configured.
-4. Tenant isolation: other user’s WL id → 404.
+1. Create WL → mint token → push x.com + custom → both on timeline.  
+2. Source filter works.  
+3. AI fills fields when configured.  
+4. Cross-user ids → 404.
 
 ## 4. Groups
 
-Unchanged intent: organize identities; bulk import; add into watchlist.  
-No ingest root.
+CRUD + source-aware members + bulk import (x.com handles from Twitter export).  
+Add members into a watchlist (copy handles with source_type).
 
-## 5. Integrations — zhe.to (**full keep**)
+## 5. Integrations — zhe.to full keep (XR-11)
 
-- Page `/integrations/zheto`
-- Configure zhe.to credential
-- From item/tweet card: “Save to zhe.to”
-- Port existing UX/API behavior from v1 without TweAPI
+### Retained v1 behavior contract
+
+| Item | Behavior |
+|------|----------|
+| Settings | store zhe.to API base + API key (envelope-encrypted) |
+| Test | optional ping endpoint |
+| Save from card | POST mapped bookmark payload to zhe.to from **item** (x.post URL `https://x.com/i/status/{id}` or custom.url) |
+| Success UX | toast success; idempotent re-save → show zhe response / “already saved” if API returns conflict |
+| Failure UX | toast error with sanitized message; no key leak |
+| Auth | browser Access only |
+
+### E2E
+
+Must cover: configure credential (mock) → save from timeline card → mock zhe API received expected body — not only settings form load.
 
 ## 6. AI Settings (standalone)
 
-Route: `/ai-settings` (nav item distinct).
-
-| Capability | Notes |
-|------------|-------|
-| Provider select | multi-provider registry (gecko / `@nocoo/next-ai` model) |
-| API key | mask on read; write-only update |
-| baseURL / model / sdk type | custom providers |
-| Prompt templates | translation + summary |
-| Test connection | server-side probe |
-
-Worker uses same config for translate/summary jobs.
+`/ai-settings`: multi-provider, masked key, prompts, test connection (gecko patterns).  
+Worker uses encrypted secrets for translate/summary.
 
 ## 7. Settings + Push tokens
 
-### General Settings `/settings`
+### General
 
-- Profile read-only (email from Access)
-- Display prefs if any
-- Retention / window hours (optional)
+Profile (email from Access); `ingest.windowHours` (1–168, default 24).
 
-### Push tokens `/settings/tokens` (or section on settings)
+### Push tokens `/settings/tokens`
 
-| Action | Behavior |
-|--------|----------|
-| List | label, prefix, created, last_used, scopes — **never** full secret |
-| Create | label → show full token **once** + copy |
-| Revoke | soft revoke |
+| Action | Auth | Behavior |
+|--------|------|----------|
+| List | Access | label, prefix, created, last_used — never full secret |
+| Create | Access + Origin check | plaintext once |
+| Revoke | Access | `DELETE /api/push-tokens/:id` |
 
-**Security**: create/revoke require CF Access session only (bat cli_tokens rules).
+## 8. UI porting
 
-## 8. UI porting checklist
-
-| v1 | v2 |
-|----|----|
-| layout/shell/sidebar | keep; drop Explore/My Account/Usage/Webhooks entries |
-| tweet-card | keep; bind CanonicalItem x.post |
-| watchlist/groups pages | VM split |
-| ai-settings | keep as standalone |
-| integrations/zheto | keep |
-| login Google button | replace with Access-aware empty/loading or remove |
-| new | custom item card; push tokens page; source filter chips |
-
-## 9. Settings keys (initial)
-
-```
-ai.*                          # provider, key, model, prompts…
-ingest.windowHours            # default 24
-integrations.zheto.*
-```
+From `legacy/v1`: shell, sidebar (trimmed nav), tweet-card, zheto, ai-settings chrome.  
+New: custom card, tokens page, source chips, ingest-host curl helper.
