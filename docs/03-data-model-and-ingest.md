@@ -270,7 +270,11 @@ CREATE TABLE group_members (
   UNIQUE (group_id, source_type, handle)
 );
 CREATE INDEX group_members_g_idx ON group_members(group_id);
+CREATE UNIQUE INDEX group_members_ext_uidx
+  ON group_members(group_id, source_type, external_author_id)
+  WHERE external_author_id IS NOT NULL;
 ```
+-- same handle normalization as watchlist_members
 
 ### items
 

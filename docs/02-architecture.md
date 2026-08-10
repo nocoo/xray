@@ -183,10 +183,9 @@ Agent → xray-ingest.hexly.ai
 | Translate/summary | **Only** manual: `POST /api/watchlists/:id/translate` body `{ limit?: number, item_ids?: number[] }` |
 | Batch size | default 10, **max 20** |
 | Concurrency | sequential items in one request (no parallel model calls in MVP) |
-| Deadline | hard **25s** wall clock; remaining items stay `not_requested` or revert `pending`→`not_requested` |
 | Per-item | set `pending` + `ai_status_updated_at_ms=now` → model → `succeeded`/`failed` + update timestamp |
 | Selection order | `ORDER BY created_at_ms ASC, id ASC` among eligible |
-| Deadline | single `AbortSignal` / wall clock **25s** from request start |
+| Deadline | single `AbortSignal` / wall clock **25s** from request start; unfinished stay/revert `not_requested` |
 | Response | `{ results: [{ id, ai_status, error? }], timed_out: boolean }` |
 | Stale pending (R4-01) | **only inside translate handler** (not Worker boot): `pending` where `ai_status_updated_at_ms < now-5m` → `not_requested` before selecting work |
 | Dashboard pending | count `ai_status IN ('pending','not_requested')` on `translate_enabled` WLs |

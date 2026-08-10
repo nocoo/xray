@@ -65,10 +65,10 @@ Add members into a watchlist (copy handles with source_type).
 
 ### Settings (browser Access)
 
-| Field | Storage |
+| Field | Storage (R5-02) |
 |-------|---------|
-| `webhookUrl` | user-specific HTTPS URL `https://zhe.to/api/webhook/<token>` — store in `integration_secrets` meta + encrypt full URL or token part |
-| `folder` | optional default folder string ≤50 — non-secret settings |
+| `webhookUrl` | **entire URL** encrypted in `integration_secrets.ciphertext` only; **never** put token in `meta_json`. Prod allowlist: URL must match `^https://zhe\.to/api/webhook/` ; tests inject mock adapter / override host |
+| `folder` | optional ≤50 — plain `settings` or `meta_json` non-secret |
 
 UI: Integrations → zhe.to form (same labels/placeholders as v1).
 
@@ -76,10 +76,14 @@ UI: Integrations → zhe.to form (same labels/placeholders as v1).
 
 `POST /api/integrations/zheto/save` (browser host, Access)
 
-**Request JSON**
+**Request JSON** (optional fields may be omitted)
 
 ```json
-{ "url": "https://x.com/i/status/123", "note?: string", "folder?: string" }
+{
+  "url": "https://x.com/i/status/123",
+  "note": "optional note",
+  "folder": "optional-folder"
+}
 ```
 
 - `url` required  

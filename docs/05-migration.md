@@ -37,44 +37,57 @@ bun run scripts/migrate-v1-to-d1.ts \
 
 ## 3. Unique cutover runbook (R4-02) — single ordered list
 
-**Pre-cutover (no traffic switch yet)**
+**Pre-cutover (no production DNS yet) — R5-01**
 
 1. Create prod D1 `xray-db`; apply all migrations.  
-2. Deploy Worker with bindings: D1, `XRAY_INGEST_RL`, secrets (`CF_ACCESS_*`, `ALLOWED_EMAILS`, `XRAY_SECRETS_KEK`, key version).  
-3. Configure Access: browser host **required**; ingest host **bypass**.  
-4. Staged smoke against workers.dev or temporary route (optional).
+2. Deploy Worker: bindings D1, `XRAY_INGEST_RL`, secrets (`CF_ACCESS_*`, `ALLOWED_EMAILS`, `XRAY_SECRETS_KEK`, `XRAY_SECRETS_KEK_PREV` empty, `XRAY_SECRETS_KEY_VERSION`).  
+3. Access: browser host required; ingest host bypass.  
+4. Add **staging hostnames** to Worker allowlist: `xray-staging.hexly.ai` (Access), `xray-ingest-staging.hexly.ai` (bypass) — for smoke only.  
+5. **Full CI green including L3** on the release commit (**before** freeze/DNS).  
+6. `wrangler d1 export` → store **pre-migrate D1 backup** artifact.
 
 **Cutover**
 
-5. **Freeze v1** (maintenance / stop Railway writes).  
-6. Final v1 sqlite snapshot + checksum.  
-7. `migrate --dry-run` → review.  
-8. `migrate --target remote` + validate SQL counts.  
-9. Smoke on Worker with hosts still pointing old or temp: Access login path + internal push test.  
-10. **Switch browser DNS** `xray.hexly.ai` → Worker.  
-11. Smoke browser login + empty timeline.  
-12. **Enable ingest DNS** `xray-ingest.hexly.ai` → Worker.  
-13. Smoke `curl` Bearer push.  
+7. **Freeze v1** writes.  
+8. Final v1 sqlite snapshot + checksum.  
+9. `migrate --dry-run` → review.  
+10. `migrate --target remote` + full validation SQL (05 §5).  
+11. Smoke on **staging hosts** (login + push) — not unknown Host.  
+12. **Browser DNS** `xray.hexly.ai` → Worker → smoke login.  
+13. **Ingest DNS** `xray-ingest.hexly.ai` → smoke push.  
 14. **Unfreeze** / announce.  
-15. Monitor logs 24h.
+15. Monitor 24h.
 
 **Rollback**
 
-1. **Disable ingest DNS first** (stop external writes).  
-2. Point browser DNS back to v1 **or** previous Worker version.  
-3. Restore D1 from pre-migrate export if data corrupt.  
-4. Re-enable v1 Railway if needed.  
-5. Do **not** leave ingest open while rolling back browser.
+1. **Disable ingest DNS first**.  
+2. Browser DNS → previous target / Worker version pin.  
+3. Restore D1 from **step-6 pre-migrate export** if needed.  
+4. Re-enable v1 if required.  
+5. Never leave ingest open during rollback.
 
 ## 4. Post-migration
 
 Items empty; first Access login binds iss/sub (02 R3-01).
 
-## 5. Validation SQL
+## 5. Validation SQL (R5-04)
+
+Compare source sqlite vs D1 for each:
 
 ```sql
+SELECT count(*) FROM users;
 SELECT count(*) FROM watchlists;
-SELECT count(*) FROM watchlist_members WHERE source_type='x.com';
+SELECT count(*) FROM watchlist_members;
+SELECT count(*) FROM tags;
+SELECT count(*) FROM watchlist_member_tags;
 SELECT count(*) FROM groups;
-SELECT count(*) FROM items;  -- 0
+SELECT count(*) FROM group_members;
+SELECT count(*) FROM settings;
+SELECT count(*) FROM ai_configs;
+SELECT count(*) FROM items;  -- expect 0
+-- orphans
+SELECT count(*) FROM watchlist_members m
+  LEFT JOIN watchlists w ON w.id=m.watchlist_id WHERE w.id IS NULL;
+SELECT count(*) FROM group_members gm
+  LEFT JOIN groups g ON g.id=gm.group_id WHERE g.id IS NULL;
 ```

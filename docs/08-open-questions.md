@@ -74,11 +74,17 @@
 | R4-04 | P2 | KEK_PREV / RL / key version in config list |
 | R4-05 | P2 | handle always lower; ext id partial unique |
 | R4-06 | P3 | parse API v1 canonical envelope wording |
+| R5-01 | P1 | cutover: CI+backup before DNS; staging hosts |
+| R5-02 | P1 | zheto full URL ciphertext only; host allowlist |
+| R5-03 | P2 | group_members ext id partial unique |
+| R5-04 | P2 | full migration validation counts |
+| R5-05 | P3 | JSON example / deadline row cleanup |
 
-## Flexible defaults
+## Locked (not flexible)
 
-| Topic | Default |
-|-------|---------|
-| Multi-user row isolation | yes |
-| AI providers | multi, user-configured |
+| Topic | Rule |
+|-------|------|
+| Multi-user row isolation | **required** (XR-13) |
+| XR-14 CI | pre-push hard gate; CI post-push + **release** gate |
 | Visual debt | none — full CSS retain |
+| AI providers | multi, user-configured |
