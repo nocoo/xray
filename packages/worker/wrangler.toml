@@ -42,15 +42,15 @@ database_id = "af2cbf2a-da14-4fd1-ab45-0f996ef09437"
 migrations_dir = "migrations"
 
 # Dual host (XR-01): browser Access wall vs ingest Bearer-only.
-# Use zone routes (not custom_domain) so existing proxied DNS can stay.
+# Browser host already has external DNS → zone route.
+# Ingest host is new → custom_domain creates DNS + attach.
 [[env.production.routes]]
 pattern = "xray.hexly.ai/*"
 zone_name = "hexly.ai"
 
 [[env.production.routes]]
-pattern = "xray-ingest.hexly.ai/*"
-zone_name = "hexly.ai"
-# S45-04 — production ingest rate limit (replace namespace_id with CF dashboard value)
+pattern = "xray-ingest.hexly.ai"
+custom_domain = true# S45-04 — production ingest rate limit (replace namespace_id with CF dashboard value)
 # Without this binding, production push fail-closes (429 rate_limit_unavailable).
 [[env.production.ratelimits]]
 name = "XRAY_INGEST_RL"
