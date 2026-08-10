@@ -1,12 +1,13 @@
 name = "xray"
 main = "src/index.ts"
-compatibility_date = "2026-08-10"
+compatibility_date = "2026-08-08"
 
 [assets]
 directory = "./static"
 binding = "ASSETS"
-run_worker_first = ["/api/*"]
-not_found_handling = "single-page-application"
+# Worker handles host allowlist first; browser hosts then fetch ASSETS (S23-02)
+run_worker_first = true
+not_found_handling = "none"
 
 # Default (deploy) is production — AUTH_DEV_BYPASS must fail-closed here (S2.3).
 [vars]
