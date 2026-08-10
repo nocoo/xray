@@ -211,12 +211,20 @@ function parseXTweet(raw: unknown, required: boolean): XTweet | ParseFail | unde
 		lang: optStr(tw.lang),
 		possibly_sensitive: optBool(tw.possibly_sensitive),
 	};
-	if (
-		tw.public_metrics &&
-		typeof tw.public_metrics === "object" &&
-		!Array.isArray(tw.public_metrics)
-	) {
+	if (tw.public_metrics !== undefined) {
+		if (
+			!tw.public_metrics ||
+			typeof tw.public_metrics !== "object" ||
+			Array.isArray(tw.public_metrics)
+		) {
+			return { ok: false, code: "schema_mismatch", message: "tweet.public_metrics invalid" };
+		}
 		const m = tw.public_metrics as Record<string, unknown>;
+		for (const [, v] of Object.entries(m)) {
+			if (v !== undefined && typeof v !== "number") {
+				return { ok: false, code: "schema_mismatch", message: "tweet.public_metrics invalid" };
+			}
+		}
 		out.public_metrics = {
 			retweet_count: optNum(m.retweet_count),
 			reply_count: optNum(m.reply_count),
@@ -226,11 +234,120 @@ function parseXTweet(raw: unknown, required: boolean): XTweet | ParseFail | unde
 			impression_count: optNum(m.impression_count),
 		};
 	}
-	if (tw.entities && typeof tw.entities === "object" && !Array.isArray(tw.entities)) {
-		out.entities = tw.entities as XTweet["entities"];
+	if (tw.entities !== undefined) {
+		if (!tw.entities || typeof tw.entities !== "object" || Array.isArray(tw.entities)) {
+			return { ok: false, code: "schema_mismatch", message: "tweet.entities invalid" };
+		}
+		const ent = tw.entities as Record<string, unknown>;
+		const entities: NonNullable<XTweet["entities"]> = {};
+		for (const key of ["urls", "mentions", "hashtags", "cashtags"] as const) {
+			if (ent[key] === undefined) continue;
+			if (!Array.isArray(ent[key])) {
+				return { ok: false, code: "schema_mismatch", message: `tweet.entities.${key} invalid` };
+			}
+			const arr = [];
+			for (const item of ent[key] as unknown[]) {
+				if (!item || typeof item !== "object") {
+					return {
+						ok: false,
+						code: "schema_mismatch",
+						message: `tweet.entities.${key} item invalid`,
+					};
+				}
+				const it = item as Record<string, unknown>;
+				if (typeof it.start !== "number" || typeof it.end !== "number") {
+					return {
+						ok: false,
+						code: "schema_mismatch",
+						message: `tweet.entities.${key} span invalid`,
+					};
+				}
+				if (key === "urls") {
+					if (typeof it.url !== "string") {
+						return {
+							ok: false,
+							code: "schema_mismatch",
+							message: "tweet.entities.urls.url invalid",
+						};
+					}
+					arr.push({
+						start: it.start,
+						end: it.end,
+						url: it.url,
+						expanded_url: typeof it.expanded_url === "string" ? it.expanded_url : undefined,
+						display_url: typeof it.display_url === "string" ? it.display_url : undefined,
+					});
+				} else if (key === "mentions") {
+					if (typeof it.username !== "string") {
+						return {
+							ok: false,
+							code: "schema_mismatch",
+							message: "tweet.entities.mentions.username invalid",
+						};
+					}
+					arr.push({
+						start: it.start,
+						end: it.end,
+						username: it.username,
+						id: typeof it.id === "string" ? it.id : undefined,
+					});
+				} else {
+					if (typeof it.tag !== "string") {
+						return {
+							ok: false,
+							code: "schema_mismatch",
+							message: `tweet.entities.${key}.tag invalid`,
+						};
+					}
+					arr.push({ start: it.start, end: it.end, tag: it.tag });
+				}
+			}
+			(entities as Record<string, unknown>)[key] = arr;
+		}
+		out.entities = entities;
 	}
-	if (tw.attachments && typeof tw.attachments === "object" && !Array.isArray(tw.attachments)) {
-		out.attachments = tw.attachments as XTweet["attachments"];
+	if (tw.attachments !== undefined) {
+		if (!tw.attachments || typeof tw.attachments !== "object" || Array.isArray(tw.attachments)) {
+			return { ok: false, code: "schema_mismatch", message: "tweet.attachments invalid" };
+		}
+		const a = tw.attachments as Record<string, unknown>;
+		const attachments: NonNullable<XTweet["attachments"]> = {};
+		if (a.media_keys !== undefined) {
+			if (!Array.isArray(a.media_keys) || !a.media_keys.every((x) => typeof x === "string")) {
+				return {
+					ok: false,
+					code: "schema_mismatch",
+					message: "tweet.attachments.media_keys invalid",
+				};
+			}
+			attachments.media_keys = a.media_keys as string[];
+		}
+		if (a.poll_ids !== undefined) {
+			if (!Array.isArray(a.poll_ids) || !a.poll_ids.every((x) => typeof x === "string")) {
+				return {
+					ok: false,
+					code: "schema_mismatch",
+					message: "tweet.attachments.poll_ids invalid",
+				};
+			}
+			attachments.poll_ids = a.poll_ids as string[];
+		}
+		out.attachments = attachments;
+	}
+	if (tw.public_metrics !== undefined) {
+		if (
+			!tw.public_metrics ||
+			typeof tw.public_metrics !== "object" ||
+			Array.isArray(tw.public_metrics)
+		) {
+			return { ok: false, code: "schema_mismatch", message: "tweet.public_metrics invalid" };
+		}
+		const m = tw.public_metrics as Record<string, unknown>;
+		for (const k of Object.keys(m)) {
+			if (m[k] !== undefined && typeof m[k] !== "number") {
+				return { ok: false, code: "schema_mismatch", message: "tweet.public_metrics invalid" };
+			}
+		}
 	}
 	if (Array.isArray(tw.referenced_tweets)) {
 		out.referenced_tweets = [];
@@ -353,18 +470,42 @@ export function parseCanonicalItem(raw: unknown): ParseOk | ParseFail {
 		if (b.includes && typeof b.includes === "object" && !Array.isArray(b.includes)) {
 			const inc = b.includes as Record<string, unknown>;
 			const includes: NonNullable<CanonicalXItem["body"]["includes"]> = {};
-			if (Array.isArray(inc.tweets)) {
+			if (inc.tweets !== undefined) {
+				if (!Array.isArray(inc.tweets)) {
+					return { ok: false, code: "schema_mismatch", message: "includes.tweets invalid" };
+				}
 				includes.tweets = [];
 				for (const raw of inc.tweets) {
-					const pt = parseXTweet(raw, false);
-					if (pt && !("ok" in pt)) includes.tweets.push(pt);
+					const pt = parseXTweet(raw, true);
+					if (!pt || ("ok" in pt && pt.ok === false)) {
+						return pt as ParseFail;
+					}
+					includes.tweets.push(pt as XTweet);
 				}
 			}
-			if (Array.isArray(inc.users)) {
-				includes.users = inc.users.map(parseXUser).filter((u): u is XUser => !!u);
+			if (inc.users !== undefined) {
+				if (!Array.isArray(inc.users)) {
+					return { ok: false, code: "schema_mismatch", message: "includes.users invalid" };
+				}
+				includes.users = [];
+				for (const raw of inc.users) {
+					const u = parseXUser(raw);
+					if (!u)
+						return { ok: false, code: "schema_mismatch", message: "includes.users item invalid" };
+					includes.users.push(u);
+				}
 			}
-			if (Array.isArray(inc.media)) {
-				includes.media = inc.media.map(parseXMedia).filter((m): m is XMedia => !!m);
+			if (inc.media !== undefined) {
+				if (!Array.isArray(inc.media)) {
+					return { ok: false, code: "schema_mismatch", message: "includes.media invalid" };
+				}
+				includes.media = [];
+				for (const raw of inc.media) {
+					const m = parseXMedia(raw);
+					if (!m)
+						return { ok: false, code: "schema_mismatch", message: "includes.media item invalid" };
+					includes.media.push(m);
+				}
 			}
 			if (includes.tweets || includes.users || includes.media) {
 				out.body.includes = includes;

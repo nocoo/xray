@@ -89,11 +89,6 @@ function conflictUpdate(_tableUserCol: "user_id", cols: string[]): string {
 	return `ON CONFLICT(id) DO UPDATE SET ${sets} WHERE user_id = excluded.user_id`;
 }
 
-/** Fail apply if id already owned by a different tenant. */
-function tenantConflictGuard(table: string, id: number, userIdSql: string): string {
-	return `SELECT CASE WHEN EXISTS(SELECT 1 FROM ${table} WHERE id = ${id} AND user_id != ${userIdSql}) THEN RAISE(ABORT, 'tenant id conflict ${table}:${id}') END;`;
-}
-
 const fatals: string[] = [];
 const warnings: string[] = [];
 const stmts: string[] = [];
@@ -121,6 +116,8 @@ const users = qRequired<{
 /** old v1 user.id → target D1 user id */
 const idMap = new Map<string, string>();
 const userIdByEmail = new Map<string, string>();
+const wlOwner = new Map<number, string>();
+const groupOwner = new Map<number, string>();
 for (const u of users) {
 	const email = String(u.email).toLowerCase();
 	if (email.includes("e2e-test")) continue;
@@ -173,7 +170,7 @@ for (const w of watchlists) {
 			)}, ${w.translate_enabled ? 1 : 0}, ${msFrom(w.created_at)})
      ${conflictUpdate("user_id", ["name", "description", "icon", "translate_enabled"])};`,
 	);
-	stmts.push(tenantConflictGuard("watchlists", Number(w.id), sqlLit(wUser)));
+	wlOwner.set(Number(w.id), wUser);
 	generated.watchlists += 1;
 }
 
@@ -201,6 +198,15 @@ const memberIds = new Set<number>();
 for (const m of members) {
 	const mUser = requireMapped(m.user_id, `member:${m.id}`);
 	if (!mUser || m.watchlist_id == null) continue;
+	const wlOwn = wlOwner.get(Number(m.watchlist_id));
+	if (!wlOwn) {
+		fatals.push(`member ${m.id} parent watchlist ${m.watchlist_id} missing`);
+		continue;
+	}
+	if (wlOwn !== mUser) {
+		fatals.push(`member ${m.id} cross-tenant parent watchlist ${m.watchlist_id}`);
+		continue;
+	}
 	const handle = normalizeHandle(m.twitter_username || "");
 	if (!handle) {
 		fatals.push(`member ${m.id} empty handle`);
@@ -215,7 +221,6 @@ for (const m of members) {
 			)}, ${sqlLit(handle)}, ${sqlLit(p?.display_name ?? null)}, ${sqlLit(m.note)}, ${msFrom(m.added_at)})
      ${conflictUpdate("user_id", ["handle", "display_name", "note", "external_author_id", "watchlist_id"])};`,
 	);
-	stmts.push(tenantConflictGuard("watchlist_members", Number(m.id), sqlLit(mUser)));
 	memberIds.add(Number(m.id));
 	generated.members += 1;
 }
@@ -233,7 +238,6 @@ for (const t of tags) {
      VALUES (${Number(t.id)}, ${sqlLit(tUser)}, ${sqlLit(t.name)}, ${sqlLit(t.color)})
      ${conflictUpdate("user_id", ["name", "color"])};`,
 	);
-	stmts.push(tenantConflictGuard("tags", Number(t.id), sqlLit(tUser)));
 	tagIds.add(Number(t.id));
 	generated.tags += 1;
 }
@@ -275,7 +279,7 @@ for (const g of groups) {
 			)}, ${msFrom(g.created_at)})
      ${conflictUpdate("user_id", ["name", "description", "icon"])};`,
 	);
-	stmts.push(tenantConflictGuard("groups", Number(g.id), sqlLit(gUser)));
+	groupOwner.set(Number(g.id), gUser);
 	generated.groups += 1;
 }
 
@@ -293,6 +297,15 @@ const gms = qRequired<{
 for (const m of gms) {
 	const gmUser = requireMapped(m.user_id, `group_member:${m.id}`);
 	if (!gmUser) continue;
+	const gOwn = groupOwner.get(Number(m.group_id));
+	if (!gOwn) {
+		fatals.push(`group_member ${m.id} parent group ${m.group_id} missing`);
+		continue;
+	}
+	if (gOwn !== gmUser) {
+		fatals.push(`group_member ${m.id} cross-tenant parent group ${m.group_id}`);
+		continue;
+	}
 	const handle = normalizeHandle(m.twitter_username || "");
 	if (!handle) {
 		fatals.push(`group_member ${m.id} empty handle`);
@@ -307,7 +320,6 @@ for (const m of gms) {
 			)}, ${sqlLit(handle)}, ${sqlLit(p?.display_name ?? null)}, ${msFrom(m.added_at)})
      ${conflictUpdate("user_id", ["handle", "display_name", "external_author_id", "group_id"])};`,
 	);
-	stmts.push(tenantConflictGuard("group_members", Number(m.id), sqlLit(gmUser)));
 	generated.groupMembers += 1;
 }
 
@@ -455,7 +467,15 @@ if (/[;&|`$<>\\\n\r]/.test(outRaw) || outRaw.includes("..")) {
 	process.exit(1);
 }
 const outPath = resolve(outRaw);
+const validationSql = [
+	`-- post-migrate tenant validation (expect 0 rows each)`,
+	`SELECT COUNT(*) AS bad_members FROM watchlist_members m WHERE NOT EXISTS (SELECT 1 FROM watchlists w WHERE w.id=m.watchlist_id AND w.user_id=m.user_id);`,
+	`SELECT COUNT(*) AS bad_group_members FROM group_members gm WHERE NOT EXISTS (SELECT 1 FROM groups g WHERE g.id=gm.group_id AND g.user_id=gm.user_id);`,
+	`SELECT COUNT(*) AS bad_tags FROM watchlist_member_tags j WHERE NOT EXISTS (SELECT 1 FROM watchlist_members m WHERE m.id=j.member_id) OR NOT EXISTS (SELECT 1 FROM tags t WHERE t.id=j.tag_id);`,
+].join("\n");
 await Bun.write(outPath, `${stmts.join("\n")}\n`);
+await Bun.write(outPath.replace(/\.sql$/, ".validate.sql"), `${validationSql}\n`);
+console.log(`Validation SQL → ${outPath.replace(/\.sql$/, ".validate.sql")}`);
 console.log(`Wrote ${stmts.length} statements → ${outPath}`);
 
 const workerCwd = resolve(import.meta.dir, "../packages/worker");

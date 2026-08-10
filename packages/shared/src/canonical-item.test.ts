@@ -18,7 +18,7 @@ describe("parseCanonicalItem", () => {
 			body: {
 				kind: "x.post",
 				tweet: { id: "123", text: "hi", author_id: "u1" },
-				includes: { users: [{ id: "u1", username: "alice" }] },
+				includes: { users: [{ id: "u1", name: "Alice", username: "alice" }] },
 			},
 		});
 		expect(r.ok).toBe(true);
@@ -132,5 +132,18 @@ describe("parseCanonicalItem", () => {
 	test("rejects non-object", () => {
 		expect(parseCanonicalItem(null).ok).toBe(false);
 		expect(parseCanonicalItem("x").ok).toBe(false);
+	});
+
+	test("rejects bad entities shape", () => {
+		const r = parseCanonicalItem({
+			source_type: "x.com",
+			external_id: "1",
+			created_at: "2026-08-10T12:00:00.000Z",
+			body: {
+				kind: "x.post",
+				tweet: { id: "1", text: "hi", entities: { urls: "nope" } },
+			},
+		});
+		expect(r.ok).toBe(false);
 	});
 });

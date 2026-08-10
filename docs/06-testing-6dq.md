@@ -5,7 +5,7 @@
 | Dimension | X-Ray v2 |
 |-----------|----------|
 | **L1** | vitest; domain/VM/repos+mock-d1; coverage gate ≥90% lines domain |
-| **L2** | wrangler `--local` + isolated D1; HTTP routes |
+| **L2** | Vitest HTTP/route/repo matrix with D1-shaped mocks (primary hard gate); wrangler `--local` isolated D1 smoke optional release gate |
 | **L3** | Playwright — **from S5**; CI required on main after introduced |
 | **G1** | biome + tsc strict |
 | **G2** | osv-scanner + gitleaks |
@@ -44,6 +44,10 @@ packages/ui/src/viewmodels/**/*.test.ts
 mock-d1 applies real SQL migrations (bat pattern).
 
 ## 4. L2 layout
+
+**Current hard gate (BD-1 / XR-14):** `bun run test` + `bun run test:coverage` over worker unit/route matrix (mock D1). Full `wrangler --local` process matrix remains a release-gate deepening item, not a pre-push blocker.
+
+## 4b. L2 file layout
 
 ```
 packages/worker/test/l2/

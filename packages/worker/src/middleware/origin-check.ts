@@ -3,9 +3,14 @@ import type { AppEnv } from "../types.js";
 
 const SAFE = new Set(["GET", "HEAD", "OPTIONS"]);
 
+/** Production Host → allowed Origin (exact 1:1). */
+const PROD_ORIGIN_BY_HOST: Record<string, string> = {
+	"xray.hexly.ai": "https://xray.hexly.ai",
+	"xray-staging.hexly.ai": "https://xray-staging.hexly.ai",
+};
+
 /**
- * Browser mutation guard: require exact Origin match (S45R-06 / S45RR-06).
- * Production: scheme + hostname + port must match the browser host URL.
+ * Browser mutation guard: require exact Origin match (S45R-06 / S45RRR-04).
  */
 export async function originCheck(c: Context<AppEnv>, next: Next) {
 	const method = c.req.method.toUpperCase();
@@ -28,15 +33,13 @@ export async function originCheck(c: Context<AppEnv>, next: Next) {
 	try {
 		const o = new URL(origin);
 		if (isProd) {
-			// Locked production browser origins (exact).
-			const allowed = new Set(["https://xray.hexly.ai", "https://xray-staging.hexly.ai"]);
-			if (!allowed.has(origin)) {
+			const expected = PROD_ORIGIN_BY_HOST[host];
+			if (!expected || origin !== expected) {
 				return c.json({ success: false, error: "Cross-origin mutation blocked" }, 403);
 			}
 			return next();
 		}
 
-		// Non-prod: hostname match + local swap; optional port from Host header
 		if (o.hostname !== host) {
 			if (
 				!(

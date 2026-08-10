@@ -84,4 +84,16 @@ describe("originCheck", () => {
 		});
 		expect(res.status).toBe(403);
 	});
+
+	test("rejects staging origin on prod host", async () => {
+		const a = app({ ENVIRONMENT: "production" });
+		const res = await a.request("/api/watchlists", {
+			method: "POST",
+			headers: {
+				host: "xray.hexly.ai",
+				origin: "https://xray-staging.hexly.ai",
+			},
+		});
+		expect(res.status).toBe(403);
+	});
 });

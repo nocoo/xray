@@ -117,7 +117,7 @@ describe("ingestPushRoute", () => {
 					body: {
 						kind: "x.post",
 						tweet: { id: "tw1", text: "hello from x", author_id: "u1" },
-						includes: { users: [{ id: "u1", username: "alice" }] },
+						includes: { users: [{ id: "u1", name: "Alice", username: "alice" }] },
 					},
 				},
 			],
