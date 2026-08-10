@@ -28,6 +28,11 @@ function rowToUser(row: UserRow): AuthUser {
 	};
 }
 
+function isUniqueError(e: unknown): boolean {
+	const msg = e instanceof Error ? e.message : String(e);
+	return /UNIQUE|unique|constraint/i.test(msg);
+}
+
 /**
  * Upsert user by Access identity (R3-01 bind order).
  */
@@ -47,10 +52,30 @@ export async function upsertUserByAccess(
 		.first<UserRow>();
 
 	if (byIdentity) {
-		await db
-			.prepare(`UPDATE users SET email = ?, name = ?, image = ? WHERE id = ?`)
-			.bind(email, identity.name ?? null, identity.image ?? null, byIdentity.id)
-			.run();
+		if (byIdentity.email.toLowerCase() !== email) {
+			const other = await db
+				.prepare(`SELECT id, access_iss, access_sub FROM users WHERE email = ? LIMIT 1`)
+				.bind(email)
+				.first<{ id: string; access_iss: string | null; access_sub: string | null }>();
+			if (
+				other &&
+				other.id !== byIdentity.id &&
+				(other.access_sub != null || other.access_iss != null)
+			) {
+				throw new UserBindConflictError("identity email change conflicts with another bound user");
+			}
+		}
+		try {
+			await db
+				.prepare(`UPDATE users SET email = ?, name = ?, image = ? WHERE id = ?`)
+				.bind(email, identity.name ?? null, identity.image ?? null, byIdentity.id)
+				.run();
+		} catch (e) {
+			if (isUniqueError(e)) {
+				throw new UserBindConflictError("email already bound to another user");
+			}
+			throw e;
+		}
 		return rowToUser({
 			...byIdentity,
 			email,
@@ -83,6 +108,15 @@ export async function upsertUserByAccess(
 			)
 			.run();
 		if ((result.meta.changes ?? 0) === 0) {
+			// race: re-resolve by identity
+			const again = await db
+				.prepare(
+					`SELECT id, access_iss, access_sub, email, name, image
+           FROM users WHERE access_iss = ? AND access_sub = ? LIMIT 1`,
+				)
+				.bind(identity.accessIss, identity.accessSub)
+				.first<UserRow>();
+			if (again) return rowToUser(again);
 			throw new UserBindConflictError("race lost binding access identity");
 		}
 		return {
@@ -96,29 +130,52 @@ export async function upsertUserByAccess(
 	}
 
 	const conflict = await db
-		.prepare(`SELECT id, access_sub FROM users WHERE email = ? LIMIT 1`)
+		.prepare(`SELECT id, access_iss, access_sub FROM users WHERE email = ? LIMIT 1`)
 		.bind(email)
-		.first<{ id: string; access_sub: string | null }>();
-	if (conflict?.access_sub && conflict.access_sub !== identity.accessSub) {
+		.first<{ id: string; access_iss: string | null; access_sub: string | null }>();
+	if (
+		conflict &&
+		(conflict.access_sub !== identity.accessSub || conflict.access_iss !== identity.accessIss)
+	) {
 		throw new UserBindConflictError("email bound to different access identity");
 	}
 
 	const id = crypto.randomUUID();
-	await db
-		.prepare(
-			`INSERT INTO users (id, access_iss, access_sub, email, name, image, created_at_ms)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		)
-		.bind(
-			id,
-			identity.accessIss,
-			identity.accessSub,
-			email,
-			identity.name ?? null,
-			identity.image ?? null,
-			now,
-		)
-		.run();
+	try {
+		await db
+			.prepare(
+				`INSERT INTO users (id, access_iss, access_sub, email, name, image, created_at_ms)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.bind(
+				id,
+				identity.accessIss,
+				identity.accessSub,
+				email,
+				identity.name ?? null,
+				identity.image ?? null,
+				now,
+			)
+			.run();
+	} catch (e) {
+		if (isUniqueError(e)) {
+			const existing = await db
+				.prepare(
+					`SELECT id, access_iss, access_sub, email, name, image
+           FROM users WHERE access_iss = ? AND access_sub = ? OR email = ? LIMIT 1`,
+				)
+				.bind(identity.accessIss, identity.accessSub, email)
+				.first<UserRow>();
+			if (
+				existing?.access_iss === identity.accessIss &&
+				existing.access_sub === identity.accessSub
+			) {
+				return rowToUser(existing);
+			}
+			throw new UserBindConflictError("concurrent insert conflict on users");
+		}
+		throw e;
+	}
 
 	return {
 		id,
@@ -131,6 +188,7 @@ export async function upsertUserByAccess(
 }
 
 export class UserBindConflictError extends Error {
+	readonly code = "USER_BIND_CONFLICT";
 	constructor(message: string) {
 		super(message);
 		this.name = "UserBindConflictError";
