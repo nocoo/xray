@@ -184,10 +184,12 @@ Agent → xray-ingest.hexly.ai
 | Batch size | default 10, **max 20** |
 | Concurrency | sequential items in one request (no parallel model calls in MVP) |
 | Deadline | hard **25s** wall clock; remaining items stay `not_requested` or revert `pending`→`not_requested` |
-| Per-item | set `pending` → call model → `succeeded` or `failed`+`translation_error` |
+| Per-item | set `pending` + `ai_status_updated_at_ms=now` → model → `succeeded`/`failed` + update timestamp |
+| Selection order | `ORDER BY created_at_ms ASC, id ASC` among eligible |
+| Deadline | single `AbortSignal` / wall clock **25s** from request start |
 | Response | `{ results: [{ id, ai_status, error? }], timed_out: boolean }` |
-| Stale pending | on Worker start / next translate: any `pending` older than 5m → `not_requested` |
-| Dashboard pending | count `ai_status IN ('pending','not_requested')` **only where watchlist.translate_enabled=1** and item eligible (x.com or custom with text); no vague “user opted batch” flag |
+| Stale pending (R4-01) | **only inside translate handler** (not Worker boot): `pending` where `ai_status_updated_at_ms < now-5m` → `not_requested` before selecting work |
+| Dashboard pending | count `ai_status IN ('pending','not_requested')` on `translate_enabled` WLs |
 
 ### Limits (XR-08) — locked
 
@@ -256,7 +258,10 @@ Full port of v1 behavior — contract in [04](04-features.md) §5.
 |------|---------|
 | `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` | browser JWT verify |
 | `ALLOWED_EMAILS` | mandatory Worker allowlist |
-| `XRAY_SECRETS_KEK` | envelope encryption |
+| `XRAY_SECRETS_KEK` | 32-byte raw or base64; current KEK (version N) |
+| `XRAY_SECRETS_KEK_PREV` | optional previous KEK during rotate |
+| `XRAY_SECRETS_KEY_VERSION` | integer N written into envelope (default 1) |
+| `XRAY_INGEST_RL` | Rate Limiting binding (wrangler) |
 | `ENVIRONMENT` | `development` \| `test` \| `production` |
 | `AUTH_DEV_BYPASS` | test/dev only |
 

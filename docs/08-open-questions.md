@@ -68,6 +68,12 @@
 | R3-10 | P2 | handle normalize lowercase |
 | R3-11 | P2 | migration automated tests |
 | R3-12 | P2 | parent/child same user_id invariants |
+| R4-01 | P1 | ai_status_updated_at_ms; stale only on translate |
+| R4-02 | P1 | single ordered cutover DNS sequence |
+| R4-03 | P2 | zhe.to wire contract from v1 save route |
+| R4-04 | P2 | KEK_PREV / RL / key version in config list |
+| R4-05 | P2 | handle always lower; ext id partial unique |
+| R4-06 | P3 | parse API v1 canonical envelope wording |
 
 ## Flexible defaults
 

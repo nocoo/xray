@@ -140,20 +140,16 @@ real aggregates；pending AI uses ai_status；e2e counts。
 
 full contract 04§5；**e2e save from card** with mock upstream。
 
-### M8 — Cutover runbook (XR-23)
+### M8 — Cutover (single order — 05 §3 / R4-02)
 
-| Step | |
-|------|--|
-| Prod D1 create + migrations | |
-| Access app: browser host required | |
-| Access: ingest host bypass / separate no-auth route | |
-| DNS xray.hexly.ai + xray-ingest.hexly.ai | |
-| Secrets: AUD, KEK, ALLOWED_EMAILS | |
-| Freeze v1 → migrate → validate | |
-| Smoke browser + curl ingest | |
-| Enable L3 CI required | |
-| `release: 2.0.0` | |
-| Rollback: previous Worker deployment + D1 export | |
+1. Pre-provision D1 migrations + Worker bindings (`XRAY_INGEST_RL`, KEK, KEK_PREV empty, KEY_VERSION, Access secrets).  
+2. Access: browser required; ingest bypass.  
+3. Freeze v1 → snapshot → dry-run → migrate remote → validate counts.  
+4. Smoke Worker (temp route).  
+5. **Browser DNS** `xray.hexly.ai` → smoke login.  
+6. **Ingest DNS** `xray-ingest.hexly.ai` → smoke push.  
+7. Unfreeze; L3 CI green; `release: 2.0.0`.  
+8. Rollback: **stop ingest DNS first** → browser DNS/Worker previous → D1 restore if needed.
 
 ---
 

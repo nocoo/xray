@@ -218,9 +218,12 @@ CREATE TABLE watchlist_members (
   UNIQUE (watchlist_id, source_type, handle)
 );
 CREATE INDEX watchlist_members_wl_idx ON watchlist_members(watchlist_id);
+CREATE UNIQUE INDEX watchlist_members_ext_uidx
+  ON watchlist_members(watchlist_id, source_type, external_author_id)
+  WHERE external_author_id IS NOT NULL;
 ```
 
-**Handle normalization (R3-10)**: trim; strip leading `@`; **lowercase** for `x.com`; `custom` lowercase unless producer sets `meta.handle_case_sensitive=true` (rare). Match priority on ingest: (1) `external_author_id` if both set (2) normalized handle.
+**Handle normalization (R3-10, R4-05)**: trim; strip leading `@`; **always lowercase** for both `x.com` and `custom` in MVP (no case-sensitive exception). Match priority: (1) if `external_author_id` present, match that **within watchlist+source_type** (partial unique index when non-null) (2) else normalized handle.
 
 **v1 map**: `twitter_username` → `source_type='x.com'`, `handle=normalize(username)`, `external_author_id=twitter_id`.
 
@@ -287,6 +290,7 @@ CREATE TABLE items (
   payload_json TEXT NOT NULL,
   ai_status TEXT NOT NULL DEFAULT 'not_requested'
     CHECK (ai_status IN ('not_requested','pending','succeeded','failed')),
+  ai_status_updated_at_ms INTEGER NOT NULL DEFAULT 0,
   translated_text TEXT,
   summary_text TEXT,
   translation_error TEXT,
@@ -294,6 +298,8 @@ CREATE TABLE items (
 );
 CREATE INDEX items_wl_created_idx ON items(watchlist_id, created_at_ms DESC, id DESC);
 CREATE INDEX items_user_created_idx ON items(user_id, created_at_ms DESC);
+CREATE INDEX items_ai_pending_idx ON items(ai_status, ai_status_updated_at_ms)
+  WHERE ai_status = 'pending';
 ```
 
 ### ingest_logs
@@ -423,7 +429,7 @@ Same pattern for `GET /api/watchlists/:id/logs`.
 ## 6. Pipeline
 
 ```
-pushTokenAuth → size/rate limits → parse v1 envelope
+pushTokenAuth → size/rate limits → parse API v1 canonical envelope (R4-06)
   → for each item: schema (discriminated) → time normalize → window
   → match member (source_type + handle/author)
   → INSERT OR IGNORE items

@@ -59,22 +59,76 @@ APIs: `GET/POST /api/watchlists`, `GET/PATCH/DELETE /api/watchlists/:id`.
 CRUD + source-aware members + bulk import (x.com handles from Twitter export).  
 Add members into a watchlist (copy handles with source_type).
 
-## 5. Integrations — zhe.to full keep (XR-11)
+## 5. Integrations — zhe.to full keep (XR-11, R4-03)
 
-### Retained v1 behavior contract
+**Authority**: port behavior from v1 `src/app/api/integrations/zheto/**` + tweet-card save (now under `legacy/v1` after S1).
 
-| Item | Behavior |
-|------|----------|
-| Settings | store zhe.to API base + API key (envelope-encrypted) |
-| Test | optional ping endpoint |
-| Save from card | POST mapped bookmark payload to zhe.to from **item** (x.post URL `https://x.com/i/status/{id}` or custom.url) |
-| Success UX | toast success; idempotent re-save → show zhe response / “already saved” if API returns conflict |
-| Failure UX | toast error with sanitized message; no key leak |
-| Auth | browser Access only |
+### Settings (browser Access)
+
+| Field | Storage |
+|-------|---------|
+| `webhookUrl` | user-specific HTTPS URL `https://zhe.to/api/webhook/<token>` — store in `integration_secrets` meta + encrypt full URL or token part |
+| `folder` | optional default folder string ≤50 — non-secret settings |
+
+UI: Integrations → zhe.to form (same labels/placeholders as v1).
+
+### Save API
+
+`POST /api/integrations/zheto/save` (browser host, Access)
+
+**Request JSON**
+
+```json
+{ "url": "https://x.com/i/status/123", "note?: string", "folder?: string" }
+```
+
+- `url` required  
+- `note` optional, truncated to 500  
+- `folder` optional; else default from settings  
+
+**Upstream call** (Worker → zhe.to)
+
+```
+POST {webhookUrl}
+Content-Type: application/json
+Body: { "url": "...", "note"?: "...", "folder"?: "..." }
+```
+
+Auth is **path token inside webhookUrl** (no extra Authorization header).
+
+**Success response to client**
+
+```json
+{
+  "success": true,
+  "data": {
+    "shortUrl": "https://zhe.to/…"|null,
+    "slug": "…"|null,
+    "originalUrl": "…",
+    "isExisting": true|false
+  }
+}
+```
+
+- Upstream 201 → newly created (`isExisting=false`)  
+- Upstream 200 → already existed (`isExisting=true`) — UI shows saved / already saved  
+- Upstream 4xx/5xx → proxy error; 5xx → client 502  
+
+**Card UX**: idle → saving → saved | error (auto-clear error 3s); disable double-submit.
+
+**URL derivation for items**
+
+| source | url |
+|--------|-----|
+| x.com | `https://x.com/i/status/{tweet.id}` (or author/status if preferred) |
+| custom | `body.url` required to enable Save button |
 
 ### E2E
 
-Must cover: configure credential (mock) → save from timeline card → mock zhe API received expected body — not only settings form load.
+1. Save settings webhookUrl (mock).  
+2. Click Save on timeline card.  
+3. Assert mock upstream received exact JSON `{url, note}` shape.  
+4. Assert UI reaches `saved`.
 
 ## 6. AI Settings (standalone)
 
