@@ -14,6 +14,7 @@ export function useMe(): MeState & { refresh: () => void } {
 
 	const refresh = useCallback(() => setTick((t) => t + 1), []);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: tick forces refresh
 	useEffect(() => {
 		let cancelled = false;
 		setState({ status: "loading" });
