@@ -43,24 +43,36 @@ function memberToCard(m: Member): MockWatchlistMember {
 function itemToTweet(item: TimelineItem): Tweet | null {
 	if (item.sourceType !== "x.com") return null;
 	const payload = item.payload as {
-		body?: { tweet?: Partial<Tweet> & { text?: string; id?: string } };
+		body?: {
+			tweet?: { id?: string; text?: string; author_id?: string };
+			includes?: { users?: Array<{ id?: string; username?: string; name?: string }> };
+		};
+		author?: { id?: string; username?: string; display_name?: string; avatar_url?: string };
 	} | null;
 	const t = payload?.body?.tweet;
+	const users = payload?.body?.includes?.users ?? [];
+	const authorId = t?.author_id || payload?.author?.id;
+	const fromIncludes = authorId ? users.find((u) => u.id === authorId) : undefined;
+	const username =
+		fromIncludes?.username || payload?.author?.username || item.authorUsername || "unknown";
+	const displayName = fromIncludes?.name || payload?.author?.display_name || username;
+	const avatar =
+		payload?.author?.avatar_url ||
+		(username !== "unknown" ? `https://unavatar.io/x/${username}` : undefined);
 	return {
-		id: t?.id || item.externalId,
-		text: t?.text || item.text,
+		id: (typeof t?.id === "string" && t.id) || item.externalId,
+		text: (typeof t?.text === "string" && t.text) || item.text,
 		author: {
-			id: item.authorUsername || "unknown",
-			username: item.authorUsername || "unknown",
-			name: item.authorUsername || "unknown",
-			profile_image_url: item.authorUsername
-				? `https://unavatar.io/x/${item.authorUsername}`
-				: undefined,
+			id: authorId || username,
+			username,
+			name: displayName,
+			profile_image_url: avatar,
 		},
 		created_at: new Date(item.createdAtMs).toISOString(),
-		url: item.authorUsername
-			? `https://x.com/${item.authorUsername}/status/${item.externalId}`
-			: `https://x.com/i/status/${item.externalId}`,
+		url:
+			username !== "unknown"
+				? `https://x.com/${username}/status/${item.externalId}`
+				: `https://x.com/i/status/${item.externalId}`,
 		metrics: {
 			retweet_count: 0,
 			like_count: 0,
@@ -72,8 +84,7 @@ function itemToTweet(item: TimelineItem): Tweet | null {
 		is_retweet: false,
 		is_quote: false,
 		is_reply: false,
-		...(t && typeof t === "object" ? t : {}),
-	} as Tweet;
+	};
 }
 
 export function WatchlistDetailPage() {
@@ -85,7 +96,9 @@ export function WatchlistDetailPage() {
 	const [wl, setWl] = useState<Watchlist | null>(null);
 	const [members, setMembers] = useState<Member[]>([]);
 	const [items, setItems] = useState<TimelineItem[]>([]);
+	const [nextCursor, setNextCursor] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [loadingMore, setLoadingMore] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const columnCount = useColumns();
 
@@ -98,20 +111,48 @@ export function WatchlistDetailPage() {
 		setLoading(true);
 		setError(null);
 		try {
+			const itemOpts =
+				sourceFilter === "all"
+					? { limit: 50 }
+					: { limit: 50, source_type: sourceFilter as SourceType };
 			const [w, m, it] = await Promise.all([
 				fetchWatchlist(watchlistId),
 				fetchMembers(watchlistId),
-				fetchItems(watchlistId, { limit: 100 }),
+				fetchItems(watchlistId, itemOpts),
 			]);
 			setWl(w);
 			setMembers(m);
 			setItems(it.items);
+			setNextCursor(it.next_cursor);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : String(e));
 		} finally {
 			setLoading(false);
 		}
-	}, [watchlistId]);
+	}, [watchlistId, sourceFilter]);
+
+	const loadMore = useCallback(async () => {
+		if (!nextCursor || loadingMore) return;
+		setLoadingMore(true);
+		setError(null);
+		try {
+			const itemOpts =
+				sourceFilter === "all"
+					? { limit: 50, cursor: nextCursor }
+					: {
+							limit: 50,
+							cursor: nextCursor,
+							source_type: sourceFilter as SourceType,
+						};
+			const it = await fetchItems(watchlistId, itemOpts);
+			setItems((prev) => [...prev, ...it.items]);
+			setNextCursor(it.next_cursor);
+		} catch (e) {
+			setError(e instanceof Error ? e.message : String(e));
+		} finally {
+			setLoadingMore(false);
+		}
+	}, [nextCursor, loadingMore, sourceFilter, watchlistId]);
 
 	useEffect(() => {
 		void load();
@@ -130,11 +171,6 @@ export function WatchlistDetailPage() {
 		return members.filter((m) => m.sourceType === sourceFilter);
 	}, [members, sourceFilter]);
 
-	const filteredItems = useMemo(() => {
-		if (sourceFilter === "all") return items;
-		return items.filter((i) => i.sourceType === sourceFilter);
-	}, [items, sourceFilter]);
-
 	const sourceCounts = useMemo(() => {
 		const all = items.length;
 		const x = items.filter((p) => p.sourceType === "x.com").length;
@@ -145,7 +181,7 @@ export function WatchlistDetailPage() {
 	const itemColumns = useMemo(() => {
 		const cols: TimelineItem[][] = Array.from({ length: columnCount }, () => []);
 		const heights = new Array<number>(columnCount).fill(0);
-		for (const item of filteredItems) {
+		for (const item of items) {
 			const h = 80 + Math.ceil(item.text.length / 60) * 20;
 			let minIdx = 0;
 			for (let c = 1; c < columnCount; c++) {
@@ -155,7 +191,7 @@ export function WatchlistDetailPage() {
 			heights[minIdx] = (heights[minIdx] ?? 0) + h;
 		}
 		return cols;
-	}, [filteredItems, columnCount]);
+	}, [items, columnCount]);
 
 	const onAddMember = async () => {
 		const handle = window.prompt("Handle (x.com username or custom handle)");
@@ -277,7 +313,7 @@ export function WatchlistDetailPage() {
 
 			{activeTab === "posts" && !loading && (
 				<div>
-					{filteredItems.length === 0 ? (
+					{items.length === 0 ? (
 						<div className="flex flex-col items-center gap-2 rounded-card bg-secondary p-10 text-center">
 							<Eye className="h-8 w-8 text-muted-foreground" />
 							<p className="text-sm font-medium">No items yet.</p>
@@ -334,6 +370,19 @@ export function WatchlistDetailPage() {
 									)}
 								</div>
 							))}
+						</div>
+					)}
+					{nextCursor && (
+						<div className="mt-4 flex justify-center">
+							<Button
+								variant="outline"
+								size="sm"
+								type="button"
+								disabled={loadingMore}
+								onClick={() => void loadMore()}
+							>
+								{loadingMore ? "Loading…" : "Load more"}
+							</Button>
 						</div>
 					)}
 				</div>
