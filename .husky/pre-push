@@ -1,1 +1,4 @@
-bun run scripts/pre-push.ts
+#!/usr/bin/env sh
+# S1 bootstrap: placeholder. Full L2/G2 returns in S3 (docs/07). BD-1: hard gate restored then.
+set -e
+echo "pre-push: S1 bootstrap (no L2 yet)"

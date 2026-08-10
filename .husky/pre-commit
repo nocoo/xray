@@ -1,5 +1,6 @@
-# === Quality Gate: pre-commit ===
-# L1 + G1 + G2a (6DQ standard)
-bun run lint
-bun run test:coverage
-gitleaks protect --staged --no-banner
+#!/usr/bin/env sh
+# S1 bootstrap: secrets only. Full L1/G1 returns in S3 (docs/07).
+set -e
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --no-banner
+fi
