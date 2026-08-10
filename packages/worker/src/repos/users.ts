@@ -48,9 +48,7 @@ export async function upsertUserByAccess(
 
 	if (byIdentity) {
 		await db
-			.prepare(
-				`UPDATE users SET email = ?, name = ?, image = ? WHERE id = ?`,
-			)
+			.prepare(`UPDATE users SET email = ?, name = ?, image = ? WHERE id = ?`)
 			.bind(email, identity.name ?? null, identity.image ?? null, byIdentity.id)
 			.run();
 		return rowToUser({

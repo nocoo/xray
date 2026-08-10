@@ -1,10 +1,5 @@
 import { describe, expect, test } from "vitest";
-import {
-	assertBootEnv,
-	authDevBypassEnabled,
-	isDevOrTest,
-	parseAllowedEmails,
-} from "./env.js";
+import { assertBootEnv, authDevBypassEnabled, isDevOrTest, parseAllowedEmails } from "./env.js";
 
 describe("env", () => {
 	test("isDevOrTest", () => {

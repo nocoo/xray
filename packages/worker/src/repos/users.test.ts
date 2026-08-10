@@ -43,7 +43,12 @@ function createMemoryDb() {
 				async run() {
 					const s = sql.replace(/\s+/g, " ");
 					if (s.startsWith("UPDATE users SET email")) {
-						const [email, name, image, id] = binds as [string, string | null, string | null, string];
+						const [email, name, image, id] = binds as [
+							string,
+							string | null,
+							string | null,
+							string,
+						];
 						const r = rows.find((x) => x.id === id);
 						if (r) {
 							r.email = email;

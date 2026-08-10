@@ -96,8 +96,7 @@ async function resolveIdentity(
 	const payload = decodeJwtPayload(jwt);
 	const email = typeof payload?.email === "string" ? payload.email : "";
 	const sub = typeof payload?.sub === "string" ? payload.sub : "";
-	const iss =
-		typeof payload?.iss === "string" ? payload.iss : `https://${teamDomain}`;
+	const iss = typeof payload?.iss === "string" ? payload.iss : `https://${teamDomain}`;
 	if (!(email && sub)) {
 		return { ok: false, status: 403, error: "Access JWT missing email or sub" };
 	}
@@ -114,10 +113,7 @@ async function resolveIdentity(
 		return { ok: false, status: 403, error: "Email not allowed" };
 	}
 
-	const name =
-		typeof payload?.name === "string"
-			? payload.name
-			: (email.split("@")[0] ?? null);
+	const name = typeof payload?.name === "string" ? payload.name : (email.split("@")[0] ?? null);
 	const image =
 		typeof payload?.picture === "string"
 			? payload.picture

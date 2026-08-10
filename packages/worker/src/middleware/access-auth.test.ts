@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { beforeEach, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import type { AppEnv } from "../types.js";
 import { accessAuth } from "./access-auth.js";
 
@@ -15,11 +15,7 @@ function mockDb() {
 				},
 				async first() {
 					if (sql.includes("access_iss = ?")) {
-						return (
-							rows.find(
-								(r) => r.access_iss === binds[0] && r.access_sub === binds[1],
-							) ?? null
-						);
+						return rows.find((r) => r.access_iss === binds[0] && r.access_sub === binds[1]) ?? null;
 					}
 					if (sql.includes("access_sub IS NULL")) {
 						return rows.find((r) => r.email === binds[0] && r.access_sub == null) ?? null;
