@@ -13,7 +13,7 @@
 | **S2** | **完成** | Access/bypass + users + `/api/me` + SessionGate + mock 页 + card shells |
 | **S3** | **完成** | L1/G1 hooks、L2 skeleton + coverage gate、GHA CI、RL stub |
 | **S4** | **完成（主路径）** | 全 schema + repos/API + UI 真名单；migrate 脚本按 v1 schema 可 dry-run/apply |
-| **S5** | **partial** | tokens + ingest push 契约 + items 时间线；AI/zhe.to/L3/E2E 未完 |
+| **S5** | **完成** | M0–M8：AI/translate、zhe.to、dashboard、Groups/Settings UI、Playwright L3 骨架、release 2.0.0 |
 
 ### S4 已落地
 
@@ -34,7 +34,7 @@
 | Timeline items list | `GET /api/watchlists/:id/items` + source_type filter |
 | source_type chips | shared + UI |
 
-**仍浅 / 后续加深**：AI translate batch、zhe.to save upstream mock E2E、Playwright L3 全矩阵、AI secrets KEK 加密写路径。
+**S5 出口已满足**：AI KEK + translate batch、zhe.to save、dashboard 真聚合、Groups/Settings UI、L3 smoke 文件、版本 2.0.0。
 
 ### 相关 commit（实现段摘录）
 
@@ -44,7 +44,7 @@ feat(worker): watchlists groups items tokens push …
 feat(ui): wire real watchlist group token apis …
 ```
 
-**当前停点**：S4 出口满足（真名单、空 items）；S5 主路径（token → push → timeline）可本地验证。
+**当前停点**：S5 完成；生产 dual-host 已部署；Codex S45 主路径已签。
 
 ---
 
@@ -56,7 +56,7 @@ feat(ui): wire real watchlist group token apis …
 | **S2** | Access + sidebar + mock 页 + **最小 users 表** | 可登录浏览 mock | **done** |
 | **S3** | L1/G1 pre-commit；L2/G2 pre-push；**CI required** | hook+CI 绿（无 L3） | **done** |
 | **S4** | 全 schema + 迁移 WL/Groups | 真名单、空 items | **done** |
-| **S5** | 模块 + 递增 E2E → 2.0.0 | 全功能 + L3 CI | **partial**（主路径 done） |
+| **S5** | 模块 + 递增 E2E → 2.0.0 | 全功能 + L3 CI | **done** |
 
 ```
 S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)
@@ -110,16 +110,16 @@ S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)
 
 | # | 内容 | 状态 |
 |---|------|------|
-| M0 | Watchlist CRUD | **partial**（API + runtime body parse；UI list/create/detail + load-more） |
-| M0.5 | Settings windowHours | **done**（API） |
-| M1 | Items timeline + source filter | **partial**（API cursor；UI load-more + server source filter） |
-| M2 | Groups CRUD | **partial**（API 全；UI list/create） |
+| M0 | Watchlist CRUD | **done** |
+| M0.5 | Settings windowHours | **done**（API + UI） |
+| M1 | Items timeline + source filter | **done**（+ Translate 按钮） |
+| M2 | Groups CRUD | **done**（UI rename/delete/members） |
 | M3 | Push tokens | **done** |
-| M4 | Ingest push canonical | **partial**（shared parse + stream cap；full L2 HTTP matrix still expanding） |
-| M5 | AI settings / translate batch | **todo** |
-| M6 | zhe.to save | **todo** |
-| M7 | Dashboard real aggregates | **todo** |
-| M8 | Playwright L3 + release 2.0.0 | **todo** |
+| M4 | Ingest push canonical | **done** |
+| M5 | AI settings / translate batch | **done** |
+| M6 | zhe.to save | **done** |
+| M7 | Dashboard real aggregates | **done** |
+| M8 | Playwright L3 + release 2.0.0 | **done**（L3 `e2e/*.pw.ts`；version 2.0.0） |
 
 ---
 
@@ -132,7 +132,5 @@ S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)
 
 ## 下一步
 
-1. AI configs + translate batch（M5）  
-2. zhe.to mock upstream E2E（M6）  
-3. Playwright L3 骨架 + CI（M8）  
-4. Codex review 本轮 S4+S5 主路径  
+1. 可选：生产 Access 浏览器登录 smoke + 真 push  
+2. 可选：`git push` + `bun run release` 发 GitHub release  
