@@ -25,10 +25,21 @@ function AppShellInner({ children }: AppShellProps) {
 	const openButtonRef = useRef<HTMLButtonElement>(null);
 	const previouslyFocused = useRef<HTMLElement | null>(null);
 
+	const resolved = isMobile !== undefined;
+	const mobile = isMobile === true;
+	const drawerOpen = mobile && mobileOpen;
+
 	// biome-ignore lint/correctness/useExhaustiveDependencies: close drawer on route change
 	useEffect(() => {
 		setMobileOpen(false);
 	}, [pathname, setMobileOpen]);
+
+	// Leave mobile breakpoint → close drawer (S12R2-01)
+	useEffect(() => {
+		if (resolved && !mobile && mobileOpen) {
+			setMobileOpen(false);
+		}
+	}, [resolved, mobile, mobileOpen, setMobileOpen]);
 
 	useEffect(() => {
 		if (drawerOpen) {
@@ -41,7 +52,7 @@ function AppShellInner({ children }: AppShellProps) {
 		};
 	}, [drawerOpen]);
 
-	// Focus trap + Escape + restore focus (S12R-03)
+	// Focus trap + Escape + restore focus
 	useEffect(() => {
 		if (!drawerOpen) return;
 		const drawer = drawerRef.current;
@@ -80,17 +91,6 @@ function AppShellInner({ children }: AppShellProps) {
 			restore?.focus();
 		};
 	}, [drawerOpen, setMobileOpen]);
-
-	const resolved = isMobile !== undefined;
-	const mobile = isMobile === true;
-	const drawerOpen = mobile && mobileOpen;
-
-	// Leave mobile breakpoint → close drawer (S12R2-01)
-	useEffect(() => {
-		if (resolved && !mobile && mobileOpen) {
-			setMobileOpen(false);
-		}
-	}, [resolved, mobile, mobileOpen, setMobileOpen]);
 
 	return (
 		<div className="flex min-h-screen w-full bg-background">
