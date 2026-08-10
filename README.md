@@ -16,6 +16,9 @@
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
 </p>
 
+> **v2 rewrite in design (decisions locked).** See [`docs/README.md`](docs/README.md).  
+> Legacy v1 docs: [`docs/legacy/`](docs/legacy/). Decisions: [`docs/08-open-questions.md`](docs/08-open-questions.md).
+
 <p align="center">
   <img src="https://s.zhe.to/dcd0e6e42358/20260305/7e86d7bf-2db7-4163-853e-e4d11961db33.jpg" alt="X-Ray Preview" width="720">
 </p>
