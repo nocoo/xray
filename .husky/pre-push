@@ -1,4 +1,24 @@
 #!/usr/bin/env sh
-# S1 bootstrap: placeholder. Full L2/G2 returns in S3 (docs/07). BD-1: hard gate restored then.
+# S3: L2 skeleton + G2 secrets (full L2 e2e expands S4/S5)
 set -e
-echo "pre-push: S1 bootstrap (no L2 yet)"
+cd "$(dirname "$0")/.."
+
+echo "━━━ L2 worker tests ━━━"
+bun run test:l2
+
+echo "━━━ L1 coverage gate ━━━"
+bun run test:coverage
+
+if command -v gitleaks >/dev/null 2>&1; then
+  echo "━━━ gitleaks (G2) ━━━"
+  gitleaks protect --staged --no-banner || gitleaks detect --no-banner --source .
+else
+  echo "⚠ gitleaks not installed — skip"
+fi
+
+if command -v osv-scanner >/dev/null 2>&1; then
+  echo "━━━ osv-scanner (G2) ━━━"
+  osv-scanner scan --lockfile=bun.lock || true
+else
+  echo "⚠ osv-scanner not installed — skip (CI enforces)"
+fi
