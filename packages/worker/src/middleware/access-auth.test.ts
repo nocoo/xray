@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { afterEach, describe, expect, test } from "vitest";
 import type { AppEnv } from "../types.js";
 import { accessAuth, setJwtVerifierForTests } from "./access-auth.js";
@@ -356,5 +357,111 @@ describe("accessAuth JWT path", () => {
 			headers: { host: "xray-ingest.hexly.ai" },
 		});
 		expect(res.status).toBe(200);
+	});
+});
+
+describe("accessAuth real jose/JWKS path (S23R3-01)", () => {
+	const team = "hexly.cloudflareaccess.com";
+	const aud = "aud-1";
+	const iss = `https://${team}`;
+	let fetchOrig: typeof globalThis.fetch | undefined;
+
+	async function mint(
+		privateKey: CryptoKey,
+		opts: { email?: string; sub: string; issuer: string; audience: string },
+	) {
+		return new SignJWT({ email: opts.email ?? "ok@xray.local", name: "Ok" })
+			.setProtectedHeader({ alg: "RS256", kid: "test-kid" })
+			.setSubject(opts.sub)
+			.setIssuer(opts.issuer)
+			.setAudience(opts.audience)
+			.setIssuedAt()
+			.setExpirationTime("2h")
+			.sign(privateKey);
+	}
+
+	afterEach(() => {
+		if (fetchOrig) globalThis.fetch = fetchOrig;
+		fetchOrig = undefined;
+		setJwtVerifierForTests(null);
+	});
+
+	test("valid signed JWT via JWKS succeeds; bad sig/iss/aud fail", async () => {
+		const pair = await generateKeyPair("RS256");
+		const other = await generateKeyPair("RS256");
+		const pub = await exportJWK(pair.publicKey);
+		pub.kid = "test-kid";
+		pub.alg = "RS256";
+		pub.use = "sig";
+
+		fetchOrig = globalThis.fetch;
+		globalThis.fetch = (async (input: RequestInfo | URL) => {
+			const url = String(input);
+			if (url.includes(`${team}/cdn-cgi/access/certs`)) {
+				return new Response(JSON.stringify({ keys: [pub] }), {
+					headers: { "content-type": "application/json" },
+				});
+			}
+			throw new Error(`unexpected fetch ${url}`);
+		}) as typeof fetch;
+
+		// production jose verifier (not injectable fake)
+		setJwtVerifierForTests(null);
+
+		const app = makeApp({ AUTH_DEV_BYPASS: "false", ENVIRONMENT: "production" });
+		const good = await mint(pair.privateKey, {
+			sub: "sub-real",
+			issuer: iss,
+			audience: aud,
+		});
+		const ok = await app.request("/api/me", {
+			headers: {
+				host: "xray.hexly.ai",
+				"Cf-Access-Jwt-Assertion": good,
+			},
+		});
+		expect(ok.status).toBe(200);
+		const body = (await ok.json()) as { user: { email: string; accessSub: string } };
+		expect(body.user.email).toBe("ok@xray.local");
+		expect(body.user.accessSub).toBe("sub-real");
+
+		const badSig = await mint(other.privateKey, {
+			sub: "sub-bad",
+			issuer: iss,
+			audience: aud,
+		});
+		expect(
+			(
+				await app.request("/api/me", {
+					headers: { host: "xray.hexly.ai", "Cf-Access-Jwt-Assertion": badSig },
+				})
+			).status,
+		).toBe(403);
+
+		const badIss = await mint(pair.privateKey, {
+			sub: "sub-iss",
+			issuer: "https://evil.example",
+			audience: aud,
+		});
+		expect(
+			(
+				await app.request("/api/me", {
+					headers: { host: "xray.hexly.ai", "Cf-Access-Jwt-Assertion": badIss },
+				})
+			).status,
+		).toBe(403);
+
+		const badAud = await mint(pair.privateKey, {
+			sub: "sub-aud",
+			issuer: iss,
+			audience: "wrong-aud",
+		});
+		expect(
+			(
+				await app.request("/api/me", {
+					headers: { host: "xray.hexly.ai", "Cf-Access-Jwt-Assertion": badAud },
+				})
+			).status,
+		).toBe(403);
 	});
 });

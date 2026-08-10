@@ -29,6 +29,8 @@ let jwtVerifier: JwtVerifier = async (token, teamDomain, aud) => {
 };
 
 export function setJwtVerifierForTests(fn: JwtVerifier | null) {
+	jwksCache = null;
+	jwksCacheTeamDomain = null;
 	if (fn) {
 		jwtVerifier = fn;
 	} else {
