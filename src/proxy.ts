@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
@@ -19,40 +19,58 @@ function buildRedirectUrl(req: NextRequest, pathname: string): URL {
   return new URL(target);
 }
 
+function useSecureCookies(): boolean {
+  return (
+    process.env.NODE_ENV === "production" ||
+    process.env.NEXTAUTH_URL?.startsWith("https://") === true ||
+    process.env.USE_SECURE_COOKIES === "true"
+  );
+}
+
+/**
+ * NextAuth's auth() middleware wrapper calls reqWithEnvURL() which does
+ * `new NextRequest(httpsUrl, req)`. Under vinext that drops/ignores the
+ * Cookie header, so req.auth is always null after a successful OAuth
+ * callback. Read the JWT directly from the original request instead.
+ */
+async function isAuthenticated(req: NextRequest): Promise<boolean> {
+  const secret =
+    process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? undefined;
+  if (!secret) return false;
+
+  const token = await getToken({
+    req,
+    secret,
+    secureCookie: useSecureCookies(),
+  });
+  return !!token;
+}
+
 // Next.js 16 proxy convention (replaces middleware.ts)
-const authHandler = auth((req) => {
+export async function proxy(request: NextRequest) {
   if (isE2EAuthBypass()) {
     return NextResponse.next();
   }
 
-  const isLoggedIn = !!req.auth;
-  const isLoginPage = req.nextUrl.pathname === "/login";
+  const isLoggedIn = await isAuthenticated(request);
+  const isLoginPage = request.nextUrl.pathname === "/login";
 
-  // Redirect to home if logged in and trying to access login page
   if (isLoginPage && isLoggedIn) {
-    return NextResponse.redirect(buildRedirectUrl(req, "/"));
+    return NextResponse.redirect(buildRedirectUrl(request, "/"));
   }
 
-  // Redirect to login if not logged in and trying to access protected page
   if (!isLoginPage && !isLoggedIn) {
-    return NextResponse.redirect(buildRedirectUrl(req, "/login"));
+    return NextResponse.redirect(buildRedirectUrl(request, "/login"));
   }
 
   return NextResponse.next();
-});
-
-// Export as named 'proxy' function for Next.js 16
-export function proxy(request: NextRequest) {
-  return authHandler(request, {} as never);
 }
 
 export const config = {
   matcher: [
     // Match all paths except static files and API routes.
     // ALL /api/* routes are excluded because:
-    // 1. /api/auth/* — proxy's auth() consumes the request body, causing
-    //    MissingCSRF on signout/signin POSTs (body already consumed when
-    //    the route handler tries to read it)
+    // 1. /api/xauth/* — body must reach Auth handlers untouched
     // 2. /api/* (non-auth) — already protected by requireAuth() in each
     //    route handler, so proxy-level auth is redundant
     "/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.ico$|.*\\.svg$|api/).*)",

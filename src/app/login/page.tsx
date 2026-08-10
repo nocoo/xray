@@ -34,8 +34,13 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
 
-  // Full navigation GET — avoids vinext POST body hang on auth routes.
-  const googleHref = "/api/xauth/google?callbackUrl=%2F";
+  // Hard top-level navigation. Soft routing aborts the Google redirect and
+  // never reaches /api/xauth/callback/google (same failure mode as prod).
+  const startGoogleLogin = () => {
+    window.location.assign(
+      `${window.location.origin}/api/xauth/google?callbackUrl=%2F`,
+    );
+  };
 
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const year = today.slice(0, 4);
@@ -85,8 +90,9 @@ function LoginContent() {
             </div>
           )}
 
-          <a
-            href={googleHref}
+          <button
+            type="button"
+            onClick={startGoogleLogin}
             className="flex w-full items-center justify-center gap-3 rounded-lg border bg-card px-4 py-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
@@ -108,7 +114,7 @@ function LoginContent() {
               />
             </svg>
             Continue with Google
-          </a>
+          </button>
 
           <p className="text-center text-xs text-muted-foreground">
             Only authorized email addresses can access this application
