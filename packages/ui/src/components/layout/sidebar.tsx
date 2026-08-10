@@ -7,28 +7,15 @@ import { cn, getAvatarColor } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/version";
 import { getV2NavGroups, isActivePath, type UiNavGroup, type UiNavItem } from "./nav-config";
 import { useSidebar } from "./sidebar-context";
+import { SIDEBAR_GEOMETRY as G } from "./sidebar-geometry";
 
-/**
- * Geometry (expanded vs collapsed) — keep left edges stable, tighten right.
- *
- * Logo x = 24 in both modes:
- *   expanded header: pl-6
- *   collapsed header: pl-6
- *
- * Collapse control right inset = 12 (pr-3 only) — v1/bat used nested px-3+px-3=24
- * which read as excess empty space on the right.
- *
- * Nav pill right inset = 12 (items px-3 only) — matches v1 ExpandedNavLink.
- * Group chevron: no h-7 hit-box wrapper (bat) so icon sits in the pr-3 band.
- */
-
-/** Expanded-mode nav link — v1 ExpandedNavLink geometry. */
 function ExpandedNavLink({ item, pathname }: { item: UiNavItem; pathname: string }) {
 	const active = isActivePath(pathname, item.href);
 	return (
 		<Link
 			to={item.href}
 			data-nav-label={item.label}
+			aria-current={active ? "page" : undefined}
 			className={cn(
 				"flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-normal transition-colors",
 				active
@@ -42,7 +29,6 @@ function ExpandedNavLink({ item, pathname }: { item: UiNavItem; pathname: string
 	);
 }
 
-/** Collapsed-mode icon link — fixed 40×40 hit target, v1. */
 function CollapsedNavLink({ item, pathname }: { item: UiNavItem; pathname: string }) {
 	const active = isActivePath(pathname, item.href);
 	return (
@@ -52,6 +38,7 @@ function CollapsedNavLink({ item, pathname }: { item: UiNavItem; pathname: strin
 					to={item.href}
 					data-nav-label={item.label}
 					aria-label={item.label}
+					aria-current={active ? "page" : undefined}
 					className={cn(
 						"relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
 						active
@@ -74,14 +61,11 @@ function NavGroupSection({ group, pathname }: { group: UiNavGroup; pathname: str
 
 	return (
 		<div>
-			{/*
-			 * One horizontal pad band (px-3), not outer+button double pad.
-			 * Chevron is bare (bat) — the old h-7 w-7 wrapper pushed the glyph to ~31px inset.
-			 */}
-			<div className="mt-2 px-3">
+			<div className={cn("mt-2", G.groupBandPadClass)}>
 				<button
 					type="button"
 					onClick={() => setOpen(!open)}
+					aria-expanded={open}
 					className="flex w-full items-center justify-between py-2.5"
 				>
 					<span className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
@@ -93,6 +77,7 @@ function NavGroupSection({ group, pathname }: { group: UiNavGroup; pathname: str
 							!open && "rotate-180",
 						)}
 						strokeWidth={1.5}
+						aria-hidden="true"
 					/>
 				</button>
 			</div>
@@ -104,8 +89,7 @@ function NavGroupSection({ group, pathname }: { group: UiNavGroup; pathname: str
 				}}
 			>
 				<div className="min-h-0 overflow-hidden">
-					{/* items px-3 → pill edge 12px from aside (v1) */}
-					<div className="flex flex-col gap-0.5 px-3">
+					<div className={cn("flex flex-col gap-0.5", G.navItemsPadClass)}>
 						{group.items.map((item) => (
 							<ExpandedNavLink key={item.href} item={item} pathname={pathname} />
 						))}
@@ -123,7 +107,6 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 	const { collapsed, toggle, setMobileOpen } = useSidebar();
 	const groups = getV2NavGroups();
 	const flatItems = groups.flatMap((g) => g.items);
-
 	const showCollapsed = !mobile && collapsed;
 
 	return (
@@ -134,14 +117,19 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 				data-collapsed={showCollapsed ? "true" : "false"}
 				className={cn(
 					"sticky top-0 flex h-screen shrink-0 flex-col overflow-hidden bg-background transition-[width] duration-300 ease-in-out",
-					showCollapsed ? "w-[68px]" : "w-[260px]",
+					showCollapsed ? G.collapsedWidthClass : G.expandedWidthClass,
 				)}
 			>
 				{showCollapsed ? (
-					/* ── Collapsed ── */
-					<div className="flex h-screen w-[68px] flex-col items-center">
-						<div className="flex h-14 w-full items-center justify-start pr-3 pl-6">
-							<img src="/logo-24.png" alt="X-Ray" width={24} height={24} className="shrink-0" />
+					<div className={cn("flex h-screen flex-col items-center", G.collapsedWidthClass)}>
+						<div className={cn("flex h-14 w-full items-center justify-start", G.headerPadClass)}>
+							<img
+								src="/logo-24.png"
+								alt="X-Ray"
+								width={G.logoSizePx}
+								height={G.logoSizePx}
+								className="shrink-0"
+							/>
 						</div>
 
 						<Tooltip>
@@ -150,6 +138,7 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 									type="button"
 									onClick={toggle}
 									aria-label="Expand sidebar"
+									aria-expanded={false}
 									className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 								>
 									<PanelLeft className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
@@ -175,16 +164,17 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 						</div>
 					</div>
 				) : (
-					/* ── Expanded ── */
-					<div className="flex h-screen w-[260px] flex-col">
-						{/*
-						 * Single pad band: pl-6 (logo x=24, matches collapsed) + pr-3 (control x from right=12).
-						 * Old nested px-3 + px-3 put the collapse control at 24px and looked too loose on the right.
-						 */}
-						<div className="flex h-14 items-center pr-3 pl-6">
+					<div className={cn("flex h-screen flex-col", G.expandedWidthClass)}>
+						<div className={cn("flex h-14 items-center", G.headerPadClass)}>
 							<div className="flex w-full items-center justify-between gap-2">
 								<div className="flex min-w-0 items-center gap-3">
-									<img src="/logo-24.png" alt="X-Ray" width={24} height={24} className="shrink-0" />
+									<img
+										src="/logo-24.png"
+										alt="X-Ray"
+										width={G.logoSizePx}
+										height={G.logoSizePx}
+										className="shrink-0"
+									/>
 									<span className="font-mono text-lg font-bold tracking-tighter">X-Ray</span>
 									<span className="rounded-md bg-secondary px-1.5 py-0 text-[10px] font-normal leading-5 text-muted-foreground">
 										v{APP_VERSION}
@@ -195,6 +185,7 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 										type="button"
 										onClick={toggle}
 										aria-label="Collapse sidebar"
+										aria-expanded={true}
 										className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
 									>
 										<PanelLeft className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
@@ -211,8 +202,7 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 							</div>
 						</nav>
 
-						{/* Footer px-4 → avatar left 16px (matches collapsed center) */}
-						<div className="px-4 py-3">
+						<div className={G.footerPadClass}>
 							<div className="flex items-center gap-3">
 								<Avatar className="h-9 w-9 shrink-0">
 									<AvatarFallback
