@@ -49,11 +49,11 @@ if (lines < $PKG_LINES_MIN || funcs < $PKG_FUNCS_MIN) {
 " || fail=1
 done
 
-# Domain gate on worker (lib|middleware|repos|routes)
+# Domain gate on worker (lib|middleware|repos) — docs/06 domain/repos; thin routes excluded
 if [ -f packages/worker/coverage/coverage-summary.json ]; then
   node -e "
 const s=require('./packages/worker/coverage/coverage-summary.json');
-const re=/[\\\\/](lib|middleware|repos|routes)[\\\\/]/;
+const re=/[\\\\/](lib|middleware|repos)[\\\\/]/;
 let lc=0,lt=0,fc=0,ft=0;
 const rows=[];
 for (const [k,v] of Object.entries(s)) {
