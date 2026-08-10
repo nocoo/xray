@@ -50,3 +50,6 @@ data/
 reports/
 .alma-snapshots/
 .superset/
+
+# Local agent/test config fixtures
+config/
