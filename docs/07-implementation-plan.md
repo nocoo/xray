@@ -99,7 +99,7 @@ S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)
 | S4.3–S4.4 | watchlists / members / tags repos+routes | **done** |
 | S4.5 | groups repos+routes | **done** |
 | S4.6 | items list + settings | **done** |
-| S4.7 | `scripts/migrate-v1-to-d1.ts` | **done** |
+| S4.7 | `scripts/migrate-v1-to-d1.ts` | **partial** (required tables/owner/KEK/spawn; L2 migrate e2e still thin) |
 | S4.8 | UI 接真 API | **done** |
 
 **出口**：真名单、空 items — **已满足**。
@@ -110,12 +110,12 @@ S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)
 
 | # | 内容 | 状态 |
 |---|------|------|
-| M0 | Watchlist CRUD | **partial**（API 全；UI list/create/detail members） |
+| M0 | Watchlist CRUD | **partial**（API + runtime body parse；UI list/create/detail + load-more） |
 | M0.5 | Settings windowHours | **done**（API） |
-| M1 | Items timeline + source filter | **partial**（API cursor；UI 首屏） |
+| M1 | Items timeline + source filter | **partial**（API cursor；UI load-more + server source filter） |
 | M2 | Groups CRUD | **partial**（API 全；UI list/create） |
 | M3 | Push tokens | **done** |
-| M4 | Ingest push canonical | **done**（host/scope/window/limit/wire） |
+| M4 | Ingest push canonical | **partial**（shared parse + stream cap；full L2 HTTP matrix still expanding） |
 | M5 | AI settings / translate batch | **todo** |
 | M6 | zhe.to save | **todo** |
 | M7 | Dashboard real aggregates | **todo** |

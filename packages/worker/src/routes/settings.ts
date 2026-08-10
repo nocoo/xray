@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { jsonErr, jsonOk, requireUser } from "../lib/http.js";
-import { getSetting, getWindowHours, setSetting } from "../repos/settings.js";
+import { getWindowHours, setSetting } from "../repos/settings.js";
 import type { AppEnv } from "../types.js";
 
 export async function getSettingsRoute(c: Context<AppEnv>) {
@@ -28,13 +28,4 @@ export async function patchSettingsRoute(c: Context<AppEnv>) {
 	}
 	await setSetting(c.env.DB, user.id, "ingest.windowHours", String(n));
 	return jsonOk(c, { ingest: { windowHours: n } });
-}
-
-export async function getSettingKeyRoute(c: Context<AppEnv>) {
-	const user = requireUser(c);
-	if (user instanceof Response) return user;
-	const key = c.req.param("key");
-	if (!key) return jsonErr(c, "key required", 400);
-	const value = await getSetting(c.env.DB, user.id, key);
-	return jsonOk(c, { key, value });
 }
