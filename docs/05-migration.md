@@ -7,7 +7,8 @@
 | users (real; skip e2e-test-user) | yes — match email → bind access on first login |
 | watchlists / members / tags | yes — members → source_type=`x.com` |
 | groups / group_members | yes — same source_type map |
-| AI settings keys | yes remap |
+| AI settings keys | yes — **secrets → encrypted `ai_configs`** (R3-02) |
+| zhe.to credentials | **no auto-migrate** — user re-enters in UI (safer) |
 | fetched_posts | **NO** |
 | TweAPI credentials, webhooks, usage | **drop** |
 | NextAuth accounts/sessions | drop |
@@ -22,17 +23,20 @@ bun run scripts/migrate-v1-to-d1.ts \
   --map email-map.json   # optional conflicts
 ```
 
-### Idempotency & safety (XR-12)
+### Idempotency & safety (XR-12, R3-02, R3-11)
 
 | Requirement | Behavior |
 |-------------|----------|
-| Dry-run | print counts + conflicts; no writes |
-| Mapping report | JSON: v1_user_id→email, wl/group id preservation |
+| Dry-run | print counts + conflicts; no writes; **never print raw API keys** |
+| Mapping report | JSON: v1_user_id→email, wl/group id preservation; secrets only `{migrated:true\|false}` |
 | Re-run | upsert by preserved PKs / natural keys; safe second run |
 | Transactions | per-tenant batch; fail → no partial tenant |
-| FK order | users → watchlists → members → tags → groups → group_members → settings |
+| FK order | users → watchlists → members → tags → groups → group_members → settings → ai_configs |
 | Email conflict | stop with report unless `--map` provides winner |
-| access_iss/sub | both NULL on migrate (allowed by CHECK); first Access login binds both via email match (R2-01) |
+| access_iss/sub | both NULL on migrate; first Access login binds (R2-01 / R3-01) |
+| AI secrets | require `--kek-env XRAY_SECRETS_KEK` (or file); write **only** `ai_configs.api_key_ciphertext`; never plaintext settings |
+| zhe.to | skip secrets; UI empty → user reconfigure |
+| Automated tests | L1/L2: second run idempotent; email conflict; map file; tenant rollback; kek required for secret rows; dry-run no D1 writes |
 
 ## 3. Cutover runbook (with 07 M8)
 

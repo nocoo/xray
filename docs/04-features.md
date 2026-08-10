@@ -24,7 +24,7 @@ Auth: CF Access wall on **browser host** `xray.hexly.ai` (dev: `xray.dev.hexly.a
 | Block | Data |
 |-------|------|
 | Counts | watchlists, members, items 24h |
-| Pending AI | `ai_status = 'pending' OR (translate_enabled path and ai_status='not_requested' and user opted batch)` — **not** raw `translated_text IS NULL` for custom no-AI items |
+| Pending AI | count items on `translate_enabled` watchlists with `ai_status IN ('pending','not_requested')` (see 02 AI model) |
 | Mix breakdown | by source_type |
 | Recent ingest_logs | last N |
 
@@ -83,9 +83,9 @@ Worker uses encrypted secrets for translate/summary.
 
 ## 7. Settings + Push tokens
 
-### General
+### General (`/settings` — S5 M0.5 / with M0)
 
-Profile (email from Access); `ingest.windowHours` (1–168, default 24).
+Profile (email from Access); `ingest.windowHours` (**1–168**, default 24) via `GET/PATCH /api/settings`.
 
 ### Push tokens `/settings/tokens`
 

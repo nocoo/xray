@@ -211,7 +211,7 @@ CREATE TABLE watchlist_members (
   watchlist_id INTEGER NOT NULL REFERENCES watchlists(id) ON DELETE CASCADE,
   source_type TEXT NOT NULL CHECK (source_type IN ('x.com', 'custom')),
   external_author_id TEXT,
-  handle TEXT NOT NULL,
+  handle TEXT NOT NULL,           -- stored normalized (R3-10)
   display_name TEXT,
   note TEXT,
   added_at_ms INTEGER NOT NULL,
@@ -220,7 +220,9 @@ CREATE TABLE watchlist_members (
 CREATE INDEX watchlist_members_wl_idx ON watchlist_members(watchlist_id);
 ```
 
-**v1 map**: `twitter_username` → `source_type='x.com'`, `handle=username`, `external_author_id=twitter_id`.
+**Handle normalization (R3-10)**: trim; strip leading `@`; **lowercase** for `x.com`; `custom` lowercase unless producer sets `meta.handle_case_sensitive=true` (rare). Match priority on ingest: (1) `external_author_id` if both set (2) normalized handle.
+
+**v1 map**: `twitter_username` → `source_type='x.com'`, `handle=normalize(username)`, `external_author_id=twitter_id`.
 
 ### tags / watchlist_member_tags
 
@@ -374,9 +376,9 @@ CREATE TABLE integration_secrets (
 
 ### Window priority (XR-18)
 
-1. If `options.apply_window_hours` is a number **0..168** → use it.  
-2. Else user setting `ingest.windowHours` default **24**.  
-3. **`null` is not allowed** from clients to mean “unlimited” unless token scope includes `ingest:push:unbounded` (not granted by default mint).  
+1. If `options.apply_window_hours` is a number → must be **1..168** (R3-09); else 400.  
+2. Else user setting `ingest.windowHours` default **24** (also 1..168).  
+3. No unlimited window in MVP.  
 4. Window-rejected items count as `rejected` with code `outside_window`.
 
 ### Dedupe / upsert (XR-16) — locked
