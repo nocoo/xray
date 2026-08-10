@@ -8,9 +8,9 @@
 	],
 	"scripts": {
 		"build:shared": "turbo run build --filter=@xray/shared",
-		"dev": "bun run build:shared && turbo run dev --filter=@xray/shared --filter=@xray/ui --filter=@xray/worker",
+		"dev": "bun run db:migrate:local && bun run build:shared && turbo run dev --filter=@xray/shared --filter=@xray/ui --filter=@xray/worker",
 		"dev:ui": "bun run build:shared && turbo run dev --filter=@xray/shared --filter=@xray/ui",
-		"dev:worker": "bun run build:shared && turbo run dev --filter=@xray/shared --filter=@xray/worker",
+		"dev:worker": "bun run db:migrate:local && bun run build:shared && turbo run dev --filter=@xray/shared --filter=@xray/worker",
 		"build": "turbo run build --filter=@xray/shared --filter=@xray/ui --filter=@xray/worker",
 		"deploy": "bun run build && turbo run deploy --filter=@xray/worker",
 		"typecheck": "turbo typecheck",
@@ -19,7 +19,8 @@
 		"test": "turbo test",
 		"prepare": "husky",
 		"test:coverage": "bash scripts/check-coverage.sh 40 40",
-		"test:l2": "bun run --filter @xray/worker test"
+		"test:l2": "bun run --filter @xray/worker test",
+		"db:migrate:local": "cd packages/worker && wrangler d1 migrations apply xray-db --local --env development"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.7",

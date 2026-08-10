@@ -9,7 +9,8 @@ Twitter/X content monitoring — **v2 rewrite** (CF Workers + D1 + Vite).
 
 ```bash
 bun install
-bun run dev          # builds @xray/shared, then UI :7007 + worker :8787
+bun run db:migrate:local   # apply D1 migrations to local state
+bun run dev                # migrate + shared build + UI :7007 + worker :8787
 # or
 bun run dev:ui       # Vite SPA (proxies /api → 8787)
 bun run dev:worker   # wrangler dev --env development
@@ -40,6 +41,8 @@ Root `package.json` version is the source of truth (currently **pre-release** `2
 
 
 ## Auth (local)
+
+`bun run dev` / `dev:worker` run `db:migrate:local` first so `users` exists.
 
 Worker `wrangler dev --env development` sets:
 - `ENVIRONMENT=development`
