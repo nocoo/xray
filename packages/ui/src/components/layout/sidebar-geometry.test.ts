@@ -1,44 +1,33 @@
 import { describe, expect, test } from "vitest";
+import { SIDEBAR_GEOMETRY as G } from "./sidebar-geometry";
 
-/**
- * Sidebar collapse/expand anti-jitter + right-inset contract.
- *
- * Logo x must match across modes (pl-6 both).
- * Avatar x must match (expanded px-4 vs collapsed center in 68).
- * Expanded right chrome uses a single pr-3 (12), not nested px-3×2 (24).
- */
-const SIDEBAR = {
-	expandedWidth: 260,
-	collapsedWidth: 68,
-	logoSize: 24,
-	avatarSize: 36,
-	logoPad: 24, // pl-6
-	expandedAvatarPad: 16, // px-4
-	expandedRightPad: 12, // pr-3 (collapse control / group band)
-	navPillInset: 12, // items px-3
-} as const;
-
-describe("sidebar geometry contract", () => {
+describe("SIDEBAR_GEOMETRY", () => {
 	test("logo left edge is identical when collapsed and expanded", () => {
-		expect(SIDEBAR.logoPad).toBe(SIDEBAR.logoSize);
+		expect(G.logoPadPx).toBe(G.logoSizePx);
+		expect(G.headerPadClass).toContain("pl-6");
 	});
 
 	test("avatar left edge is identical when collapsed and expanded", () => {
-		const collapsedAvatarLeft = (SIDEBAR.collapsedWidth - SIDEBAR.avatarSize) / 2;
-		expect(collapsedAvatarLeft).toBe(SIDEBAR.expandedAvatarPad);
+		const collapsedAvatarLeft = (G.collapsedWidthPx - G.avatarSizePx) / 2;
+		expect(collapsedAvatarLeft).toBe(G.expandedAvatarPadPx);
+		expect(G.footerPadClass).toContain("px-4");
 	});
 
 	test("expanded right chrome is a single pr-3 band, not double px-3", () => {
-		expect(SIDEBAR.expandedRightPad).toBe(12);
-		expect(SIDEBAR.expandedRightPad).toBeLessThan(24);
+		expect(G.expandedRightPadPx).toBe(12);
+		expect(G.headerPadClass).toContain("pr-3");
+		expect(G.headerPadClass).not.toMatch(/px-3/);
 	});
 
 	test("nav pill inset matches v1 single items px-3", () => {
-		expect(SIDEBAR.navPillInset).toBe(12);
+		expect(G.navPillInsetPx).toBe(12);
+		expect(G.navItemsPadClass).toBe("px-3");
 	});
 
-	test("widths match v1 chrome", () => {
-		expect(SIDEBAR.expandedWidth).toBe(260);
-		expect(SIDEBAR.collapsedWidth).toBe(68);
+	test("widths match v1 chrome classes", () => {
+		expect(G.expandedWidthPx).toBe(260);
+		expect(G.collapsedWidthPx).toBe(68);
+		expect(G.expandedWidthClass).toBe("w-[260px]");
+		expect(G.collapsedWidthClass).toBe("w-[68px]");
 	});
 });
