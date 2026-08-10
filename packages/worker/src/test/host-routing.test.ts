@@ -49,4 +49,65 @@ describe("host routing matrix (R3-04)", () => {
 			(await app.request("/api/live", { headers: { host: "xray-ingest.hexly.ai" } })).status,
 		).toBe(200);
 	});
+
+	test("browser SPA deep link falls back to index; ingest root stays 404", async () => {
+		const app = (await import("../index.js")).default;
+		const indexHtml = new Response("<!doctype html><title>xray</title>", {
+			status: 200,
+			headers: { "content-type": "text/html" },
+		});
+		const assets = {
+			fetch: async (input: RequestInfo | URL) => {
+				const url =
+					typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+				if (url.includes("/index.html") || url.endsWith("/")) return indexHtml.clone();
+				return new Response("missing", { status: 404 });
+			},
+		};
+		const env = {
+			ENVIRONMENT: "development",
+			AUTH_DEV_BYPASS: "true",
+			ALLOWED_EMAILS: "dev@xray.local",
+			ASSETS: assets,
+			DB: {
+				prepare: () => ({
+					bind: () => ({
+						first: async () => ({
+							id: "u1",
+							email: "dev@xray.local",
+							name: "dev",
+							image: null,
+							access_sub: "dev-bypass",
+							access_iss: "dev-bypass",
+							created_at: 0,
+							updated_at: 0,
+						}),
+						run: async () => ({ meta: { changes: 1 } }),
+					}),
+				}),
+			},
+		};
+
+		const spa = await app.request(
+			"http://xray.hexly.ai/watchlist/1",
+			{ headers: { host: "xray.hexly.ai", accept: "text/html" } },
+			env,
+		);
+		expect(spa.status).toBe(200);
+		expect(await spa.text()).toContain("xray");
+
+		const ingestRoot = await app.request(
+			"http://xray-ingest.hexly.ai/",
+			{ headers: { host: "xray-ingest.hexly.ai" } },
+			env,
+		);
+		expect(ingestRoot.status).toBe(404);
+
+		const unknownRoot = await app.request(
+			"http://evil.example/",
+			{ headers: { host: "evil.example" } },
+			env,
+		);
+		expect(unknownRoot.status).toBe(404);
+	});
 });

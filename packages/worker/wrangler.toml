@@ -5,9 +5,10 @@ compatibility_date = "2026-08-08"
 [assets]
 directory = "./static"
 binding = "ASSETS"
-# Worker handles host allowlist first; browser hosts then fetch ASSETS (S23-02)
+# Worker handles host allowlist first; browser hosts then fetch ASSETS (S23-02).
+# SPA fallback only reached for browser/local hosts (ingest/unknown 404 in worker).
 run_worker_first = true
-not_found_handling = "none"
+not_found_handling = "single-page-application"
 
 # Default (deploy) is production — AUTH_DEV_BYPASS must fail-closed here (S2.3).
 [vars]

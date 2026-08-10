@@ -35,7 +35,7 @@ app.use("/api/*", accessAuth);
 app.get("/api/live", liveRoute);
 app.get("/api/me", meRoute);
 
-// Browser/local SPA via ASSETS binding
+// Browser/local SPA via ASSETS binding (SPA not_found_handling in wrangler.toml)
 app.all("*", async (c) => {
 	const kind = classifyHost(c.req.header("host") || "");
 	if (kind === "ingest" || kind === "unknown") {
@@ -45,7 +45,17 @@ app.all("*", async (c) => {
 	if (!assets) {
 		return c.text("xray worker ok (no ASSETS binding)", 200);
 	}
-	return assets.fetch(c.req.raw);
+	const res = await assets.fetch(c.req.raw);
+	// Defense in depth: if assets miss without SPA fallback, serve index.html
+	if (res.status === 404 && c.req.method === "GET") {
+		const accept = c.req.header("accept") || "";
+		if (accept.includes("text/html") || accept === "" || accept.includes("*/*")) {
+			const indexUrl = new URL("/index.html", c.req.url);
+			const indexRes = await assets.fetch(new Request(indexUrl.toString(), c.req.raw));
+			if (indexRes.ok) return indexRes;
+		}
+	}
+	return res;
 });
 
 export default app;
