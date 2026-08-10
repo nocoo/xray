@@ -79,7 +79,11 @@ Local: **`xray.dev.hexly.ai` → 7007** (Caddy). UI vite + worker wrangler dev.
    - verifies JWT (aud, iss, signature via Access certs)
    - extracts **`sub` (required)** + email
    - **Worker `ALLOWED_EMAILS` is mandatory second gate** (defense in depth; fail closed if unset in prod)
-   - upserts `users`: if row exists by email (migrated), bind `access_iss`/`access_sub`; else insert new
+   - upserts `users` with **atomic bind order (R3-01)**:
+     1. `SELECT` by `(access_iss, access_sub)` → use if found (update email/name/image if changed)
+     2. else `SELECT` by email **where access_sub IS NULL** → CAS update set iss/sub (fail if race lost)
+     3. else `INSERT` new user
+     4. identity/email conflicts (bound user A email equals JWT email of different sub) → **403 fail closed** + log for manual map
 4. Browser mutating APIs: require Access session + **same-origin** (check `Origin`/`Sec-Fetch-Site`); no Bearer mint via CORS wildcards.
 
 ### Identity (XR-02, R2-01)
@@ -144,7 +148,18 @@ routes → domain / ingest / ai → repos → D1
 middleware: accessAuth | pushTokenAuth | originCheck
 ```
 
-**Tenant isolation (XR-13)**: every business query includes `user_id` from auth context — never from client body for authorization. Shared L2 matrix: cross-user GET/PATCH/DELETE/push/logs/AI/zheto → **404** (no existence leak).
+**Tenant isolation (XR-13, R3-12)**: every business query includes `user_id` from auth context — never from client body for authorization. Parent lookups always `WHERE id=? AND user_id=?`. L2 matrix: cross-user GET/PATCH/DELETE/push/logs/AI/zheto → **404**. Repo invariant tests: member/item parent must same `user_id` as child row.
+
+**Host routing L2 matrix (R3-04)**
+
+| Host | Path | Expect |
+|------|------|--------|
+| ingest | POST /api/v1/ingest/push + Bearer | 200/4xx business |
+| ingest | GET /api/live | 200 |
+| ingest | GET /api/me or SPA / | **404** |
+| browser | POST push with Bearer only (no Access) | **401** Access or Worker reject |
+| browser | POST push with Access+Bearer | **404** (push not served on browser host) |
+| unknown Host | any | 404 |
 
 ## 6. Ingest model (push-first, no auto refresh)
 
@@ -160,15 +175,19 @@ Agent → xray-ingest.hexly.ai
        → **no AI on ingest path** (R2-02)
 ```
 
-### AI execution model (XR-06, R2-02) — locked MVP
+### AI execution model (XR-06, R2-02, R3-08) — locked MVP
 
 | Mode | MVP |
 |------|-----|
-| Ingest path | **Never** run or enqueue AI |
-| Translate/summary | **Only** manual UI: `POST /api/watchlists/:id/translate` with `limit ≤ 20` **synchronous** bounded batch |
-| Status | per-item `ai_status`: `not_requested \| pending \| succeeded \| failed` |
-| Retry | user re-triggers; failed keeps `translation_error` |
-| Future | CF Queue/Workflow optional; not MVP |
+| Ingest path | **Never** run or enqueue AI; new items `ai_status=not_requested` |
+| Translate/summary | **Only** manual: `POST /api/watchlists/:id/translate` body `{ limit?: number, item_ids?: number[] }` |
+| Batch size | default 10, **max 20** |
+| Concurrency | sequential items in one request (no parallel model calls in MVP) |
+| Deadline | hard **25s** wall clock; remaining items stay `not_requested` or revert `pending`→`not_requested` |
+| Per-item | set `pending` → call model → `succeeded` or `failed`+`translation_error` |
+| Response | `{ results: [{ id, ai_status, error? }], timed_out: boolean }` |
+| Stale pending | on Worker start / next translate: any `pending` older than 5m → `not_requested` |
+| Dashboard pending | count `ai_status IN ('pending','not_requested')` **only where watchlist.translate_enabled=1** and item eligible (x.com or custom with text); no vague “user opted batch” flag |
 
 ### Limits (XR-08) — locked
 
@@ -178,8 +197,8 @@ Agent → xray-ingest.hexly.ai
 | Max items / request | 50 |
 | Max text length / item | 20_000 UTF-16 code units |
 | Max meta JSON | 8 KiB |
-| Rate limit | 60 req/min per push token (429 + Retry-After) |
-| Rate limit backend (R2-06) | **Cloudflare Rate Limiting binding** `XRAY_INGEST_RL` on Worker (not in-memory). L2 tests mock binding. |
+| Rate limit | **Best-effort 60/min per token per Cloudflare location** (R3-03). Not strict global. |
+| Rate limit backend | Worker binding `XRAY_INGEST_RL` type `ratelimit`; `limit({ key: token_id })`. wrangler `namespace_id` + simple `{ limit: 60, period: 60 }`. L2 mocks binding. If strict global ever required → Durable Object (out of MVP). |
 | URL schemes | `https:` only in custom.url / media |
 | custom.text | markdown subset; **strip raw HTML**; render with sanitizer; external links `rel=noopener noreferrer` |
 
@@ -203,8 +222,10 @@ AAD := utf8(user_id || ":" || field_name)   # e.g. userId:ai.api_key
 
 - Algorithm: **AES-256-GCM** via WebCrypto.
 - KEK never leaves Worker env; no DEK wrap hierarchy in MVP (direct KEK encrypt).
-- Rotate: dual-KEK read (`XRAY_SECRETS_KEK` + `XRAY_SECRETS_KEK_PREV`); rewrite on next save.
-- Corrupt/decrypt fail → 500 with code `secrets_corrupt`; never return ciphertext to client.
+- Rotate: dual-KEK read (`XRAY_SECRETS_KEK` + `XRAY_SECRETS_KEK_PREV`).
+- **Read-repair (R3-05)**: every successful decrypt with PREV re-encrypts with current KEK and writes back; optional one-shot `scripts/reencrypt-secrets.ts` before retiring PREV.
+- M8 checklist must verify PREV emptied after reencrypt job.
+- Corrupt/decrypt fail → 500 `secrets_corrupt`; never return ciphertext to client.
 
 ## 8. Push tokens
 
