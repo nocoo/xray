@@ -1,6 +1,12 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.5.7/schema.json",
-	"assist": { "actions": { "source": { "organizeImports": "on" } } },
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	},
 	"linter": {
 		"enabled": true,
 		"rules": {
@@ -65,7 +71,14 @@
 			"!**/.wrangler",
 			"!**/legacy",
 			"!**/docs",
-			"!**/database"
+			"!**/database",
+			"!**/packages/worker/static",
+			"!**/packages/worker/dist",
+			"!**/config",
+			"!**/data",
+			"!**/reports",
+			"!**/.alma-snapshots",
+			"!**/.superset"
 		]
 	}
 }
