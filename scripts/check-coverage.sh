@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# L1 coverage gate — require summary per package (S23-09)
+# L1 coverage gate — require fresh summary per package (S23-09 / S23R2)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -9,12 +9,19 @@ FUNCS_MIN="${2:-50}"
 
 run_cov() {
   local filter="$1"
-  local outdir="$2"
-  bunx turbo run test --filter="$filter" -- --coverage --coverage.reporter=json-summary --coverage.reportsDirectory="$outdir"
+  local pkgdir="$2"
+  local outdir="$ROOT/$pkgdir/coverage"
+  rm -rf "$outdir"
+  # reportsDirectory is relative to package cwd; use bare "coverage"
+  # --force avoids turbo cache serving stale coverage runs
+  bunx turbo run test --filter="$filter" --force -- \
+    --coverage \
+    --coverage.reporter=json-summary \
+    --coverage.reportsDirectory=coverage
 }
 
-run_cov @xray/shared packages/shared/coverage
-run_cov @xray/worker packages/worker/coverage
+run_cov @xray/shared packages/shared
+run_cov @xray/worker packages/worker
 
 fail=0
 for pair in "packages/shared/coverage/coverage-summary.json:shared" "packages/worker/coverage/coverage-summary.json:worker"; do
@@ -22,6 +29,11 @@ for pair in "packages/shared/coverage/coverage-summary.json:shared" "packages/wo
   name="${pair##*:}"
   if [ ! -f "$file" ]; then
     echo "❌ missing coverage summary for $name ($file)"
+    # surface accidental nested paths from wrong reportsDirectory
+    nested=$(find "$ROOT/packages" -path '*/packages/*/coverage/coverage-summary.json' 2>/dev/null | head -5 || true)
+    if [ -n "${nested:-}" ]; then
+      echo "   found nested summaries (path bug): $nested"
+    fi
     fail=1
     continue
   fi
