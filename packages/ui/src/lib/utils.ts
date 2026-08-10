@@ -5,6 +5,49 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
+/** Format a large number compactly: 1200 → "1.2K", 1500000 → "1.5M". */
+export function formatCount(n: number): string {
+	if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+	if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+	return n.toLocaleString();
+}
+
+export type TimeAgoStyle = "compact" | "long" | "coarse";
+
+/** Relative time for tweet cards / lists (legacy v1 parity). */
+export function formatTimeAgo(iso: string, style: TimeAgoStyle = "long"): string {
+	const diff = Date.now() - new Date(iso).getTime();
+	const mins = Math.floor(diff / 60_000);
+	const hours = Math.floor(mins / 60);
+	const days = Math.floor(hours / 24);
+
+	if (style === "compact") {
+		if (mins < 1) return "now";
+		if (mins < 60) return `${mins}m`;
+		if (hours < 24) return `${hours}h`;
+		if (days < 7) return `${days}d`;
+		return new Date(iso).toLocaleDateString("en-US", {
+			month: "short",
+			day: "numeric",
+		});
+	}
+
+	if (style === "coarse") {
+		if (days < 1) return "today";
+		if (days === 1) return "1d ago";
+		if (days < 30) return `${days}d ago`;
+		const months = Math.floor(days / 30);
+		if (months < 12) return `${months}mo ago`;
+		return `${Math.floor(days / 365)}y ago`;
+	}
+
+	if (mins < 1) return "just now";
+	if (mins < 60) return `${mins}m ago`;
+	if (hours < 24) return `${hours}h ago`;
+	if (days < 30) return `${days}d ago`;
+	return new Date(iso).toLocaleDateString();
+}
+
 const AVATAR_COLORS = [
 	"bg-rose-500",
 	"bg-pink-500",
