@@ -49,3 +49,7 @@ export function addGroupMember(
 ) {
 	return apiPost<GroupMember>(`/api/groups/${groupId}/members`, input);
 }
+
+export function deleteGroupMember(groupId: number, memberId: number) {
+	return apiDelete<{ deleted: boolean }>(`/api/groups/${groupId}/members/${memberId}`);
+}

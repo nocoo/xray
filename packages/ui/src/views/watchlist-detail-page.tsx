@@ -2,6 +2,7 @@ import type { SourceType } from "@xray/shared";
 import { Eye, Plus, RefreshCw, Settings, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
+import { translateWatchlist } from "@/api/ai";
 import {
 	addMember,
 	deleteMember,
@@ -206,6 +207,17 @@ export function WatchlistDetailPage() {
 		}
 	};
 
+	const onTranslate = async () => {
+		setError(null);
+		try {
+			const r = await translateWatchlist(watchlistId, { limit: 20 });
+			await load();
+			if (r.timed_out) setError("Translate timed out (partial results applied)");
+		} catch (e) {
+			setError(e instanceof Error ? e.message : String(e));
+		}
+	};
+
 	const onRemoveMember = async (memberId: number) => {
 		try {
 			await deleteMember(watchlistId, memberId);
@@ -260,6 +272,11 @@ export function WatchlistDetailPage() {
 						<Button size="sm" type="button" onClick={() => void onAddMember()}>
 							<Plus className="h-4 w-4" />
 							Add
+						</Button>
+					)}
+					{activeTab === "posts" && (
+						<Button size="sm" type="button" onClick={() => void onTranslate()}>
+							Translate
 						</Button>
 					)}
 					<Button
