@@ -1,6 +1,14 @@
-import { isSourceType, type SourceType } from "@xray/shared";
+import {
+	type CanonicalItem,
+	canonicalText,
+	canonicalTitle,
+	normalizeHandle,
+	parseCanonicalItem,
+	resolveAuthorId,
+	resolveAuthorUsername,
+	type SourceType,
+} from "@xray/shared";
 import type { Context } from "hono";
-import { normalizeHandle } from "../lib/handle.js";
 import { parseBearerToken, sha256Hex, timingSafeEqual } from "../lib/push-token-crypto.js";
 import { checkIngestRateLimit } from "../lib/rate-limit.js";
 import { insertItemIgnore } from "../repos/items.js";
@@ -9,36 +17,12 @@ import { getWindowHours } from "../repos/settings.js";
 import { getWatchlist } from "../repos/watchlists.js";
 import type { AppEnv } from "../types.js";
 
-const MAX_BODY_BYTES = 1_048_576; // 1 MiB
+const MAX_BODY_BYTES = 1_048_576;
 const MAX_ITEMS = 50;
-const EXTERNAL_ID_RE = /^[A-Za-z0-9._:-]{1,128}$/;
 const FUTURE_SKEW_MS = 5 * 60_000;
-
-type PushItem = {
-	source_type?: unknown;
-	external_id?: unknown;
-	created_at?: unknown;
-	author?: {
-		username?: unknown;
-		display_name?: unknown;
-		id?: unknown;
-	};
-	body?: {
-		kind?: unknown;
-		title?: unknown;
-		text?: unknown;
-		url?: unknown;
-		tweet?: { id?: unknown; text?: unknown };
-		tags?: unknown;
-	};
-	meta?: unknown;
-};
 
 type ItemError = { index: number; code: string; message: string };
 
-/**
- * POST /api/v1/ingest/push — ingest host + Bearer push token (docs/03).
- */
 export async function ingestPushRoute(c: Context<AppEnv>) {
 	const cl = c.req.header("content-length");
 	if (cl && Number(cl) > MAX_BODY_BYTES) {
@@ -54,7 +38,6 @@ export async function ingestPushRoute(c: Context<AppEnv>) {
 		return c.json({ ok: false, error: "Invalid token" }, 401);
 	}
 
-	// S45-05 scopes
 	let scopes: string[] = [];
 	try {
 		const parsed = JSON.parse(row.scopes) as unknown;
@@ -74,7 +57,6 @@ export async function ingestPushRoute(c: Context<AppEnv>) {
 		return c.json({ ok: false, error: rl.reason || "Rate limited" }, 429);
 	}
 
-	// Stream-read with hard byte cap (S45R-04)
 	const reader = c.req.raw.body?.getReader();
 	if (!reader) return c.json({ ok: false, error: "empty body" }, 400);
 	const chunks: Uint8Array[] = [];
@@ -97,9 +79,9 @@ export async function ingestPushRoute(c: Context<AppEnv>) {
 	}
 	const merged = new Uint8Array(total);
 	let off = 0;
-	for (const c of chunks) {
-		merged.set(c, off);
-		off += c.byteLength;
+	for (const ch of chunks) {
+		merged.set(ch, off);
+		off += ch.byteLength;
 	}
 	const rawText = new TextDecoder().decode(merged);
 
@@ -131,7 +113,6 @@ export async function ingestPushRoute(c: Context<AppEnv>) {
 	const wl = await getWatchlist(c.env.DB, row.user_id, watchlistId);
 	if (!wl) return c.json({ ok: false, error: "watchlist not found" }, 404);
 
-	// Window (S45-07)
 	let windowHours: number;
 	const optWin = body.options?.apply_window_hours;
 	if (optWin !== undefined && optWin !== null) {
@@ -146,7 +127,6 @@ export async function ingestPushRoute(c: Context<AppEnv>) {
 	const windowMs = windowHours * 3600_000;
 	const now = Date.now();
 
-	// Load members for match (S45-12)
 	const { results: memberRows } = await c.env.DB.prepare(
 		`SELECT id, source_type, external_author_id, handle FROM watchlist_members
      WHERE user_id = ? AND watchlist_id = ?`,
@@ -165,14 +145,14 @@ export async function ingestPushRoute(c: Context<AppEnv>) {
 	const errors: ItemError[] = [];
 
 	for (let i = 0; i < body.items.length; i++) {
-		const item = body.items[i] as PushItem;
-		const parsed = parseCanonicalItem(item);
+		const parsed = parseCanonicalItem(body.items[i]);
 		if (!parsed.ok) {
 			rejected += 1;
 			errors.push({ index: i, code: parsed.code, message: parsed.message });
 			continue;
 		}
-		const createdAtMs = parsed.value.createdAtMs;
+		const item = parsed.value;
+		const createdAtMs = Date.parse(item.created_at);
 		if (createdAtMs > now + FUTURE_SKEW_MS) {
 			rejected += 1;
 			errors.push({ index: i, code: "outside_window", message: "created_at in the future" });
@@ -184,17 +164,19 @@ export async function ingestPushRoute(c: Context<AppEnv>) {
 			continue;
 		}
 
-		const memberId = matchMember(memberRows ?? [], parsed.value);
+		const authorId = resolveAuthorId(item);
+		const authorUsername = resolveAuthorUsername(item);
+		const memberId = matchMember(memberRows ?? [], item.source_type, authorId, authorUsername);
 		const result = await insertItemIgnore(c.env.DB, row.user_id, {
 			watchlistId,
-			sourceType: parsed.value.sourceType,
-			externalId: parsed.value.externalId,
+			sourceType: item.source_type,
+			externalId: item.external_id,
 			memberId,
-			authorUsername: parsed.value.authorUsername,
-			title: parsed.value.title,
-			text: parsed.value.text,
+			authorUsername,
+			title: canonicalTitle(item),
+			text: canonicalText(item),
 			createdAtMs,
-			payload: sanitizePayload(item),
+			payload: item,
 		});
 		if (result === "accepted") accepted += 1;
 		else deduped += 1;
@@ -219,14 +201,7 @@ export async function ingestPushRoute(c: Context<AppEnv>) {
 		)
 		.run();
 
-	// S45-09 wire contract
-	return c.json({
-		ok: true,
-		accepted,
-		deduped,
-		rejected,
-		errors,
-	});
+	return c.json({ ok: true, accepted, deduped, rejected, errors });
 }
 
 function matchMember(
@@ -236,131 +211,22 @@ function matchMember(
 		external_author_id: string | null;
 		handle: string;
 	}>,
-	item: {
-		sourceType: SourceType;
-		authorId: string | null;
-		authorUsername: string | null;
-	},
+	sourceType: SourceType,
+	authorId: string | null,
+	authorUsername: string | null,
 ): number | null {
-	const same = members.filter((m) => m.source_type === item.sourceType);
-	if (item.authorId) {
-		const byId = same.find((m) => m.external_author_id === item.authorId);
+	const same = members.filter((m) => m.source_type === sourceType);
+	if (authorId) {
+		const byId = same.find((m) => m.external_author_id === authorId);
 		if (byId) return byId.id;
 	}
-	if (item.authorUsername) {
-		const h = normalizeHandle(item.authorUsername);
+	if (authorUsername) {
+		const h = normalizeHandle(authorUsername);
 		const byHandle = same.find((m) => m.handle === h);
 		if (byHandle) return byHandle.id;
 	}
 	return null;
 }
 
-function sanitizePayload(item: PushItem): unknown {
-	// Keep canonical fields only — drop unknown top-level junk that UI might spread
-	return {
-		source_type: item.source_type,
-		external_id: item.external_id,
-		created_at: item.created_at,
-		author: item.author
-			? {
-					id: typeof item.author.id === "string" ? item.author.id : undefined,
-					username: typeof item.author.username === "string" ? item.author.username : undefined,
-					display_name:
-						typeof item.author.display_name === "string" ? item.author.display_name : undefined,
-				}
-			: undefined,
-		body: item.body,
-		meta: item.meta && typeof item.meta === "object" ? item.meta : undefined,
-	};
-}
-
-function parseCanonicalItem(item: PushItem):
-	| {
-			ok: true;
-			value: {
-				sourceType: SourceType;
-				externalId: string;
-				text: string;
-				title: string | null;
-				authorUsername: string | null;
-				authorId: string | null;
-				createdAtMs: number;
-			};
-	  }
-	| { ok: false; code: string; message: string } {
-	if (!isSourceType(item.source_type)) {
-		return { ok: false, code: "schema_mismatch", message: "invalid source_type" };
-	}
-	if (typeof item.external_id !== "string" || !EXTERNAL_ID_RE.test(item.external_id)) {
-		return { ok: false, code: "schema_mismatch", message: "invalid external_id" };
-	}
-	if (typeof item.created_at !== "string") {
-		return { ok: false, code: "schema_mismatch", message: "created_at required RFC3339 Z" };
-	}
-	// RFC3339 UTC with Z
-	if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(item.created_at)) {
-		return { ok: false, code: "schema_mismatch", message: "created_at must be RFC3339 UTC Z" };
-	}
-	const createdAtMs = Date.parse(item.created_at);
-	if (!Number.isFinite(createdAtMs)) {
-		return { ok: false, code: "schema_mismatch", message: "invalid created_at" };
-	}
-
-	const authorUsername =
-		typeof item.author?.username === "string" ? item.author.username.trim() : null;
-	const authorId = typeof item.author?.id === "string" ? item.author.id.trim() : null;
-
-	if (item.source_type === "x.com") {
-		if (item.body?.kind !== "x.post") {
-			return { ok: false, code: "schema_mismatch", message: "body.kind must be x.post" };
-		}
-		const text =
-			(typeof item.body.tweet?.text === "string" && item.body.tweet.text.trim()) ||
-			(typeof item.body.text === "string" && item.body.text.trim()) ||
-			"";
-		if (!text || text.length > 20_000) {
-			return { ok: false, code: "schema_mismatch", message: "invalid tweet text" };
-		}
-		return {
-			ok: true,
-			value: {
-				sourceType: "x.com",
-				externalId: item.external_id,
-				text,
-				title: null,
-				authorUsername,
-				authorId,
-				createdAtMs,
-			},
-		};
-	}
-
-	if (item.body?.kind !== "custom") {
-		return { ok: false, code: "schema_mismatch", message: "body.kind must be custom" };
-	}
-	const text = typeof item.body.text === "string" ? item.body.text.trim() : "";
-	if (!text || text.length > 20_000) {
-		return { ok: false, code: "schema_mismatch", message: "invalid custom text" };
-	}
-	const title =
-		typeof item.body.title === "string" ? item.body.title.trim().slice(0, 500) || null : null;
-	if (item.body.url !== undefined && item.body.url !== null) {
-		if (typeof item.body.url !== "string" || !item.body.url.startsWith("https://")) {
-			return { ok: false, code: "schema_mismatch", message: "url must be https" };
-		}
-	}
-	return {
-		ok: true,
-		value: {
-			sourceType: "custom",
-			externalId: item.external_id,
-			text,
-			title,
-			authorUsername:
-				authorUsername ||
-				(typeof item.author?.display_name === "string" ? item.author.display_name.trim() : null),
-			authorId,
-			createdAtMs,
-		},
-	};
-}
+// keep type used for clarity
+export type { CanonicalItem };
