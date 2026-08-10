@@ -4,6 +4,8 @@ import { classifyHost } from "./lib/hosts.js";
 import { accessAuth } from "./middleware/access-auth.js";
 import { observability } from "./middleware/observability.js";
 import { originCheck } from "./middleware/origin-check.js";
+import { getAiConfigRoute, putAiConfigRoute } from "./routes/ai.js";
+import { getDashboardRoute } from "./routes/dashboard.js";
 import {
 	addGroupMemberRoute,
 	createGroupRoute,
@@ -20,6 +22,7 @@ import { liveRoute } from "./routes/live.js";
 import { meRoute } from "./routes/me.js";
 import { getSettingsRoute, patchSettingsRoute } from "./routes/settings.js";
 import { createTokenRoute, listTokensRoute, revokeTokenRoute } from "./routes/tokens.js";
+import { translateWatchlistRoute } from "./routes/translate.js";
 import {
 	addMemberRoute,
 	createTagRoute,
@@ -33,6 +36,7 @@ import {
 	patchMemberRoute,
 	patchWatchlistRoute,
 } from "./routes/watchlists.js";
+import { getZhetoSettingsRoute, putZhetoSettingsRoute, zhetoSaveRoute } from "./routes/zheto.js";
 import type { AppEnv } from "./types.js";
 
 const app = new Hono<AppEnv>();
@@ -94,6 +98,16 @@ app.delete("/api/groups/:id/members/:memberId", deleteGroupMemberRoute);
 
 app.get("/api/settings", getSettingsRoute);
 app.patch("/api/settings", patchSettingsRoute);
+
+app.get("/api/dashboard", getDashboardRoute);
+
+app.get("/api/ai-config", getAiConfigRoute);
+app.put("/api/ai-config", putAiConfigRoute);
+app.post("/api/watchlists/:id/translate", translateWatchlistRoute);
+
+app.get("/api/integrations/zheto", getZhetoSettingsRoute);
+app.put("/api/integrations/zheto", putZhetoSettingsRoute);
+app.post("/api/integrations/zheto/save", zhetoSaveRoute);
 
 app.get("/api/push-tokens", listTokensRoute);
 app.post("/api/push-tokens", createTokenRoute);
