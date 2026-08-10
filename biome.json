@@ -78,7 +78,8 @@
 			"!**/data",
 			"!**/reports",
 			"!**/.alma-snapshots",
-			"!**/.superset"
+			"!**/.superset",
+			"!**/packages/**/coverage"
 		]
 	}
 }
