@@ -65,23 +65,45 @@ function toItemDto(row: ItemRow): ItemDto {
 	};
 }
 
+/** Opaque cursor: base64url(created_at_ms:id) */
+export function encodeItemCursor(createdAtMs: number, id: number): string {
+	const raw = `${createdAtMs}:${id}`;
+	return btoa(raw).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+export function decodeItemCursor(cursor: string): { createdAtMs: number; id: number } | null {
+	try {
+		const pad = cursor.length % 4 === 0 ? "" : "=".repeat(4 - (cursor.length % 4));
+		const b64 = cursor.replace(/-/g, "+").replace(/_/g, "/") + pad;
+		const raw = atob(b64);
+		const [a, b] = raw.split(":");
+		const createdAtMs = Number(a);
+		const id = Number(b);
+		if (!Number.isFinite(createdAtMs) || !Number.isInteger(id) || id <= 0) return null;
+		return { createdAtMs, id };
+	} catch {
+		return null;
+	}
+}
+
 export async function listItems(
 	db: D1Database,
 	userId: string,
 	watchlistId: number,
-	opts: { limit?: number; cursor?: number | null; sourceType?: SourceType | null } = {},
-): Promise<{ items: ItemDto[]; nextCursor: number | null }> {
-	const limit = Math.min(Math.max(opts.limit ?? 50, 1), 200);
-	const cursor = opts.cursor ?? null;
+	opts: { limit?: number; cursor?: string | null; sourceType?: SourceType | null } = {},
+): Promise<{ items: ItemDto[]; next_cursor: string | null }> {
+	const limit = Math.min(Math.max(opts.limit ?? 50, 1), 100);
 	const params: unknown[] = [userId, watchlistId];
 	let sql = `SELECT * FROM items WHERE user_id = ? AND watchlist_id = ?`;
 	if (opts.sourceType) {
 		sql += ` AND source_type = ?`;
 		params.push(opts.sourceType);
 	}
-	if (cursor != null) {
-		sql += ` AND id < ?`;
-		params.push(cursor);
+	if (opts.cursor) {
+		const decoded = decodeItemCursor(opts.cursor);
+		if (!decoded) throw new ItemCursorError("invalid cursor");
+		sql += ` AND (created_at_ms < ? OR (created_at_ms = ? AND id < ?))`;
+		params.push(decoded.createdAtMs, decoded.createdAtMs, decoded.id);
 	}
 	sql += ` ORDER BY created_at_ms DESC, id DESC LIMIT ?`;
 	params.push(limit + 1);
@@ -93,8 +115,9 @@ export async function listItems(
 	const hasMore = rows.length > limit;
 	const slice = hasMore ? rows.slice(0, limit) : rows;
 	const items = slice.map(toItemDto);
-	const nextCursor = hasMore ? (items[items.length - 1]?.id ?? null) : null;
-	return { items, nextCursor };
+	const last = items[items.length - 1];
+	const next_cursor = hasMore && last ? encodeItemCursor(last.createdAtMs, last.id) : null;
+	return { items, next_cursor };
 }
 
 export async function insertItemIgnore(
@@ -149,4 +172,11 @@ export async function deleteItem(db: D1Database, userId: string, itemId: number)
 		.bind(itemId, userId)
 		.run();
 	return (result.meta.changes ?? 0) > 0;
+}
+
+export class ItemCursorError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "ItemCursorError";
+	}
 }

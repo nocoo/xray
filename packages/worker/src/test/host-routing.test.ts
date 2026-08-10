@@ -41,12 +41,30 @@ describe("host routing matrix (R3-04)", () => {
 		app.use("/api/*", accessAuth);
 		app.get("/api/me", (c) => c.json({ ok: true }));
 		app.get("/api/live", (c) => c.json({ ok: true }));
+		app.post("/api/v1/ingest/push", (c) => c.json({ ok: true }));
 
 		expect(
 			(await app.request("/api/me", { headers: { host: "xray-ingest.hexly.ai" } })).status,
 		).toBe(404);
 		expect(
 			(await app.request("/api/live", { headers: { host: "xray-ingest.hexly.ai" } })).status,
+		).toBe(200);
+		// S45-03: browser host must not expose push
+		expect(
+			(
+				await app.request("/api/v1/ingest/push", {
+					method: "POST",
+					headers: { host: "xray.hexly.ai" },
+				})
+			).status,
+		).toBe(404);
+		expect(
+			(
+				await app.request("/api/v1/ingest/push", {
+					method: "POST",
+					headers: { host: "xray-ingest.hexly.ai" },
+				})
+			).status,
 		).toBe(200);
 	});
 

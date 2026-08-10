@@ -13,8 +13,15 @@ export async function listTokensRoute(c: Context<AppEnv>) {
 export async function createTokenRoute(c: Context<AppEnv>) {
 	const user = requireUser(c);
 	if (user instanceof Response) return user;
-	const body = (await c.req.json().catch(() => null)) as { label?: string } | null;
-	const label = body?.label?.trim() || "default";
+	const ct = c.req.header("content-type") || "";
+	if (!ct.includes("application/json")) {
+		return jsonErr(c, "Content-Type must be application/json", 400);
+	}
+	const body = (await c.req.json().catch(() => null)) as { label?: unknown } | null;
+	if (!body || typeof body.label !== "string" || !body.label.trim()) {
+		return jsonErr(c, "label required", 400);
+	}
+	const label = body.label.trim().slice(0, 64);
 	const minted = await mintPushToken();
 	const meta = await createPushToken(
 		c.env.DB,

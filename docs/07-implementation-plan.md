@@ -12,8 +12,8 @@
 | **S1** | **完成** | v1 归档 + monorepo + `/api/live` + UI 可启动 |
 | **S2** | **完成** | Access/bypass + users + `/api/me` + SessionGate + mock 页 + card shells |
 | **S3** | **完成** | L1/G1 hooks、L2 skeleton + coverage gate、GHA CI、RL stub |
-| **S4** | **完成** | 全 schema + WL/Groups/tags/items/settings repos + migrate script + UI 接真 API |
-| **S5** | **骨架完成** | Push tokens + ingest push + 时间线读空 items；AI/zhe.to/E2E 增量仍可加深 |
+| **S4** | **完成（主路径）** | 全 schema + repos/API + UI 真名单；migrate 脚本按 v1 schema 可 dry-run/apply |
+| **S5** | **partial** | tokens + ingest push 契约 + items 时间线；AI/zhe.to/L3/E2E 未完 |
 
 ### S4 已落地
 
@@ -110,15 +110,15 @@ S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)
 
 | # | 内容 | 状态 |
 |---|------|------|
-| M0 | Watchlist CRUD（API+UI） | **done** |
+| M0 | Watchlist CRUD | **partial**（API 全；UI list/create/detail members） |
 | M0.5 | Settings windowHours | **done**（API） |
-| M1 | Items timeline + source filter | **done** |
-| M2 | Groups CRUD | **done** |
+| M1 | Items timeline + source filter | **partial**（API cursor；UI 首屏） |
+| M2 | Groups CRUD | **partial**（API 全；UI list/create） |
 | M3 | Push tokens | **done** |
-| M4 | Ingest push canonical | **done** |
-| M5 | AI settings / translate batch | **todo**（浅） |
-| M6 | zhe.to save | **todo**（浅） |
-| M7 | Dashboard real aggregates | **todo**（浅） |
+| M4 | Ingest push canonical | **done**（host/scope/window/limit/wire） |
+| M5 | AI settings / translate batch | **todo** |
+| M6 | zhe.to save | **todo** |
+| M7 | Dashboard real aggregates | **todo** |
 | M8 | Playwright L3 + release 2.0.0 | **todo** |
 
 ---

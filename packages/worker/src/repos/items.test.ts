@@ -1,5 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { deleteItem, insertItemIgnore, listItems } from "./items.js";
+import {
+	decodeItemCursor,
+	deleteItem,
+	encodeItemCursor,
+	insertItemIgnore,
+	listItems,
+} from "./items.js";
 
 function memDb() {
 	const items: Array<Record<string, unknown>> = [];
@@ -13,15 +19,29 @@ function memDb() {
 					return stmt;
 				},
 				async all<T>() {
-					// simplified: return all items for user/wl
 					const userId = binds[0] as string;
 					const wl = binds[1] as number;
 					let rows = items.filter((i) => i.user_id === userId && i.watchlist_id === wl);
+					let bi = 2;
 					if (sql.includes("source_type = ?")) {
-						const st = binds[2] as string;
+						const st = binds[bi++] as string;
 						rows = rows.filter((i) => i.source_type === st);
 					}
-					rows = [...rows].sort((a, b) => Number(b.created_at_ms) - Number(a.created_at_ms));
+					if (sql.includes("created_at_ms < ?")) {
+						const ca = binds[bi++] as number;
+						bi++; // duplicate created_at for OR branch
+						const id = binds[bi++] as number;
+						rows = rows.filter(
+							(i) =>
+								Number(i.created_at_ms) < ca ||
+								(Number(i.created_at_ms) === ca && Number(i.id) < id),
+						);
+					}
+					rows = [...rows].sort((a, b) => {
+						const dc = Number(b.created_at_ms) - Number(a.created_at_ms);
+						if (dc !== 0) return dc;
+						return Number(b.id) - Number(a.id);
+					});
 					const limit = Number(binds[binds.length - 1]);
 					return { results: rows.slice(0, limit) as T[] };
 				},
@@ -101,15 +121,16 @@ function memDb() {
 }
 
 describe("items repo", () => {
-	test("insert dedupe list delete", async () => {
+	test("insert dedupe list cursor delete", async () => {
 		const db = memDb();
+		const t0 = Date.now();
 		expect(
 			await insertItemIgnore(db, "u1", {
 				watchlistId: 1,
 				sourceType: "custom",
 				externalId: "a1",
 				text: "hello",
-				createdAtMs: Date.now(),
+				createdAtMs: t0,
 				payload: { source_type: "custom" },
 			}),
 		).toBe("accepted");
@@ -119,14 +140,33 @@ describe("items repo", () => {
 				sourceType: "custom",
 				externalId: "a1",
 				text: "hello",
-				createdAtMs: Date.now(),
+				createdAtMs: t0,
 				payload: {},
 			}),
 		).toBe("deduped");
-		const { items } = await listItems(db, "u1", 1, { limit: 10 });
-		expect(items).toHaveLength(1);
-		expect(items[0]?.sourceType).toBe("custom");
-		const itemId = items[0]?.id;
+		await insertItemIgnore(db, "u1", {
+			watchlistId: 1,
+			sourceType: "custom",
+			externalId: "a2",
+			text: "world",
+			createdAtMs: t0 - 1000,
+			payload: {},
+		});
+
+		const page1 = await listItems(db, "u1", 1, { limit: 1 });
+		expect(page1.items).toHaveLength(1);
+		expect(page1.next_cursor).toBeTruthy();
+		const page2 = await listItems(db, "u1", 1, {
+			limit: 1,
+			cursor: page1.next_cursor,
+		});
+		expect(page2.items).toHaveLength(1);
+		expect(page2.items[0]?.externalId).toBe("a2");
+
+		const cur = encodeItemCursor(t0, 1);
+		expect(decodeItemCursor(cur)).toEqual({ createdAtMs: t0, id: 1 });
+
+		const itemId = page1.items[0]?.id;
 		expect(itemId).toBeTypeOf("number");
 		expect(await deleteItem(db, "u1", itemId as number)).toBe(true);
 	});

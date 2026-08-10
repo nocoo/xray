@@ -99,14 +99,14 @@ export function deleteMember(watchlistId: number, memberId: number) {
 
 export function fetchItems(
 	watchlistId: number,
-	opts?: { source_type?: SourceType; limit?: number; cursor?: number },
+	opts?: { source_type?: SourceType; limit?: number; cursor?: string },
 ) {
 	const q = new URLSearchParams();
 	if (opts?.source_type) q.set("source_type", opts.source_type);
 	if (opts?.limit) q.set("limit", String(opts.limit));
-	if (opts?.cursor) q.set("cursor", String(opts.cursor));
+	if (opts?.cursor) q.set("cursor", opts.cursor);
 	const qs = q.toString();
-	return apiGet<{ items: TimelineItem[]; nextCursor: number | null }>(
+	return apiGet<{ items: TimelineItem[]; next_cursor: string | null }>(
 		`/api/watchlists/${watchlistId}/items${qs ? `?${qs}` : ""}`,
 	);
 }

@@ -7,12 +7,16 @@ import type { Bindings } from "../types.js";
 export async function checkIngestRateLimit(
 	env: Bindings,
 	tokenId: string,
-): Promise<{ allowed: boolean }> {
+): Promise<{ allowed: boolean; reason?: string }> {
 	const rl = env.XRAY_INGEST_RL;
 	if (!rl) {
+		// S45-04: production fail-closed when binding missing
+		const envName = (env.ENVIRONMENT || "").toLowerCase();
+		if (envName === "production") {
+			return { allowed: false, reason: "rate_limit_unavailable" };
+		}
 		return { allowed: true };
 	}
-	// Workers Rate Limiting API: { success: boolean }
 	const result = await rl.limit({ key: tokenId });
 	return { allowed: result.success };
 }

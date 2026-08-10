@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { assertBootEnv } from "./lib/env.js";
 import { classifyHost } from "./lib/hosts.js";
 import { accessAuth } from "./middleware/access-auth.js";
+import { originCheck } from "./middleware/origin-check.js";
 import {
 	addGroupMemberRoute,
 	createGroupRoute,
@@ -59,6 +60,7 @@ app.use("*", async (c, next) => {
 
 // Host + auth for all /api/* (live public; ingest push uses Bearer)
 app.use("/api/*", accessAuth);
+app.use("/api/*", originCheck);
 
 app.get("/api/live", liveRoute);
 app.get("/api/me", meRoute);
