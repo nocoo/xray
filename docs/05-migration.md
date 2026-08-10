@@ -75,6 +75,7 @@ Items empty; first Access login binds iss/sub (02 R3-01).
 Compare source sqlite vs D1 for each:
 
 ```sql
+-- migrated counts (match source)
 SELECT count(*) FROM users;
 SELECT count(*) FROM watchlists;
 SELECT count(*) FROM watchlist_members;
@@ -84,10 +85,18 @@ SELECT count(*) FROM groups;
 SELECT count(*) FROM group_members;
 SELECT count(*) FROM settings;
 SELECT count(*) FROM ai_configs;
-SELECT count(*) FROM items;  -- expect 0
--- orphans
+-- expect 0 after fresh migrate
+SELECT count(*) FROM items;
+SELECT count(*) FROM push_tokens;
+SELECT count(*) FROM ingest_logs;
+SELECT count(*) FROM integration_secrets;
+-- orphans / tenant integrity
 SELECT count(*) FROM watchlist_members m
-  LEFT JOIN watchlists w ON w.id=m.watchlist_id WHERE w.id IS NULL;
+  LEFT JOIN watchlists w ON w.id=m.watchlist_id AND w.user_id=m.user_id WHERE w.id IS NULL;
 SELECT count(*) FROM group_members gm
-  LEFT JOIN groups g ON g.id=gm.group_id WHERE g.id IS NULL;
+  LEFT JOIN groups g ON g.id=gm.group_id AND g.user_id=gm.user_id WHERE g.id IS NULL;
+SELECT count(*) FROM watchlist_member_tags j
+  LEFT JOIN watchlist_members m ON m.id=j.member_id WHERE m.id IS NULL;
+SELECT count(*) FROM watchlist_member_tags j
+  LEFT JOIN tags t ON t.id=j.tag_id WHERE t.id IS NULL;
 ```

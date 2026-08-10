@@ -27,10 +27,14 @@ xray/
 
 | Hostname | CF Access | Traffic |
 |----------|-----------|---------|
-| **`xray.hexly.ai`** (prod browser) | **Required** (Google IdP) | SPA + browser `/api/*` except never used for agent push |
-| **`xray-ingest.hexly.ai`** (prod agents) | **Bypass / no Access app** | **Only** `POST /api/v1/ingest/push` (+ optional `GET /api/live`) |
-| **`xray.dev.hexly.ai`** (local via Caddy) | Dev bypass in Worker | Browser + local tests |
+| **`xray.hexly.ai`** (prod browser) | **Required** (Google IdP) | SPA + browser `/api/*` |
+| **`xray-ingest.hexly.ai`** (prod agents) | **Bypass** | **Only** push + live |
+| **`xray-staging.hexly.ai`** (pre-cutover smoke) | **Same Access app/AUD as prod browser** (R6-01) | SPA + browser APIs |
+| **`xray-ingest-staging.hexly.ai`** | **Bypass** (same as prod ingest) | push + live only |
+| **`xray.dev.hexly.ai`** (local Caddy) | `AUTH_DEV_BYPASS` | local |
 | Local wrangler | `AUTH_DEV_BYPASS` | L2/L3 |
+
+**Access AUD**: single browser Access application covers `xray.hexly.ai` + `xray-staging.hexly.ai` (one `CF_ACCESS_AUD`). Do **not** create a second Access app for staging unless docs and env add `CF_ACCESS_AUD_STAGING` — MVP uses one AUD.
 
 ```
 Browser ──HTTPS──► CF Access (Google) ──► xray.hexly.ai ──► Worker
@@ -154,11 +158,11 @@ middleware: accessAuth | pushTokenAuth | originCheck
 
 | Host | Path | Expect |
 |------|------|--------|
-| ingest | POST /api/v1/ingest/push + Bearer | 200/4xx business |
-| ingest | GET /api/live | 200 |
-| ingest | GET /api/me or SPA / | **404** |
-| browser | POST push with Bearer only (no Access) | **401** Access or Worker reject |
-| browser | POST push with Access+Bearer | **404** (push not served on browser host) |
+| ingest / ingest-staging | POST /api/v1/ingest/push + Bearer | 200/4xx business |
+| ingest / ingest-staging | GET /api/live | 200 |
+| ingest / ingest-staging | GET /api/me or SPA / | **404** |
+| browser / staging-browser | POST push Bearer-only | **401** |
+| browser / staging-browser | POST push Access+Bearer | **404** (push not on browser host) |
 | unknown Host | any | 404 |
 
 ## 6. Ingest model (push-first, no auto refresh)
@@ -205,13 +209,15 @@ Agent → xray-ingest.hexly.ai
 
 ## 7. Secrets storage (XR-07, R2-07) — locked
 
+Terminology: **versioned AES-256-GCM** (not generic “envelope encryption” marketing term).
+
 | Secret | Storage |
 |--------|---------|
-| AI API keys, zhe.to tokens | D1 BLOB envelope (below); KEK = Worker secret `XRAY_SECRETS_KEK` (32-byte) |
-| Push token plaintext | shown **once**; store `token_prefix` + **SHA-256** hex `token_hash` only |
-| Logs | never log bearer, AI key, zhe credentials, full payloads |
+| AI API keys, zhe.to webhook URL | D1 BLOB AES-256-GCM (below); KEK = `XRAY_SECRETS_KEK` |
+| Push token plaintext | shown **once**; `token_prefix` + **SHA-256** `token_hash` |
+| Logs | never log bearer, AI key, zhe URL, full payloads |
 
-### Envelope format (WebCrypto)
+### Ciphertext format (WebCrypto AES-256-GCM)
 
 ```
 ciphertext_blob :=

@@ -106,13 +106,15 @@ Auth is **path token inside webhookUrl** (no extra Authorization header).
 {
   "success": true,
   "data": {
-    "shortUrl": "https://zhe.to/…"|null,
-    "slug": "…"|null,
-    "originalUrl": "…",
-    "isExisting": true|false
+    "shortUrl": "https://zhe.to/abc",
+    "slug": "abc",
+    "originalUrl": "https://x.com/i/status/123",
+    "isExisting": false
   }
 }
 ```
+
+(`shortUrl` / `slug` may be JSON `null` if upstream omits them.)
 
 - Upstream 201 → newly created (`isExisting=false`)  
 - Upstream 200 → already existed (`isExisting=true`) — UI shows saved / already saved  

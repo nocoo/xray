@@ -35,7 +35,7 @@
 | XR-11 | P1 | zhe.to 行为契约 + save e2e |
 | XR-12 | P1 | migration dry-run/idempotent/cutover freeze |
 | XR-13 | P1 | tenant isolation L2 matrix |
-| XR-14 | P1 | CI mandatory required checks |
+| XR-14 | P1 | pre-push hard gate; CI post-push + release gate (not block direct push) |
 | XR-15 | P1 | normative SQL constraints in 03 |
 | XR-16 | P2 | insert-ignore dedupe；partial 200+errors |
 | XR-17 | P2 | UTC ms storage |
@@ -79,6 +79,11 @@
 | R5-03 | P2 | group_members ext id partial unique |
 | R5-04 | P2 | full migration validation counts |
 | R5-05 | P3 | JSON example / deadline row cleanup |
+| R6-01 | P1 | staging shares prod Access AUD; four hosts in matrix |
+| R6-02 | P2 | validation SQL full tables + tenant joins |
+| R6-03 | P3 | zheto success JSON example legality |
+| R6-04 | P3 | AES-256-GCM naming consistency |
+| R6-05 | P3 | XR-14 summary sync |
 
 ## Locked (not flexible)
 
