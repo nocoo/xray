@@ -10,7 +10,7 @@
  *   1. Free ports 17007 (auth-bypass server) and 17029 (no-auth server).
  *   2. Remove leftover E2E sqlite databases.
  *   3. Spawn two `vinext dev` instances with the env each test suite expects.
- *   4. Poll /api/auth/providers on each until 200 (max 120s — vinext is slow).
+ *   4. Poll /api/xauth/providers on each until 200 (max 120s — vinext is slow).
  *   5. Run `bun test src/__tests__/e2e/ --timeout 30000` with E2E_SKIP_SETUP=true.
  *   6. Kill both servers, clean up DBs, exit with the test runner's exit code.
  */
@@ -69,7 +69,7 @@ async function waitForReady(name: string, port: number): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < READY_TIMEOUT_MS) {
     try {
-      const res = await fetch(`${baseUrl}/api/auth/providers`, {
+      const res = await fetch(`${baseUrl}/api/xauth/providers`, {
         signal: AbortSignal.timeout(2_000),
       });
       if (res.ok) {
