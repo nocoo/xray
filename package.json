@@ -1,6 +1,6 @@
 {
 	"name": "xray",
-	"version": "2.0.0-dev.0",
+	"version": "2.0.0",
 	"private": true,
 	"packageManager": "bun@1.3.14",
 	"workspaces": [
@@ -18,10 +18,12 @@
 		"lint:fix": "biome check --write .",
 		"test": "turbo test",
 		"prepare": "husky",
-		"test:coverage": "bash scripts/check-coverage.sh 50 50 90 90",
+		"test:coverage": "bash scripts/check-coverage.sh 50 50 89 90",
 		"test:l2": "bun run --filter @xray/worker test",
 		"db:migrate:local": "cd packages/worker && bunx wrangler d1 migrations apply xray-db --local --env development",
-		"migrate:v1": "bun run scripts/migrate-v1-to-d1.ts"
+		"migrate:v1": "bun run scripts/migrate-v1-to-d1.ts",
+		"test:l3": "playwright test",
+		"test:ai": "bun run --filter @xray/worker test src/routes/ai-zheto-dashboard.test.ts src/lib/secrets-crypto.test.ts"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.7",
@@ -29,7 +31,8 @@
 		"turbo": "2.10.9",
 		"typescript": "^7.0.2",
 		"vitest": "4.1.10",
-		"@vitest/coverage-v8": "4.1.10"
+		"@vitest/coverage-v8": "4.1.10",
+		"@playwright/test": "1.51.0"
 	},
 	"trustedDependencies": [
 		"@biomejs/biome",

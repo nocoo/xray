@@ -79,7 +79,9 @@
 			"!**/reports",
 			"!**/.alma-snapshots",
 			"!**/.superset",
-			"!**/packages/**/coverage"
+			"!**/packages/**/coverage",
+			"!**/e2e",
+			"!**/playwright.config.ts"
 		]
 	}
 }
