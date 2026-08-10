@@ -16,9 +16,9 @@ fi
 echo "━━━ gitleaks detect (G2) ━━━"
 gitleaks detect --no-banner --source . --verbose
 
-if command -v osv-scanner >/dev/null 2>&1; then
-  echo "━━━ osv-scanner (G2) ━━━"
-  osv-scanner scan --lockfile=bun.lock
-else
-  echo "⚠ osv-scanner not installed locally — CI enforces G2 OSV"
+if ! command -v osv-scanner >/dev/null 2>&1; then
+  echo "❌ osv-scanner required for pre-push G2" >&2
+  exit 1
 fi
+echo "━━━ osv-scanner (G2) ━━━"
+osv-scanner scan --lockfile=bun.lock
