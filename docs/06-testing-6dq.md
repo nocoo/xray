@@ -6,7 +6,7 @@
 |-----------|---------|-------------------------|
 | **L1** Unit/Component | pure domain, VM, mappers, repos with mock D1 | vitest, coverage ≥ 90% (UI thin shells exempt) |
 | **L2** Integration/API | real Hono routes + **local D1** (wrangler) | vitest HTTP against `wrangler dev --local` |
-| **L3** System/E2E | browser flows | Playwright against local stack |
+| **L3** System/E2E | browser flows | Playwright against local stack — **从实现计划 S5 起引入**；S3 只门禁 L1/L2/G1/G2 |
 | **G1** Static | typecheck + biome | `tsc --noEmit`, `biome check --error-on-warnings` |
 | **G2** Security | deps + secrets | osv-scanner + gitleaks (pre-push / CI) |
 | **D1** Isolation | never touch prod D1 in tests | separate DB name `xray-db-test`, persist dir `.wrangler/state-test` |
