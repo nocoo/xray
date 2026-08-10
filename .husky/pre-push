@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# S3: L2 skeleton + G2 secrets (full L2 e2e expands S4/S5)
+# S3: L2 tests + coverage + G2 (hard fail)
 set -e
 cd "$(dirname "$0")/.."
 
@@ -9,16 +9,16 @@ bun run test:l2
 echo "━━━ L1 coverage gate ━━━"
 bun run test:coverage
 
-if command -v gitleaks >/dev/null 2>&1; then
-  echo "━━━ gitleaks (G2) ━━━"
-  gitleaks protect --staged --no-banner || gitleaks detect --no-banner --source .
-else
-  echo "⚠ gitleaks not installed — skip"
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "❌ gitleaks required for pre-push G2" >&2
+  exit 1
 fi
+echo "━━━ gitleaks detect (G2) ━━━"
+gitleaks detect --no-banner --source . --verbose
 
 if command -v osv-scanner >/dev/null 2>&1; then
   echo "━━━ osv-scanner (G2) ━━━"
-  osv-scanner scan --lockfile=bun.lock || true
+  osv-scanner scan --lockfile=bun.lock
 else
-  echo "⚠ osv-scanner not installed — skip (CI enforces)"
+  echo "⚠ osv-scanner not installed locally — CI enforces G2 OSV"
 fi
