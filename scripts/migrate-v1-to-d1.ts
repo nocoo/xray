@@ -121,11 +121,11 @@ const groupOwner = new Map<number, string>();
 const tagOwner = new Map<number, string>();
 const memberOwner = new Map<number, string>();
 const expected = {
-	watchlistIds: [] as number[],
-	memberIds: [] as number[],
-	tagIds: [] as number[],
-	groupIds: [] as number[],
-	groupMemberIds: [] as number[],
+	watchlists: [] as Array<{ id: number; userId: string }>,
+	members: [] as Array<{ id: number; userId: string }>,
+	tags: [] as Array<{ id: number; userId: string }>,
+	groups: [] as Array<{ id: number; userId: string }>,
+	groupMembers: [] as Array<{ id: number; userId: string }>,
 };
 for (const u of users) {
 	const email = String(u.email).toLowerCase();
@@ -180,7 +180,7 @@ for (const w of watchlists) {
      ${conflictUpdate("user_id", ["name", "description", "icon", "translate_enabled"])};`,
 	);
 	wlOwner.set(Number(w.id), wUser);
-	expected.watchlistIds.push(Number(w.id));
+	expected.watchlists.push({ id: Number(w.id), userId: wUser });
 	generated.watchlists += 1;
 }
 
@@ -233,7 +233,7 @@ for (const m of members) {
 	);
 	memberIds.add(Number(m.id));
 	memberOwner.set(Number(m.id), mUser);
-	expected.memberIds.push(Number(m.id));
+	expected.members.push({ id: Number(m.id), userId: mUser });
 	generated.members += 1;
 }
 
@@ -252,7 +252,7 @@ for (const t of tags) {
 	);
 	tagIds.add(Number(t.id));
 	tagOwner.set(Number(t.id), tUser);
-	expected.tagIds.push(Number(t.id));
+	expected.tags.push({ id: Number(t.id), userId: tUser });
 	generated.tags += 1;
 }
 
@@ -302,7 +302,7 @@ for (const g of groups) {
      ${conflictUpdate("user_id", ["name", "description", "icon"])};`,
 	);
 	groupOwner.set(Number(g.id), gUser);
-	expected.groupIds.push(Number(g.id));
+	expected.groups.push({ id: Number(g.id), userId: gUser });
 	generated.groups += 1;
 }
 
@@ -343,7 +343,7 @@ for (const m of gms) {
 			)}, ${sqlLit(handle)}, ${sqlLit(p?.display_name ?? null)}, ${msFrom(m.added_at)})
      ${conflictUpdate("user_id", ["handle", "display_name", "external_author_id", "group_id"])};`,
 	);
-	expected.groupMemberIds.push(Number(m.id));
+	expected.groupMembers.push({ id: Number(m.id), userId: gmUser });
 	generated.groupMembers += 1;
 }
 
@@ -498,23 +498,14 @@ if (validatePath === outPath) {
 	process.exit(1);
 }
 
-const idList = (ids: number[]) => (ids.length ? ids.join(",") : "NULL");
-const validationSql = [
-	`-- post-migrate tenant validation (expect 0 bad_* and matching expected counts)`,
-	`SELECT COUNT(*) AS bad_members FROM watchlist_members m WHERE NOT EXISTS (SELECT 1 FROM watchlists w WHERE w.id=m.watchlist_id AND w.user_id=m.user_id);`,
-	`SELECT COUNT(*) AS bad_group_members FROM group_members gm WHERE NOT EXISTS (SELECT 1 FROM groups g WHERE g.id=gm.group_id AND g.user_id=gm.user_id);`,
-	`SELECT COUNT(*) AS bad_tags FROM watchlist_member_tags j JOIN watchlist_members m ON m.id=j.member_id JOIN tags t ON t.id=j.tag_id WHERE m.user_id != t.user_id;`,
-	`SELECT COUNT(*) AS missing_watchlists FROM (SELECT id FROM watchlists WHERE id IN (${idList(expected.watchlistIds)}));`,
-	`SELECT COUNT(*) AS missing_members FROM (SELECT id FROM watchlist_members WHERE id IN (${idList(expected.memberIds)}));`,
-	`SELECT COUNT(*) AS missing_tags FROM (SELECT id FROM tags WHERE id IN (${idList(expected.tagIds)}));`,
-	`SELECT COUNT(*) AS missing_groups FROM (SELECT id FROM groups WHERE id IN (${idList(expected.groupIds)}));`,
-	`SELECT COUNT(*) AS missing_group_members FROM (SELECT id FROM group_members WHERE id IN (${idList(expected.groupMemberIds)}));`,
-].join("\n");
-
 await Bun.write(outPath, `${stmts.join("\n")}\n`);
-await Bun.write(validatePath, `${validationSql}\n`);
 console.log(`Wrote ${stmts.length} statements → ${outPath}`);
-console.log(`Validation SQL → ${validatePath}`);
+// keep path for operators who want a sidecar note
+await Bun.write(
+	validatePath,
+	`-- human-readable validation notes; runtime uses --command checks\n-- expected watchlists=${expected.watchlists.length} members=${expected.members.length} tags=${expected.tags.length} groups=${expected.groups.length} groupMembers=${expected.groupMembers.length}\n`,
+);
+console.log(`Validation notes → ${validatePath}`);
 
 const workerCwd = resolve(import.meta.dir, "../packages/worker");
 async function wranglerExecute(extra: string[]): Promise<{ code: number; text: string }> {
@@ -596,40 +587,20 @@ await mustCount(
 	`SELECT COUNT(*) AS c FROM watchlist_member_tags j LEFT JOIN watchlist_members m ON m.id=j.member_id LEFT JOIN tags t ON t.id=j.tag_id WHERE m.id IS NULL OR t.id IS NULL OR m.user_id != t.user_id`,
 	0,
 );
-if (expected.watchlistIds.length) {
+async function mustOwn(table: string, rows: Array<{ id: number; userId: string }>) {
+	if (!rows.length) return;
+	// COUNT rows matching any expected (id,user_id) pair
+	const vals = rows.map((r) => `(${r.id}, ${sqlLit(r.userId)})`).join(",");
 	await mustCount(
-		"watchlists_owned",
-		`SELECT COUNT(*) AS c FROM watchlists WHERE id IN (${expected.watchlistIds.join(",")})`,
-		expected.watchlistIds.length,
+		`${table}_owned`,
+		`SELECT COUNT(*) AS c FROM ${table} t JOIN (VALUES ${vals}) AS e(id, user_id) ON t.id = e.id AND t.user_id = e.user_id`,
+		rows.length,
 	);
 }
-if (expected.memberIds.length) {
-	await mustCount(
-		"members_owned",
-		`SELECT COUNT(*) AS c FROM watchlist_members WHERE id IN (${expected.memberIds.join(",")})`,
-		expected.memberIds.length,
-	);
-}
-if (expected.tagIds.length) {
-	await mustCount(
-		"tags_owned",
-		`SELECT COUNT(*) AS c FROM tags WHERE id IN (${expected.tagIds.join(",")})`,
-		expected.tagIds.length,
-	);
-}
-if (expected.groupIds.length) {
-	await mustCount(
-		"groups_owned",
-		`SELECT COUNT(*) AS c FROM groups WHERE id IN (${expected.groupIds.join(",")})`,
-		expected.groupIds.length,
-	);
-}
-if (expected.groupMemberIds.length) {
-	await mustCount(
-		"group_members_owned",
-		`SELECT COUNT(*) AS c FROM group_members WHERE id IN (${expected.groupMemberIds.join(",")})`,
-		expected.groupMemberIds.length,
-	);
-}
+await mustOwn("watchlists", expected.watchlists);
+await mustOwn("watchlist_members", expected.members);
+await mustOwn("tags", expected.tags);
+await mustOwn("groups", expected.groups);
+await mustOwn("group_members", expected.groupMembers);
 
 console.log("Migration apply OK");

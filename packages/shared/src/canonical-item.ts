@@ -138,7 +138,7 @@ function checkMeta(meta: unknown): ParseFail | null {
 
 function parseAuthor(raw: unknown): CanonicalAuthor | undefined | ParseFail {
 	if (raw === undefined) return undefined;
-	if (!raw || typeof raw !== "object") {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
 		return { ok: false, code: "schema_mismatch", message: "author invalid" };
 	}
 	const a = raw as Record<string, unknown>;
@@ -223,6 +223,7 @@ function parseXTweet(raw: unknown, required: boolean): XTweet | ParseFail | unde
 	if (lang && typeof lang === "object") return lang;
 	const sens = strictOptBool(tw.possibly_sensitive, "tweet.possibly_sensitive");
 	if (sens && typeof sens === "object") return sens;
+
 	const out: XTweet = {
 		id: tw.id.trim(),
 		text: tw.text,
@@ -233,6 +234,7 @@ function parseXTweet(raw: unknown, required: boolean): XTweet | ParseFail | unde
 		lang: lang as string | undefined,
 		possibly_sensitive: sens as boolean | undefined,
 	};
+
 	if (tw.public_metrics !== undefined) {
 		if (
 			!tw.public_metrics ||
@@ -242,7 +244,7 @@ function parseXTweet(raw: unknown, required: boolean): XTweet | ParseFail | unde
 			return { ok: false, code: "schema_mismatch", message: "tweet.public_metrics invalid" };
 		}
 		const m = tw.public_metrics as Record<string, unknown>;
-		for (const [, v] of Object.entries(m)) {
+		for (const v of Object.values(m)) {
 			if (v !== undefined && typeof v !== "number") {
 				return { ok: false, code: "schema_mismatch", message: "tweet.public_metrics invalid" };
 			}
@@ -256,6 +258,7 @@ function parseXTweet(raw: unknown, required: boolean): XTweet | ParseFail | unde
 			impression_count: optNum(m.impression_count),
 		};
 	}
+
 	if (tw.entities !== undefined) {
 		if (!tw.entities || typeof tw.entities !== "object" || Array.isArray(tw.entities)) {
 			return { ok: false, code: "schema_mismatch", message: "tweet.entities invalid" };
@@ -267,7 +270,7 @@ function parseXTweet(raw: unknown, required: boolean): XTweet | ParseFail | unde
 			if (!Array.isArray(ent[key])) {
 				return { ok: false, code: "schema_mismatch", message: `tweet.entities.${key} invalid` };
 			}
-			const arr = [];
+			const arr: unknown[] = [];
 			for (const item of ent[key] as unknown[]) {
 				if (!item || typeof item !== "object") {
 					return {
@@ -328,6 +331,7 @@ function parseXTweet(raw: unknown, required: boolean): XTweet | ParseFail | unde
 		}
 		out.entities = entities;
 	}
+
 	if (tw.attachments !== undefined) {
 		if (!tw.attachments || typeof tw.attachments !== "object" || Array.isArray(tw.attachments)) {
 			return { ok: false, code: "schema_mismatch", message: "tweet.attachments invalid" };
@@ -356,43 +360,60 @@ function parseXTweet(raw: unknown, required: boolean): XTweet | ParseFail | unde
 		}
 		out.attachments = attachments;
 	}
-	if (tw.public_metrics !== undefined) {
-		if (
-			!tw.public_metrics ||
-			typeof tw.public_metrics !== "object" ||
-			Array.isArray(tw.public_metrics)
-		) {
-			return { ok: false, code: "schema_mismatch", message: "tweet.public_metrics invalid" };
+
+	if (tw.referenced_tweets !== undefined) {
+		if (!Array.isArray(tw.referenced_tweets)) {
+			return { ok: false, code: "schema_mismatch", message: "tweet.referenced_tweets invalid" };
 		}
-		const m = tw.public_metrics as Record<string, unknown>;
-		for (const k of Object.keys(m)) {
-			if (m[k] !== undefined && typeof m[k] !== "number") {
-				return { ok: false, code: "schema_mismatch", message: "tweet.public_metrics invalid" };
-			}
-		}
-	}
-	if (Array.isArray(tw.referenced_tweets)) {
 		out.referenced_tweets = [];
 		for (const r of tw.referenced_tweets) {
-			if (!r || typeof r !== "object") continue;
+			if (!r || typeof r !== "object" || Array.isArray(r)) {
+				return {
+					ok: false,
+					code: "schema_mismatch",
+					message: "tweet.referenced_tweets item invalid",
+				};
+			}
 			const rr = r as Record<string, unknown>;
 			if (
-				(rr.type === "retweeted" || rr.type === "quoted" || rr.type === "replied_to") &&
-				typeof rr.id === "string"
+				!(rr.type === "retweeted" || rr.type === "quoted" || rr.type === "replied_to") ||
+				typeof rr.id !== "string"
 			) {
-				out.referenced_tweets.push({ type: rr.type, id: rr.id });
+				return {
+					ok: false,
+					code: "schema_mismatch",
+					message: "tweet.referenced_tweets item invalid",
+				};
 			}
+			out.referenced_tweets.push({ type: rr.type, id: rr.id });
 		}
 	}
-	if (tw.note_tweet && typeof tw.note_tweet === "object" && !Array.isArray(tw.note_tweet)) {
+
+	if (tw.note_tweet !== undefined) {
+		if (!tw.note_tweet || typeof tw.note_tweet !== "object" || Array.isArray(tw.note_tweet)) {
+			return { ok: false, code: "schema_mismatch", message: "tweet.note_tweet invalid" };
+		}
 		const n = tw.note_tweet as Record<string, unknown>;
-		if (typeof n.text === "string" && n.text.trim()) out.note_tweet = { text: n.text };
+		if (typeof n.text !== "string" || !n.text.trim()) {
+			return { ok: false, code: "schema_mismatch", message: "tweet.note_tweet.text invalid" };
+		}
+		out.note_tweet = { text: n.text };
 	}
-	if (Array.isArray(tw.edit_history_tweet_ids)) {
-		out.edit_history_tweet_ids = tw.edit_history_tweet_ids.filter(
-			(x): x is string => typeof x === "string",
-		);
+
+	if (tw.edit_history_tweet_ids !== undefined) {
+		if (
+			!Array.isArray(tw.edit_history_tweet_ids) ||
+			!tw.edit_history_tweet_ids.every((x) => typeof x === "string")
+		) {
+			return {
+				ok: false,
+				code: "schema_mismatch",
+				message: "tweet.edit_history_tweet_ids invalid",
+			};
+		}
+		out.edit_history_tweet_ids = tw.edit_history_tweet_ids as string[];
 	}
+
 	return out;
 }
 
