@@ -1,13 +1,27 @@
 import { AlertTriangle, ChevronDown, ChevronUp, Loader2, RotateCw } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { CustomItemCard } from "@/components/cards/custom-item-card";
 import { TweetCard } from "@/components/cards/tweet-card";
-import type { MockPost } from "@/lib/mock-data";
+import type { MockCustomPost, MockPost, MockXPost } from "@/lib/mock-data";
 
 export const WatchlistPostCard = memo(function WatchlistPostCard({
 	post,
 	onRemove,
 }: {
 	post: MockPost;
+	onRemove?: (postId: number) => void;
+}) {
+	if (post.sourceType === "custom") {
+		return <CustomTimelineCard post={post} onRemove={onRemove} />;
+	}
+	return <XTimelineCard post={post} onRemove={onRemove} />;
+});
+
+const XTimelineCard = memo(function XTimelineCard({
+	post,
+	onRemove,
+}: {
+	post: MockXPost;
 	onRemove?: (postId: number) => void;
 }) {
 	const [translatedText, setTranslatedText] = useState(post.translatedText);
@@ -43,7 +57,6 @@ export const WatchlistPostCard = memo(function WatchlistPostCard({
 	const handleRetry = useCallback(async () => {
 		if (retrying) return;
 		setRetrying(true);
-		// Mock retry — S5 will call translate API
 		await new Promise((r) => setTimeout(r, 400));
 		setTranslatedText(`【译·retry】${post.tweet.text}`);
 		setCommentText("（mock）重试后的 AI Insight。");
@@ -102,13 +115,43 @@ export const WatchlistPostCard = memo(function WatchlistPostCard({
 		) : null;
 
 	return (
-		<div className="animate-in fade-in slide-in-from-top-2 rounded-card shadow-[0_1px_4px_rgba(0,0,0,0.06)] duration-300">
+		<div
+			className="animate-in fade-in slide-in-from-top-2 rounded-card shadow-[0_1px_4px_rgba(0,0,0,0.06)] duration-300"
+			data-source-type="x.com"
+		>
 			<TweetCard
 				tweet={post.tweet}
+				sourceType="x.com"
 				linkToDetail={false}
 				initialTranslation={initialTranslation}
 				renderBeforeActionBar={errorBanner}
 				onRemove={onRemove ? handleRemove : undefined}
+			/>
+		</div>
+	);
+});
+
+const CustomTimelineCard = memo(function CustomTimelineCard({
+	post,
+	onRemove,
+}: {
+	post: MockCustomPost;
+	onRemove?: (postId: number) => void;
+}) {
+	return (
+		<div
+			className="animate-in fade-in slide-in-from-top-2 rounded-card shadow-[0_1px_4px_rgba(0,0,0,0.06)] duration-300"
+			data-source-type="custom"
+		>
+			<CustomItemCard
+				sourceType="custom"
+				title={post.title}
+				body={post.body}
+				createdAt={post.createdAt}
+				url={post.url}
+				authorName={post.authorName}
+				producer={post.producer}
+				onRemove={onRemove ? () => onRemove(post.id) : undefined}
 			/>
 		</div>
 	);

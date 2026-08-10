@@ -1,3 +1,4 @@
+import type { SourceType } from "@xray/shared";
 import { generateTagColor } from "@/lib/tag-color";
 import type { Tweet } from "@/lib/tweet-types";
 
@@ -25,22 +26,45 @@ export type MockMemberProfile = {
 	description?: string;
 };
 
+/** Source-aware member (docs/03 watchlist_members). */
 export type MockWatchlistMember = {
 	id: number;
-	twitterUsername: string;
+	sourceType: SourceType;
+	/** Normalized handle (x.com username or custom handle). */
+	handle: string;
 	note: string | null;
 	profile: MockMemberProfile | null;
 	tags: MockTag[];
 };
 
-export type MockPost = {
+type MockItemBase = {
 	id: number;
-	tweet: Tweet;
+	externalId: string;
+	sourceType: SourceType;
+	createdAt: string;
 	translatedText: string | null;
 	commentText: string | null;
 	quotedTranslatedText: string | null;
 	translationError: string | null;
 };
+
+export type MockXPost = MockItemBase & {
+	sourceType: "x.com";
+	tweet: Tweet;
+};
+
+export type MockCustomPost = MockItemBase & {
+	sourceType: "custom";
+	/** Optional producer label (hermes / cli / script) — not source_type. */
+	producer?: string;
+	title: string | null;
+	body: string;
+	url: string | null;
+	authorName: string | null;
+};
+
+/** Mixed timeline item — discriminated on source_type. */
+export type MockPost = MockXPost | MockCustomPost;
 
 export type MockGroup = {
 	id: number;
@@ -56,12 +80,16 @@ export type MockToken = {
 	createdAt: string;
 };
 
+/** @deprecated use MockCustomPost — kept for dashboard snippets */
 export type MockCustomItem = {
 	id: string;
 	title: string;
 	body: string;
-	source: string;
+	/** producer label, not source_type */
+	producer: string;
+	sourceType: "custom";
 	createdAt: string;
+	url?: string | null;
 };
 
 const tag = (id: number, name: string): MockTag => ({
@@ -120,7 +148,8 @@ export const MOCK_WATCHLISTS: MockWatchlist[] = [
 export const MOCK_MEMBERS: MockWatchlistMember[] = [
 	{
 		id: 1,
-		twitterUsername: "karpathy",
+		sourceType: "x.com",
+		handle: "karpathy",
 		note: "Primary AI signal",
 		profile: {
 			displayName: "Andrej Karpathy",
@@ -133,7 +162,8 @@ export const MOCK_MEMBERS: MockWatchlistMember[] = [
 	},
 	{
 		id: 2,
-		twitterUsername: "sama",
+		sourceType: "x.com",
+		handle: "sama",
 		note: null,
 		profile: {
 			displayName: "Sam Altman",
@@ -146,7 +176,8 @@ export const MOCK_MEMBERS: MockWatchlistMember[] = [
 	},
 	{
 		id: 3,
-		twitterUsername: "swyx",
+		sourceType: "x.com",
+		handle: "swyx",
 		note: "DX / agents",
 		profile: {
 			displayName: "swyx",
@@ -159,7 +190,8 @@ export const MOCK_MEMBERS: MockWatchlistMember[] = [
 	},
 	{
 		id: 4,
-		twitterUsername: "cloudflare",
+		sourceType: "x.com",
+		handle: "cloudflare",
 		note: null,
 		profile: {
 			displayName: "Cloudflare",
@@ -172,7 +204,8 @@ export const MOCK_MEMBERS: MockWatchlistMember[] = [
 	},
 	{
 		id: 5,
-		twitterUsername: "levelsio",
+		sourceType: "x.com",
+		handle: "levelsio",
 		note: "Indie",
 		profile: {
 			displayName: "Pieter Levels",
@@ -184,7 +217,8 @@ export const MOCK_MEMBERS: MockWatchlistMember[] = [
 	},
 	{
 		id: 6,
-		twitterUsername: "ylecun",
+		sourceType: "x.com",
+		handle: "ylecun",
 		note: null,
 		profile: {
 			displayName: "Yann LeCun",
@@ -194,6 +228,20 @@ export const MOCK_MEMBERS: MockWatchlistMember[] = [
 			description: "Chief AI Scientist at Meta",
 		},
 		tags: [tagAI, tagPolicy],
+	},
+	{
+		id: 7,
+		sourceType: "custom",
+		handle: "hermes-agent",
+		note: "Push producer identity",
+		profile: {
+			displayName: "Hermes Agent",
+			profileImageUrl: "",
+			followersCount: 0,
+			isVerified: false,
+			description: "External agent pushing canonical custom items",
+		},
+		tags: [tagAI, tagInfra],
 	},
 ];
 
@@ -227,6 +275,9 @@ function author(
 export const MOCK_POSTS: MockPost[] = [
 	{
 		id: 101,
+		externalId: "1001",
+		sourceType: "x.com",
+		createdAt: new Date(Date.now() - 2 * 3600_000).toISOString(),
 		translatedText: "今天发布了一个更小的 tokenizer。延迟下降 12%。团队在边缘场景的吞吐也更稳了。",
 		commentText: "关注点：延迟与边缘吞吐的权衡，适合对照自家推理链路。",
 		quotedTranslatedText: null,
@@ -257,6 +308,9 @@ export const MOCK_POSTS: MockPost[] = [
 	},
 	{
 		id: 102,
+		externalId: "1002",
+		sourceType: "x.com",
+		createdAt: new Date(Date.now() - 5 * 3600_000).toISOString(),
 		translatedText: null,
 		commentText: null,
 		quotedTranslatedText: null,
@@ -279,7 +333,25 @@ export const MOCK_POSTS: MockPost[] = [
 		},
 	},
 	{
+		id: 201,
+		externalId: "hermes-digest-2026-08-10",
+		sourceType: "custom",
+		createdAt: new Date(Date.now() - 3 * 3600_000).toISOString(),
+		translatedText: "本周 Hermes 摘要：3 个高优先级信号，2 条待跟进。",
+		commentText: "custom 源走 push canonical body.kind=custom，与 x.com 卡片混排。",
+		quotedTranslatedText: null,
+		translationError: null,
+		producer: "hermes",
+		title: "Hermes weekly digest",
+		body: "Weekly agent summary injected via **push API**.\n\n- 3 high-priority signals\n- 2 follow-ups\n\nCanonical `source_type=custom`.",
+		url: "https://example.com/hermes/digest/2026-08-10",
+		authorName: "Hermes Agent",
+	},
+	{
 		id: 103,
+		externalId: "1003",
+		sourceType: "x.com",
+		createdAt: new Date(Date.now() - 26 * 3600_000).toISOString(),
 		translatedText: "引用这条关于 Durable Objects 的讨论——本地一致性模型值得再读一遍。",
 		commentText: "Quote + 原文切换可验证翻译落点（action bar 中英文切换）。",
 		quotedTranslatedText: "Durable Objects 给了你单线程一致性。把它当 actor，而不是当全局锁。",
@@ -309,6 +381,9 @@ export const MOCK_POSTS: MockPost[] = [
 	},
 	{
 		id: 104,
+		externalId: "1004",
+		sourceType: "x.com",
+		createdAt: new Date(Date.now() - 50 * 60_000).toISOString(),
 		translatedText: null,
 		commentText: null,
 		quotedTranslatedText: null,
@@ -338,7 +413,25 @@ export const MOCK_POSTS: MockPost[] = [
 		},
 	},
 	{
+		id: 202,
+		externalId: "cli-note-42",
+		sourceType: "custom",
+		createdAt: new Date(Date.now() - 90 * 60_000).toISOString(),
+		translatedText: null,
+		commentText: null,
+		quotedTranslatedText: null,
+		translationError: null,
+		producer: "twitter-cli",
+		title: null,
+		body: "Offline research note pushed from CLI — no tweet payload, only custom body.",
+		url: null,
+		authorName: "research-bot",
+	},
+	{
 		id: 105,
+		externalId: "1005",
+		sourceType: "x.com",
+		createdAt: new Date(Date.now() - 8 * 3600_000).toISOString(),
 		translatedText: "开源世界模型路线图草稿。欢迎拍砖。",
 		commentText: null,
 		quotedTranslatedText: null,
@@ -358,26 +451,31 @@ export const MOCK_POSTS: MockPost[] = [
 ];
 
 /** Backward-compat thin tweet list used by dashboard snippets. */
-export const MOCK_TWEETS = MOCK_POSTS.map((p) => ({
-	id: p.tweet.id,
-	author: p.tweet.author.name,
-	handle: p.tweet.author.username,
-	text: p.tweet.text,
-	createdAt: p.tweet.created_at,
-	likes: p.tweet.metrics.like_count,
-}));
+export const MOCK_TWEETS = MOCK_POSTS.filter((p): p is MockXPost => p.sourceType === "x.com").map(
+	(p) => ({
+		id: p.tweet.id,
+		author: p.tweet.author.name,
+		handle: p.tweet.author.username,
+		text: p.tweet.text,
+		createdAt: p.tweet.created_at,
+		likes: p.tweet.metrics.like_count,
+		sourceType: p.sourceType as SourceType,
+	}),
+);
 
 export type MockTweet = (typeof MOCK_TWEETS)[number];
 
-export const MOCK_CUSTOM_ITEMS: MockCustomItem[] = [
-	{
-		id: "c1",
-		title: "Hermes digest",
-		body: "Weekly agent summary injected via push API — custom item card shell.",
-		source: "hermes",
-		createdAt: new Date(Date.now() - 3 * 3600_000).toISOString(),
-	},
-];
+export const MOCK_CUSTOM_ITEMS: MockCustomItem[] = MOCK_POSTS.filter(
+	(p): p is MockCustomPost => p.sourceType === "custom",
+).map((p) => ({
+	id: String(p.id),
+	title: p.title ?? "Custom item",
+	body: p.body,
+	producer: p.producer ?? "push",
+	sourceType: "custom",
+	createdAt: p.createdAt,
+	url: p.url,
+}));
 
 export const MOCK_GROUPS: MockGroup[] = [
 	{ id: 1, name: "Core follows", icon: "users", memberCount: 40 },

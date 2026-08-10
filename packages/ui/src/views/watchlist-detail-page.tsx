@@ -1,14 +1,13 @@
 import { Eye, Plus, RefreshCw, Settings } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
-import { CustomItemCard } from "@/components/cards/custom-item-card";
 import { MemberCard } from "@/components/cards/member-card";
 import { WatchlistPostCard } from "@/components/cards/watchlist-post-card";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
+import { SourceFilter, type SourceFilterValue } from "@/components/source-filter";
 import { Button } from "@/components/ui/button";
 import { useColumns } from "@/hooks/use-columns";
 import {
-	MOCK_CUSTOM_ITEMS,
 	MOCK_MEMBERS,
 	MOCK_POSTS,
 	MOCK_TAGS,
@@ -16,12 +15,26 @@ import {
 	type MockPost,
 } from "@/lib/mock-data";
 
+function estimatePostHeight(post: MockPost): number {
+	let h = 80;
+	if (post.sourceType === "x.com") {
+		h += Math.ceil((post.tweet.text?.length ?? 0) / 60) * 20;
+		if (post.tweet.media && post.tweet.media.length > 0) h += 200;
+		if (post.tweet.quoted_tweet) h += 120;
+	} else {
+		h += Math.ceil((post.body?.length ?? 0) / 60) * 20;
+		if (post.title) h += 24;
+	}
+	return h;
+}
+
 export function WatchlistDetailPage() {
 	const { id } = useParams();
 	const wl = MOCK_WATCHLISTS.find((w) => String(w.id) === id) ?? MOCK_WATCHLISTS[0];
 	const { setBreadcrumbs } = useBreadcrumbs();
 	const [activeTab, setActiveTab] = useState<"members" | "posts">("posts");
 	const [filterTagId, setFilterTagId] = useState<number | null>(null);
+	const [sourceFilter, setSourceFilter] = useState<SourceFilterValue>("all");
 	const [posts, setPosts] = useState<MockPost[]>(MOCK_POSTS);
 	const columnCount = useColumns();
 
@@ -30,22 +43,34 @@ export function WatchlistDetailPage() {
 		return () => setBreadcrumbs([]);
 	}, [setBreadcrumbs, wl?.name]);
 
-	const filteredMembers = useMemo(
-		() =>
-			filterTagId
-				? MOCK_MEMBERS.filter((m) => m.tags.some((t) => t.id === filterTagId))
-				: MOCK_MEMBERS,
-		[filterTagId],
-	);
+	const filteredMembers = useMemo(() => {
+		let list = MOCK_MEMBERS;
+		if (sourceFilter !== "all") {
+			list = list.filter((m) => m.sourceType === sourceFilter);
+		}
+		if (filterTagId) {
+			list = list.filter((m) => m.tags.some((t) => t.id === filterTagId));
+		}
+		return list;
+	}, [filterTagId, sourceFilter]);
+
+	const filteredPosts = useMemo(() => {
+		if (sourceFilter === "all") return posts;
+		return posts.filter((p) => p.sourceType === sourceFilter);
+	}, [posts, sourceFilter]);
+
+	const sourceCounts = useMemo(() => {
+		const all = posts.length;
+		const x = posts.filter((p) => p.sourceType === "x.com").length;
+		const custom = posts.filter((p) => p.sourceType === "custom").length;
+		return { all, "x.com": x, custom } as const;
+	}, [posts]);
 
 	const postColumns = useMemo(() => {
 		const cols: MockPost[][] = Array.from({ length: columnCount }, () => []);
 		const heights = new Array<number>(columnCount).fill(0);
-		for (const post of posts) {
-			let h = 80;
-			h += Math.ceil((post.tweet.text?.length ?? 0) / 60) * 20;
-			if (post.tweet.media && post.tweet.media.length > 0) h += 200;
-			if (post.tweet.quoted_tweet) h += 120;
+		for (const post of filteredPosts) {
+			const h = estimatePostHeight(post);
 			let minIdx = 0;
 			for (let c = 1; c < columnCount; c++) {
 				if ((heights[c] ?? 0) < (heights[minIdx] ?? 0)) minIdx = c;
@@ -54,7 +79,7 @@ export function WatchlistDetailPage() {
 			heights[minIdx] = (heights[minIdx] ?? 0) + h;
 		}
 		return cols;
-	}, [posts, columnCount]);
+	}, [filteredPosts, columnCount]);
 
 	const handleRemovePost = (postId: number) => {
 		setPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -95,7 +120,9 @@ export function WatchlistDetailPage() {
 					<span className="text-xs text-muted-foreground">
 						{wl?.name}
 						{wl?.translateEnabled ? " · Translate on" : " · Translate off"}
-						<span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-[10px]">mock</span>
+						<span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-[10px]">
+							mix · source_type
+						</span>
 					</span>
 				</div>
 
@@ -116,11 +143,14 @@ export function WatchlistDetailPage() {
 				</div>
 			</div>
 
+			{/* source_type filter — primary v2 vs v1 discriminator */}
+			<SourceFilter value={sourceFilter} onChange={setSourceFilter} counts={sourceCounts} />
+
 			{activeTab === "members" && (
 				<div>
 					{MOCK_TAGS.length > 0 && (
 						<div className="mb-4 flex flex-wrap items-center gap-2">
-							<span className="mr-1 text-xs text-muted-foreground">Filter:</span>
+							<span className="mr-1 text-xs text-muted-foreground">Tag:</span>
 							<button
 								type="button"
 								onClick={() => setFilterTagId(null)}
@@ -157,7 +187,7 @@ export function WatchlistDetailPage() {
 						</div>
 					) : (
 						<div className="rounded-card bg-secondary p-8 text-center">
-							<p className="text-muted-foreground">No users match the selected tag filter.</p>
+							<p className="text-muted-foreground">No members match the current filters.</p>
 						</div>
 					)}
 				</div>
@@ -165,12 +195,12 @@ export function WatchlistDetailPage() {
 
 			{activeTab === "posts" && (
 				<div>
-					{posts.length === 0 ? (
+					{filteredPosts.length === 0 ? (
 						<div className="flex flex-col items-center gap-2 rounded-card bg-secondary p-10 text-center">
 							<Eye className="h-8 w-8 text-muted-foreground" />
-							<p className="text-sm font-medium">No fetched posts yet.</p>
+							<p className="text-sm font-medium">No posts for this source filter.</p>
 							<p className="text-xs text-muted-foreground">
-								Click Fetch when ingest lands in S5 (mock data removed).
+								Mix timeline holds source_type=x.com and source_type=custom items.
 							</p>
 						</div>
 					) : (
@@ -183,8 +213,6 @@ export function WatchlistDetailPage() {
 									{col.map((post) => (
 										<WatchlistPostCard key={post.id} post={post} onRemove={handleRemovePost} />
 									))}
-									{colIdx === 0 &&
-										MOCK_CUSTOM_ITEMS.map((c) => <CustomItemCard key={c.id} item={c} />)}
 								</div>
 							))}
 						</div>

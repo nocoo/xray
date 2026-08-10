@@ -1,5 +1,6 @@
 /** Tweet card — layout ported from legacy/v1 (avatar, metrics, translate bar, AI insight). */
 
+import type { SourceType } from "@xray/shared";
 import {
 	ArrowLeftRight,
 	AtSign,
@@ -22,6 +23,7 @@ import {
 	X,
 } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { SourceChip } from "@/components/source-chip";
 import { Badge } from "@/components/ui/badge";
 import type { Tweet, TweetMedia } from "@/lib/tweet-types";
 import { cn, formatCount, formatTimeAgo } from "@/lib/utils";
@@ -36,6 +38,8 @@ import { cn, formatCount, formatTimeAgo } from "@/lib/utils";
 
 export interface TweetCardProps {
 	tweet: Tweet;
+	/** Canonical source_type — always x.com for this card shell. */
+	sourceType?: Extract<SourceType, "x.com">;
 	linkToDetail?: boolean;
 	className?: string;
 	/** Hide the bottom action bar (e.g. when a parent component provides its own) */
@@ -54,6 +58,7 @@ export interface TweetCardProps {
 
 export const TweetCard = memo(function TweetCard({
 	tweet,
+	sourceType = "x.com",
 	linkToDetail = true,
 	className,
 	showActionBar = true,
@@ -176,26 +181,25 @@ export const TweetCard = memo(function TweetCard({
 				className,
 			)}
 		>
-			{/* Tweet type badges — top-right corner */}
-			{(tweet.is_retweet || tweet.is_reply || tweet.is_quote) && (
-				<div className="absolute top-2.5 right-2.5 flex items-center gap-1">
-					{tweet.is_retweet && (
-						<Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
-							<Repeat2 className="mr-0.5 h-2.5 w-2.5" /> RT
-						</Badge>
-					)}
-					{tweet.is_reply && (
-						<Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
-							<MessageCircle className="mr-0.5 h-2.5 w-2.5" /> Reply
-						</Badge>
-					)}
-					{tweet.is_quote && (
-						<Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
-							<Quote className="mr-0.5 h-2.5 w-2.5" /> Quote
-						</Badge>
-					)}
-				</div>
-			)}
+			{/* source_type + tweet kind badges — top-right (v2 mix timeline) */}
+			<div className="absolute top-2.5 right-2.5 flex items-center gap-1">
+				<SourceChip sourceType={sourceType} />
+				{tweet.is_retweet && (
+					<Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
+						<Repeat2 className="mr-0.5 h-2.5 w-2.5" /> RT
+					</Badge>
+				)}
+				{tweet.is_reply && (
+					<Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
+						<MessageCircle className="mr-0.5 h-2.5 w-2.5" /> Reply
+					</Badge>
+				)}
+				{tweet.is_quote && (
+					<Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
+						<Quote className="mr-0.5 h-2.5 w-2.5" /> Quote
+					</Badge>
+				)}
+			</div>
 
 			{/* Author row */}
 			<div className="flex items-start gap-3">
