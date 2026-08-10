@@ -45,7 +45,14 @@ feat(ui): session gate and mock …
 feat(worker): users migration and access …
 ```
 
+### S23 实现审查修复（Codex）
+
+- compat date 对齐 workerd；Worker-first host allowlist（ingest 不提供 SPA）
+- `db:migrate:local` 纳入 dev 启动；JWT 矩阵与 SessionGate 测试
+- G2：pre-push `gitleaks detect` + CI OSV 硬失败；coverage 分包强制
+
 **当前停点**：S3 出口满足；下一步 **S4.1** 全 schema migrations。
+
 
 ---
 

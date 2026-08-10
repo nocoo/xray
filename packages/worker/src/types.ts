@@ -1,3 +1,8 @@
+/** Minimal CF Rate Limit binding shape. */
+export type RateLimit = {
+	limit: (opts: { key: string }) => Promise<{ success: boolean }>;
+};
+
 export type Bindings = {
 	DB: D1Database;
 	ENVIRONMENT?: string;
