@@ -1,14 +1,14 @@
 {
 	"name": "@xray/worker",
-	"version": "2.0.0",
+	"version": "2.0.0-dev.0",
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "wrangler dev --port 8787 --ip 127.0.0.1",
-		"build": "wrangler deploy --dry-run --outdir=dist",
+		"dev": "wrangler dev --env development --port 8787 --ip 127.0.0.1",
+		"build": "wrangler deploy --dry-run --outdir=dist --env production",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
-		"deploy": "wrangler deploy"
+		"deploy": "wrangler deploy --env production"
 	},
 	"dependencies": {
 		"@xray/shared": "workspace:*",

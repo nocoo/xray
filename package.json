@@ -1,16 +1,18 @@
 {
 	"name": "xray",
-	"version": "2.0.0",
+	"version": "2.0.0-dev.0",
 	"private": true,
 	"packageManager": "bun@1.3.14",
 	"workspaces": [
 		"packages/*"
 	],
 	"scripts": {
-		"dev": "turbo run dev --parallel",
-		"dev:ui": "turbo run dev --filter=@xray/ui",
-		"dev:worker": "turbo run dev --filter=@xray/worker",
-		"build": "turbo build",
+		"build:shared": "turbo run build --filter=@xray/shared",
+		"dev": "bun run build:shared && turbo run dev --parallel --filter=@xray/ui --filter=@xray/worker",
+		"dev:ui": "bun run build:shared && turbo run dev --filter=@xray/ui",
+		"dev:worker": "bun run build:shared && turbo run dev --filter=@xray/worker",
+		"build": "turbo run build --filter=@xray/shared --filter=@xray/ui --filter=@xray/worker",
+		"deploy": "bun run build && turbo run deploy --filter=@xray/worker",
 		"typecheck": "turbo typecheck",
 		"lint": "biome check --error-on-warnings .",
 		"lint:fix": "biome check --write .",

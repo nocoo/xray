@@ -9,6 +9,15 @@
 			"dependsOn": ["^build"],
 			"outputs": ["../worker/static/**"]
 		},
+		"@xray/worker#build": {
+			"dependsOn": ["^build", "@xray/ui#build"],
+			"inputs": ["src/**", "wrangler.toml", "static/**", "package.json"],
+			"outputs": ["dist/**"]
+		},
+		"@xray/worker#deploy": {
+			"dependsOn": ["build"],
+			"cache": false
+		},
 		"typecheck": {
 			"dependsOn": ["^build"]
 		},
