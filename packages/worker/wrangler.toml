@@ -35,6 +35,10 @@ migrations_dir = "migrations"
 name = "xray"
 vars = { ENVIRONMENT = "production" }
 
+[env.production.observability]
+enabled = true
+head_sampling_rate = 1
+
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "xray-db"

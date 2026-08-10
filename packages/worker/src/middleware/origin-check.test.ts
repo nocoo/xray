@@ -72,4 +72,16 @@ describe("originCheck", () => {
 		});
 		expect(res.status).toBe(403);
 	});
+
+	test("production rejects http origin even on same host", async () => {
+		const a = app({ ENVIRONMENT: "production" });
+		const res = await a.request("/api/watchlists", {
+			method: "POST",
+			headers: {
+				host: "xray.hexly.ai",
+				origin: "http://xray.hexly.ai",
+			},
+		});
+		expect(res.status).toBe(403);
+	});
 });

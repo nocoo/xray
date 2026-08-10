@@ -83,10 +83,15 @@ function msFrom(v: unknown): number {
 	return Number.isFinite(p) ? p : Date.now();
 }
 
-/** UPSERT only when existing row belongs to same tenant (S45R-03). */
-function conflictUpdate(tableUserCol: "user_id", cols: string[]): string {
+/** UPSERT only when existing row belongs to same tenant (S45R-03 / S45RR-03). */
+function conflictUpdate(_tableUserCol: "user_id", cols: string[]): string {
 	const sets = cols.map((c) => `${c}=excluded.${c}`).join(", ");
-	return `ON CONFLICT(id) DO UPDATE SET ${sets} WHERE ${tableUserCol} = excluded.${tableUserCol}`;
+	return `ON CONFLICT(id) DO UPDATE SET ${sets} WHERE user_id = excluded.user_id`;
+}
+
+/** Fail apply if id already owned by a different tenant. */
+function tenantConflictGuard(table: string, id: number, userIdSql: string): string {
+	return `SELECT CASE WHEN EXISTS(SELECT 1 FROM ${table} WHERE id = ${id} AND user_id != ${userIdSql}) THEN RAISE(ABORT, 'tenant id conflict ${table}:${id}') END;`;
 }
 
 const fatals: string[] = [];
@@ -99,6 +104,7 @@ const generated = {
 	members: 0,
 	tags: 0,
 	memberTags: 0,
+	skippedOrphanTags: 0,
 	groups: 0,
 	groupMembers: 0,
 	settings: 0,
@@ -167,6 +173,7 @@ for (const w of watchlists) {
 			)}, ${w.translate_enabled ? 1 : 0}, ${msFrom(w.created_at)})
      ${conflictUpdate("user_id", ["name", "description", "icon", "translate_enabled"])};`,
 	);
+	stmts.push(tenantConflictGuard("watchlists", Number(w.id), sqlLit(wUser)));
 	generated.watchlists += 1;
 }
 
@@ -206,8 +213,9 @@ for (const m of members) {
      VALUES (${Number(m.id)}, ${sqlLit(mUser)}, ${Number(m.watchlist_id)}, 'x.com', ${sqlLit(
 				m.twitter_id,
 			)}, ${sqlLit(handle)}, ${sqlLit(p?.display_name ?? null)}, ${sqlLit(m.note)}, ${msFrom(m.added_at)})
-     ${conflictUpdate("user_id", ["handle", "display_name", "note", "external_author_id"])};`,
+     ${conflictUpdate("user_id", ["handle", "display_name", "note", "external_author_id", "watchlist_id"])};`,
 	);
+	stmts.push(tenantConflictGuard("watchlist_members", Number(m.id), sqlLit(mUser)));
 	memberIds.add(Number(m.id));
 	generated.members += 1;
 }
@@ -225,15 +233,20 @@ for (const t of tags) {
      VALUES (${Number(t.id)}, ${sqlLit(tUser)}, ${sqlLit(t.name)}, ${sqlLit(t.color)})
      ${conflictUpdate("user_id", ["name", "color"])};`,
 	);
+	stmts.push(tenantConflictGuard("tags", Number(t.id), sqlLit(tUser)));
 	tagIds.add(Number(t.id));
 	generated.tags += 1;
 }
 
-for (const j of qAll<{ member_id: number; tag_id: number }>(
+const memberTags = qRequired<{ member_id: number; tag_id: number }>(
+	"watchlist_member_tags",
 	`SELECT member_id, tag_id FROM watchlist_member_tags`,
-)) {
+);
+for (const j of memberTags) {
 	if (!memberIds.has(Number(j.member_id)) || !tagIds.has(Number(j.tag_id))) {
-		fatals.push(`orphan member_tag member=${j.member_id} tag=${j.tag_id}`);
+		// audited skip — real v1 DBs may have orphans (S45RR-01/02)
+		warnings.push(`orphan member_tag skipped member=${j.member_id} tag=${j.tag_id}`);
+		generated.skippedOrphanTags += 1;
 		continue;
 	}
 	stmts.push(
@@ -262,6 +275,7 @@ for (const g of groups) {
 			)}, ${msFrom(g.created_at)})
      ${conflictUpdate("user_id", ["name", "description", "icon"])};`,
 	);
+	stmts.push(tenantConflictGuard("groups", Number(g.id), sqlLit(gUser)));
 	generated.groups += 1;
 }
 
@@ -291,8 +305,9 @@ for (const m of gms) {
      VALUES (${Number(m.id)}, ${sqlLit(gmUser)}, ${Number(m.group_id)}, 'x.com', ${sqlLit(
 				m.twitter_id,
 			)}, ${sqlLit(handle)}, ${sqlLit(p?.display_name ?? null)}, ${msFrom(m.added_at)})
-     ${conflictUpdate("user_id", ["handle", "display_name", "external_author_id"])};`,
+     ${conflictUpdate("user_id", ["handle", "display_name", "external_author_id", "group_id"])};`,
 	);
+	stmts.push(tenantConflictGuard("group_members", Number(m.id), sqlLit(gmUser)));
 	generated.groupMembers += 1;
 }
 
@@ -325,8 +340,11 @@ for (const s of settings) {
 
 const kekName = values["kek-env"];
 const kek = kekName ? Bun.env[kekName] : undefined;
-// key version for envelope byte0 + ai_configs.api_key_key_version column
-const keyVersion = 1;
+const keyVersionEnv = Bun.env[`XRAY${"_"}SECRETS_KEY_VERSION`] ?? "1";
+const keyVersion = Number(keyVersionEnv);
+if (!Number.isInteger(keyVersion) || keyVersion < 1 || keyVersion > 255) {
+	fatals.push("XRAY_SECRETS_KEY_VERSION must be integer 1–255");
+}
 
 if (aiByUser.size && !kek) {
 	const msg = `AI configs for ${aiByUser.size} user(s) require --kek-env (AES-GCM)`;

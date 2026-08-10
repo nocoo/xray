@@ -146,15 +146,24 @@ export async function addMember(
 	}
 	const id = Number(result.meta.last_row_id);
 	if (tagIds.length) {
-		const stmts = tagIds.map((tagId) =>
-			db
-				.prepare(
-					`INSERT OR IGNORE INTO watchlist_member_tags (member_id, tag_id)
+		try {
+			const stmts = tagIds.map((tagId) =>
+				db
+					.prepare(
+						`INSERT OR IGNORE INTO watchlist_member_tags (member_id, tag_id)
            SELECT ?, t.id FROM tags t WHERE t.id = ? AND t.user_id = ?`,
-				)
-				.bind(id, tagId, userId),
-		);
-		await db.batch(stmts);
+					)
+					.bind(id, tagId, userId),
+			);
+			await db.batch(stmts);
+		} catch (e) {
+			// compensate: remove orphan member if tag batch fails (S45RR-08)
+			await db
+				.prepare(`DELETE FROM watchlist_members WHERE id = ? AND user_id = ?`)
+				.bind(id, userId)
+				.run();
+			throw e;
+		}
 	}
 	const row = await db
 		.prepare(`SELECT * FROM watchlist_members WHERE id = ? AND user_id = ? LIMIT 1`)

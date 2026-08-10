@@ -85,21 +85,25 @@ export async function ingestPushRoute(c: Context<AppEnv>) {
 	}
 	const rawText = new TextDecoder().decode(merged);
 
-	let body: {
-		watchlist_id?: unknown;
-		items?: unknown;
-		options?: { apply_window_hours?: unknown };
-	};
+	let parsedJson: unknown;
 	try {
-		body = JSON.parse(rawText) as typeof body;
+		parsedJson = JSON.parse(rawText);
 	} catch {
 		return c.json({ ok: false, error: "invalid JSON" }, 400);
 	}
+	if (!parsedJson || typeof parsedJson !== "object" || Array.isArray(parsedJson)) {
+		return c.json({ ok: false, error: "body must be object" }, 400);
+	}
+	const body = parsedJson as Record<string, unknown>;
 
-	const watchlistId = Number(body.watchlist_id);
-	if (!Number.isInteger(watchlistId) || watchlistId <= 0) {
+	if (
+		typeof body.watchlist_id !== "number" ||
+		!Number.isInteger(body.watchlist_id) ||
+		body.watchlist_id <= 0
+	) {
 		return c.json({ ok: false, error: "watchlist_id required" }, 400);
 	}
+	const watchlistId = body.watchlist_id;
 	if (!Array.isArray(body.items)) {
 		return c.json({ ok: false, error: "items required" }, 400);
 	}
@@ -114,13 +118,16 @@ export async function ingestPushRoute(c: Context<AppEnv>) {
 	if (!wl) return c.json({ ok: false, error: "watchlist not found" }, 404);
 
 	let windowHours: number;
-	const optWin = body.options?.apply_window_hours;
+	const options =
+		body.options && typeof body.options === "object" && !Array.isArray(body.options)
+			? (body.options as Record<string, unknown>)
+			: undefined;
+	const optWin = options?.apply_window_hours;
 	if (optWin !== undefined && optWin !== null) {
-		const n = Number(optWin);
-		if (!Number.isInteger(n) || n < 1 || n > 168) {
+		if (typeof optWin !== "number" || !Number.isInteger(optWin) || optWin < 1 || optWin > 168) {
 			return c.json({ ok: false, error: "apply_window_hours must be 1..168" }, 400);
 		}
-		windowHours = n;
+		windowHours = optWin;
 	} else {
 		windowHours = await getWindowHours(c.env.DB, row.user_id);
 	}

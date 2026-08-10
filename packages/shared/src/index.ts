@@ -3,6 +3,9 @@ export type {
 	CanonicalCustomItem,
 	CanonicalItem,
 	CanonicalXItem,
+	XMedia,
+	XTweet,
+	XUser,
 } from "./canonical-item.js";
 export {
 	canonicalText,

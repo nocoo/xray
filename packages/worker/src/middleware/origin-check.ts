@@ -4,8 +4,8 @@ import type { AppEnv } from "../types.js";
 const SAFE = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
- * Browser mutation guard: require exact Origin match (S45R-06).
- * same-site / none alone are NOT sufficient.
+ * Browser mutation guard: require exact Origin match (S45R-06 / S45RR-06).
+ * Production: scheme + hostname + port must match the browser host URL.
  */
 export async function originCheck(c: Context<AppEnv>, next: Next) {
 	const method = c.req.method.toUpperCase();
@@ -15,6 +15,7 @@ export async function originCheck(c: Context<AppEnv>, next: Next) {
 	const hostHeader = (c.req.header("host") || "").toLowerCase();
 	const host = hostHeader.split(":")[0] ?? "";
 	const isLocal = host === "localhost" || host === "127.0.0.1" || host.endsWith(".localhost");
+	const isProd = c.env.ENVIRONMENT === "production";
 
 	const origin = c.req.header("origin");
 	if (!origin) {
@@ -26,11 +27,17 @@ export async function originCheck(c: Context<AppEnv>, next: Next) {
 
 	try {
 		const o = new URL(origin);
-		const reqProto = (c.req.header("x-forwarded-proto") || "https").split(",")[0]?.trim();
-		const expectedHost = hostHeader.includes(":") ? hostHeader : host;
-		// exact host match (hostname); port ignored when behind CF
+		if (isProd) {
+			// Locked production browser origins (exact).
+			const allowed = new Set(["https://xray.hexly.ai", "https://xray-staging.hexly.ai"]);
+			if (!allowed.has(origin)) {
+				return c.json({ success: false, error: "Cross-origin mutation blocked" }, 403);
+			}
+			return next();
+		}
+
+		// Non-prod: hostname match + local swap; optional port from Host header
 		if (o.hostname !== host) {
-			// local: allow localhost ↔ 127.0.0.1 swap only
 			if (
 				!(
 					isLocal &&
@@ -41,11 +48,13 @@ export async function originCheck(c: Context<AppEnv>, next: Next) {
 				return c.json({ success: false, error: "Cross-origin mutation blocked" }, 403);
 			}
 		}
-		// Prefer https in production
-		if (c.env.ENVIRONMENT === "production" && o.protocol !== "https:" && reqProto === "https") {
-			return c.json({ success: false, error: "Origin must be https" }, 403);
+		if (hostHeader.includes(":")) {
+			const hostPort = hostHeader.split(":")[1];
+			const originPort = o.port || (o.protocol === "https:" ? "443" : "80");
+			if (hostPort && originPort !== hostPort) {
+				return c.json({ success: false, error: "Cross-origin mutation blocked" }, 403);
+			}
 		}
-		void expectedHost;
 		return next();
 	} catch {
 		return c.json({ success: false, error: "Invalid Origin" }, 403);

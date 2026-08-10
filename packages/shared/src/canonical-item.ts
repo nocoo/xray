@@ -15,6 +15,69 @@ export type CanonicalAuthor = {
 	avatar_url?: string;
 };
 
+export type XTweetMetrics = {
+	retweet_count?: number;
+	reply_count?: number;
+	like_count?: number;
+	quote_count?: number;
+	bookmark_count?: number;
+	impression_count?: number;
+};
+
+export type XTweet = {
+	id: string;
+	text: string;
+	author_id?: string;
+	created_at?: string;
+	conversation_id?: string;
+	in_reply_to_user_id?: string;
+	lang?: string;
+	possibly_sensitive?: boolean;
+	public_metrics?: XTweetMetrics;
+	entities?: {
+		urls?: Array<{
+			start: number;
+			end: number;
+			url: string;
+			expanded_url?: string;
+			display_url?: string;
+		}>;
+		mentions?: Array<{ start: number; end: number; username: string; id?: string }>;
+		hashtags?: Array<{ start: number; end: number; tag: string }>;
+		cashtags?: Array<{ start: number; end: number; tag: string }>;
+	};
+	attachments?: { media_keys?: string[]; poll_ids?: string[] };
+	referenced_tweets?: Array<{ type: "retweeted" | "quoted" | "replied_to"; id: string }>;
+	note_tweet?: { text: string };
+	edit_history_tweet_ids?: string[];
+};
+
+export type XUser = {
+	id: string;
+	name: string;
+	username: string;
+	profile_image_url?: string;
+	description?: string;
+	public_metrics?: {
+		followers_count?: number;
+		following_count?: number;
+		tweet_count?: number;
+		listed_count?: number;
+	};
+	verified?: boolean;
+	protected?: boolean;
+};
+
+export type XMedia = {
+	media_key: string;
+	type: "photo" | "video" | "animated_gif";
+	url?: string;
+	preview_image_url?: string;
+	width?: number;
+	height?: number;
+	duration_ms?: number;
+};
+
 export type CanonicalXItem = {
 	source_type: "x.com";
 	external_id: string;
@@ -23,13 +86,11 @@ export type CanonicalXItem = {
 	meta?: Record<string, unknown>;
 	body: {
 		kind: "x.post";
-		tweet: {
-			id: string;
-			text: string;
-			author_id?: string;
-		};
+		tweet: XTweet;
 		includes?: {
-			users?: Array<{ id?: string; username?: string }>;
+			tweets?: XTweet[];
+			users?: XUser[];
+			media?: XMedia[];
 		};
 	};
 };
@@ -109,6 +170,137 @@ function parseAuthor(raw: unknown): CanonicalAuthor | undefined | ParseFail {
 	return out;
 }
 
+function optStr(v: unknown): string | undefined {
+	return typeof v === "string" ? v : undefined;
+}
+function optNum(v: unknown): number | undefined {
+	return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+}
+function optBool(v: unknown): boolean | undefined {
+	return typeof v === "boolean" ? v : undefined;
+}
+
+function parseXTweet(raw: unknown, required: boolean): XTweet | ParseFail | undefined {
+	if (raw === undefined || raw === null) {
+		return required
+			? { ok: false, code: "schema_mismatch", message: "body.tweet required" }
+			: undefined;
+	}
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+		return { ok: false, code: "schema_mismatch", message: "tweet invalid" };
+	}
+	const tw = raw as Record<string, unknown>;
+	if (typeof tw.id !== "string" || !tw.id.trim()) {
+		return { ok: false, code: "schema_mismatch", message: "tweet.id required" };
+	}
+	if (typeof tw.text !== "string" || !tw.text.trim() || tw.text.length > MAX_TEXT) {
+		return { ok: false, code: "schema_mismatch", message: "tweet.text invalid" };
+	}
+	if (tw.created_at !== undefined) {
+		if (typeof tw.created_at !== "string" || !RFC3339_Z.test(tw.created_at)) {
+			return { ok: false, code: "schema_mismatch", message: "tweet.created_at invalid" };
+		}
+	}
+	const out: XTweet = {
+		id: tw.id.trim(),
+		text: tw.text,
+		author_id: optStr(tw.author_id),
+		created_at: optStr(tw.created_at),
+		conversation_id: optStr(tw.conversation_id),
+		in_reply_to_user_id: optStr(tw.in_reply_to_user_id),
+		lang: optStr(tw.lang),
+		possibly_sensitive: optBool(tw.possibly_sensitive),
+	};
+	if (
+		tw.public_metrics &&
+		typeof tw.public_metrics === "object" &&
+		!Array.isArray(tw.public_metrics)
+	) {
+		const m = tw.public_metrics as Record<string, unknown>;
+		out.public_metrics = {
+			retweet_count: optNum(m.retweet_count),
+			reply_count: optNum(m.reply_count),
+			like_count: optNum(m.like_count),
+			quote_count: optNum(m.quote_count),
+			bookmark_count: optNum(m.bookmark_count),
+			impression_count: optNum(m.impression_count),
+		};
+	}
+	if (tw.entities && typeof tw.entities === "object" && !Array.isArray(tw.entities)) {
+		out.entities = tw.entities as XTweet["entities"];
+	}
+	if (tw.attachments && typeof tw.attachments === "object" && !Array.isArray(tw.attachments)) {
+		out.attachments = tw.attachments as XTweet["attachments"];
+	}
+	if (Array.isArray(tw.referenced_tweets)) {
+		out.referenced_tweets = [];
+		for (const r of tw.referenced_tweets) {
+			if (!r || typeof r !== "object") continue;
+			const rr = r as Record<string, unknown>;
+			if (
+				(rr.type === "retweeted" || rr.type === "quoted" || rr.type === "replied_to") &&
+				typeof rr.id === "string"
+			) {
+				out.referenced_tweets.push({ type: rr.type, id: rr.id });
+			}
+		}
+	}
+	if (tw.note_tweet && typeof tw.note_tweet === "object" && !Array.isArray(tw.note_tweet)) {
+		const n = tw.note_tweet as Record<string, unknown>;
+		if (typeof n.text === "string" && n.text.trim()) out.note_tweet = { text: n.text };
+	}
+	if (Array.isArray(tw.edit_history_tweet_ids)) {
+		out.edit_history_tweet_ids = tw.edit_history_tweet_ids.filter(
+			(x): x is string => typeof x === "string",
+		);
+	}
+	return out;
+}
+
+function parseXUser(raw: unknown): XUser | null {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+	const u = raw as Record<string, unknown>;
+	if (typeof u.id !== "string" || typeof u.name !== "string" || typeof u.username !== "string")
+		return null;
+	const out: XUser = { id: u.id, name: u.name, username: u.username };
+	if (typeof u.profile_image_url === "string" && isHttpsUrl(u.profile_image_url)) {
+		out.profile_image_url = u.profile_image_url;
+	}
+	out.description = optStr(u.description);
+	out.verified = optBool(u.verified);
+	out.protected = optBool(u.protected);
+	if (
+		u.public_metrics &&
+		typeof u.public_metrics === "object" &&
+		!Array.isArray(u.public_metrics)
+	) {
+		const m = u.public_metrics as Record<string, unknown>;
+		out.public_metrics = {
+			followers_count: optNum(m.followers_count),
+			following_count: optNum(m.following_count),
+			tweet_count: optNum(m.tweet_count),
+			listed_count: optNum(m.listed_count),
+		};
+	}
+	return out;
+}
+
+function parseXMedia(raw: unknown): XMedia | null {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+	const m = raw as Record<string, unknown>;
+	if (typeof m.media_key !== "string") return null;
+	if (m.type !== "photo" && m.type !== "video" && m.type !== "animated_gif") return null;
+	const out: XMedia = { media_key: m.media_key, type: m.type };
+	if (typeof m.url === "string" && isHttpsUrl(m.url)) out.url = m.url;
+	if (typeof m.preview_image_url === "string" && isHttpsUrl(m.preview_image_url)) {
+		out.preview_image_url = m.preview_image_url;
+	}
+	out.width = optNum(m.width);
+	out.height = optNum(m.height);
+	out.duration_ms = optNum(m.duration_ms);
+	return out;
+}
+
 /** Strict runtime parse of one canonical ingest item (docs/03). */
 export function parseCanonicalItem(raw: unknown): ParseOk | ParseFail {
 	if (!raw || typeof raw !== "object") {
@@ -146,16 +338,9 @@ export function parseCanonicalItem(raw: unknown): ParseOk | ParseFail {
 		if (b.kind !== "x.post") {
 			return { ok: false, code: "schema_mismatch", message: "body.kind must be x.post" };
 		}
-		const tweet = b.tweet;
-		if (!tweet || typeof tweet !== "object") {
-			return { ok: false, code: "schema_mismatch", message: "body.tweet required" };
-		}
-		const tw = tweet as Record<string, unknown>;
-		if (typeof tw.id !== "string" || !tw.id.trim()) {
-			return { ok: false, code: "schema_mismatch", message: "tweet.id required" };
-		}
-		if (typeof tw.text !== "string" || !tw.text.trim() || tw.text.length > MAX_TEXT) {
-			return { ok: false, code: "schema_mismatch", message: "tweet.text invalid" };
+		const tweet = parseXTweet(b.tweet, true);
+		if (!tweet || ("ok" in tweet && tweet.ok === false)) {
+			return tweet as ParseFail;
 		}
 		const out: CanonicalXItem = {
 			source_type: "x.com",
@@ -163,26 +348,26 @@ export function parseCanonicalItem(raw: unknown): ParseOk | ParseFail {
 			created_at: item.created_at,
 			author: author as CanonicalAuthor | undefined,
 			meta: item.meta as Record<string, unknown> | undefined,
-			body: {
-				kind: "x.post",
-				tweet: {
-					id: tw.id.trim(),
-					text: tw.text,
-					author_id: typeof tw.author_id === "string" ? tw.author_id : undefined,
-				},
-			},
+			body: { kind: "x.post", tweet: tweet as XTweet },
 		};
-		if (b.includes && typeof b.includes === "object") {
-			const inc = b.includes as { users?: unknown };
+		if (b.includes && typeof b.includes === "object" && !Array.isArray(b.includes)) {
+			const inc = b.includes as Record<string, unknown>;
+			const includes: NonNullable<CanonicalXItem["body"]["includes"]> = {};
+			if (Array.isArray(inc.tweets)) {
+				includes.tweets = [];
+				for (const raw of inc.tweets) {
+					const pt = parseXTweet(raw, false);
+					if (pt && !("ok" in pt)) includes.tweets.push(pt);
+				}
+			}
 			if (Array.isArray(inc.users)) {
-				out.body.includes = {
-					users: inc.users
-						.filter((u): u is Record<string, unknown> => !!u && typeof u === "object")
-						.map((u) => ({
-							id: typeof u.id === "string" ? u.id : undefined,
-							username: typeof u.username === "string" ? u.username : undefined,
-						})),
-				};
+				includes.users = inc.users.map(parseXUser).filter((u): u is XUser => !!u);
+			}
+			if (Array.isArray(inc.media)) {
+				includes.media = inc.media.map(parseXMedia).filter((m): m is XMedia => !!m);
+			}
+			if (includes.tweets || includes.users || includes.media) {
+				out.body.includes = includes;
 			}
 		}
 		return { ok: true, value: out };
