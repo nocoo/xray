@@ -32,7 +32,7 @@ async function assertServerHealthy(baseUrl: string, label: string): Promise<void
   let lastError: unknown;
   while (Date.now() < deadline) {
     try {
-      const res = await fetch(`${baseUrl}/api/auth/providers`, {
+      const res = await fetch(`${baseUrl}/api/xauth/providers`, {
         signal: AbortSignal.timeout(2_000),
       });
       if (res.ok) return;

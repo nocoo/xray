@@ -294,7 +294,7 @@ describe("auth", () => {
       skipAuth: boolean
     ): "next" | "redirect-home" | "redirect-login" {
       if (skipAuth) return "next";
-      if (pathname.startsWith("/api/auth")) return "next";
+      if (pathname.startsWith("/api/xauth")) return "next";
       if (pathname === "/login" && isLoggedIn) return "redirect-home";
       if (pathname !== "/login" && !isLoggedIn) return "redirect-login";
       return "next";
@@ -305,8 +305,8 @@ describe("auth", () => {
     });
 
     test("allows auth routes through", () => {
-      expect(routeDecision("/api/auth/callback/google", false, false)).toBe("next");
-      expect(routeDecision("/api/auth/providers", false, false)).toBe("next");
+      expect(routeDecision("/api/xauth/callback/google", false, false)).toBe("next");
+      expect(routeDecision("/api/xauth/providers", false, false)).toBe("next");
     });
 
     test("redirects logged-in user from /login to /", () => {

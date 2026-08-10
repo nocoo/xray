@@ -176,8 +176,8 @@ describe("e2e: auth enforcement (no-auth server)", () => {
       expect(res.status).toBe(200);
     });
 
-    test("GET /api/auth/providers returns 200", async () => {
-      const res = await fetch(`${getNoAuthBaseUrl()}/api/auth/providers`);
+    test("GET /api/xauth/providers returns 200", async () => {
+      const res = await fetch(`${getNoAuthBaseUrl()}/api/xauth/providers`);
       expect(res.status).toBe(200);
     });
 

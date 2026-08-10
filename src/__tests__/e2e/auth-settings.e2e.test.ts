@@ -29,8 +29,8 @@ describe("e2e: auth and settings", () => {
   // ---------------------------------------------------------------------------
 
   describe("auth", () => {
-    test("GET /api/auth/providers returns Google provider", async () => {
-      const res = await fetch(`${getBaseUrl()}/api/auth/providers`);
+    test("GET /api/xauth/providers returns Google provider", async () => {
+      const res = await fetch(`${getBaseUrl()}/api/xauth/providers`);
       expect(res.status).toBe(200);
 
       const data = await res.json();

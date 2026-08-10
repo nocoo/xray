@@ -31,6 +31,8 @@ try {
 
 /** Shared config — route handlers call Auth() with this to avoid next-auth's broken reqWithEnvURL. */
 export const authConfig = {
+  // vinext hangs reading POST bodies under /api/auth/* — use a different prefix.
+  basePath: "/api/xauth",
   trustHost: true,
   adapter,
   // Use JWT strategy even with adapter — avoids per-request DB session lookups.
