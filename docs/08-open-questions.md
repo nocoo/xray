@@ -1,49 +1,60 @@
 # 08 — Decisions Log
 
-原「Open Questions」已于 **2026-08-10** 全部关闭。本文档为决策存档；新问题追加在文末。
+原 Open Questions 已于 **2026-08-10** 关闭。  
+**2026-08-10 Codex design review**：P0–P3 已并入 02–07（见下表）。
 
-## Closed decisions
+## Product decisions (D1–D10)
 
-| ID | Topic | Decision |
-|----|-------|----------|
-| **D1** | Auth | **Cloudflare Access + Google IdP**；Worker 校验 `Cf-Access-Jwt-Assertion`（bat/surety 模式）。不做 app 内 NextAuth/Google OAuth 主会话。 |
-| **D2** | Ingest | **Push-first**。提供 `POST /api/ingest/push`；CLI（twitter-cli 类）、hermes agent 等外部生产者推送。MVP **不做** Worker 出站 pull / X 官方 API 拉取。 |
-| **D3** | Usage / Webhooks | **Usage 删除；Webhooks 删除。** |
-| **D4** | AI Settings | **独立页面保留**。复用 gecko / `@nocoo/next-ai` 的 provider 与设置 UX 模式；Worker 侧用 server-safe AI helpers。 |
-| **D5** | Push 认证 UI | **Settings 下 Push tokens 管理页**：创建（一次性展示 secret）/ 列表 / 吊销。仅 Access 会话可 mint（仿 bat `cli_tokens`）。 |
-| **D6** | Integrations | **zhe.to 完整保留。** |
-| **D7** | 历史 posts | **不迁移** `fetched_posts`。只迁 watchlists/groups/members/tags（+ 必要 users/AI settings）。 |
-| **D8** | 分支 | **直接在 `main` 上改。** |
-| **D9** | 自动刷新 | **不要** CF Cron / 平台定时 pull / member `fetch_interval` 调度。 |
-| **D10** | Source 模型 | 引入 **`source_type`**（`x.com` \| `custom` \| …）。Watchlist 时间线支持 **单源或 mix**；外部可向平台主动注入信息。 |
+| ID | Decision |
+|----|----------|
+| D1 | CF Access + Google；Worker 验 JWT |
+| D2 | Push-first；无 Cron pull |
+| D3 | Usage/Webhooks 删除 |
+| D4 | AI Settings 独立页；gecko/next-ai 模式 |
+| D5 | Push tokens 管理页；Access-only mint |
+| D6 | zhe.to 完整保留（含卡片保存契约） |
+| D7 | 不迁 posts |
+| D8 | 直接 main |
+| D9 | 不要自动刷新 |
+| D10 | source_type + mix timeline；members source-aware |
 
-## Product implications (summary)
+## Review locks (Codex XR-01…28)
 
-```
-CF Access (Google) → Dashboard SPA
-                         │
-External agents ──Bearer push token──► /api/ingest/push
-                         │
-                    items(source_type, …)
-                         │
-              watchlist mixed timeline + AI
-                         │
-                    zhe.to save (kept)
-```
+| ID | Level | Resolution summary |
+|----|-------|-------------------|
+| XR-01 | P0 | Dual host: `xray.hexly.ai` Access；`xray-ingest.hexly.ai` bypass push only |
+| XR-02 | P1 | users UNIQUE(access_iss, access_sub)；email 展示/迁移 |
+| XR-03 | P1 | S2 即 users migration；禁止临时 DB 分叉 |
+| XR-04 | P1 | Discriminated CanonicalItem + 完整 XTweet 子集 |
+| XR-05 | P1 | members/groups source_type+handle |
+| XR-06 | P1 | AI 仅手动有界同步 batch；ai_status 状态机 |
+| XR-07 | P1 | envelope encryption + KEK |
+| XR-08 | P1 | body/rate limits + markdown sanitize |
+| XR-09 | P1 | cursor pagination (created_at_ms, id) |
+| XR-10 | P1 | S5 M0 Watchlist CRUD |
+| XR-11 | P1 | zhe.to 行为契约 + save e2e |
+| XR-12 | P1 | migration dry-run/idempotent/cutover freeze |
+| XR-13 | P1 | tenant isolation L2 matrix |
+| XR-14 | P1 | CI mandatory required checks |
+| XR-15 | P1 | normative SQL constraints in 03 |
+| XR-16 | P2 | insert-ignore dedupe；partial 200+errors |
+| XR-17 | P2 | UTC ms storage |
+| XR-18 | P2 | window priority；no null unlimited default |
+| XR-19 | P2 | `/api/v1/ingest/push` canonical only |
+| XR-20 | P2 | ai_status；logs/settings in modules |
+| XR-21 | P2 | AUTH_DEV_BYPASS only；ports locked |
+| XR-22 | P2 | ALLOWED_EMAILS mandatory；Origin on mutations |
+| XR-23 | P2 | M8 cutover/rollback checklist |
+| XR-24 | P2 | observability minimum |
+| XR-25 | P3 | token CRUD vs push auth wording split |
+| XR-26 | P3 | prod host xray.hexly.ai only in success criteria |
+| XR-27 | P3 | items naming not posts |
+| XR-28 | P3 | DELETE /api/push-tokens/:id；rg excludes |
 
-## Still flexible (non-blocking)
+## Flexible defaults
 
-| Topic | Default if unspecified |
-|-------|------------------------|
-| Multi-user D1 row isolation | **Yes** (scoped by Access email → user id) |
-| Prod host | `xray.hexly.ai` |
-| Dev host | `xray.dev.hexly.ai` / port 7007 |
-| AI default provider list | Match gecko multi-provider set; user configures |
-| Encrypt AI keys at rest | MVP: server-only storage via Access API; encryption optional follow-up |
-| Visual debt during port | **None** — full CSS/design retain |
-
-## New questions (add below if any)
-
-| ID | Question | Status |
-|----|----------|--------|
-| | | |
+| Topic | Default |
+|-------|---------|
+| Multi-user row isolation | yes |
+| AI providers | multi, user-configured |
+| Visual debt | none — full CSS retain |

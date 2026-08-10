@@ -16,15 +16,16 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 ## Locked constraints
 
 1. **Stack**: TypeScript 7, Biome, Vite SPA + Hono Worker (`../bat`), CF Workers + D1.
-2. **Auth**: **Cloudflare Access** (Google IdP) — same class as bat/surety; no app-level NextAuth.
-3. **UI/CSS**: full visual retain.
-4. **Ingest**: **push-first**. External agents (twitter-cli-like, hermes, …) POST items. No CF Cron auto-refresh.
-5. **Sources**: typed (`x.com` | `custom` | …); one watchlist = **mixed** stream.
-6. **Product**: Dashboard, Watchlists, Groups, Integrations (**zhe.to** full), Settings, **AI Settings** (separate), **Push tokens** management.
-7. **Delete**: Explore, My Account, Usage, Webhooks, TweAPI, auto-refresh/cron fetch.
-8. **Migrate**: watchlists + groups (+ members/tags). **No** historical posts.
-9. **AI**: reuse gecko-class AI settings / `@nocoo/next-ai` patterns (worker-safe server helpers).
-10. **MVVM + TDD + 6DQ**; work **directly on `main`**.
+2. **Auth**: **Cloudflare Access** (Google IdP) on browser host `xray.hexly.ai`; Worker `ALLOWED_EMAILS` mandatory.
+3. **Ingest host**: `xray-ingest.hexly.ai` — Access bypass; **only** `POST /api/v1/ingest/push` + Bearer (XR-01).
+4. **UI/CSS**: full visual retain.
+5. **Ingest**: **push-first**, versioned canonical body. No CF Cron auto-refresh.
+6. **Sources**: typed (`x.com` | `custom`); mix timeline; source-aware members.
+7. **Product**: Dashboard, Watchlists (CRUD), Groups, zhe.to, AI Settings, Push tokens.
+8. **Delete**: Explore, My Account, Usage, Webhooks, TweAPI, auto-refresh.
+9. **Migrate**: WL/groups/members/tags only; **no** posts.
+10. **Secrets**: envelope encryption (KEK); AI keys never plaintext at rest.
+11. **MVVM + TDD + 6DQ + mandatory CI**; work on **`main`**.
 
 ## Execution phases (see [07](07-implementation-plan.md))
 

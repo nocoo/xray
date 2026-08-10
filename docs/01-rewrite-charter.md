@@ -61,13 +61,15 @@ Rewrite = **clean cut**. Design/CSS stay; engine, auth, deploy, and ingest model
 
 ## 7. Success criteria
 
-1. `xray.dev.hexly.ai`：CF Access Google 登录后进 Dashboard（本地 dev 可用 Access bypass / test header，见 02/06）。
-2. 迁移后 sidebar 出现原 watchlists/groups（无 posts）。
-3. 用 push token：`POST /api/ingest/push` 写入 x.com 与 custom 条目 → 同一 watchlist 时间线可见。
-4. AI Settings 可配 provider；翻译+总结跑通。
-5. zhe.to 保存路径可用。
-6. `rg -i tweapi`（非 legacy）= 0；无 Usage/Webhooks/Explore/My Account 路由。
-7. 6DQ 绿；部署 CF Workers + D1。
+1. **Prod browser** `https://xray.hexly.ai`：CF Access Google 登录后进 Dashboard。  
+   **Dev** `https://xray.dev.hexly.ai`：Worker `AUTH_DEV_BYPASS`（仅 development/test）。
+2. **Prod ingest** `https://xray-ingest.hexly.ai`：Bearer push 可达；browser host 不做 agent push。
+3. 迁移后 sidebar 出现原 watchlists/groups（无 posts）。
+4. Push token → `POST /api/v1/ingest/push` 写入 x.com + custom → 同一 watchlist mix 时间线。
+5. AI Settings 可配；有界手动翻译+总结；密钥 envelope 加密。
+6. zhe.to **保存路径**（含从卡片保存）可用。
+7. TweAPI 清零（排除 `docs/legacy/**` 与 `legacy/**`）；无 Usage/Webhooks/Explore/My Account。
+8. 6DQ + **mandatory CI**；部署 CF Workers + D1。
 
 ## 8. Versioning
 
