@@ -589,11 +589,11 @@ await mustCount(
 );
 async function mustOwn(table: string, rows: Array<{ id: number; userId: string }>) {
 	if (!rows.length) return;
-	// COUNT rows matching any expected (id,user_id) pair
+	// SQLite/D1: CTE VALUES with explicit column names
 	const vals = rows.map((r) => `(${r.id}, ${sqlLit(r.userId)})`).join(",");
 	await mustCount(
 		`${table}_owned`,
-		`SELECT COUNT(*) AS c FROM ${table} t JOIN (VALUES ${vals}) AS e(id, user_id) ON t.id = e.id AND t.user_id = e.user_id`,
+		`WITH e(id, user_id) AS (VALUES ${vals}) SELECT COUNT(*) AS c FROM ${table} t JOIN e ON t.id = e.id AND t.user_id = e.user_id`,
 		rows.length,
 	);
 }

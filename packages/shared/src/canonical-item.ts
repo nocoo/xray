@@ -188,9 +188,6 @@ function strictOptBool(v: unknown, field: string): boolean | undefined | ParseFa
 function optNum(v: unknown): number | undefined {
 	return typeof v === "number" && Number.isFinite(v) ? v : undefined;
 }
-function optBool(v: unknown): boolean | undefined {
-	return typeof v === "boolean" ? v : undefined;
-}
 
 function parseXTweet(raw: unknown, required: boolean): XTweet | ParseFail | undefined {
 	if (raw === undefined || raw === null) {
@@ -417,24 +414,53 @@ function parseXTweet(raw: unknown, required: boolean): XTweet | ParseFail | unde
 	return out;
 }
 
-function parseXUser(raw: unknown): XUser | null {
-	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+function parseXUser(raw: unknown): XUser | ParseFail {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+		return { ok: false, code: "schema_mismatch", message: "includes.users item invalid" };
+	}
 	const u = raw as Record<string, unknown>;
-	if (typeof u.id !== "string" || typeof u.name !== "string" || typeof u.username !== "string")
-		return null;
+	if (typeof u.id !== "string" || typeof u.name !== "string" || typeof u.username !== "string") {
+		return { ok: false, code: "schema_mismatch", message: "includes.users item invalid" };
+	}
 	const out: XUser = { id: u.id, name: u.name, username: u.username };
-	if (typeof u.profile_image_url === "string" && isHttpsUrl(u.profile_image_url)) {
+	if (u.profile_image_url !== undefined) {
+		if (typeof u.profile_image_url !== "string" || !isHttpsUrl(u.profile_image_url)) {
+			return { ok: false, code: "schema_mismatch", message: "user.profile_image_url invalid" };
+		}
 		out.profile_image_url = u.profile_image_url;
 	}
-	out.description = optStr(u.description);
-	out.verified = optBool(u.verified);
-	out.protected = optBool(u.protected);
-	if (
-		u.public_metrics &&
-		typeof u.public_metrics === "object" &&
-		!Array.isArray(u.public_metrics)
-	) {
+	if (u.description !== undefined) {
+		if (typeof u.description !== "string") {
+			return { ok: false, code: "schema_mismatch", message: "user.description invalid" };
+		}
+		out.description = u.description;
+	}
+	if (u.verified !== undefined) {
+		if (typeof u.verified !== "boolean") {
+			return { ok: false, code: "schema_mismatch", message: "user.verified invalid" };
+		}
+		out.verified = u.verified;
+	}
+	if (u.protected !== undefined) {
+		if (typeof u.protected !== "boolean") {
+			return { ok: false, code: "schema_mismatch", message: "user.protected invalid" };
+		}
+		out.protected = u.protected;
+	}
+	if (u.public_metrics !== undefined) {
+		if (
+			!u.public_metrics ||
+			typeof u.public_metrics !== "object" ||
+			Array.isArray(u.public_metrics)
+		) {
+			return { ok: false, code: "schema_mismatch", message: "user.public_metrics invalid" };
+		}
 		const m = u.public_metrics as Record<string, unknown>;
+		for (const v of Object.values(m)) {
+			if (v !== undefined && typeof v !== "number") {
+				return { ok: false, code: "schema_mismatch", message: "user.public_metrics invalid" };
+			}
+		}
 		out.public_metrics = {
 			followers_count: optNum(m.followers_count),
 			following_count: optNum(m.following_count),
@@ -445,19 +471,38 @@ function parseXUser(raw: unknown): XUser | null {
 	return out;
 }
 
-function parseXMedia(raw: unknown): XMedia | null {
-	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+function parseXMedia(raw: unknown): XMedia | ParseFail {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+		return { ok: false, code: "schema_mismatch", message: "includes.media item invalid" };
+	}
 	const m = raw as Record<string, unknown>;
-	if (typeof m.media_key !== "string") return null;
-	if (m.type !== "photo" && m.type !== "video" && m.type !== "animated_gif") return null;
+	if (typeof m.media_key !== "string") {
+		return { ok: false, code: "schema_mismatch", message: "includes.media item invalid" };
+	}
+	if (m.type !== "photo" && m.type !== "video" && m.type !== "animated_gif") {
+		return { ok: false, code: "schema_mismatch", message: "includes.media.type invalid" };
+	}
 	const out: XMedia = { media_key: m.media_key, type: m.type };
-	if (typeof m.url === "string" && isHttpsUrl(m.url)) out.url = m.url;
-	if (typeof m.preview_image_url === "string" && isHttpsUrl(m.preview_image_url)) {
+	if (m.url !== undefined) {
+		if (typeof m.url !== "string" || !isHttpsUrl(m.url)) {
+			return { ok: false, code: "schema_mismatch", message: "media.url invalid" };
+		}
+		out.url = m.url;
+	}
+	if (m.preview_image_url !== undefined) {
+		if (typeof m.preview_image_url !== "string" || !isHttpsUrl(m.preview_image_url)) {
+			return { ok: false, code: "schema_mismatch", message: "media.preview_image_url invalid" };
+		}
 		out.preview_image_url = m.preview_image_url;
 	}
-	out.width = optNum(m.width);
-	out.height = optNum(m.height);
-	out.duration_ms = optNum(m.duration_ms);
+	for (const key of ["width", "height", "duration_ms"] as const) {
+		if (m[key] !== undefined) {
+			if (typeof m[key] !== "number" || !Number.isFinite(m[key] as number)) {
+				return { ok: false, code: "schema_mismatch", message: `media.${key} invalid` };
+			}
+			out[key] = m[key] as number;
+		}
+	}
 	return out;
 }
 
@@ -536,8 +581,7 @@ export function parseCanonicalItem(raw: unknown): ParseOk | ParseFail {
 				includes.users = [];
 				for (const raw of inc.users) {
 					const u = parseXUser(raw);
-					if (!u)
-						return { ok: false, code: "schema_mismatch", message: "includes.users item invalid" };
+					if ("ok" in u) return u;
 					includes.users.push(u);
 				}
 			}
@@ -548,8 +592,7 @@ export function parseCanonicalItem(raw: unknown): ParseOk | ParseFail {
 				includes.media = [];
 				for (const raw of inc.media) {
 					const m = parseXMedia(raw);
-					if (!m)
-						return { ok: false, code: "schema_mismatch", message: "includes.media item invalid" };
+					if ("ok" in m) return m;
 					includes.media.push(m);
 				}
 			}
