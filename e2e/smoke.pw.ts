@@ -26,7 +26,7 @@ test.describe("page load smoke tests", () => {
     { path: "/watchlist", title: "Watchlists" },
     { path: "/ai-settings", title: "AI Settings" },
     { path: "/webhooks", title: "Webhooks" },
-    { path: "/login", title: "Access Required" },
+    { path: "/login", title: "Sign in with an authorized account" },
   ];
 
   for (const { path, title } of pages) {
