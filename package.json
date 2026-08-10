@@ -17,14 +17,17 @@
 		"lint": "biome check --error-on-warnings .",
 		"lint:fix": "biome check --write .",
 		"test": "turbo test",
-		"prepare": "husky"
+		"prepare": "husky",
+		"test:coverage": "bash scripts/check-coverage.sh 40 40",
+		"test:l2": "bun run --filter @xray/worker test"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.7",
 		"husky": "^9.1.0",
 		"turbo": "2.10.9",
 		"typescript": "^7.0.2",
-		"vitest": "4.1.10"
+		"vitest": "4.1.10",
+		"@vitest/coverage-v8": "4.1.10"
 	},
 	"trustedDependencies": [
 		"@biomejs/biome",
