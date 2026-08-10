@@ -27,6 +27,20 @@ Rewrite = **clean cut**. Design/CSS stay; engine, auth, deploy, and ingest model
 | D9 | **不要自动刷新**（无 CF Cron 扫 member interval；无平台主动 pull 调度） |
 | D10 | 引入 **source 类型字段**；watchlist 管理 **同类或 mix** 信息流 |
 
+### By design 补充（用户确认 2026-08-10，详见 [08](08-open-questions.md) BD-1…BD-9）
+
+| ID | 一句话 |
+|----|--------|
+| BD-1 | main 直推；硬门禁 pre-push，CI 不拦 direct push |
+| BD-2 | 限流 per-CF-location best-effort，不用 DO 全局 |
+| BD-3 | 不迁历史 posts |
+| BD-4 | 不迁 zhe.to 密钥，UI 重填 |
+| BD-5 | 无自动刷新 / Cron pull |
+| BD-6 | push 路径不跑 AI |
+| BD-7 | staging 与 prod 共用 Access AUD |
+| BD-8 | push 去重 insert-ignore |
+| BD-9 | 冗余 user_id + 测试保证租户，不做 composite FK |
+
 ## 4. Scope — keep
 
 | Area | Capability |

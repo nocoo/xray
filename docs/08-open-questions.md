@@ -93,3 +93,26 @@
 | XR-14 CI | pre-push hard gate; CI post-push + **release** gate |
 | Visual debt | none — full CSS retain |
 | AI providers | multi, user-configured |
+
+## By design (user-confirmed 2026-08-10)
+
+Codex 审查中曾质疑、用户确认 **维持现状、不改为「更重」方案** 的产品/运维取舍。实现与后续 review **不得当作缺口重开**，除非显式变更决策。
+
+| ID | Topic | Locked choice | Rejected alternative | Rationale / where specified |
+|----|-------|---------------|----------------------|-----------------------------|
+| **BD-1** | 分支策略 | **直接 push `main`**（D8） | 强制短分支 + PR + required checks 才能合 main | 个人项目速度优先；**硬门禁 = pre-push**（L2+G2）；CI 为事后检测 + **release 门**，不宣称能拦截 direct push。见 02 §12、06 §6 |
+| **BD-2** | Ingest 限流 | CF Rate Limiting binding，**per-location best-effort ~60/min/token** | Durable Object 严格全局计数 | MVP 够用、实现简单；文档须写明 locality / eventually consistent。见 02 §6、R3-03 |
+| **BD-3** | 历史 posts | **不迁移** `fetched_posts`（D7） | TweAPI JSON → canonical 尽力回填 | 数据质量差、收益低；上线后靠 push 重新灌。见 05 |
+| **BD-4** | zhe.to 密钥 | **不自动迁移**；用户在 UI 重填 | 脚本解密旧 settings 写入密文 | 降低密钥在迁移日志/中间态泄露面。见 05、R3-02 |
+| **BD-5** | 自动刷新 | **无** CF Cron / 平台 pull / member interval（D9） | Worker 定时扫成员拉源 | 与 push-first 一致；二期若加须新开决策。见 01 D9、02 §6 |
+| **BD-6** | Ingest 后 AI | **不**在 push 路径跑/入队 AI（R2-02） | push 后自动翻译 | 超时与成本可控；仅 UI 手动有界 batch。见 02 §6 |
+| **BD-7** | Staging Access | browser staging **与 prod 共用同一 Access app / `CF_ACCESS_AUD`** | 独立 staging Access app + `CF_ACCESS_AUD_STAGING` | 配置更简单；hosts：`xray-staging` / `xray-ingest-staging`。见 02 §1、R6-01 |
+| **BD-8** | Push 去重 | 同 key **insert-ignore**；不覆盖 payload/AI（XR-16） | `mode=replace` 覆盖更新 | MVP 幂等安全；「修正推送」以后另议。见 03 §5 |
+| **BD-9** | 租户列形状 | 子表保留冗余 `user_id` + 父 FK；**repo invariant + L2 测** | D1 composite FK / 去掉冗余 user_id | D1/迁移更简单；靠查询始终带 `user_id` 与测试矩阵。见 02 §5、03、R3-12 |
+
+### Non-goals reminder (by design)
+
+- 不做平台侧 X 官方 API pull（MVP）
+- 不做 Usage / Webhooks 产品面
+- 不做 Explore / My Account
+- 不恢复 TweAPI

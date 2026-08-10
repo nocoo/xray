@@ -25,7 +25,8 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 8. **Delete**: Explore, My Account, Usage, Webhooks, TweAPI, auto-refresh.
 9. **Migrate**: WL/groups/members/tags only; **no** posts.
 10. **Secrets**: versioned AES-256-GCM (KEK); AI keys never plaintext at rest.
-11. **MVVM + TDD + 6DQ + mandatory CI**; work on **`main`**.
+11. **MVVM + TDD + 6DQ**; work on **`main`** (hard gate = **pre-push**; CI = post-push + release).
+12. **By design (BD-1…BD-9)**: see [08](08-open-questions.md) — e.g. no posts migrate, no auto AI/refresh, insert-ignore dedupe, shared staging AUD, best-effort rate limit.
 
 ## Execution phases (see [07](07-implementation-plan.md))
 
