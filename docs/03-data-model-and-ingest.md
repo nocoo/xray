@@ -141,37 +141,51 @@ Runtime: zod/valibot schemas in `@xray/shared` mirror these types; reject unknow
 
 ## 4. D1 schema (normative constraints — XR-15)
 
-### users
+### users (R2-01)
 
 ```sql
 CREATE TABLE users (
   id TEXT PRIMARY KEY NOT NULL,
-  access_iss TEXT NOT NULL,
-  access_sub TEXT NOT NULL,
+  -- Both null = migrated pre-Access; both non-null after first Access login
+  access_iss TEXT,
+  access_sub TEXT,
   email TEXT NOT NULL COLLATE NOCASE,
   name TEXT,
   image TEXT,
   created_at_ms INTEGER NOT NULL,
-  UNIQUE (access_iss, access_sub),
+  CHECK (
+    (access_iss IS NULL AND access_sub IS NULL)
+    OR (access_iss IS NOT NULL AND access_sub IS NOT NULL)
+  ),
   UNIQUE (email)
 );
+-- Unique only when bound to Access
+CREATE UNIQUE INDEX users_access_identity_uidx
+  ON users(access_iss, access_sub)
+  WHERE access_iss IS NOT NULL AND access_sub IS NOT NULL;
 ```
 
-### push_tokens
+### push_tokens (R2-05)
 
 ```sql
 CREATE TABLE push_tokens (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  -- Display-only prefix, e.g. first 8 chars after xray_pt_
+  token_prefix TEXT NOT NULL,
+  -- SHA-256 hex of full token (high-entropy); constant-time compare on lookup
   token_hash TEXT NOT NULL UNIQUE,
   label TEXT NOT NULL,
-  scopes TEXT NOT NULL,              -- JSON array string, must include ingest:push when used
+  scopes TEXT NOT NULL,              -- JSON array, default ["ingest:push"]
   created_at_ms INTEGER NOT NULL,
   last_used_at_ms INTEGER,
   revoked_at_ms INTEGER
 );
 CREATE INDEX push_tokens_user_idx ON push_tokens(user_id);
 ```
+
+**Token format (locked)**: `xray_pt_<8-char-prefix>_<32-byte-base64url-secret>`  
+Lookup: parse prefix → candidate rows by prefix optional; verify `SHA-256(full_token) == token_hash` (constant-time). **Not** argon2 (unsuitable for direct hash lookup at request rate).
 
 ### watchlists
 
@@ -188,7 +202,7 @@ CREATE TABLE watchlists (
 CREATE INDEX watchlists_user_idx ON watchlists(user_id);
 ```
 
-### Source-aware members (XR-05)
+### watchlist_members (source-aware)
 
 ```sql
 CREATE TABLE watchlist_members (
@@ -196,9 +210,8 @@ CREATE TABLE watchlist_members (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   watchlist_id INTEGER NOT NULL REFERENCES watchlists(id) ON DELETE CASCADE,
   source_type TEXT NOT NULL CHECK (source_type IN ('x.com', 'custom')),
-  -- stable id in source (twitter user id, hermes agent id, …); nullable until resolved
   external_author_id TEXT,
-  handle TEXT,                     -- @username or custom handle
+  handle TEXT NOT NULL,
   display_name TEXT,
   note TEXT,
   added_at_ms INTEGER NOT NULL,
@@ -207,27 +220,51 @@ CREATE TABLE watchlist_members (
 CREATE INDEX watchlist_members_wl_idx ON watchlist_members(watchlist_id);
 ```
 
-**v1 migration map**: `twitter_username` → `source_type='x.com'`, `handle=username`, `external_author_id=twitter_id`.
+**v1 map**: `twitter_username` → `source_type='x.com'`, `handle=username`, `external_author_id=twitter_id`.
 
 ### tags / watchlist_member_tags
 
-Unchanged ownership; FK cascade on member/tag delete.
+```sql
+CREATE TABLE tags (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  color TEXT NOT NULL,
+  UNIQUE (user_id, name)
+);
+
+CREATE TABLE watchlist_member_tags (
+  member_id INTEGER NOT NULL REFERENCES watchlist_members(id) ON DELETE CASCADE,
+  tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (member_id, tag_id)
+);
+```
 
 ### groups / group_members
 
 ```sql
--- groups: same as watchlists ownership pattern
+CREATE TABLE groups (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  icon TEXT NOT NULL DEFAULT 'users',
+  created_at_ms INTEGER NOT NULL
+);
+CREATE INDEX groups_user_idx ON groups(user_id);
+
 CREATE TABLE group_members (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
   source_type TEXT NOT NULL CHECK (source_type IN ('x.com', 'custom')),
   external_author_id TEXT,
-  handle TEXT,
+  handle TEXT NOT NULL,
   display_name TEXT,
   added_at_ms INTEGER NOT NULL,
   UNIQUE (group_id, source_type, handle)
 );
+CREATE INDEX group_members_g_idx ON group_members(group_id);
 ```
 
 ### items
@@ -274,9 +311,48 @@ CREATE TABLE ingest_logs (
 CREATE INDEX ingest_logs_wl_idx ON ingest_logs(watchlist_id, created_at_ms DESC, id DESC);
 ```
 
-### settings / ai_configs
+### settings (generic KV)
 
-Key-value or dedicated ai_configs with **encrypted** secret fields (02 §7).
+```sql
+CREATE TABLE settings (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  key TEXT NOT NULL,
+  value TEXT NOT NULL,              -- non-secret JSON/text
+  updated_at_ms INTEGER NOT NULL,
+  PRIMARY KEY (user_id, key)
+);
+```
+
+### ai_configs (secrets envelope-encrypted — R2-07)
+
+```sql
+CREATE TABLE ai_configs (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL,
+  model TEXT,
+  base_url TEXT,
+  -- ciphertext blob: version|nonce|ciphertext+tag (see 02 §7)
+  api_key_ciphertext BLOB NOT NULL,
+  api_key_key_version INTEGER NOT NULL DEFAULT 1,
+  translation_prompt TEXT,
+  summary_prompt TEXT,
+  updated_at_ms INTEGER NOT NULL
+);
+```
+
+### integration_secrets (zhe.to etc.)
+
+```sql
+CREATE TABLE integration_secrets (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  integration TEXT NOT NULL,       -- e.g. 'zheto'
+  ciphertext BLOB NOT NULL,
+  key_version INTEGER NOT NULL DEFAULT 1,
+  meta_json TEXT,                  -- non-secret fields (base url)
+  updated_at_ms INTEGER NOT NULL,
+  PRIMARY KEY (user_id, integration)
+);
+```
 
 ## 5. Push API (versioned)
 
