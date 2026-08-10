@@ -33,7 +33,7 @@
 | Tenant / host matrix skeleton | `packages/worker/src/test/*` |
 | Coverage gate | `scripts/check-coverage.sh`，`bun run test:coverage` |
 | pre-commit | lint + typecheck + test + gitleaks |
-| pre-push | worker tests + coverage + gitleaks（osv optional local） |
+| pre-push | worker tests + coverage + gitleaks + osv-scanner（本地硬门禁） |
 | CI | `.github/workflows/ci.yml`（quality + g2 + release-gate） |
 | Rate limit stub | `lib/rate-limit.ts` + wrangler 注释 binding |
 
@@ -49,7 +49,7 @@ feat(worker): users migration and access …
 
 - compat date 对齐 workerd；Worker-first host allowlist（ingest 不提供 SPA）
 - `db:migrate:local` 纳入 dev 启动；JWT 矩阵与 SessionGate 测试
-- G2：pre-push `gitleaks detect` + CI OSV 硬失败；coverage 分包强制
+- G2：pre-push `gitleaks detect` + `osv-scanner` 硬失败；CI 同步；coverage domain≥90%
 
 **当前停点**：S3 出口满足；下一步 **S4.1** 全 schema migrations。
 
