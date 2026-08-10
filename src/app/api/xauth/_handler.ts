@@ -6,7 +6,7 @@ import {
   withCanonicalAuthOrigin,
 } from "@/lib/auth-request";
 
-/** Avoid /api/auth — vinext hangs on POST body for that prefix. */
+/** Avoid /api/auth — vinext has issues with that prefix in some builds. */
 export const AUTH_BASE_PATH = "/api/xauth";
 
 function prepareConfig(config: NextAuthConfig): NextAuthConfig {
@@ -22,6 +22,7 @@ function prepareConfig(config: NextAuthConfig): NextAuthConfig {
 }
 
 export async function authHandler(req: Request): Promise<Response> {
-  const nextReq = await withCanonicalAuthOrigin(await toNextRequest(req));
+  // Sync path — do not await body reads (vinext will hang).
+  const nextReq = withCanonicalAuthOrigin(toNextRequest(req));
   return Auth(nextReq, prepareConfig(authConfig));
 }

@@ -1,37 +1,35 @@
 import { NextRequest } from "next/server";
 
 /**
- * Build a NextRequest that Auth.js can safely consume.
+ * Convert Request → NextRequest without consuming the body stream.
  *
- * Production vinext passes plain Requests whose body streams can deadlock if
- * fed through `new NextRequest(request)` (stream already locked / half-open).
- * Always buffer method/headers/body first, then construct explicitly.
- *
- * Also never use `new NextRequest(url, request)` — production Next treats the
- * second arg as RequestInit and drops method/body (POST → GET).
+ * Critical vinext/production constraints:
+ * 1. `new NextRequest(url, request)` drops method/body (POST→GET).
+ * 2. `await req.arrayBuffer()` / `req.text()` on vinext HTTP Requests hangs
+ *    forever for some route trees — never pre-buffer the body.
+ * 3. Pass `req.body` through with `duplex: "half"` so Auth.js can read it.
  */
-export async function toNextRequest(req: Request): Promise<NextRequest> {
-  const method = req.method;
-  const headers = new Headers(req.headers);
-  const body =
-    method === "GET" || method === "HEAD" ? undefined : await req.arrayBuffer();
+export function toNextRequest(req: Request): NextRequest {
+  if (req instanceof NextRequest) return req;
 
-  return new NextRequest(req.url, {
+  const method = req.method;
+  const init: RequestInit & { duplex?: "half" } = {
     method,
-    headers,
-    body,
-  });
+    headers: req.headers,
+  };
+
+  if (method !== "GET" && method !== "HEAD" && req.body) {
+    init.body = req.body;
+    init.duplex = "half";
+  }
+
+  return new NextRequest(req.url, init);
 }
 
 /**
- * Rewrite request origin to AUTH_URL / NEXTAUTH_URL while keeping method & body.
- *
- * next-auth's built-in reqWithEnvURL uses the broken NextRequest(url, req)
- * constructor, so route handlers call Auth() with this rewrite instead.
+ * Rewrite origin to AUTH_URL / NEXTAUTH_URL without consuming the body stream.
  */
-export async function withCanonicalAuthOrigin(
-  req: NextRequest,
-): Promise<NextRequest> {
+export function withCanonicalAuthOrigin(req: NextRequest): NextRequest {
   const envUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
   if (!envUrl) return req;
 
@@ -39,14 +37,16 @@ export async function withCanonicalAuthOrigin(
   if (req.nextUrl.origin === envOrigin) return req;
 
   const url = req.nextUrl.href.replace(req.nextUrl.origin, envOrigin);
-  const body =
-    req.method === "GET" || req.method === "HEAD"
-      ? undefined
-      : await req.arrayBuffer();
-
-  return new NextRequest(url, {
-    method: req.method,
+  const method = req.method;
+  const init: RequestInit & { duplex?: "half" } = {
+    method,
     headers: req.headers,
-    body,
-  });
+  };
+
+  if (method !== "GET" && method !== "HEAD" && req.body) {
+    init.body = req.body;
+    init.duplex = "half";
+  }
+
+  return new NextRequest(url, init);
 }

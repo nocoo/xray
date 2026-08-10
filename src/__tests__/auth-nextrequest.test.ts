@@ -6,7 +6,7 @@ import {
 } from "@/lib/auth-request";
 
 describe("toNextRequest", () => {
-  test("preserves POST method and body from plain Request", async () => {
+  test("preserves POST method and body stream from plain Request", async () => {
     const body =
       "csrfToken=abc&callbackUrl=https%3A%2F%2Fxray.hexly.ai%2F&json=true";
     const req = new Request("https://xray.hexly.ai/api/xauth/signin/google", {
@@ -18,7 +18,7 @@ describe("toNextRequest", () => {
       body,
     });
 
-    const nextReq = await toNextRequest(req);
+    const nextReq = toNextRequest(req);
 
     expect(nextReq).toBeInstanceOf(NextRequest);
     expect(nextReq.method).toBe("POST");
@@ -27,28 +27,27 @@ describe("toNextRequest", () => {
     expect(await nextReq.text()).toBe(body);
   });
 
-  test("does not coerce POST into GET", async () => {
+  test("does not coerce POST into GET", () => {
     const req = new Request("https://xray.hexly.ai/api/xauth/signin/google", {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: "csrfToken=x",
     });
 
-    const nextReq = await toNextRequest(req);
-    expect(nextReq.method).not.toBe("GET");
+    const nextReq = toNextRequest(req);
     expect(nextReq.method).toBe("POST");
   });
 
-  test("handles GET without body", async () => {
+  test("handles GET without body", () => {
     const req = new Request("https://xray.hexly.ai/api/xauth/csrf");
-    const nextReq = await toNextRequest(req);
+    const nextReq = toNextRequest(req);
     expect(nextReq.method).toBe("GET");
     expect(nextReq.nextUrl.pathname).toBe("/api/xauth/csrf");
   });
 });
 
 describe("withCanonicalAuthOrigin", () => {
-  test("rewrites origin without dropping POST body", async () => {
+  test("rewrites origin without dropping POST body stream", async () => {
     const prev = process.env.NEXTAUTH_URL;
     process.env.NEXTAUTH_URL = "https://xray.hexly.ai";
     try {
@@ -59,7 +58,7 @@ describe("withCanonicalAuthOrigin", () => {
         body,
       });
 
-      const rewritten = await withCanonicalAuthOrigin(req);
+      const rewritten = withCanonicalAuthOrigin(req);
 
       expect(rewritten.method).toBe("POST");
       expect(rewritten.nextUrl.origin).toBe("https://xray.hexly.ai");
@@ -71,12 +70,12 @@ describe("withCanonicalAuthOrigin", () => {
     }
   });
 
-  test("no-op when origin already matches", async () => {
+  test("no-op when origin already matches", () => {
     const prev = process.env.NEXTAUTH_URL;
     process.env.NEXTAUTH_URL = "https://xray.hexly.ai";
     try {
       const req = new NextRequest("https://xray.hexly.ai/api/xauth/csrf");
-      const out = await withCanonicalAuthOrigin(req);
+      const out = withCanonicalAuthOrigin(req);
       expect(out).toBe(req);
     } finally {
       if (prev === undefined) delete process.env.NEXTAUTH_URL;
