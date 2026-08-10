@@ -335,7 +335,7 @@ CREATE TABLE settings (
 );
 ```
 
-### ai_configs (secrets envelope-encrypted — R2-07)
+### ai_configs (secrets AES-256-GCM — R2-07)
 
 ```sql
 CREATE TABLE ai_configs (

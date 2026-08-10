@@ -99,4 +99,9 @@ SELECT count(*) FROM watchlist_member_tags j
   LEFT JOIN watchlist_members m ON m.id=j.member_id WHERE m.id IS NULL;
 SELECT count(*) FROM watchlist_member_tags j
   LEFT JOIN tags t ON t.id=j.tag_id WHERE t.id IS NULL;
+-- cross-tenant tag join must be 0
+SELECT count(*) FROM watchlist_member_tags j
+  JOIN watchlist_members m ON m.id=j.member_id
+  JOIN tags t ON t.id=j.tag_id
+  WHERE m.user_id <> t.user_id;
 ```

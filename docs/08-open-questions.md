@@ -28,7 +28,7 @@
 | XR-04 | P1 | Discriminated CanonicalItem + 完整 XTweet 子集 |
 | XR-05 | P1 | members/groups source_type+handle |
 | XR-06 | P1 | AI 仅手动有界同步 batch；ai_status 状态机 |
-| XR-07 | P1 | envelope encryption + KEK |
+| XR-07 | P1 | versioned AES-256-GCM + KEK |
 | XR-08 | P1 | body/rate limits + markdown sanitize |
 | XR-09 | P1 | cursor pagination (created_at_ms, id) |
 | XR-10 | P1 | S5 M0 Watchlist CRUD |
