@@ -66,16 +66,16 @@ Paths grow per module (07 S5). Include zheto **save** with mock upstream (04 §5
 
 ## 6. Hooks & CI (XR-14)
 
-| Gate | pre-commit | pre-push | CI main |
-|------|------------|----------|---------|
-| L1 + coverage | yes | | yes |
+| Gate | pre-commit | pre-push (blocks direct main push) | CI after push / PR |
+|------|------------|--------------------------------------|---------------------|
+| L1 + coverage | yes | | yes (status) |
 | G1 biome/tsc | yes | | yes |
 | gitleaks | staged | full | yes |
-| L2 | | yes | yes |
+| L2 | | **yes — primary hard gate** | yes |
 | G2 osv | | yes | yes |
-| L3 | | no (too slow default) | **yes** after S5 |
+| L3 | | no | yes after S5; **blocks release** |
 
-CI is **mandatory** required checks — not optional.
+Direct main push: pre-push is the hard gate; CI is post-landing verification + release gate (R2-04).
 
 ## 7. Ports / persist (locked)
 

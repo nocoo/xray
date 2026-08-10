@@ -91,8 +91,8 @@ Profile (email from Access); `ingest.windowHours` (1–168, default 24).
 
 | Action | Auth | Behavior |
 |--------|------|----------|
-| List | Access | label, prefix, created, last_used — never full secret |
-| Create | Access + Origin check | plaintext once |
+| List | Access | label, `token_prefix`, created, last_used — never full secret |
+| Create | Access + Origin check | full `xray_pt_…` plaintext **once**; store prefix + SHA-256 hash |
 | Revoke | Access | `DELETE /api/push-tokens/:id` |
 
 ## 8. UI porting

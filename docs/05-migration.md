@@ -32,7 +32,7 @@ bun run scripts/migrate-v1-to-d1.ts \
 | Transactions | per-tenant batch; fail → no partial tenant |
 | FK order | users → watchlists → members → tags → groups → group_members → settings |
 | Email conflict | stop with report unless `--map` provides winner |
-| access_sub | left null until first Access login; then bind by email (single user) |
+| access_iss/sub | both NULL on migrate (allowed by CHECK); first Access login binds both via email match (R2-01) |
 
 ## 3. Cutover runbook (with 07 M8)
 

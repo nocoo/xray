@@ -50,6 +50,13 @@
 | XR-26 | P3 | prod host xray.hexly.ai only in success criteria |
 | XR-27 | P3 | items naming not posts |
 | XR-28 | P3 | DELETE /api/push-tokens/:id；rg excludes |
+| R2-01 | P0 | users access_* nullable pair + partial unique (migration OK) |
+| R2-02 | P1 | ingest never enqueues AI |
+| R2-03 | P1 | full SQL for all MVP tables in 03 |
+| R2-04 | P1 | pre-push hard gate; CI post-push + release gate |
+| R2-05 | P1 | token_prefix + SHA-256 hash format locked |
+| R2-06 | P1 | CF Rate Limiting binding for ingest |
+| R2-07 | P1 | AES-256-GCM envelope format locked |
 
 ## Flexible defaults
 

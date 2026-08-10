@@ -63,9 +63,10 @@ S1 → S2 → S3 → S4 → S5(M0…M8)
 | S3.6 | coverage gate | |
 | S3.7 | husky pre-commit L1 G1 gitleaks | |
 | S3.8 | husky pre-push L2 G2 | |
-| S3.9 | `ci: required gha workflow l1 l2 g1 g2` | **mandatory** branch protection doc |
+| S3.9 | `ci: gha workflow l1 l2 g1 g2` | post-push status + release gate (R2-04) |
+| S3.10 | `feat(worker): rate-limit binding stub` | wrangler `XRAY_INGEST_RL` for ingest |
 
-**出口**：坏 L1 无法 commit；坏 L2 无法 push；CI red 不可合 main。
+**出口**：坏 L1 无法 commit；坏 L2 无法 **push**（pre-push）；CI red 则 **禁止 release/cutover**。
 
 ---
 
