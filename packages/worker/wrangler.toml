@@ -38,3 +38,10 @@ binding = "DB"
 database_name = "xray-db"
 database_id = "00000000-0000-0000-0000-000000000001"
 migrations_dir = "migrations"
+
+# S3.10 — Rate Limiting binding (configure real namespace id before prod ingest)
+# [[unsafe.bindings]]
+# name = "XRAY_INGEST_RL"
+# type = "ratelimit"
+# namespace_id = "0"
+# simple = { limit = 60, period = 60 }
