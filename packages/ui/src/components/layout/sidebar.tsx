@@ -2,6 +2,7 @@ import { ChevronUp, PanelLeft } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/version";
@@ -58,45 +59,40 @@ function CollapsedNavLink({ item, pathname }: { item: UiNavItem; pathname: strin
 
 function NavGroupSection({ group, pathname }: { group: UiNavGroup; pathname: string }) {
 	const [open, setOpen] = useState(group.defaultOpen);
+	const panelId = `nav-group-${group.label.replaceAll(/\s+/g, "-").toLowerCase()}`;
 
 	return (
-		<div>
+		<Collapsible open={open} onOpenChange={setOpen}>
 			<div className={cn("mt-2", G.groupBandPadClass)}>
-				<button
-					type="button"
-					onClick={() => setOpen(!open)}
-					aria-expanded={open}
-					className="flex w-full items-center justify-between py-2.5"
-				>
-					<span className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
-						{group.label}
-					</span>
-					<ChevronUp
-						className={cn(
-							"h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
-							!open && "rotate-180",
-						)}
-						strokeWidth={1.5}
-						aria-hidden="true"
-					/>
-				</button>
+				<CollapsibleTrigger asChild>
+					<button
+						type="button"
+						aria-expanded={open}
+						aria-controls={panelId}
+						className="flex w-full items-center justify-between py-2.5"
+					>
+						<span className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+							{group.label}
+						</span>
+						<ChevronUp
+							className={cn(
+								"h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
+								!open && "rotate-180",
+							)}
+							strokeWidth={1.5}
+							aria-hidden="true"
+						/>
+					</button>
+				</CollapsibleTrigger>
 			</div>
-			<div
-				className="grid overflow-hidden"
-				style={{
-					gridTemplateRows: open ? "1fr" : "0fr",
-					transition: "grid-template-rows 200ms ease-out",
-				}}
-			>
-				<div className="min-h-0 overflow-hidden">
-					<div className={cn("flex flex-col gap-0.5", G.navItemsPadClass)}>
-						{group.items.map((item) => (
-							<ExpandedNavLink key={item.href} item={item} pathname={pathname} />
-						))}
-					</div>
+			<CollapsibleContent id={panelId}>
+				<div className={cn("flex flex-col gap-0.5 pb-1", G.navItemsPadClass)}>
+					{group.items.map((item) => (
+						<ExpandedNavLink key={item.href} item={item} pathname={pathname} />
+					))}
 				</div>
-			</div>
-		</div>
+			</CollapsibleContent>
+		</Collapsible>
 	);
 }
 

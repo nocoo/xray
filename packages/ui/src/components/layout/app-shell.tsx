@@ -1,5 +1,5 @@
 import { Menu } from "lucide-react";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { useLocation } from "react-router";
 import { Github } from "@/components/icons/github";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -8,6 +8,9 @@ import { BreadcrumbsProvider, useBreadcrumbs } from "./breadcrumbs-context";
 import { Sidebar } from "./sidebar";
 import { SidebarProvider, useSidebar } from "./sidebar-context";
 import { ThemeToggle } from "./theme-toggle";
+
+const FOCUSABLE =
+	'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
 interface AppShellProps {
 	children: ReactNode;
@@ -18,6 +21,9 @@ function AppShellInner({ children }: AppShellProps) {
 	const { mobileOpen, setMobileOpen } = useSidebar();
 	const { pathname } = useLocation();
 	const { breadcrumbs } = useBreadcrumbs();
+	const drawerRef = useRef<HTMLDivElement>(null);
+	const openButtonRef = useRef<HTMLButtonElement>(null);
+	const previouslyFocused = useRef<HTMLElement | null>(null);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: close drawer on route change
 	useEffect(() => {
@@ -35,14 +41,44 @@ function AppShellInner({ children }: AppShellProps) {
 		};
 	}, [mobileOpen]);
 
-	// Escape closes mobile drawer (S12-05)
+	// Focus trap + Escape + restore focus (S12R-03)
 	useEffect(() => {
 		if (!mobileOpen) return;
-		const onKey = (e: KeyboardEvent) => {
-			if (e.key === "Escape") setMobileOpen(false);
+		const drawer = drawerRef.current;
+		if (!drawer) return;
+
+		previouslyFocused.current = document.activeElement as HTMLElement | null;
+		const nodes = [...drawer.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+			(el) => !el.hasAttribute("disabled") && el.tabIndex !== -1,
+		);
+		const first = nodes[0];
+		const last = nodes[nodes.length - 1];
+		first?.focus();
+
+		const onKeyDown = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				e.preventDefault();
+				setMobileOpen(false);
+				return;
+			}
+			if (e.key !== "Tab" || nodes.length === 0) return;
+			if (e.shiftKey) {
+				if (document.activeElement === first) {
+					e.preventDefault();
+					last?.focus();
+				}
+			} else if (document.activeElement === last) {
+				e.preventDefault();
+				first?.focus();
+			}
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+
+		document.addEventListener("keydown", onKeyDown);
+		return () => {
+			document.removeEventListener("keydown", onKeyDown);
+			const restore = previouslyFocused.current ?? openButtonRef.current;
+			restore?.focus();
+		};
 	}, [mobileOpen, setMobileOpen]);
 
 	const resolved = isMobile !== undefined;
@@ -50,7 +86,10 @@ function AppShellInner({ children }: AppShellProps) {
 
 	return (
 		<div className="flex min-h-screen w-full bg-background">
-			<div className={resolved && mobile ? "hidden" : "hidden md:block"}>
+			<div
+				className={resolved && mobile ? "hidden" : "hidden md:block"}
+				inert={mobileOpen || undefined}
+			>
 				<Sidebar />
 			</div>
 
@@ -58,11 +97,13 @@ function AppShellInner({ children }: AppShellProps) {
 				<>
 					<button
 						type="button"
+						tabIndex={-1}
 						aria-label="Close navigation menu"
 						className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs"
 						onClick={() => setMobileOpen(false)}
 					/>
 					<div
+						ref={drawerRef}
 						className="fixed inset-y-0 left-0 z-50 w-[260px]"
 						role="dialog"
 						aria-modal="true"
@@ -73,10 +114,14 @@ function AppShellInner({ children }: AppShellProps) {
 				</>
 			)}
 
-			<main className="flex min-h-screen min-w-0 flex-1 flex-col">
+			<main
+				className="flex min-h-screen min-w-0 flex-1 flex-col"
+				inert={mobile && mobileOpen ? true : undefined}
+			>
 				<header className="flex h-14 shrink-0 items-center justify-between px-4 md:px-6">
 					<div className="flex items-center gap-3">
 						<button
+							ref={openButtonRef}
 							type="button"
 							onClick={() => setMobileOpen(true)}
 							aria-label="Open navigation menu"
