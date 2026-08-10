@@ -1,9 +1,9 @@
 import { Brain, Eye, Plus, Server, TrendingUp } from "lucide-react";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
+import { createWatchlist, fetchWatchlists, type Watchlist } from "@/api/watchlists";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { Button } from "@/components/ui/button";
-import { MOCK_WATCHLISTS } from "@/lib/mock-data";
 import { cn, getAvatarColor } from "@/lib/utils";
 
 const ICONS: Record<string, typeof Eye> = {
@@ -15,10 +15,45 @@ const ICONS: Record<string, typeof Eye> = {
 
 export function WatchlistsPage() {
 	const { setBreadcrumbs } = useBreadcrumbs();
+	const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [creating, setCreating] = useState(false);
+
 	useEffect(() => {
 		setBreadcrumbs([{ label: "Watchlists" }]);
 		return () => setBreadcrumbs([]);
 	}, [setBreadcrumbs]);
+
+	const load = useCallback(async () => {
+		setLoading(true);
+		setError(null);
+		try {
+			setWatchlists(await fetchWatchlists());
+		} catch (e) {
+			setError(e instanceof Error ? e.message : String(e));
+		} finally {
+			setLoading(false);
+		}
+	}, []);
+
+	useEffect(() => {
+		void load();
+	}, [load]);
+
+	const onCreate = async () => {
+		const name = window.prompt("Watchlist name");
+		if (!name?.trim()) return;
+		setCreating(true);
+		try {
+			await createWatchlist({ name: name.trim() });
+			await load();
+		} catch (e) {
+			setError(e instanceof Error ? e.message : String(e));
+		} finally {
+			setCreating(false);
+		}
+	};
 
 	return (
 		<div className="space-y-6">
@@ -26,17 +61,29 @@ export function WatchlistsPage() {
 				<div>
 					<h1 className="font-display text-2xl font-semibold tracking-tight">Watchlists</h1>
 					<p className="mt-1 text-sm text-muted-foreground">
-						Create and manage collections of Twitter/X users to track.
+						Create and manage collections of Twitter/X and custom sources.
 					</p>
 				</div>
-				<Button size="sm" type="button" disabled title="Create lands in S4">
+				<Button size="sm" type="button" onClick={() => void onCreate()} disabled={creating}>
 					<Plus className="h-4 w-4" />
 					New Watchlist
 				</Button>
 			</div>
 
+			{loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+			{error && <p className="text-sm text-destructive">{error}</p>}
+
+			{!loading && watchlists.length === 0 && !error && (
+				<div className="rounded-card bg-secondary p-10 text-center">
+					<p className="text-sm font-medium">No watchlists yet.</p>
+					<p className="mt-1 text-xs text-muted-foreground">
+						Create one to start the mix timeline.
+					</p>
+				</div>
+			)}
+
 			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-				{MOCK_WATCHLISTS.map((wl) => {
+				{watchlists.map((wl) => {
 					const WlIcon = ICONS[wl.icon] ?? Eye;
 					const color = getAvatarColor(wl.name);
 					return (
@@ -60,8 +107,6 @@ export function WatchlistsPage() {
 								<span>
 									{wl.memberCount} member{wl.memberCount !== 1 ? "s" : ""}
 								</span>
-								<span>·</span>
-								<span>{wl.posts24h} posts / 24h</span>
 								{wl.translateEnabled ? (
 									<span className="text-emerald-600 dark:text-emerald-400">Translate on</span>
 								) : (
