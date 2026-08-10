@@ -3,11 +3,12 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, getAvatarColor } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/version";
 import { getV2NavGroups, isActivePath, type UiNavGroup, type UiNavItem } from "./nav-config";
 import { useSidebar } from "./sidebar-context";
 
+/** Expanded-mode nav link — matches v1 ExpandedNavLink geometry. */
 function ExpandedNavLink({ item, pathname }: { item: UiNavItem; pathname: string }) {
 	const active = isActivePath(pathname, item.href);
 	return (
@@ -27,6 +28,7 @@ function ExpandedNavLink({ item, pathname }: { item: UiNavItem; pathname: string
 	);
 }
 
+/** Collapsed-mode icon link — fixed 40×40 hit target, matches v1. */
 function CollapsedNavLink({ item, pathname }: { item: UiNavItem; pathname: string }) {
 	const active = isActivePath(pathname, item.href);
 	return (
@@ -58,7 +60,8 @@ function NavGroupSection({ group, pathname }: { group: UiNavGroup; pathname: str
 
 	return (
 		<div>
-			<div className="px-3 mt-2">
+			{/* Group header — v1: px-3 mt-2 > button px-3 py-2.5, chevron in h-7 w-7 */}
+			<div className="mt-2 px-3">
 				<button
 					type="button"
 					onClick={() => setOpen(!open)}
@@ -97,12 +100,15 @@ function NavGroupSection({ group, pathname }: { group: UiNavGroup; pathname: str
 	);
 }
 
+const DEV_USER = { name: "Dev User", email: "local bypass", initial: "D" };
+
 export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 	const { pathname } = useLocation();
 	const { collapsed, toggle, setMobileOpen } = useSidebar();
 	const groups = getV2NavGroups();
 	const flatItems = groups.flatMap((g) => g.items);
 
+	// Mobile drawer is always the expanded chrome (260px).
 	const showCollapsed = !mobile && collapsed;
 
 	return (
@@ -110,87 +116,113 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 			<aside
 				aria-label={mobile ? "Main navigation drawer" : "Main navigation"}
 				data-testid="app-sidebar"
+				data-collapsed={showCollapsed ? "true" : "false"}
 				className={cn(
-					"sticky top-0 flex h-screen shrink-0 flex-col bg-background transition-all duration-300 ease-in-out overflow-hidden",
+					// Only animate width — transition-all also lerps padding/font and causes logo/avatar jitter.
+					"sticky top-0 flex h-screen shrink-0 flex-col overflow-hidden bg-background transition-[width] duration-300 ease-in-out",
 					showCollapsed ? "w-[68px]" : "w-[260px]",
 				)}
 			>
 				{showCollapsed ? (
+					/* ── Collapsed (icon-only) — v1 geometry ── */
 					<div className="flex h-screen w-[68px] flex-col items-center">
-						<div className="flex h-14 w-full items-center justify-start pl-6 pr-3">
+						{/*
+						 * Logo: pl-6 (=24px) so the 24px mark stays on the same x as expanded
+						 * (expanded = outer px-3 + inner px-3 = 24px).
+						 */}
+						<div className="flex h-14 w-full items-center justify-start pr-3 pl-6">
 							<img src="/logo-24.png" alt="X-Ray" width={24} height={24} className="shrink-0" />
 						</div>
+
+						{/* Expand toggle — h-10 w-10, below logo */}
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<button
 									type="button"
 									onClick={toggle}
 									aria-label="Expand sidebar"
-									className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors mb-2"
+									className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 								>
-									<PanelLeft className="h-4 w-4" strokeWidth={1.5} />
+									<PanelLeft className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
 								</button>
 							</TooltipTrigger>
 							<TooltipContent side="right" sideOffset={8}>
 								Expand sidebar
 							</TooltipContent>
 						</Tooltip>
-						<nav className="flex-1 flex flex-col items-center gap-1 overflow-y-auto pt-1">
+
+						<nav className="flex flex-1 flex-col items-center gap-1 overflow-y-auto pt-1">
 							{flatItems.map((item) => (
 								<CollapsedNavLink key={item.href} item={item} pathname={pathname} />
 							))}
 						</nav>
-						<div className="py-3 flex justify-center w-full">
-							<Avatar className="h-9 w-9">
-								<AvatarFallback className="bg-primary text-primary-foreground text-xs">
-									XR
+
+						{/*
+						 * Avatar centered in 68px: (68-36)/2 = 16px left edge —
+						 * same as expanded footer px-4 (16px).
+						 */}
+						<div className="flex w-full justify-center py-3">
+							<Avatar className="h-9 w-9 shrink-0">
+								<AvatarFallback className={cn("text-xs text-white", getAvatarColor(DEV_USER.name))}>
+									{DEV_USER.initial}
 								</AvatarFallback>
 							</Avatar>
 						</div>
 					</div>
 				) : (
+					/* ── Expanded — v1 geometry ── */
 					<div className="flex h-screen w-[260px] flex-col">
-						<div className="flex h-14 items-center justify-between px-5">
-							<div className="flex items-center gap-2.5">
-								<img src="/logo-24.png" alt="X-Ray" width={24} height={24} />
-								<span className="font-display text-base font-semibold tracking-tight">X-Ray</span>
-								<span className="text-[10px] text-muted-foreground/70">v{APP_VERSION}</span>
+						{/* Header: outer px-3 + inner px-3 → logo at x=24 */}
+						<div className="flex h-14 items-center px-3">
+							<div className="flex w-full items-center justify-between px-3">
+								<div className="flex items-center gap-3">
+									<img src="/logo-24.png" alt="X-Ray" width={24} height={24} className="shrink-0" />
+									<span className="font-mono text-lg font-bold tracking-tighter">X-Ray</span>
+									<span className="rounded-md bg-secondary px-1.5 py-0 text-[10px] font-normal leading-5 text-muted-foreground">
+										v{APP_VERSION}
+									</span>
+								</div>
+								{!mobile && (
+									<button
+										type="button"
+										onClick={toggle}
+										aria-label="Collapse sidebar"
+										className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+									>
+										<PanelLeft className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
+									</button>
+								)}
 							</div>
-							{!mobile && (
-								<button
-									type="button"
-									onClick={toggle}
-									aria-label="Collapse sidebar"
-									className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-								>
-									<PanelLeft className="h-4 w-4" strokeWidth={1.5} />
-								</button>
-							)}
 						</div>
 
-						<nav className="flex-1 overflow-y-auto pb-4" data-testid="sidebar-nav">
-							{groups.map((group) => (
-								<NavGroupSection key={group.label} group={group} pathname={pathname} />
-							))}
+						<nav className="flex-1 overflow-y-auto pt-1" data-testid="sidebar-nav">
+							<div className="flex flex-col">
+								{groups.map((group) => (
+									<NavGroupSection key={group.label} group={group} pathname={pathname} />
+								))}
+							</div>
 						</nav>
 
-						<div className="border-t border-border/60 px-4 py-3">
-							<div className="flex items-center gap-3 rounded-lg px-2 py-2">
-								<Avatar className="h-9 w-9">
-									<AvatarFallback className="bg-primary text-primary-foreground text-xs">
-										XR
+						{/* Footer: px-4 → avatar left edge 16px (matches collapsed center) */}
+						<div className="px-4 py-3">
+							<div className="flex items-center gap-3">
+								<Avatar className="h-9 w-9 shrink-0">
+									<AvatarFallback
+										className={cn("text-xs text-white", getAvatarColor(DEV_USER.name))}
+									>
+										{DEV_USER.initial}
 									</AvatarFallback>
 								</Avatar>
 								<div className="min-w-0 flex-1">
-									<p className="truncate text-sm font-medium">Dev User</p>
-									<p className="truncate text-xs text-muted-foreground">local bypass</p>
+									<p className="truncate text-sm font-medium text-foreground">{DEV_USER.name}</p>
+									<p className="truncate text-xs text-muted-foreground">{DEV_USER.email}</p>
 								</div>
 							</div>
 							{mobile && (
 								<button
 									type="button"
 									onClick={() => setMobileOpen(false)}
-									className="mt-1 w-full rounded-lg px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent"
+									className="mt-2 w-full rounded-lg px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent"
 								>
 									Close menu
 								</button>
