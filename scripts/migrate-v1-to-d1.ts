@@ -12,6 +12,7 @@
  * NOT: fetched_posts, zheto secrets.
  */
 import { Database } from "bun:sqlite";
+import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { normalizeHandle } from "../packages/shared/src/handle.ts";
 
@@ -37,6 +38,11 @@ if (!values.sqlite) {
 
 const dry = Boolean(values["dry-run"]);
 const target = values.target === "remote" ? "remote" : "local";
+if (values.target && values.target !== "local" && values.target !== "remote") {
+	console.error("--target must be local|remote");
+	process.exit(1);
+}
+
 const src = new Database(values.sqlite, { readonly: true });
 
 type MapFile = Record<string, string>;
@@ -77,9 +83,27 @@ function msFrom(v: unknown): number {
 	return Number.isFinite(p) ? p : Date.now();
 }
 
-const conflicts: string[] = [];
+/** UPSERT only when existing row belongs to same tenant (S45R-03). */
+function conflictUpdate(tableUserCol: "user_id", cols: string[]): string {
+	const sets = cols.map((c) => `${c}=excluded.${c}`).join(", ");
+	return `ON CONFLICT(id) DO UPDATE SET ${sets} WHERE ${tableUserCol} = excluded.${tableUserCol}`;
+}
+
+const fatals: string[] = [];
+const warnings: string[] = [];
 const stmts: string[] = [];
 const now = Date.now();
+const generated = {
+	users: 0,
+	watchlists: 0,
+	members: 0,
+	tags: 0,
+	memberTags: 0,
+	groups: 0,
+	groupMembers: 0,
+	settings: 0,
+	ai: 0,
+};
 
 const users = qRequired<{
 	id: string;
@@ -96,7 +120,7 @@ for (const u of users) {
 	if (email.includes("e2e-test")) continue;
 	const id = emailMap[email] || u.id;
 	if (userIdByEmail.has(email) && userIdByEmail.get(email) !== id) {
-		conflicts.push(`email conflict ${email}`);
+		fatals.push(`email conflict ${email}`);
 	}
 	userIdByEmail.set(email, id);
 	idMap.set(u.id, id);
@@ -105,10 +129,20 @@ for (const u of users) {
      VALUES (${sqlLit(id)}, ${sqlLit(email)}, ${sqlLit(u.name)}, ${sqlLit(u.image)}, NULL, NULL, ${now})
      ON CONFLICT(email) DO UPDATE SET name=excluded.name, image=excluded.image;`,
 	);
+	generated.users += 1;
 }
 
 function mapUid(old: string): string | null {
 	return idMap.get(old) ?? null;
+}
+
+function requireMapped(ownerOld: string, label: string): string | null {
+	const uid = mapUid(ownerOld);
+	if (!uid) {
+		fatals.push(`unmapped owner ${label} user_id=${ownerOld}`);
+		return null;
+	}
+	return uid;
 }
 
 const watchlists = qRequired<{
@@ -124,17 +158,16 @@ const watchlists = qRequired<{
 	`SELECT id, user_id, name, description, icon, translate_enabled, created_at FROM watchlists`,
 );
 for (const w of watchlists) {
-	const wUser = mapUid(w.user_id);
+	const wUser = requireMapped(w.user_id, `watchlist:${w.id}`);
 	if (!wUser) continue;
 	stmts.push(
 		`INSERT INTO watchlists (id, user_id, name, description, icon, translate_enabled, created_at_ms)
      VALUES (${Number(w.id)}, ${sqlLit(wUser)}, ${sqlLit(w.name)}, ${sqlLit(w.description)}, ${sqlLit(
 				w.icon || "eye",
 			)}, ${w.translate_enabled ? 1 : 0}, ${msFrom(w.created_at)})
-     ON CONFLICT(id) DO UPDATE SET
-       name=excluded.name, description=excluded.description,
-       icon=excluded.icon, translate_enabled=excluded.translate_enabled;`,
+     ${conflictUpdate("user_id", ["name", "description", "icon", "translate_enabled"])};`,
 	);
+	generated.watchlists += 1;
 }
 
 const profiles = qAll<{
@@ -157,12 +190,13 @@ const members = qRequired<{
 	"watchlist_members",
 	`SELECT id, user_id, watchlist_id, twitter_username, twitter_id, note, added_at FROM watchlist_members WHERE watchlist_id IS NOT NULL`,
 );
+const memberIds = new Set<number>();
 for (const m of members) {
-	const mUser = mapUid(m.user_id);
+	const mUser = requireMapped(m.user_id, `member:${m.id}`);
 	if (!mUser || m.watchlist_id == null) continue;
 	const handle = normalizeHandle(m.twitter_username || "");
 	if (!handle) {
-		conflicts.push(`member ${m.id} empty handle`);
+		fatals.push(`member ${m.id} empty handle`);
 		continue;
 	}
 	const p = (m.twitter_id && profileByTwId.get(m.twitter_id)) || profileByUser.get(handle) || null;
@@ -172,34 +206,42 @@ for (const m of members) {
      VALUES (${Number(m.id)}, ${sqlLit(mUser)}, ${Number(m.watchlist_id)}, 'x.com', ${sqlLit(
 				m.twitter_id,
 			)}, ${sqlLit(handle)}, ${sqlLit(p?.display_name ?? null)}, ${sqlLit(m.note)}, ${msFrom(m.added_at)})
-     ON CONFLICT(id) DO UPDATE SET
-       handle=excluded.handle, display_name=excluded.display_name,
-       note=excluded.note, external_author_id=excluded.external_author_id;`,
+     ${conflictUpdate("user_id", ["handle", "display_name", "note", "external_author_id"])};`,
 	);
+	memberIds.add(Number(m.id));
+	generated.members += 1;
 }
 
 const tags = qRequired<{ id: number; user_id: string; name: string; color: string }>(
 	"tags",
 	`SELECT id, user_id, name, color FROM tags`,
 );
+const tagIds = new Set<number>();
 for (const t of tags) {
-	const tUser = mapUid(t.user_id);
+	const tUser = requireMapped(t.user_id, `tag:${t.id}`);
 	if (!tUser) continue;
 	stmts.push(
 		`INSERT INTO tags (id, user_id, name, color)
      VALUES (${Number(t.id)}, ${sqlLit(tUser)}, ${sqlLit(t.name)}, ${sqlLit(t.color)})
-     ON CONFLICT(id) DO UPDATE SET name=excluded.name, color=excluded.color;`,
+     ${conflictUpdate("user_id", ["name", "color"])};`,
 	);
+	tagIds.add(Number(t.id));
+	generated.tags += 1;
 }
 
 for (const j of qAll<{ member_id: number; tag_id: number }>(
 	`SELECT member_id, tag_id FROM watchlist_member_tags`,
 )) {
+	if (!memberIds.has(Number(j.member_id)) || !tagIds.has(Number(j.tag_id))) {
+		fatals.push(`orphan member_tag member=${j.member_id} tag=${j.tag_id}`);
+		continue;
+	}
 	stmts.push(
 		`INSERT OR IGNORE INTO watchlist_member_tags (member_id, tag_id) VALUES (${Number(
 			j.member_id,
 		)}, ${Number(j.tag_id)});`,
 	);
+	generated.memberTags += 1;
 }
 
 const groups = qRequired<{
@@ -211,16 +253,16 @@ const groups = qRequired<{
 	created_at: unknown;
 }>("groups", `SELECT id, user_id, name, description, icon, created_at FROM groups`);
 for (const g of groups) {
-	const gUser = mapUid(g.user_id);
+	const gUser = requireMapped(g.user_id, `group:${g.id}`);
 	if (!gUser) continue;
 	stmts.push(
 		`INSERT INTO groups (id, user_id, name, description, icon, created_at_ms)
      VALUES (${Number(g.id)}, ${sqlLit(gUser)}, ${sqlLit(g.name)}, ${sqlLit(g.description)}, ${sqlLit(
 				g.icon || "users",
 			)}, ${msFrom(g.created_at)})
-     ON CONFLICT(id) DO UPDATE SET
-       name=excluded.name, description=excluded.description, icon=excluded.icon;`,
+     ${conflictUpdate("user_id", ["name", "description", "icon"])};`,
 	);
+	generated.groups += 1;
 }
 
 const gms = qRequired<{
@@ -235,10 +277,13 @@ const gms = qRequired<{
 	`SELECT id, user_id, group_id, twitter_username, twitter_id, added_at FROM group_members`,
 );
 for (const m of gms) {
-	const gmUser = mapUid(m.user_id);
+	const gmUser = requireMapped(m.user_id, `group_member:${m.id}`);
 	if (!gmUser) continue;
 	const handle = normalizeHandle(m.twitter_username || "");
-	if (!handle) continue;
+	if (!handle) {
+		fatals.push(`group_member ${m.id} empty handle`);
+		continue;
+	}
 	const p = (m.twitter_id && profileByTwId.get(m.twitter_id)) || profileByUser.get(handle) || null;
 	stmts.push(
 		`INSERT INTO group_members
@@ -246,10 +291,9 @@ for (const m of gms) {
      VALUES (${Number(m.id)}, ${sqlLit(gmUser)}, ${Number(m.group_id)}, 'x.com', ${sqlLit(
 				m.twitter_id,
 			)}, ${sqlLit(handle)}, ${sqlLit(p?.display_name ?? null)}, ${msFrom(m.added_at)})
-     ON CONFLICT(id) DO UPDATE SET
-       handle=excluded.handle, display_name=excluded.display_name,
-       external_author_id=excluded.external_author_id;`,
+     ${conflictUpdate("user_id", ["handle", "display_name", "external_author_id"])};`,
 	);
+	generated.groupMembers += 1;
 }
 
 const settings = qRequired<{ user_id: string; key: string; value: string }>(
@@ -258,7 +302,7 @@ const settings = qRequired<{ user_id: string; key: string; value: string }>(
 );
 const aiByUser = new Map<string, Record<string, string>>();
 for (const s of settings) {
-	const uid = mapUid(s.user_id);
+	const uid = requireMapped(s.user_id, `settings:${s.key}`);
 	if (!uid) continue;
 	if (s.key.startsWith("ai.")) {
 		const bag = aiByUser.get(uid) ?? {};
@@ -267,7 +311,7 @@ for (const s of settings) {
 		continue;
 	}
 	if (s.key.startsWith("zheto.") || /apiKey|secret|token|password|webhook/i.test(s.key)) {
-		conflicts.push(`skipped secret/integration setting ${s.user_id}:${s.key}`);
+		warnings.push(`skipped secret/integration setting ${s.user_id}:${s.key}`);
 		continue;
 	}
 	stmts.push(
@@ -276,20 +320,24 @@ for (const s of settings) {
 		)}, ${sqlLit(s.value)}, ${now})
      ON CONFLICT(user_id, key) DO UPDATE SET value=excluded.value, updated_at_ms=excluded.updated_at_ms;`,
 	);
+	generated.settings += 1;
 }
 
 const kekName = values["kek-env"];
-const kek = kekName ? process.env[kekName] : undefined;
-let aiMigrated = 0;
+const kek = kekName ? Bun.env[kekName] : undefined;
+// key version for envelope byte0 + ai_configs.api_key_key_version column
+const keyVersion = 1;
+
 if (aiByUser.size && !kek) {
-	conflicts.push(
-		`AI configs for ${aiByUser.size} user(s) skipped: pass --kek-env (AES-GCM required)`,
-	);
+	const msg = `AI configs for ${aiByUser.size} user(s) require --kek-env (AES-GCM)`;
+	if (dry) warnings.push(msg);
+	else fatals.push(msg);
 } else if (kek) {
 	let kekBytes: Uint8Array;
 	try {
-		// accept 32-byte raw utf8 or base64/base64url of 32 bytes
-		if (kek.length === 32) {
+		// Strict 32-byte: raw utf8 (length 32) OR base64/base64url of 32 bytes (S45R-02).
+		// Never SHA-256-derive from arbitrary strings.
+		if (new TextEncoder().encode(kek).byteLength === 32 && kek.length === 32) {
 			kekBytes = new TextEncoder().encode(kek);
 		} else {
 			const b64 = kek.replace(/-/g, "+").replace(/_/g, "/");
@@ -297,15 +345,22 @@ if (aiByUser.size && !kek) {
 			const bin = atob(b64 + pad);
 			kekBytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
 		}
-		if (kekBytes.byteLength !== 32) throw new Error("KEK must be 32 bytes");
+		if (kekBytes.byteLength !== 32) throw new Error("KEK must decode to exactly 32 bytes");
 	} catch (e) {
 		console.error("Invalid KEK:", e instanceof Error ? e.message : e);
 		process.exit(1);
 	}
 	for (const [uid, bag] of aiByUser) {
 		const provider = bag["ai.provider"];
-		if (!provider) continue;
+		if (!provider) {
+			fatals.push(`ai config for ${uid} missing ai.provider`);
+			continue;
+		}
 		const apiKey = bag["ai.apiKey"] ?? "";
+		if (!apiKey) {
+			fatals.push(`ai config for ${uid} missing ai.apiKey`);
+			continue;
+		}
 		const model = bag["ai.model"] ?? null;
 		const baseUrl = bag["ai.baseUrl"] ?? bag["ai.baseURL"] ?? bag["ai.base_url"] ?? null;
 		const translationPrompt = bag["ai.translationPrompt"] ?? null;
@@ -321,21 +376,21 @@ if (aiByUser.size && !kek) {
 			),
 		);
 		const blob = new Uint8Array(1 + nonce.length + ct.length);
-		blob[0] = 1;
+		blob[0] = keyVersion & 0xff;
 		blob.set(nonce, 1);
 		blob.set(ct, 1 + nonce.length);
 		const hex = [...blob].map((b) => b.toString(16).padStart(2, "0")).join("");
 		stmts.push(
 			`INSERT INTO ai_configs
        (user_id, provider, model, base_url, api_key_ciphertext, api_key_key_version, translation_prompt, summary_prompt, updated_at_ms)
-       VALUES (${sqlLit(uid)}, ${sqlLit(provider)}, ${sqlLit(model)}, ${sqlLit(baseUrl)}, X'${hex}', 1, ${sqlLit(translationPrompt)}, ${sqlLit(summaryPrompt)}, ${now})
+       VALUES (${sqlLit(uid)}, ${sqlLit(provider)}, ${sqlLit(model)}, ${sqlLit(baseUrl)}, X'${hex}', ${keyVersion}, ${sqlLit(translationPrompt)}, ${sqlLit(summaryPrompt)}, ${now})
        ON CONFLICT(user_id) DO UPDATE SET
          provider=excluded.provider, model=excluded.model, base_url=excluded.base_url,
          api_key_ciphertext=excluded.api_key_ciphertext, api_key_key_version=excluded.api_key_key_version,
          translation_prompt=excluded.translation_prompt, summary_prompt=excluded.summary_prompt,
          updated_at_ms=excluded.updated_at_ms;`,
 		);
-		aiMigrated += 1;
+		generated.ai += 1;
 	}
 }
 
@@ -350,24 +405,23 @@ const report = {
 			tags: tags.length,
 			groups: groups.length,
 			groupMembers: gms.length,
+			settings: settings.length,
+			aiUsers: aiByUser.size,
 		},
-		aiMigrated,
+		generated,
 		statements: stmts.length,
 	},
-	conflicts,
+	fatals,
+	warnings,
 	fetched_posts: "NOT_MIGRATED",
 	zheto: "NOT_MIGRATED_reenter",
 };
 
 console.log(JSON.stringify(report, null, 2));
 
-if (conflicts.some((c) => c.includes("email conflict"))) {
-	console.error("Fatal conflicts — abort");
-	process.exit(1);
-}
-
-if (aiByUser.size > 0 && !kek && !dry) {
-	console.error("AI configs present but --kek-env missing — refuse apply");
+if (fatals.length > 0) {
+	console.error(`Fatal conflicts (${fatals.length}) — abort`);
+	for (const f of fatals.slice(0, 20)) console.error(`  - ${f}`);
 	process.exit(1);
 }
 
@@ -376,20 +430,37 @@ if (dry) {
 	process.exit(0);
 }
 
-const outPath = values.out || `/tmp/xray-migrate-${Date.now()}.sql`;
+const outRaw = values.out || `/tmp/xray-migrate-${Date.now()}.sql`;
+// Reject shell metacharacters in out path (S45R-15)
+if (/[;&|`$<>\\\n\r]/.test(outRaw) || outRaw.includes("..")) {
+	console.error("Invalid --out path");
+	process.exit(1);
+}
+const outPath = resolve(outRaw);
 await Bun.write(outPath, `${stmts.join("\n")}\n`);
 console.log(`Wrote ${stmts.length} statements → ${outPath}`);
 
-const applyCmd =
+const workerCwd = resolve(import.meta.dir, "../packages/worker");
+const args =
 	target === "remote"
-		? `cd packages/worker && bunx wrangler d1 execute xray-db --remote --file=${outPath}`
-		: `cd packages/worker && bunx wrangler d1 execute xray-db --local --env development --file=${outPath}`;
+		? ["bunx", "wrangler", "d1", "execute", "xray-db", "--remote", `--file=${outPath}`]
+		: [
+				"bunx",
+				"wrangler",
+				"d1",
+				"execute",
+				"xray-db",
+				"--local",
+				"--env",
+				"development",
+				`--file=${outPath}`,
+			];
 
-console.log(`Applying: ${applyCmd}`);
-const proc = Bun.spawn(["bash", "-lc", applyCmd], {
+console.log(`Applying: ${args.join(" ")} (cwd=${workerCwd})`);
+const proc = Bun.spawn(args, {
 	stdout: "inherit",
 	stderr: "inherit",
-	cwd: new URL("..", import.meta.url).pathname,
+	cwd: workerCwd,
 });
 const code = await proc.exited;
 if (code !== 0) {
