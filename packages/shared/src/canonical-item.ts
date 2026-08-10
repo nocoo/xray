@@ -173,6 +173,18 @@ function parseAuthor(raw: unknown): CanonicalAuthor | undefined | ParseFail {
 function optStr(v: unknown): string | undefined {
 	return typeof v === "string" ? v : undefined;
 }
+function strictOptStr(v: unknown, field: string): string | undefined | ParseFail {
+	if (v === undefined || v === null) return undefined;
+	if (typeof v !== "string")
+		return { ok: false, code: "schema_mismatch", message: `${field} invalid` };
+	return v;
+}
+function strictOptBool(v: unknown, field: string): boolean | undefined | ParseFail {
+	if (v === undefined || v === null) return undefined;
+	if (typeof v !== "boolean")
+		return { ok: false, code: "schema_mismatch", message: `${field} invalid` };
+	return v;
+}
 function optNum(v: unknown): number | undefined {
 	return typeof v === "number" && Number.isFinite(v) ? v : undefined;
 }
@@ -201,15 +213,25 @@ function parseXTweet(raw: unknown, required: boolean): XTweet | ParseFail | unde
 			return { ok: false, code: "schema_mismatch", message: "tweet.created_at invalid" };
 		}
 	}
+	const authorId = strictOptStr(tw.author_id, "tweet.author_id");
+	if (authorId && typeof authorId === "object") return authorId;
+	const conversationId = strictOptStr(tw.conversation_id, "tweet.conversation_id");
+	if (conversationId && typeof conversationId === "object") return conversationId;
+	const inReply = strictOptStr(tw.in_reply_to_user_id, "tweet.in_reply_to_user_id");
+	if (inReply && typeof inReply === "object") return inReply;
+	const lang = strictOptStr(tw.lang, "tweet.lang");
+	if (lang && typeof lang === "object") return lang;
+	const sens = strictOptBool(tw.possibly_sensitive, "tweet.possibly_sensitive");
+	if (sens && typeof sens === "object") return sens;
 	const out: XTweet = {
 		id: tw.id.trim(),
 		text: tw.text,
-		author_id: optStr(tw.author_id),
+		author_id: authorId as string | undefined,
 		created_at: optStr(tw.created_at),
-		conversation_id: optStr(tw.conversation_id),
-		in_reply_to_user_id: optStr(tw.in_reply_to_user_id),
-		lang: optStr(tw.lang),
-		possibly_sensitive: optBool(tw.possibly_sensitive),
+		conversation_id: conversationId as string | undefined,
+		in_reply_to_user_id: inReply as string | undefined,
+		lang: lang as string | undefined,
+		possibly_sensitive: sens as boolean | undefined,
 	};
 	if (tw.public_metrics !== undefined) {
 		if (
@@ -467,7 +489,10 @@ export function parseCanonicalItem(raw: unknown): ParseOk | ParseFail {
 			meta: item.meta as Record<string, unknown> | undefined,
 			body: { kind: "x.post", tweet: tweet as XTweet },
 		};
-		if (b.includes && typeof b.includes === "object" && !Array.isArray(b.includes)) {
+		if (b.includes !== undefined) {
+			if (!b.includes || typeof b.includes !== "object" || Array.isArray(b.includes)) {
+				return { ok: false, code: "schema_mismatch", message: "includes invalid" };
+			}
 			const inc = b.includes as Record<string, unknown>;
 			const includes: NonNullable<CanonicalXItem["body"]["includes"]> = {};
 			if (inc.tweets !== undefined) {

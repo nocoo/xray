@@ -118,6 +118,15 @@ const idMap = new Map<string, string>();
 const userIdByEmail = new Map<string, string>();
 const wlOwner = new Map<number, string>();
 const groupOwner = new Map<number, string>();
+const tagOwner = new Map<number, string>();
+const memberOwner = new Map<number, string>();
+const expected = {
+	watchlistIds: [] as number[],
+	memberIds: [] as number[],
+	tagIds: [] as number[],
+	groupIds: [] as number[],
+	groupMemberIds: [] as number[],
+};
 for (const u of users) {
 	const email = String(u.email).toLowerCase();
 	if (email.includes("e2e-test")) continue;
@@ -171,6 +180,7 @@ for (const w of watchlists) {
      ${conflictUpdate("user_id", ["name", "description", "icon", "translate_enabled"])};`,
 	);
 	wlOwner.set(Number(w.id), wUser);
+	expected.watchlistIds.push(Number(w.id));
 	generated.watchlists += 1;
 }
 
@@ -222,6 +232,8 @@ for (const m of members) {
      ${conflictUpdate("user_id", ["handle", "display_name", "note", "external_author_id", "watchlist_id"])};`,
 	);
 	memberIds.add(Number(m.id));
+	memberOwner.set(Number(m.id), mUser);
+	expected.memberIds.push(Number(m.id));
 	generated.members += 1;
 }
 
@@ -239,6 +251,8 @@ for (const t of tags) {
      ${conflictUpdate("user_id", ["name", "color"])};`,
 	);
 	tagIds.add(Number(t.id));
+	tagOwner.set(Number(t.id), tUser);
+	expected.tagIds.push(Number(t.id));
 	generated.tags += 1;
 }
 
@@ -247,10 +261,18 @@ const memberTags = qRequired<{ member_id: number; tag_id: number }>(
 	`SELECT member_id, tag_id FROM watchlist_member_tags`,
 );
 for (const j of memberTags) {
-	if (!memberIds.has(Number(j.member_id)) || !tagIds.has(Number(j.tag_id))) {
+	const mid = Number(j.member_id);
+	const tid = Number(j.tag_id);
+	if (!memberIds.has(mid) || !tagIds.has(tid)) {
 		// audited skip — real v1 DBs may have orphans (S45RR-01/02)
 		warnings.push(`orphan member_tag skipped member=${j.member_id} tag=${j.tag_id}`);
 		generated.skippedOrphanTags += 1;
+		continue;
+	}
+	const mo = memberOwner.get(mid);
+	const to = tagOwner.get(tid);
+	if (mo && to && mo !== to) {
+		fatals.push(`cross-tenant member_tag member=${mid} tag=${tid}`);
 		continue;
 	}
 	stmts.push(
@@ -280,6 +302,7 @@ for (const g of groups) {
      ${conflictUpdate("user_id", ["name", "description", "icon"])};`,
 	);
 	groupOwner.set(Number(g.id), gUser);
+	expected.groupIds.push(Number(g.id));
 	generated.groups += 1;
 }
 
@@ -320,6 +343,7 @@ for (const m of gms) {
 			)}, ${sqlLit(handle)}, ${sqlLit(p?.display_name ?? null)}, ${msFrom(m.added_at)})
      ${conflictUpdate("user_id", ["handle", "display_name", "external_author_id", "group_id"])};`,
 	);
+	expected.groupMemberIds.push(Number(m.id));
 	generated.groupMembers += 1;
 }
 
@@ -466,43 +490,104 @@ if (/[;&|`$<>\\\n\r]/.test(outRaw) || outRaw.includes("..")) {
 	console.error("Invalid --out path");
 	process.exit(1);
 }
-const outPath = resolve(outRaw);
+let outPath = resolve(outRaw);
+if (!outPath.toLowerCase().endsWith(".sql")) outPath = `${outPath}.sql`;
+const validatePath = `${outPath.slice(0, -4)}.validate.sql`;
+if (validatePath === outPath) {
+	console.error("Invalid --out path (cannot derive validation file)");
+	process.exit(1);
+}
+
+const idList = (ids: number[]) => (ids.length ? ids.join(",") : "NULL");
 const validationSql = [
-	`-- post-migrate tenant validation (expect 0 rows each)`,
+	`-- post-migrate tenant validation (expect 0 bad_* and matching expected counts)`,
 	`SELECT COUNT(*) AS bad_members FROM watchlist_members m WHERE NOT EXISTS (SELECT 1 FROM watchlists w WHERE w.id=m.watchlist_id AND w.user_id=m.user_id);`,
 	`SELECT COUNT(*) AS bad_group_members FROM group_members gm WHERE NOT EXISTS (SELECT 1 FROM groups g WHERE g.id=gm.group_id AND g.user_id=gm.user_id);`,
-	`SELECT COUNT(*) AS bad_tags FROM watchlist_member_tags j WHERE NOT EXISTS (SELECT 1 FROM watchlist_members m WHERE m.id=j.member_id) OR NOT EXISTS (SELECT 1 FROM tags t WHERE t.id=j.tag_id);`,
+	`SELECT COUNT(*) AS bad_tags FROM watchlist_member_tags j JOIN watchlist_members m ON m.id=j.member_id JOIN tags t ON t.id=j.tag_id WHERE m.user_id != t.user_id;`,
+	`SELECT COUNT(*) AS missing_watchlists FROM (SELECT id FROM watchlists WHERE id IN (${idList(expected.watchlistIds)}));`,
+	`SELECT COUNT(*) AS missing_members FROM (SELECT id FROM watchlist_members WHERE id IN (${idList(expected.memberIds)}));`,
+	`SELECT COUNT(*) AS missing_tags FROM (SELECT id FROM tags WHERE id IN (${idList(expected.tagIds)}));`,
+	`SELECT COUNT(*) AS missing_groups FROM (SELECT id FROM groups WHERE id IN (${idList(expected.groupIds)}));`,
+	`SELECT COUNT(*) AS missing_group_members FROM (SELECT id FROM group_members WHERE id IN (${idList(expected.groupMemberIds)}));`,
 ].join("\n");
+
 await Bun.write(outPath, `${stmts.join("\n")}\n`);
-await Bun.write(outPath.replace(/\.sql$/, ".validate.sql"), `${validationSql}\n`);
-console.log(`Validation SQL → ${outPath.replace(/\.sql$/, ".validate.sql")}`);
+await Bun.write(validatePath, `${validationSql}\n`);
 console.log(`Wrote ${stmts.length} statements → ${outPath}`);
+console.log(`Validation SQL → ${validatePath}`);
 
 const workerCwd = resolve(import.meta.dir, "../packages/worker");
-const args =
-	target === "remote"
-		? ["bunx", "wrangler", "d1", "execute", "xray-db", "--remote", `--file=${outPath}`]
-		: [
-				"bunx",
-				"wrangler",
-				"d1",
-				"execute",
-				"xray-db",
-				"--local",
-				"--env",
-				"development",
-				`--file=${outPath}`,
-			];
+async function wranglerFile(file: string, json = false): Promise<number> {
+	const args =
+		target === "remote"
+			? [
+					"bunx",
+					"wrangler",
+					"d1",
+					"execute",
+					"xray-db",
+					"--remote",
+					`--file=${file}`,
+					...(json ? ["--json"] : []),
+				]
+			: [
+					"bunx",
+					"wrangler",
+					"d1",
+					"execute",
+					"xray-db",
+					"--local",
+					"--env",
+					"development",
+					`--file=${file}`,
+					...(json ? ["--json"] : []),
+				];
+	console.log(`Applying: ${args.join(" ")} (cwd=${workerCwd})`);
+	const proc = Bun.spawn(args, {
+		stdout: json ? "pipe" : "inherit",
+		stderr: "inherit",
+		cwd: workerCwd,
+	});
+	const code = await proc.exited;
+	if (code !== 0) return code;
+	if (json && proc.stdout) {
+		const text = await new Response(proc.stdout).text();
+		// Fail if any bad_* > 0 or missing_* != expected
+		const expectMissing: Record<string, number> = {
+			missing_watchlists: expected.watchlistIds.length,
+			missing_members: expected.memberIds.length,
+			missing_tags: expected.tagIds.length,
+			missing_groups: expected.groupIds.length,
+			missing_group_members: expected.groupMemberIds.length,
+		};
+		const badKeys = ["bad_members", "bad_group_members", "bad_tags"];
+		for (const key of badKeys) {
+			const m = text.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`));
+			if (m && Number(m[1]) > 0) {
+				console.error(`Validation failed: ${key}=${m[1]}`);
+				return 2;
+			}
+		}
+		for (const [key, want] of Object.entries(expectMissing)) {
+			const m = text.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`));
+			const got = m ? Number(m[1]) : -1;
+			if (got !== want) {
+				console.error(`Validation failed: ${key}=${got} expected ${want}`);
+				return 2;
+			}
+		}
+	}
+	return 0;
+}
 
-console.log(`Applying: ${args.join(" ")} (cwd=${workerCwd})`);
-const proc = Bun.spawn(args, {
-	stdout: "inherit",
-	stderr: "inherit",
-	cwd: workerCwd,
-});
-const code = await proc.exited;
-if (code !== 0) {
-	console.error(`wrangler apply failed exit=${code}`);
-	process.exit(code);
+const applyCode = await wranglerFile(outPath, false);
+if (applyCode !== 0) {
+	console.error(`wrangler apply failed exit=${applyCode}`);
+	process.exit(applyCode);
+}
+const valCode = await wranglerFile(validatePath, true);
+if (valCode !== 0) {
+	console.error(`post-migrate validation failed exit=${valCode}`);
+	process.exit(valCode);
 }
 console.log("Migration apply OK");

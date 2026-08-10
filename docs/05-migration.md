@@ -75,7 +75,7 @@ Items empty; first Access login binds iss/sub (02 R3-01).
 Compare source sqlite vs D1 for each:
 
 ```sql
--- migrated counts (match source)
+-- migrated counts (match source minus audited orphan join skips)
 SELECT count(*) FROM users;
 SELECT count(*) FROM watchlists;
 SELECT count(*) FROM watchlist_members;

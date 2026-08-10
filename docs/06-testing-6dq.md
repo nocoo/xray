@@ -50,7 +50,7 @@ mock-d1 applies real SQL migrations (bat pattern).
 ## 4b. L2 file layout
 
 ```
-packages/worker/test/l2/
+packages/worker/src/test (Vitest; hand-written SQL-shaped stubs — not auto-applied migrations)/
   global-setup.ts   # wrangler dev --local --persist-to .wrangler/state-l2 --port 18787
   live.http.test.ts
   me.http.test.ts
