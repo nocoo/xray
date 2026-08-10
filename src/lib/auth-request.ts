@@ -23,7 +23,7 @@ export function toNextRequest(req: Request): NextRequest {
     init.duplex = "half";
   }
 
-  return new NextRequest(req.url, init);
+  return new NextRequest(req.url, init as ConstructorParameters<typeof NextRequest>[1]);
 }
 
 /**
@@ -48,5 +48,5 @@ export function withCanonicalAuthOrigin(req: NextRequest): NextRequest {
     init.duplex = "half";
   }
 
-  return new NextRequest(url, init);
+  return new NextRequest(url, init as ConstructorParameters<typeof NextRequest>[1]);
 }
