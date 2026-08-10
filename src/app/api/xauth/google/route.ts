@@ -1,15 +1,18 @@
-import { Auth } from "@auth/core";
+import { Auth, skipCSRFCheck } from "@auth/core";
 import type { NextAuthConfig } from "next-auth";
 import { authConfig } from "@/auth";
 import { AUTH_BASE_PATH } from "../_handler";
 
 /**
- * Shallow POST entry for Google OAuth.
+ * Start Google OAuth via GET.
  *
- * vinext hangs forever on `req.text()` / body streams for
- * `/api/xauth/signin/google` (and the old `/api/auth/signin/google`).
- * Reading the body on this shallower path works; we then rebuild a Request
- * whose pathname Auth.js expects (`…/signin/google`).
+ * Production vinext hangs when route handlers read POST bodies (req.text /
+ * arrayBuffer / Auth.js getBody). All dashboard APIs mask this by returning
+ * 401 from requireAuth() before reading the body. Auth sign-in cannot.
+ *
+ * Fix: browser does GET (no body). We synthesize an internal POST Request with
+ * a real string body and skipCSRFCheck — same pattern as next-auth server
+ * signIn() — then return Auth.js's redirect + Set-Cookie response.
  */
 function prepareConfig(config: NextAuthConfig): NextAuthConfig {
   const prepared: NextAuthConfig = {
@@ -23,33 +26,45 @@ function prepareConfig(config: NextAuthConfig): NextAuthConfig {
   return prepared;
 }
 
-async function handle(req: Request): Promise<Response> {
+export async function GET(req: Request): Promise<Response> {
   const envUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
-  const envOrigin = envUrl ? new URL(envUrl).origin : null;
+  const origin = envUrl
+    ? new URL(envUrl).origin
+    : new URL(req.url).origin;
 
-  const incoming = new URL(req.url);
-  const origin = envOrigin ?? incoming.origin;
-  const targetUrl = `${origin}${AUTH_BASE_PATH}/signin/google${incoming.search}`;
+  const callbackUrl =
+    new URL(req.url).searchParams.get("callbackUrl") ?? "/";
 
-  let body: string | undefined;
-  if (req.method !== "GET" && req.method !== "HEAD") {
-    body = await req.text();
+  const signInUrl = `${origin}${AUTH_BASE_PATH}/signin/google`;
+
+  const headers = new Headers({
+    "content-type": "application/x-www-form-urlencoded",
+  });
+  const cookie = req.headers.get("cookie");
+  if (cookie) headers.set("cookie", cookie);
+  for (const name of [
+    "host",
+    "x-forwarded-host",
+    "x-forwarded-proto",
+    "x-forwarded-for",
+  ] as const) {
+    const v = req.headers.get(name);
+    if (v) headers.set(name, v);
   }
 
-  const headers = new Headers(req.headers);
-  // Ensure Auth.js sees form body
-  if (body && !headers.has("content-type")) {
-    headers.set("content-type", "application/x-www-form-urlencoded");
-  }
-
-  const authReq = new Request(targetUrl, {
-    method: req.method,
+  const authReq = new Request(signInUrl, {
+    method: "POST",
     headers,
-    body: body || undefined,
+    body: new URLSearchParams({ callbackUrl }),
   });
 
-  return Auth(authReq, prepareConfig(authConfig));
+  return Auth(authReq, {
+    ...prepareConfig(authConfig),
+    skipCSRFCheck,
+  });
 }
 
-export const GET = handle;
-export const POST = handle;
+/** POST kept for diagnostics — prefer GET. */
+export async function POST(req: Request): Promise<Response> {
+  return GET(req);
+}

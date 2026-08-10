@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 
-/** vinext hangs reading POST bodies on this nested path — use /api/xauth/google. */
-export async function POST() {
-  return NextResponse.json(
-    {
-      error: "Use POST /api/xauth/google",
-      url: "/api/xauth/google",
-    },
-    { status: 308 },
-  );
+/** Nested path hangs on POST body under vinext — use GET /api/xauth/google. */
+export async function GET() {
+  return NextResponse.redirect(new URL("/api/xauth/google", process.env.NEXTAUTH_URL ?? "https://xray.hexly.ai"));
 }
 
-export async function GET() {
-  return NextResponse.json({ ok: true, use: "/api/xauth/google" });
+export async function POST() {
+  return NextResponse.json(
+    { error: "Use GET /api/xauth/google" },
+    { status: 405 },
+  );
 }

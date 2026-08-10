@@ -1,13 +1,10 @@
 "use client";
 
-import { getCsrfToken } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { Github } from "@/components/icons/github";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import LoadingScreen from "@/components/loading-screen";
-
-const AUTH_BASE = "/api/xauth";
 
 function Barcode() {
   return (
@@ -36,39 +33,9 @@ function Barcode() {
 function LoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
-  const [pending, setPending] = useState(false);
 
-  const handleGoogleLogin = async () => {
-    setPending(true);
-    try {
-      // Use shallow /api/xauth/google — vinext hangs on POST /signin/google body.
-      const csrfToken = await getCsrfToken();
-      if (!csrfToken) throw new Error("Missing CSRF token");
-
-      const res = await fetch(`${AUTH_BASE}/google`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "X-Auth-Return-Redirect": "1",
-        },
-        body: new URLSearchParams({
-          csrfToken,
-          callbackUrl: "/",
-          json: "true",
-        }),
-      });
-
-      const data = (await res.json()) as { url?: string };
-      if (data.url) {
-        window.location.href = data.url;
-        return;
-      }
-      throw new Error("No redirect URL from auth");
-    } catch (e) {
-      console.error(e);
-      setPending(false);
-    }
-  };
+  // Full navigation GET — avoids vinext POST body hang on auth routes.
+  const googleHref = "/api/xauth/google?callbackUrl=%2F";
 
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const year = today.slice(0, 4);
@@ -91,9 +58,17 @@ function LoginContent() {
       <div className="flex flex-1 flex-col items-center justify-center px-6">
         <div className="w-full max-w-sm space-y-8">
           <div className="flex flex-col items-center gap-4">
-            <img src="/logo-80.png" alt="X-Ray" width={64} height={64} className="rounded-2xl" />
+            <img
+              src="/logo-80.png"
+              alt="X-Ray"
+              width={64}
+              height={64}
+              className="rounded-2xl"
+            />
             <div className="text-center space-y-1">
-              <h1 className="text-2xl font-bold tracking-tight font-mono">X-Ray</h1>
+              <h1 className="text-2xl font-bold tracking-tight font-mono">
+                X-Ray
+              </h1>
               <p className="text-sm text-muted-foreground">
                 Sign in with an authorized account to access the dashboard
               </p>
@@ -110,11 +85,9 @@ function LoginContent() {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={handleGoogleLogin}
-            disabled={pending}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border bg-card px-4 py-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent disabled:opacity-60"
+          <a
+            href={googleHref}
+            className="flex w-full items-center justify-center gap-3 rounded-lg border bg-card px-4 py-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -134,8 +107,8 @@ function LoginContent() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            {pending ? "Redirecting…" : "Continue with Google"}
-          </button>
+            Continue with Google
+          </a>
 
           <p className="text-center text-xs text-muted-foreground">
             Only authorized email addresses can access this application
