@@ -74,10 +74,34 @@ export async function ingestPushRoute(c: Context<AppEnv>) {
 		return c.json({ ok: false, error: rl.reason || "Rate limited" }, 429);
 	}
 
-	const rawText = await c.req.text();
-	if (new TextEncoder().encode(rawText).byteLength > MAX_BODY_BYTES) {
-		return c.json({ ok: false, error: "payload too large" }, 413);
+	// Stream-read with hard byte cap (S45R-04)
+	const reader = c.req.raw.body?.getReader();
+	if (!reader) return c.json({ ok: false, error: "empty body" }, 400);
+	const chunks: Uint8Array[] = [];
+	let total = 0;
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		if (value) {
+			total += value.byteLength;
+			if (total > MAX_BODY_BYTES) {
+				try {
+					await reader.cancel();
+				} catch {
+					/* ignore */
+				}
+				return c.json({ ok: false, error: "payload too large" }, 413);
+			}
+			chunks.push(value);
+		}
 	}
+	const merged = new Uint8Array(total);
+	let off = 0;
+	for (const c of chunks) {
+		merged.set(c, off);
+		off += c.byteLength;
+	}
+	const rawText = new TextDecoder().decode(merged);
 
 	let body: {
 		watchlist_id?: unknown;

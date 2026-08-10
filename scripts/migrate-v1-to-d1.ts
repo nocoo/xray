@@ -111,7 +111,7 @@ function mapUid(old: string): string | null {
 	return idMap.get(old) ?? null;
 }
 
-const watchlists = qAll<{
+const watchlists = qRequired<{
 	id: number;
 	user_id: string;
 	name: string;
@@ -119,7 +119,10 @@ const watchlists = qAll<{
 	icon: string | null;
 	translate_enabled: number | null;
 	created_at: unknown;
-}>(`SELECT id, user_id, name, description, icon, translate_enabled, created_at FROM watchlists`);
+}>(
+	"watchlists",
+	`SELECT id, user_id, name, description, icon, translate_enabled, created_at FROM watchlists`,
+);
 for (const w of watchlists) {
 	const wUser = mapUid(w.user_id);
 	if (!wUser) continue;
@@ -142,7 +145,7 @@ const profiles = qAll<{
 const profileByTwId = new Map(profiles.map((p) => [p.twitter_id, p]));
 const profileByUser = new Map(profiles.map((p) => [p.username.toLowerCase(), p]));
 
-const members = qAll<{
+const members = qRequired<{
 	id: number;
 	user_id: string;
 	watchlist_id: number | null;
@@ -151,6 +154,7 @@ const members = qAll<{
 	note: string | null;
 	added_at: unknown;
 }>(
+	"watchlist_members",
 	`SELECT id, user_id, watchlist_id, twitter_username, twitter_id, note, added_at FROM watchlist_members WHERE watchlist_id IS NOT NULL`,
 );
 for (const m of members) {
@@ -174,7 +178,8 @@ for (const m of members) {
 	);
 }
 
-const tags = qAll<{ id: number; user_id: string; name: string; color: string }>(
+const tags = qRequired<{ id: number; user_id: string; name: string; color: string }>(
+	"tags",
 	`SELECT id, user_id, name, color FROM tags`,
 );
 for (const t of tags) {
@@ -197,14 +202,14 @@ for (const j of qAll<{ member_id: number; tag_id: number }>(
 	);
 }
 
-const groups = qAll<{
+const groups = qRequired<{
 	id: number;
 	user_id: string;
 	name: string;
 	description: string | null;
 	icon: string | null;
 	created_at: unknown;
-}>(`SELECT id, user_id, name, description, icon, created_at FROM groups`);
+}>("groups", `SELECT id, user_id, name, description, icon, created_at FROM groups`);
 for (const g of groups) {
 	const gUser = mapUid(g.user_id);
 	if (!gUser) continue;
@@ -218,14 +223,17 @@ for (const g of groups) {
 	);
 }
 
-const gms = qAll<{
+const gms = qRequired<{
 	id: number;
 	user_id: string;
 	group_id: number;
 	twitter_username: string;
 	twitter_id: string | null;
 	added_at: unknown;
-}>(`SELECT id, user_id, group_id, twitter_username, twitter_id, added_at FROM group_members`);
+}>(
+	"group_members",
+	`SELECT id, user_id, group_id, twitter_username, twitter_id, added_at FROM group_members`,
+);
 for (const m of gms) {
 	const gmUser = mapUid(m.user_id);
 	if (!gmUser) continue;
@@ -244,7 +252,8 @@ for (const m of gms) {
 	);
 }
 
-const settings = qAll<{ user_id: string; key: string; value: string }>(
+const settings = qRequired<{ user_id: string; key: string; value: string }>(
+	"settings",
 	`SELECT user_id, key, value FROM settings`,
 );
 const aiByUser = new Map<string, Record<string, string>>();
@@ -277,19 +286,36 @@ if (aiByUser.size && !kek) {
 		`AI configs for ${aiByUser.size} user(s) skipped: pass --kek-env (AES-GCM required)`,
 	);
 } else if (kek) {
-	const kekBytes = new TextEncoder().encode(kek);
+	let kekBytes: Uint8Array;
+	try {
+		// accept 32-byte raw utf8 or base64/base64url of 32 bytes
+		if (kek.length === 32) {
+			kekBytes = new TextEncoder().encode(kek);
+		} else {
+			const b64 = kek.replace(/-/g, "+").replace(/_/g, "/");
+			const pad = b64.length % 4 === 0 ? "" : "=".repeat(4 - (b64.length % 4));
+			const bin = atob(b64 + pad);
+			kekBytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+		}
+		if (kekBytes.byteLength !== 32) throw new Error("KEK must be 32 bytes");
+	} catch (e) {
+		console.error("Invalid KEK:", e instanceof Error ? e.message : e);
+		process.exit(1);
+	}
 	for (const [uid, bag] of aiByUser) {
 		const provider = bag["ai.provider"];
 		if (!provider) continue;
 		const apiKey = bag["ai.apiKey"] ?? "";
 		const model = bag["ai.model"] ?? null;
-		const baseUrl = bag["ai.baseUrl"] ?? bag["ai.base_url"] ?? null;
-		const keyMaterial = await crypto.subtle.digest("SHA-256", kekBytes);
-		const key = await crypto.subtle.importKey("raw", keyMaterial, "AES-GCM", false, ["encrypt"]);
+		const baseUrl = bag["ai.baseUrl"] ?? bag["ai.baseURL"] ?? bag["ai.base_url"] ?? null;
+		const translationPrompt = bag["ai.translationPrompt"] ?? null;
+		const summaryPrompt = bag["ai.summaryPrompt"] ?? null;
+		const key = await crypto.subtle.importKey("raw", kekBytes, "AES-GCM", false, ["encrypt"]);
 		const nonce = crypto.getRandomValues(new Uint8Array(12));
+		const aad = new TextEncoder().encode(`${uid}:ai.api_key`);
 		const ct = new Uint8Array(
 			await crypto.subtle.encrypt(
-				{ name: "AES-GCM", iv: nonce, additionalData: new TextEncoder().encode(uid) },
+				{ name: "AES-GCM", iv: nonce, additionalData: aad },
 				key,
 				new TextEncoder().encode(apiKey),
 			),
@@ -301,11 +327,13 @@ if (aiByUser.size && !kek) {
 		const hex = [...blob].map((b) => b.toString(16).padStart(2, "0")).join("");
 		stmts.push(
 			`INSERT INTO ai_configs
-       (user_id, provider, model, base_url, api_key_ciphertext, api_key_key_version, updated_at_ms)
-       VALUES (${sqlLit(uid)}, ${sqlLit(provider)}, ${sqlLit(model)}, ${sqlLit(baseUrl)}, X'${hex}', 1, ${now})
+       (user_id, provider, model, base_url, api_key_ciphertext, api_key_key_version, translation_prompt, summary_prompt, updated_at_ms)
+       VALUES (${sqlLit(uid)}, ${sqlLit(provider)}, ${sqlLit(model)}, ${sqlLit(baseUrl)}, X'${hex}', 1, ${sqlLit(translationPrompt)}, ${sqlLit(summaryPrompt)}, ${now})
        ON CONFLICT(user_id) DO UPDATE SET
          provider=excluded.provider, model=excluded.model, base_url=excluded.base_url,
-         api_key_ciphertext=excluded.api_key_ciphertext, updated_at_ms=excluded.updated_at_ms;`,
+         api_key_ciphertext=excluded.api_key_ciphertext, api_key_key_version=excluded.api_key_key_version,
+         translation_prompt=excluded.translation_prompt, summary_prompt=excluded.summary_prompt,
+         updated_at_ms=excluded.updated_at_ms;`,
 		);
 		aiMigrated += 1;
 	}
@@ -315,13 +343,14 @@ const report = {
 	dryRun: dry,
 	target,
 	counts: {
-		users: userIdByEmail.size,
-		watchlists: watchlists.length,
-		members: members.length,
-		tags: tags.length,
-		groups: groups.length,
-		groupMembers: gms.length,
-		settingsNonSecret: settings.filter((s) => !s.key.startsWith("ai.")).length,
+		source: {
+			users: userIdByEmail.size,
+			watchlists: watchlists.length,
+			members: members.length,
+			tags: tags.length,
+			groups: groups.length,
+			groupMembers: gms.length,
+		},
 		aiMigrated,
 		statements: stmts.length,
 	},
@@ -334,6 +363,11 @@ console.log(JSON.stringify(report, null, 2));
 
 if (conflicts.some((c) => c.includes("email conflict"))) {
 	console.error("Fatal conflicts — abort");
+	process.exit(1);
+}
+
+if (aiByUser.size > 0 && !kek && !dry) {
+	console.error("AI configs present but --kek-env missing — refuse apply");
 	process.exit(1);
 }
 
