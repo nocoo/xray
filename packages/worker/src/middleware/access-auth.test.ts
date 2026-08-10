@@ -190,4 +190,171 @@ describe("accessAuth JWT path", () => {
 		});
 		expect(res.status).toBe(500);
 	});
+
+	test("missing Access config → 500", async () => {
+		const app = makeApp({
+			AUTH_DEV_BYPASS: "false",
+			ENVIRONMENT: "production",
+			CF_ACCESS_TEAM_DOMAIN: "",
+			CF_ACCESS_AUD: "",
+		});
+		const res = await app.request("/api/me", {
+			headers: {
+				host: "xray.hexly.ai",
+				"Cf-Access-Jwt-Assertion": "h.p.s",
+			},
+		});
+		expect(res.status).toBe(500);
+	});
+
+	test("JWT missing email/sub → 403", async () => {
+		setJwtVerifierForTests(async () => ({ sub: "only-sub" }));
+		const app = makeApp({ AUTH_DEV_BYPASS: "false", ENVIRONMENT: "production" });
+		const res = await app.request("/api/me", {
+			headers: {
+				host: "xray.hexly.ai",
+				"Cf-Access-Jwt-Assertion": "h.p.s",
+			},
+		});
+		expect(res.status).toBe(403);
+	});
+
+	test("uses picture claim for image", async () => {
+		setJwtVerifierForTests(async () => ({
+			email: "ok@xray.local",
+			sub: "sub-pic",
+			iss: "https://hexly.cloudflareaccess.com",
+			picture: "https://img/x.png",
+		}));
+		const app = makeApp({ AUTH_DEV_BYPASS: "false", ENVIRONMENT: "production" });
+		const res = await app.request("/api/me", {
+			headers: {
+				host: "xray.hexly.ai",
+				"Cf-Access-Jwt-Assertion": "h.p.s",
+			},
+		});
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { user: { image: string } };
+		expect(body.user.image).toBe("https://img/x.png");
+	});
+
+	test("user bind conflict → 403", async () => {
+		const db = mockDb();
+		// seed bound user A
+		await (
+			db as unknown as {
+				prepare: (s: string) => { bind: (...a: unknown[]) => { run: () => Promise<unknown> } };
+			}
+		)
+			.prepare("INSERT INTO users")
+			.bind("id-a", "iss", "sub-a", "ok@xray.local", "A", null, 1)
+			.run();
+		setJwtVerifierForTests(async () => ({
+			email: "ok@xray.local",
+			sub: "sub-other",
+			iss: "https://hexly.cloudflareaccess.com",
+		}));
+		const app = makeApp({
+			AUTH_DEV_BYPASS: "false",
+			ENVIRONMENT: "production",
+			DB: db,
+		});
+		const res = await app.request("/api/me", {
+			headers: {
+				host: "xray.hexly.ai",
+				"Cf-Access-Jwt-Assertion": "h.p.s",
+			},
+		});
+		expect(res.status).toBe(403);
+	});
+
+	test("defaults iss and name; uses image claim", async () => {
+		setJwtVerifierForTests(async () => ({
+			email: "ok@xray.local",
+			sub: "sub-img",
+			image: "https://img/from-image.png",
+		}));
+		const app = makeApp({ AUTH_DEV_BYPASS: "false", ENVIRONMENT: "production" });
+		const res = await app.request("/api/me", {
+			headers: {
+				host: "xray.hexly.ai",
+				"Cf-Access-Jwt-Assertion": "h.p.s",
+			},
+		});
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { user: { name: string; image: string; accessIss: string } };
+		expect(body.user.name).toBe("ok");
+		expect(body.user.image).toBe("https://img/from-image.png");
+		expect(body.user.accessIss).toBe("https://hexly.cloudflareaccess.com");
+	});
+
+	test("db failure on JWT path → 500", async () => {
+		setJwtVerifierForTests(async () => ({
+			email: "ok@xray.local",
+			sub: "sub-fail",
+			iss: "https://hexly.cloudflareaccess.com",
+		}));
+		const db = {
+			prepare() {
+				return {
+					bind() {
+						return this;
+					},
+					async first() {
+						throw new Error("d1 down");
+					},
+					async run() {
+						throw new Error("d1 down");
+					},
+				};
+			},
+		} as unknown as D1Database;
+		const app = makeApp({
+			AUTH_DEV_BYPASS: "false",
+			ENVIRONMENT: "production",
+			DB: db,
+		});
+		const res = await app.request("/api/me", {
+			headers: {
+				host: "xray.hexly.ai",
+				"Cf-Access-Jwt-Assertion": "h.p.s",
+			},
+		});
+		expect(res.status).toBe(500);
+	});
+
+	test("dev bypass db failure → 500", async () => {
+		const db = {
+			prepare() {
+				return {
+					bind() {
+						return this;
+					},
+					async first() {
+						throw new Error("d1 down");
+					},
+					async run() {
+						throw new Error("d1 down");
+					},
+				};
+			},
+		} as unknown as D1Database;
+		const app = makeApp({
+			AUTH_DEV_BYPASS: "true",
+			ENVIRONMENT: "development",
+			DB: db,
+		});
+		const res = await app.request("/api/me", { headers: { host: "localhost" } });
+		expect(res.status).toBe(500);
+	});
+
+	test("ingest non-live allowed path proceeds (push stub)", async () => {
+		const app = makeApp({ AUTH_DEV_BYPASS: "true", ENVIRONMENT: "development" });
+		app.post("/api/v1/ingest/push", (c) => c.json({ ok: true }));
+		const res = await app.request("/api/v1/ingest/push", {
+			method: "POST",
+			headers: { host: "xray-ingest.hexly.ai" },
+		});
+		expect(res.status).toBe(200);
+	});
 });

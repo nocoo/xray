@@ -174,4 +174,235 @@ describe("upsertUserByAccess", () => {
 			}),
 		).rejects.toBeInstanceOf(UserBindConflictError);
 	});
+
+	test("identity email change conflicts with another bound user", async () => {
+		const db = createMemoryDb();
+		await upsertUserByAccess(db, {
+			email: "a@x.com",
+			accessIss: "iss",
+			accessSub: "sub-a",
+		});
+		await upsertUserByAccess(db, {
+			email: "b@x.com",
+			accessIss: "iss",
+			accessSub: "sub-b",
+		});
+		await expect(
+			upsertUserByAccess(db, {
+				email: "b@x.com",
+				accessIss: "iss",
+				accessSub: "sub-a",
+			}),
+		).rejects.toBeInstanceOf(UserBindConflictError);
+	});
+
+	test("identity email change allowed when target free", async () => {
+		const db = createMemoryDb();
+		const u = await upsertUserByAccess(db, {
+			email: "old@x.com",
+			accessIss: "iss",
+			accessSub: "sub-1",
+		});
+		const next = await upsertUserByAccess(db, {
+			email: "new@x.com",
+			name: "N",
+			accessIss: "iss",
+			accessSub: "sub-1",
+		});
+		expect(next.id).toBe(u.id);
+		expect(next.email).toBe("new@x.com");
+	});
+
+	test("unbound race (0 changes) re-resolves identity", async () => {
+		const db = createMemoryDb();
+		db._rows.push({
+			id: "u-race",
+			access_iss: null,
+			access_sub: null,
+			email: "r@x.com",
+			name: "R",
+			image: null,
+			created_at_ms: 1,
+		});
+		// After first() finds unbound, simulate concurrent bind by pre-binding another identity row
+		// and force UPDATE changes=0 by marking row already bound before run.
+		const origPrepare = db.prepare.bind(db);
+		let updateSeen = false;
+		(db as unknown as { prepare: typeof db.prepare }).prepare = (sql: string) => {
+			const stmt = origPrepare(sql);
+			if (sql.includes("SET access_iss") && sql.includes("access_sub IS NULL")) {
+				const origRun = stmt.run.bind(stmt);
+				stmt.run = async () => {
+					updateSeen = true;
+					// mark unbound as already taken so WHERE access_sub IS NULL misses
+					const row = db._rows.find((r) => r.email === "r@x.com");
+					if (row) {
+						row.access_iss = "iss";
+						row.access_sub = "sub-r";
+					}
+					return origRun();
+				};
+			}
+			return stmt;
+		};
+		const user = await upsertUserByAccess(db, {
+			email: "r@x.com",
+			accessIss: "iss",
+			accessSub: "sub-r",
+		});
+		expect(updateSeen).toBe(true);
+		expect(user.accessSub).toBe("sub-r");
+	});
+
+	test("concurrent insert unique error returns existing identity", async () => {
+		const db = createMemoryDb();
+		const origPrepare = db.prepare.bind(db);
+		let inserts = 0;
+		(db as unknown as { prepare: typeof db.prepare }).prepare = (sql: string) => {
+			const stmt = origPrepare(sql);
+			if (sql.includes("INSERT INTO users")) {
+				const origRun = stmt.run.bind(stmt);
+				stmt.run = async (...args: unknown[]) => {
+					inserts += 1;
+					if (inserts === 1) {
+						// seed winning row then throw unique
+						db._rows.push({
+							id: "winner",
+							access_iss: "iss",
+							access_sub: "sub-c",
+							email: "c2@x.com",
+							name: null,
+							image: null,
+							created_at_ms: 1,
+						});
+						throw new Error("UNIQUE constraint failed: users.email");
+					}
+					return origRun(...args);
+				};
+			}
+			return stmt;
+		};
+		const user = await upsertUserByAccess(db, {
+			email: "c2@x.com",
+			accessIss: "iss",
+			accessSub: "sub-c",
+		});
+		expect(user.id).toBe("winner");
+	});
+
+	test("update unique error becomes bind conflict", async () => {
+		const db = createMemoryDb();
+		await upsertUserByAccess(db, {
+			email: "u1@x.com",
+			accessIss: "iss",
+			accessSub: "sub-1",
+		});
+		const origPrepare = db.prepare.bind(db);
+		(db as unknown as { prepare: typeof db.prepare }).prepare = (sql: string) => {
+			const stmt = origPrepare(sql);
+			if (sql.startsWith("UPDATE users SET email")) {
+				stmt.run = async () => {
+					throw new Error("UNIQUE constraint failed: users.email");
+				};
+			}
+			return stmt;
+		};
+		await expect(
+			upsertUserByAccess(db, {
+				email: "taken@x.com",
+				accessIss: "iss",
+				accessSub: "sub-1",
+			}),
+		).rejects.toBeInstanceOf(UserBindConflictError);
+	});
+
+	test("non-unique update error rethrows", async () => {
+		const db = createMemoryDb();
+		await upsertUserByAccess(db, {
+			email: "u2@x.com",
+			accessIss: "iss",
+			accessSub: "sub-2",
+		});
+		const origPrepare = db.prepare.bind(db);
+		(db as unknown as { prepare: typeof db.prepare }).prepare = (sql: string) => {
+			const stmt = origPrepare(sql);
+			if (sql.startsWith("UPDATE users SET email")) {
+				stmt.run = async () => {
+					throw new Error("disk full");
+				};
+			}
+			return stmt;
+		};
+		await expect(
+			upsertUserByAccess(db, {
+				email: "u2b@x.com",
+				accessIss: "iss",
+				accessSub: "sub-2",
+			}),
+		).rejects.toThrow(/disk full/);
+	});
+
+	test("unbound race without identity row throws conflict", async () => {
+		const db = createMemoryDb();
+		db._rows.push({
+			id: "u-lost",
+			access_iss: null,
+			access_sub: null,
+			email: "lost@x.com",
+			name: null,
+			image: null,
+			created_at_ms: 1,
+		});
+		const origPrepare = db.prepare.bind(db);
+		(db as unknown as { prepare: typeof db.prepare }).prepare = (sql: string) => {
+			const stmt = origPrepare(sql);
+			if (sql.includes("SET access_iss")) {
+				stmt.run = async () => ({ meta: { changes: 0 } });
+			}
+			// identity re-resolve returns null
+			if (sql.includes("access_iss = ? AND access_sub = ?")) {
+				stmt.first = async () => null;
+			}
+			return stmt;
+		};
+		await expect(
+			upsertUserByAccess(db, {
+				email: "lost@x.com",
+				accessIss: "iss",
+				accessSub: "sub-lost",
+			}),
+		).rejects.toBeInstanceOf(UserBindConflictError);
+	});
+
+	test("insert unique with mismatched identity throws conflict", async () => {
+		const db = createMemoryDb();
+		const origPrepare = db.prepare.bind(db);
+		(db as unknown as { prepare: typeof db.prepare }).prepare = (sql: string) => {
+			const stmt = origPrepare(sql);
+			if (sql.includes("INSERT INTO users")) {
+				stmt.run = async () => {
+					throw new Error("UNIQUE constraint failed");
+				};
+			}
+			if (sql.includes("access_iss = ? AND access_sub = ? OR email")) {
+				stmt.first = async () =>
+					({
+						id: "other",
+						access_iss: "other-iss",
+						access_sub: "other-sub",
+						email: "m2@x.com",
+						name: null,
+						image: null,
+					}) as never;
+			}
+			return stmt;
+		};
+		await expect(
+			upsertUserByAccess(db, {
+				email: "m2@x.com",
+				accessIss: "iss",
+				accessSub: "sub-m2",
+			}),
+		).rejects.toBeInstanceOf(UserBindConflictError);
+	});
 });
