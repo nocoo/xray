@@ -20,7 +20,7 @@
 		"prepare": "husky",
 		"test:coverage": "bash scripts/check-coverage.sh 40 40",
 		"test:l2": "bun run --filter @xray/worker test",
-		"db:migrate:local": "cd packages/worker && wrangler d1 migrations apply xray-db --local --env development"
+		"db:migrate:local": "cd packages/worker && bunx wrangler d1 migrations apply xray-db --local --env development"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.7",
