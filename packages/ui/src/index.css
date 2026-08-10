@@ -114,6 +114,8 @@
  * Primary: Indigo-blue (tech/intelligence theme)
  */
 :root {
+	--font-inter: "Inter", system-ui, -apple-system, sans-serif;
+	--font-dm-sans: "DM Sans", system-ui, sans-serif;
 	/* L0 body */
 	--background: 220 14% 94%;
 	--foreground: 0 0% 12%;
