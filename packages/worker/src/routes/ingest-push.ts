@@ -15,7 +15,7 @@ import { insertItemIgnore } from "../repos/items.js";
 import { findActiveTokenByHash, touchPushToken } from "../repos/push-tokens.js";
 import { getWindowHours } from "../repos/settings.js";
 import { getWatchlist } from "../repos/watchlists.js";
-import type { AppEnv } from "../types.js";
+import type { AppEnv, AuthUser } from "../types.js";
 
 const MAX_BODY_BYTES = 1_048_576;
 const MAX_ITEMS = 50;
@@ -37,6 +37,14 @@ export async function ingestPushRoute(c: Context<AppEnv>) {
 	if (!row || !timingSafeEqual(row.token_hash, hash)) {
 		return c.json({ ok: false, error: "Invalid token" }, 401);
 	}
+	c.set("authUser", {
+		id: row.user_id,
+		email: "",
+		name: null,
+		image: null,
+		accessIss: null,
+		accessSub: null,
+	} satisfies AuthUser);
 
 	let scopes: string[] = [];
 	try {

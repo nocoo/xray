@@ -41,7 +41,7 @@ packages/worker/src/middleware/**/*.test.ts
 packages/ui/src/viewmodels/**/*.test.ts
 ```
 
-mock-d1 applies real SQL migrations (bat pattern).
+Vitest D1-shaped stubs (no auto migration apply)ss (bat pattern).
 
 ## 4. L2 layout
 

@@ -517,77 +517,119 @@ console.log(`Wrote ${stmts.length} statements → ${outPath}`);
 console.log(`Validation SQL → ${validatePath}`);
 
 const workerCwd = resolve(import.meta.dir, "../packages/worker");
-async function wranglerFile(file: string, json = false): Promise<number> {
-	const args =
+async function wranglerExecute(extra: string[]): Promise<{ code: number; text: string }> {
+	const base =
 		target === "remote"
-			? [
-					"bunx",
-					"wrangler",
-					"d1",
-					"execute",
-					"xray-db",
-					"--remote",
-					`--file=${file}`,
-					...(json ? ["--json"] : []),
-				]
-			: [
-					"bunx",
-					"wrangler",
-					"d1",
-					"execute",
-					"xray-db",
-					"--local",
-					"--env",
-					"development",
-					`--file=${file}`,
-					...(json ? ["--json"] : []),
-				];
-	console.log(`Applying: ${args.join(" ")} (cwd=${workerCwd})`);
-	const proc = Bun.spawn(args, {
-		stdout: json ? "pipe" : "inherit",
-		stderr: "inherit",
-		cwd: workerCwd,
-	});
+			? ["bunx", "wrangler", "d1", "execute", "xray-db", "--remote"]
+			: ["bunx", "wrangler", "d1", "execute", "xray-db", "--local", "--env", "development"];
+	const args = [...base, ...extra, "--json"];
+	console.log(`Running: ${args.join(" ")} (cwd=${workerCwd})`);
+	const proc = Bun.spawn(args, { stdout: "pipe", stderr: "inherit", cwd: workerCwd });
 	const code = await proc.exited;
-	if (code !== 0) return code;
-	if (json && proc.stdout) {
-		const text = await new Response(proc.stdout).text();
-		// Fail if any bad_* > 0 or missing_* != expected
-		const expectMissing: Record<string, number> = {
-			missing_watchlists: expected.watchlistIds.length,
-			missing_members: expected.memberIds.length,
-			missing_tags: expected.tagIds.length,
-			missing_groups: expected.groupIds.length,
-			missing_group_members: expected.groupMemberIds.length,
-		};
-		const badKeys = ["bad_members", "bad_group_members", "bad_tags"];
-		for (const key of badKeys) {
-			const m = text.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`));
-			if (m && Number(m[1]) > 0) {
-				console.error(`Validation failed: ${key}=${m[1]}`);
-				return 2;
-			}
-		}
-		for (const [key, want] of Object.entries(expectMissing)) {
-			const m = text.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`));
-			const got = m ? Number(m[1]) : -1;
-			if (got !== want) {
-				console.error(`Validation failed: ${key}=${got} expected ${want}`);
-				return 2;
-			}
-		}
-	}
-	return 0;
+	const text = proc.stdout ? await new Response(proc.stdout).text() : "";
+	return { code, text };
 }
 
-const applyCode = await wranglerFile(outPath, false);
-if (applyCode !== 0) {
-	console.error(`wrangler apply failed exit=${applyCode}`);
-	process.exit(applyCode);
+function firstCount(text: string): number | null {
+	// wrangler --json returns nested results; pick first integer count-like value
+	try {
+		const data = JSON.parse(text) as unknown;
+		const stack: unknown[] = [data];
+		while (stack.length) {
+			const cur = stack.pop();
+			if (Array.isArray(cur)) {
+				stack.push(...cur);
+				continue;
+			}
+			if (cur && typeof cur === "object") {
+				const o = cur as Record<string, unknown>;
+				for (const [k, v] of Object.entries(o)) {
+					if (typeof v === "number" && /^(bad_|missing_|count|COUNT)/i.test(k)) return v;
+					if (typeof v === "number" && Object.keys(o).length === 1) return v;
+					stack.push(v);
+				}
+			}
+		}
+	} catch {
+		/* fall through */
+	}
+	const m = text.match(/"\w+"\s*:\s*(\d+)/);
+	return m ? Number(m[1]) : null;
 }
-const valCode = await wranglerFile(validatePath, true);
-if (valCode !== 0) {
-	console.error(`post-migrate validation failed exit=${valCode}`);
-	process.exit(valCode);
+
+const apply = await wranglerExecute([`--file=${outPath}`]);
+if (apply.code !== 0) {
+	console.error(`wrangler apply failed exit=${apply.code}`);
+	process.exit(apply.code);
 }
+
+async function mustCount(label: string, sql: string, expect: number) {
+	const { code, text } = await wranglerExecute([`--command=${sql}`]);
+	if (code !== 0) {
+		console.error(`validation query failed: ${label}`);
+		process.exit(code);
+	}
+	const n = firstCount(text);
+	if (n === null) {
+		console.error(`validation parse failed: ${label}\n${text.slice(0, 500)}`);
+		process.exit(2);
+	}
+	if (n !== expect) {
+		console.error(`validation failed: ${label}=${n} expected ${expect}`);
+		process.exit(2);
+	}
+	console.log(`ok ${label}=${n}`);
+}
+
+await mustCount(
+	"bad_members",
+	`SELECT COUNT(*) AS c FROM watchlist_members m WHERE NOT EXISTS (SELECT 1 FROM watchlists w WHERE w.id=m.watchlist_id AND w.user_id=m.user_id)`,
+	0,
+);
+await mustCount(
+	"bad_group_members",
+	`SELECT COUNT(*) AS c FROM group_members gm WHERE NOT EXISTS (SELECT 1 FROM groups g WHERE g.id=gm.group_id AND g.user_id=gm.user_id)`,
+	0,
+);
+await mustCount(
+	"bad_tags",
+	`SELECT COUNT(*) AS c FROM watchlist_member_tags j LEFT JOIN watchlist_members m ON m.id=j.member_id LEFT JOIN tags t ON t.id=j.tag_id WHERE m.id IS NULL OR t.id IS NULL OR m.user_id != t.user_id`,
+	0,
+);
+if (expected.watchlistIds.length) {
+	await mustCount(
+		"watchlists_owned",
+		`SELECT COUNT(*) AS c FROM watchlists WHERE id IN (${expected.watchlistIds.join(",")})`,
+		expected.watchlistIds.length,
+	);
+}
+if (expected.memberIds.length) {
+	await mustCount(
+		"members_owned",
+		`SELECT COUNT(*) AS c FROM watchlist_members WHERE id IN (${expected.memberIds.join(",")})`,
+		expected.memberIds.length,
+	);
+}
+if (expected.tagIds.length) {
+	await mustCount(
+		"tags_owned",
+		`SELECT COUNT(*) AS c FROM tags WHERE id IN (${expected.tagIds.join(",")})`,
+		expected.tagIds.length,
+	);
+}
+if (expected.groupIds.length) {
+	await mustCount(
+		"groups_owned",
+		`SELECT COUNT(*) AS c FROM groups WHERE id IN (${expected.groupIds.join(",")})`,
+		expected.groupIds.length,
+	);
+}
+if (expected.groupMemberIds.length) {
+	await mustCount(
+		"group_members_owned",
+		`SELECT COUNT(*) AS c FROM group_members WHERE id IN (${expected.groupMemberIds.join(",")})`,
+		expected.groupMemberIds.length,
+	);
+}
+
 console.log("Migration apply OK");
