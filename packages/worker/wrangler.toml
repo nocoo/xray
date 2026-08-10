@@ -1,6 +1,6 @@
 name = "xray"
 main = "src/index.ts"
-compatibility_date = "2025-03-14"
+compatibility_date = "2026-08-10"
 
 [assets]
 directory = "./static"
@@ -8,11 +8,30 @@ binding = "ASSETS"
 run_worker_first = ["/api/*"]
 not_found_handling = "single-page-application"
 
+# Default (deploy) is production — AUTH_DEV_BYPASS must fail-closed here (S2.3).
 [vars]
-ENVIRONMENT = "development"
+ENVIRONMENT = "production"
 
-# Local D1 stub (product schema lands in S4)
 [[d1_databases]]
+binding = "DB"
+database_name = "xray-db"
+database_id = "00000000-0000-0000-0000-000000000001"
+
+# Local / wrangler dev — use: wrangler dev --env development
+[env.development]
+name = "xray-dev"
+vars = { ENVIRONMENT = "development" }
+
+[[env.development.d1_databases]]
+binding = "DB"
+database_name = "xray-db"
+database_id = "00000000-0000-0000-0000-000000000001"
+
+[env.production]
+name = "xray"
+vars = { ENVIRONMENT = "production" }
+
+[[env.production.d1_databases]]
 binding = "DB"
 database_name = "xray-db"
 database_id = "00000000-0000-0000-0000-000000000001"
