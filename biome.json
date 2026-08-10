@@ -1,0 +1,71 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.5.7/schema.json",
+	"assist": { "actions": { "source": { "organizeImports": "on" } } },
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"correctness": {
+				"noUnusedImports": "error",
+				"noUnusedVariables": "error",
+				"noNodejsModules": "off",
+				"useImportExtensions": "off",
+				"noUndeclaredDependencies": "off",
+				"noUndeclaredVariables": "off"
+			},
+			"security": {
+				"noDangerouslySetInnerHtml": "error"
+			},
+			"style": {
+				"noNonNullAssertion": "error",
+				"useConst": "error",
+				"useNamingConvention": "off",
+				"noDefaultExport": "off",
+				"useFilenamingConvention": "off"
+			},
+			"complexity": {
+				"noExcessiveCognitiveComplexity": "off"
+			},
+			"suspicious": {
+				"noConsole": "off",
+				"noReactSpecificProps": "off",
+				"useAwait": "off"
+			},
+			"performance": {
+				"useTopLevelRegex": "off",
+				"noBarrelFile": "off"
+			}
+		}
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"indentWidth": 2,
+		"lineWidth": 100
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double",
+			"semicolons": "always"
+		}
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
+	},
+	"files": {
+		"includes": [
+			"**",
+			"!**/node_modules",
+			"!**/dist",
+			"!**/.turbo",
+			"!**/.next",
+			"!**/coverage",
+			"!**/.wrangler",
+			"!**/legacy",
+			"!**/docs",
+			"!**/database"
+		]
+	}
+}
