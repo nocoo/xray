@@ -1,26 +1,16 @@
-// Temporary diagnostic: no Auth import — isolate vinext body-read hang.
-export async function POST(req: Request) {
-  const t0 = Date.now();
-  try {
-    const text = await req.text();
-    return Response.json({
-      ok: true,
-      bytes: text.length,
-      ms: Date.now() - t0,
-      preview: text.slice(0, 100),
-    });
-  } catch (e) {
-    return Response.json(
-      {
-        ok: false,
-        ms: Date.now() - t0,
-        error: e instanceof Error ? e.message : String(e),
-      },
-      { status: 500 },
-    );
-  }
+import { NextResponse } from "next/server";
+
+/** vinext hangs reading POST bodies on this nested path — use /api/xauth/google. */
+export async function POST() {
+  return NextResponse.json(
+    {
+      error: "Use POST /api/xauth/google",
+      url: "/api/xauth/google",
+    },
+    { status: 308 },
+  );
 }
 
 export async function GET() {
-  return Response.json({ ok: true, method: "GET" });
+  return NextResponse.json({ ok: true, use: "/api/xauth/google" });
 }
