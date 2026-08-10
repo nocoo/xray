@@ -50,4 +50,26 @@ describe("originCheck", () => {
 		});
 		expect(res.status).toBe(200);
 	});
+
+	test("blocks missing Origin in production", async () => {
+		const a = app({ ENVIRONMENT: "production" });
+		const res = await a.request("/api/watchlists", {
+			method: "POST",
+			headers: { host: "xray.hexly.ai" },
+		});
+		expect(res.status).toBe(403);
+	});
+
+	test("does not trust same-site alone", async () => {
+		const a = app({ ENVIRONMENT: "production" });
+		const res = await a.request("/api/watchlists", {
+			method: "POST",
+			headers: {
+				host: "xray.hexly.ai",
+				origin: "https://evil.hexly.ai",
+				"sec-fetch-site": "same-site",
+			},
+		});
+		expect(res.status).toBe(403);
+	});
 });

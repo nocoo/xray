@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { assertBootEnv } from "./lib/env.js";
 import { classifyHost } from "./lib/hosts.js";
 import { accessAuth } from "./middleware/access-auth.js";
+import { observability } from "./middleware/observability.js";
 import { originCheck } from "./middleware/origin-check.js";
 import {
 	addGroupMemberRoute,
@@ -35,6 +36,8 @@ import {
 import type { AppEnv } from "./types.js";
 
 const app = new Hono<AppEnv>();
+
+app.use("*", observability);
 
 app.use("*", async (c, next) => {
 	try {
