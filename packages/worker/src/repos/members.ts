@@ -89,6 +89,19 @@ export async function listMembers(
 	return rows.map((r) => toMemberDto(r, tags.get(r.id) ?? []));
 }
 
+async function assertTagIdsOwned(db: D1Database, userId: string, tagIds: number[]): Promise<void> {
+	if (tagIds.length === 0) return;
+	const uniq = [...new Set(tagIds)];
+	const placeholders = uniq.map(() => "?").join(",");
+	const { results } = await db
+		.prepare(`SELECT id FROM tags WHERE user_id = ? AND id IN (${placeholders})`)
+		.bind(userId, ...uniq)
+		.all<{ id: number }>();
+	if ((results ?? []).length !== uniq.length) {
+		throw new MemberValidationError("invalid tagIds");
+	}
+}
+
 export async function addMember(
 	db: D1Database,
 	userId: string,
@@ -104,6 +117,8 @@ export async function addMember(
 ): Promise<MemberDto> {
 	const handle = normalizeHandle(input.handle);
 	if (!handle) throw new MemberValidationError("handle required");
+	const tagIds = input.tagIds ?? [];
+	await assertTagIdsOwned(db, userId, tagIds);
 	const now = Date.now();
 	let result: D1Result;
 	try {
@@ -130,16 +145,16 @@ export async function addMember(
 		throw e;
 	}
 	const id = Number(result.meta.last_row_id);
-	if (input.tagIds?.length) {
-		for (const tagId of input.tagIds) {
-			await db
+	if (tagIds.length) {
+		const stmts = tagIds.map((tagId) =>
+			db
 				.prepare(
 					`INSERT OR IGNORE INTO watchlist_member_tags (member_id, tag_id)
            SELECT ?, t.id FROM tags t WHERE t.id = ? AND t.user_id = ?`,
 				)
-				.bind(id, tagId, userId)
-				.run();
-		}
+				.bind(id, tagId, userId),
+		);
+		await db.batch(stmts);
 	}
 	const row = await db
 		.prepare(`SELECT * FROM watchlist_members WHERE id = ? AND user_id = ? LIMIT 1`)
@@ -159,31 +174,46 @@ export async function updateMember(
 		note?: string | null;
 		tagIds?: number[];
 	},
+	opts?: { watchlistId?: number },
 ): Promise<MemberDto | null> {
 	const row = await db
-		.prepare(`SELECT * FROM watchlist_members WHERE id = ? AND user_id = ? LIMIT 1`)
-		.bind(memberId, userId)
+		.prepare(
+			opts?.watchlistId != null
+				? `SELECT * FROM watchlist_members WHERE id = ? AND user_id = ? AND watchlist_id = ? LIMIT 1`
+				: `SELECT * FROM watchlist_members WHERE id = ? AND user_id = ? LIMIT 1`,
+		)
+		.bind(
+			...(opts?.watchlistId != null ? [memberId, userId, opts.watchlistId] : [memberId, userId]),
+		)
 		.first<MemberRow>();
 	if (!row) return null;
 	const displayName =
 		input.displayName !== undefined ? input.displayName?.trim() || null : row.display_name;
 	const note = input.note !== undefined ? input.note?.trim() || null : row.note;
-	await db
-		.prepare(`UPDATE watchlist_members SET display_name = ?, note = ? WHERE id = ? AND user_id = ?`)
-		.bind(displayName, note, memberId, userId)
-		.run();
 	if (input.tagIds) {
-		await db.prepare(`DELETE FROM watchlist_member_tags WHERE member_id = ?`).bind(memberId).run();
+		await assertTagIdsOwned(db, userId, input.tagIds);
+	}
+	const stmts: D1PreparedStatement[] = [
+		db
+			.prepare(
+				`UPDATE watchlist_members SET display_name = ?, note = ? WHERE id = ? AND user_id = ?`,
+			)
+			.bind(displayName, note, memberId, userId),
+	];
+	if (input.tagIds) {
+		stmts.push(db.prepare(`DELETE FROM watchlist_member_tags WHERE member_id = ?`).bind(memberId));
 		for (const tagId of input.tagIds) {
-			await db
-				.prepare(
-					`INSERT OR IGNORE INTO watchlist_member_tags (member_id, tag_id)
+			stmts.push(
+				db
+					.prepare(
+						`INSERT OR IGNORE INTO watchlist_member_tags (member_id, tag_id)
            SELECT ?, t.id FROM tags t WHERE t.id = ? AND t.user_id = ?`,
-				)
-				.bind(memberId, tagId, userId)
-				.run();
+					)
+					.bind(memberId, tagId, userId),
+			);
 		}
 	}
+	await db.batch(stmts);
 	const updated = await db
 		.prepare(`SELECT * FROM watchlist_members WHERE id = ? AND user_id = ? LIMIT 1`)
 		.bind(memberId, userId)
@@ -197,10 +227,17 @@ export async function deleteMember(
 	db: D1Database,
 	userId: string,
 	memberId: number,
+	opts?: { watchlistId?: number },
 ): Promise<boolean> {
 	const result = await db
-		.prepare(`DELETE FROM watchlist_members WHERE id = ? AND user_id = ?`)
-		.bind(memberId, userId)
+		.prepare(
+			opts?.watchlistId != null
+				? `DELETE FROM watchlist_members WHERE id = ? AND user_id = ? AND watchlist_id = ?`
+				: `DELETE FROM watchlist_members WHERE id = ? AND user_id = ?`,
+		)
+		.bind(
+			...(opts?.watchlistId != null ? [memberId, userId, opts.watchlistId] : [memberId, userId]),
+		)
 		.run();
 	return (result.meta.changes ?? 0) > 0;
 }

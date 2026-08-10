@@ -205,10 +205,15 @@ export async function deleteGroupMember(
 	db: D1Database,
 	userId: string,
 	memberId: number,
+	opts?: { groupId?: number },
 ): Promise<boolean> {
 	const result = await db
-		.prepare(`DELETE FROM group_members WHERE id = ? AND user_id = ?`)
-		.bind(memberId, userId)
+		.prepare(
+			opts?.groupId != null
+				? `DELETE FROM group_members WHERE id = ? AND user_id = ? AND group_id = ?`
+				: `DELETE FROM group_members WHERE id = ? AND user_id = ?`,
+		)
+		.bind(...(opts?.groupId != null ? [memberId, userId, opts.groupId] : [memberId, userId]))
 		.run();
 	return (result.meta.changes ?? 0) > 0;
 }

@@ -1,6 +1,13 @@
 import { isSourceType } from "@xray/shared";
 import type { Context } from "hono";
-import { jsonErr, jsonOk, parseIdParam, requireUser } from "../lib/http.js";
+import {
+	jsonErr,
+	jsonOk,
+	parseGroupBody,
+	parseIdParam,
+	parseMemberCreateBody,
+	requireUser,
+} from "../lib/http.js";
 import {
 	addGroupMember,
 	createGroup,
@@ -22,18 +29,14 @@ export async function listGroupsRoute(c: Context<AppEnv>) {
 export async function createGroupRoute(c: Context<AppEnv>) {
 	const user = requireUser(c);
 	if (user instanceof Response) return user;
-	const body = (await c.req.json().catch(() => null)) as {
-		name?: string;
-		description?: string | null;
-		icon?: string;
-	} | null;
-	if (!body?.name?.trim()) return jsonErr(c, "name required", 400);
+	const parsed = parseGroupBody(await c.req.json().catch(() => null), "create");
+	if (!parsed.ok) return jsonErr(c, parsed.error, 400);
 	return jsonOk(
 		c,
 		await createGroup(c.env.DB, user.id, {
-			name: body.name.trim(),
-			description: body.description,
-			icon: body.icon,
+			name: parsed.value.name as string,
+			description: parsed.value.description,
+			icon: parsed.value.icon,
 		}),
 		201,
 	);
@@ -54,13 +57,9 @@ export async function patchGroupRoute(c: Context<AppEnv>) {
 	if (user instanceof Response) return user;
 	const id = parseIdParam(c.req.param("id"));
 	if (!id) return jsonErr(c, "invalid id", 400);
-	const body = (await c.req.json().catch(() => null)) as {
-		name?: string;
-		description?: string | null;
-		icon?: string;
-	} | null;
-	if (!body) return jsonErr(c, "invalid body", 400);
-	const data = await updateGroup(c.env.DB, user.id, id, body);
+	const parsed = parseGroupBody(await c.req.json().catch(() => null), "patch");
+	if (!parsed.ok) return jsonErr(c, parsed.error, 400);
+	const data = await updateGroup(c.env.DB, user.id, id, parsed.value);
 	if (!data) return jsonErr(c, "Not found", 404);
 	return jsonOk(c, data);
 }
@@ -92,21 +91,17 @@ export async function addGroupMemberRoute(c: Context<AppEnv>) {
 	if (!id) return jsonErr(c, "invalid id", 400);
 	const g = await getGroup(c.env.DB, user.id, id);
 	if (!g) return jsonErr(c, "Not found", 404);
-	const body = (await c.req.json().catch(() => null)) as {
-		sourceType?: string;
-		handle?: string;
-		displayName?: string | null;
-		externalAuthorId?: string | null;
-	} | null;
-	if (!body?.handle || !isSourceType(body.sourceType)) {
+	const parsed = parseMemberCreateBody(await c.req.json().catch(() => null));
+	if (!parsed.ok) return jsonErr(c, parsed.error, 400);
+	if (!isSourceType(parsed.value.sourceType)) {
 		return jsonErr(c, "sourceType and handle required", 400);
 	}
 	try {
 		const data = await addGroupMember(c.env.DB, user.id, id, {
-			sourceType: body.sourceType,
-			handle: body.handle,
-			displayName: body.displayName,
-			externalAuthorId: body.externalAuthorId,
+			sourceType: parsed.value.sourceType,
+			handle: parsed.value.handle,
+			displayName: parsed.value.displayName,
+			externalAuthorId: parsed.value.externalAuthorId,
 		});
 		return jsonOk(c, data, 201);
 	} catch (e) {
@@ -120,9 +115,10 @@ export async function addGroupMemberRoute(c: Context<AppEnv>) {
 export async function deleteGroupMemberRoute(c: Context<AppEnv>) {
 	const user = requireUser(c);
 	if (user instanceof Response) return user;
+	const groupId = parseIdParam(c.req.param("id"));
 	const memberId = parseIdParam(c.req.param("memberId"));
-	if (!memberId) return jsonErr(c, "invalid member id", 400);
-	const ok = await deleteGroupMember(c.env.DB, user.id, memberId);
+	if (!groupId || !memberId) return jsonErr(c, "invalid id", 400);
+	const ok = await deleteGroupMember(c.env.DB, user.id, memberId, { groupId });
 	if (!ok) return jsonErr(c, "Not found", 404);
 	return jsonOk(c, { deleted: true });
 }

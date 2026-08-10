@@ -15,6 +15,11 @@ function memDb() {
 	const memberTags: Array<{ member_id: number; tag_id: number }> = [];
 	let seq = 1;
 	return {
+		async batch(stmts: Array<{ run: () => Promise<unknown> }>) {
+			const out = [];
+			for (const s of stmts) out.push(await s.run());
+			return out;
+		},
 		prepare(sql: string) {
 			const binds: unknown[] = [];
 			const stmt = {
@@ -24,12 +29,26 @@ function memDb() {
 				},
 				async first<T>() {
 					if (sql.includes("FROM watchlist_members WHERE id = ?")) {
+						if (sql.includes("watchlist_id")) {
+							const [id, userId, wl] = binds as [number, string, number];
+							return (members.find(
+								(m) => m.id === id && m.user_id === userId && m.watchlist_id === wl,
+							) ?? null) as T | null;
+						}
 						const [id, userId] = binds as [number, string];
 						return (members.find((m) => m.id === id && m.user_id === userId) ?? null) as T | null;
 					}
 					return null;
 				},
 				async all<T>() {
+					if (sql.includes("FROM tags WHERE user_id")) {
+						const [userId, ...ids] = binds as [string, ...number[]];
+						return {
+							results: tags
+								.filter((t) => t.user_id === userId && ids.includes(t.id))
+								.map((t) => ({ id: t.id })) as T[],
+						};
+					}
 					if (sql.includes("FROM watchlist_members")) {
 						const [userId, wl] = binds as [string, number];
 						return {
@@ -127,9 +146,18 @@ function memDb() {
 						return { meta: { changes: 1 } };
 					}
 					if (sql.includes("DELETE FROM watchlist_members")) {
-						const [id, userId] = binds as [number, string];
 						const before = members.length;
-						const next = members.filter((m) => !(m.id === id && m.user_id === userId));
+						const next = sql.includes("watchlist_id")
+							? (() => {
+									const [id, userId, wl] = binds as [number, string, number];
+									return members.filter(
+										(m) => !(m.id === id && m.user_id === userId && m.watchlist_id === wl),
+									);
+								})()
+							: (() => {
+									const [id, userId] = binds as [number, string];
+									return members.filter((m) => !(m.id === id && m.user_id === userId));
+								})();
 						members.length = 0;
 						members.push(...next);
 						return { meta: { changes: before - members.length } };
