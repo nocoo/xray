@@ -1,12 +1,8 @@
 import { Auth } from "@auth/core";
 import type { NextAuthConfig } from "next-auth";
 import { authConfig } from "@/auth";
-import {
-  toNextRequest,
-  withCanonicalAuthOrigin,
-} from "@/lib/auth-request";
 
-/** Avoid /api/auth — vinext has issues with that prefix in some builds. */
+/** Avoid /api/auth — use dedicated prefix. */
 export const AUTH_BASE_PATH = "/api/xauth";
 
 function prepareConfig(config: NextAuthConfig): NextAuthConfig {
@@ -21,8 +17,32 @@ function prepareConfig(config: NextAuthConfig): NextAuthConfig {
   return prepared;
 }
 
+/**
+ * Pass the vinext Request straight into Auth.js.
+ * Do not wrap with NextRequest or pre-read the body — both hang under vinext.
+ * Canonical https origin comes from NEXTAUTH_URL via a lightweight URL rewrite
+ * that reuses the same body stream only when needed.
+ */
 export async function authHandler(req: Request): Promise<Response> {
-  // Sync path — do not await body reads (vinext will hang).
-  const nextReq = withCanonicalAuthOrigin(toNextRequest(req));
-  return Auth(nextReq, prepareConfig(authConfig));
+  const envUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
+  let request = req;
+
+  if (envUrl) {
+    const envOrigin = new URL(envUrl).origin;
+    const current = new URL(req.url);
+    if (current.origin !== envOrigin) {
+      const target = req.url.replace(current.origin, envOrigin);
+      const init: RequestInit & { duplex?: "half" } = {
+        method: req.method,
+        headers: req.headers,
+      };
+      if (req.method !== "GET" && req.method !== "HEAD" && req.body) {
+        init.body = req.body;
+        init.duplex = "half";
+      }
+      request = new Request(target, init);
+    }
+  }
+
+  return Auth(request, prepareConfig(authConfig));
 }
