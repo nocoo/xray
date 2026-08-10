@@ -4,7 +4,7 @@ import { authConfig } from "@/auth";
 
 export const AUTH_BASE_PATH = "/api/xauth";
 
-function prepareConfig(config: NextAuthConfig): NextAuthConfig {
+export function prepareAuthConfig(config: NextAuthConfig = authConfig): NextAuthConfig {
   const prepared: NextAuthConfig = {
     ...config,
     providers: [...config.providers],
@@ -17,10 +17,26 @@ function prepareConfig(config: NextAuthConfig): NextAuthConfig {
 }
 
 /**
- * Hand the vinext Request to Auth.js unchanged.
- * Any Request reconstruction (NextRequest wrap, body buffer, duplex clone)
- * hangs under vinext when method is POST.
+ * Rewrite request URL origin to NEXTAUTH_URL (https) without touching the body.
+ * Safe for GET (callback, csrf, session). Never buffer POST bodies under vinext.
  */
+export function withHttpsOrigin(req: Request): Request {
+  const envUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
+  if (!envUrl) return req;
+
+  const envOrigin = new URL(envUrl).origin;
+  const current = new URL(req.url);
+  if (current.origin === envOrigin) return req;
+
+  // GET/HEAD only — no body to copy
+  if (req.method !== "GET" && req.method !== "HEAD") return req;
+
+  return new Request(req.url.replace(current.origin, envOrigin), {
+    method: req.method,
+    headers: req.headers,
+  });
+}
+
 export async function authHandler(req: Request): Promise<Response> {
-  return Auth(req, prepareConfig(authConfig));
+  return Auth(withHttpsOrigin(req), prepareAuthConfig());
 }

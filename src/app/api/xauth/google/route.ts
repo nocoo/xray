@@ -1,31 +1,17 @@
 import { Auth, skipCSRFCheck } from "@auth/core";
-import type { NextAuthConfig } from "next-auth";
-import { authConfig } from "@/auth";
-import { AUTH_BASE_PATH } from "../_handler";
+import {
+  AUTH_BASE_PATH,
+  prepareAuthConfig,
+} from "../_handler";
 
 /**
  * Start Google OAuth via GET.
  *
- * Production vinext hangs when route handlers read POST bodies (req.text /
- * arrayBuffer / Auth.js getBody). All dashboard APIs mask this by returning
- * 401 from requireAuth() before reading the body. Auth sign-in cannot.
- *
- * Fix: browser does GET (no body). We synthesize an internal POST Request with
- * a real string body and skipCSRFCheck — same pattern as next-auth server
- * signIn() — then return Auth.js's redirect + Set-Cookie response.
+ * Production vinext hangs when handlers read POST bodies. Dashboard APIs hide
+ * this by returning 401 from requireAuth() before body parse. Auth sign-in
+ * cannot. Browser navigates here with GET; we build an internal POST Request
+ * (string body + skipCSRFCheck) like next-auth server signIn().
  */
-function prepareConfig(config: NextAuthConfig): NextAuthConfig {
-  const prepared: NextAuthConfig = {
-    ...config,
-    providers: [...config.providers],
-  };
-  prepared.secret ??=
-    process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? undefined;
-  prepared.basePath = AUTH_BASE_PATH;
-  prepared.trustHost = true;
-  return prepared;
-}
-
 export async function GET(req: Request): Promise<Response> {
   const envUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
   const origin = envUrl
@@ -59,12 +45,7 @@ export async function GET(req: Request): Promise<Response> {
   });
 
   return Auth(authReq, {
-    ...prepareConfig(authConfig),
+    ...prepareAuthConfig(),
     skipCSRFCheck,
   });
-}
-
-/** POST kept for diagnostics — prefer GET. */
-export async function POST(req: Request): Promise<Response> {
-  return GET(req);
 }
