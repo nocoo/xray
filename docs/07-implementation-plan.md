@@ -52,6 +52,10 @@ f247059 chore: scaffold monorepo with shared and worker
 c347626 chore: archive vinext app under legacy/v1
 ```
 
+### S12 实现审查（Codex 2026-08-10）
+
+已修复并提交：S12-01…S12-10（build 图、dev 先编 shared、production env、layout/a11y、字体、geometry tokens、compat date、dev 版本、biome migrate）。
+
 **当前停点**：本地可运行 sidebar 壳子，供人工检查；下一步从 **S2.3**（users migration + Access middleware）继续。
 
 ---
