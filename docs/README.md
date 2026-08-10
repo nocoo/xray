@@ -24,7 +24,7 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 7. **Product**: Dashboard, Watchlists (CRUD), Groups, zhe.to, AI Settings, Push tokens.
 8. **Delete**: Explore, My Account, Usage, Webhooks, TweAPI, auto-refresh.
 9. **Migrate**: WL/groups/members/tags only; **no** posts.
-10. **Secrets**: envelope encryption (KEK); AI keys never plaintext at rest.
+10. **Secrets**: versioned AES-256-GCM (KEK); AI keys never plaintext at rest.
 11. **MVVM + TDD + 6DQ + mandatory CI**; work on **`main`**.
 
 ## Execution phases (see [07](07-implementation-plan.md))
