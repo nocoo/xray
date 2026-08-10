@@ -22,6 +22,6 @@ describe("XRAY_VERSION", () => {
 		for (const v of versions) {
 			expect(v).toBe(XRAY_VERSION);
 		}
-		expect(XRAY_VERSION).toMatch(/-dev\./);
+		expect(XRAY_VERSION).toMatch(/^\d+\.\d+\.\d+/);
 	});
 });
