@@ -78,9 +78,10 @@ S1 → S2 → S3 → S4 → S5(M0…M8)
 | S4.2 | `feat(worker): repos watchlists groups` | |
 | S4.3 | `feat(worker): watchlists groups read apis` | |
 | S4.4 | `feat(ui): wire lists to api` | |
-| S4.5 | `feat(scripts): migrate-v1-to-d1 dry-run` | XR-12 |
+| S4.5 | `feat(scripts): migrate-v1-to-d1 dry-run` | XR-12 / R3-02 kek for ai_configs |
 | S4.6 | `chore: docs cutover validate counts` | |
 | S4.7 | `test: l2 lists after migrate` | |
+| S4.8 | `test: migrate idempotent and conflict cases` | R3-11 |
 
 **出口**：真实 WL/Groups 名称；items=0。
 
@@ -102,21 +103,22 @@ M7 zhe.to (incl. save e2e)
 M8 Cutover + release
 ```
 
-### M0 — Watchlist CRUD
+### M0 — Watchlist CRUD + general settings
 
 | Commits | |
 |---------|--|
 | `feat(worker): watchlists write apis` | POST/PATCH/DELETE + tenant tests |
 | `feat(ui): watchlist create edit delete` | |
+| `feat(worker+ui): general settings windowHours` | R3-07 |
 | `test(e2e): create watchlist` | 引入 Playwright 脚手架 |
 
 ### M1 — Push tokens
 
 mint/list/revoke；e2e create/revoke。
 
-### M2 — Ingest + timeline
+### M2 — Ingest + timeline + logs
 
-canonical validation；push on **ingest host path**；items list cursor；e2e push mix。
+canonical validation；push on **ingest host**；items list cursor；**ingest_logs API+UI**；host-routing L2 matrix；e2e push mix。
 
 ### M3 — Members
 

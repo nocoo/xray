@@ -57,6 +57,17 @@
 | R2-05 | P1 | token_prefix + SHA-256 hash format locked |
 | R2-06 | P1 | CF Rate Limiting binding for ingest |
 | R2-07 | P1 | AES-256-GCM envelope format locked |
+| R3-01 | P1 | login bind order: identity → unbound email CAS → insert |
+| R3-02 | P1 | AI secrets migrate to ai_configs via KEK; zheto re-enter |
+| R3-03 | P1 | rate limit best-effort per CF location; key=token_id |
+| R3-04 | P2 | host-routing L2 matrix |
+| R3-05 | P2 | KEK_PREV read-repair + reencrypt job |
+| R3-07 | P2 | settings + logs in S5 modules |
+| R3-08 | P2 | translate deadline/concurrency/partial |
+| R3-09 | P2 | window 1..168 only |
+| R3-10 | P2 | handle normalize lowercase |
+| R3-11 | P2 | migration automated tests |
+| R3-12 | P2 | parent/child same user_id invariants |
 
 ## Flexible defaults
 

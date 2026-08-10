@@ -52,8 +52,10 @@ packages/worker/test/l2/
   me.http.test.ts
   watchlists.http.test.ts
   ingest.http.test.ts
+  host-routing.http.test.ts    # R3-04 matrix (see 02)
   tenant-isolation.http.test.ts
   push-tokens.http.test.ts
+  migrate.http.test.ts         # R3-11 idempotent / conflict / kek
 ```
 
 ## 5. L3 Playwright (S5+)
