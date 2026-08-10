@@ -14,7 +14,7 @@
     },
     "packages/shared": {
       "name": "@xray/shared",
-      "version": "2.0.0",
+      "version": "2.0.0-dev.0",
       "devDependencies": {
         "typescript": "^7.0.2",
         "vitest": "4.1.10",
@@ -22,7 +22,7 @@
     },
     "packages/ui": {
       "name": "@xray/ui",
-      "version": "2.0.0",
+      "version": "2.0.0-dev.0",
       "dependencies": {
         "@radix-ui/react-collapsible": "1.1.20",
         "@xray/shared": "workspace:*",
@@ -50,10 +50,11 @@
     },
     "packages/worker": {
       "name": "@xray/worker",
-      "version": "2.0.0",
+      "version": "2.0.0-dev.0",
       "dependencies": {
         "@xray/shared": "workspace:*",
         "hono": "4.13.1",
+        "jose": "^6.2.8",
       },
       "devDependencies": {
         "@cloudflare/workers-types": "5.20260809.1",
@@ -617,6 +618,8 @@
     "istanbul-reports": ["istanbul-reports@3.2.0", "", { "dependencies": { "html-escaper": "^2.0.0", "istanbul-lib-report": "^3.0.0" } }, "sha512-HGYWWS/ehqTV3xN10i23tkPkpH46MLCIMFNCaaKNavAXTF1RkqxawEPtnjnGZ6XKSInBKkiOA5BKS+aZiY3AvA=="],
 
     "jiti": ["jiti@2.7.0", "", { "bin": { "jiti": "lib/jiti-cli.mjs" } }, "sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ=="],
+
+    "jose": ["jose@6.2.8", "", {}, "sha512-Bsdjwm3Qsd/P0jR+BHDe3LytDfY7WBq2HmCCLIwuVRHMuEC9ae7/R474GIUdF1NgCyZjzVo/A9DOiOBtXq8ZoQ=="],
 
     "js-tokens": ["js-tokens@10.0.0", "", {}, "sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q=="],
 

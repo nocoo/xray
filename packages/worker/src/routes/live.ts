@@ -1,5 +1,6 @@
 import { XRAY_VERSION } from "@xray/shared";
 import type { Context } from "hono";
+import type { AppEnv } from "../types.js";
 
 const bootedAt = Date.now();
 
@@ -11,7 +12,7 @@ export type LiveResponse = {
 	uptimeSec: number;
 };
 
-export function liveRoute(c: Context) {
+export function liveRoute(c: Context<AppEnv>) {
 	const body: LiveResponse = {
 		status: "ok",
 		version: XRAY_VERSION,

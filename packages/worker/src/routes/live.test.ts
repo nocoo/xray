@@ -5,7 +5,7 @@ import { liveRoute } from "./live.js";
 describe("GET /api/live", () => {
 	test("returns ok status and version", async () => {
 		const app = new Hono();
-		app.get("/api/live", liveRoute);
+		app.get("/api/live", liveRoute as never);
 		const res = await app.request("/api/live");
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {

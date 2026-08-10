@@ -16,16 +16,18 @@ ENVIRONMENT = "production"
 binding = "DB"
 database_name = "xray-db"
 database_id = "00000000-0000-0000-0000-000000000001"
+migrations_dir = "migrations"
 
 # Local / wrangler dev — use: wrangler dev --env development
 [env.development]
 name = "xray-dev"
-vars = { ENVIRONMENT = "development" }
+vars = { ENVIRONMENT = "development", AUTH_DEV_BYPASS = "true", ALLOWED_EMAILS = "dev@xray.local" }
 
 [[env.development.d1_databases]]
 binding = "DB"
 database_name = "xray-db"
 database_id = "00000000-0000-0000-0000-000000000001"
+migrations_dir = "migrations"
 
 [env.production]
 name = "xray"
@@ -35,3 +37,4 @@ vars = { ENVIRONMENT = "production" }
 binding = "DB"
 database_name = "xray-db"
 database_id = "00000000-0000-0000-0000-000000000001"
+migrations_dir = "migrations"
