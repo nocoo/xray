@@ -31,7 +31,7 @@ function AppShellInner({ children }: AppShellProps) {
 	}, [pathname, setMobileOpen]);
 
 	useEffect(() => {
-		if (mobileOpen) {
+		if (drawerOpen) {
 			document.body.style.overflow = "hidden";
 		} else {
 			document.body.style.overflow = "";
@@ -39,11 +39,11 @@ function AppShellInner({ children }: AppShellProps) {
 		return () => {
 			document.body.style.overflow = "";
 		};
-	}, [mobileOpen]);
+	}, [drawerOpen]);
 
 	// Focus trap + Escape + restore focus (S12R-03)
 	useEffect(() => {
-		if (!mobileOpen) return;
+		if (!drawerOpen) return;
 		const drawer = drawerRef.current;
 		if (!drawer) return;
 
@@ -79,21 +79,29 @@ function AppShellInner({ children }: AppShellProps) {
 			const restore = previouslyFocused.current ?? openButtonRef.current;
 			restore?.focus();
 		};
-	}, [mobileOpen, setMobileOpen]);
+	}, [drawerOpen, setMobileOpen]);
 
 	const resolved = isMobile !== undefined;
 	const mobile = isMobile === true;
+	const drawerOpen = mobile && mobileOpen;
+
+	// Leave mobile breakpoint → close drawer (S12R2-01)
+	useEffect(() => {
+		if (resolved && !mobile && mobileOpen) {
+			setMobileOpen(false);
+		}
+	}, [resolved, mobile, mobileOpen, setMobileOpen]);
 
 	return (
 		<div className="flex min-h-screen w-full bg-background">
 			<div
 				className={resolved && mobile ? "hidden" : "hidden md:block"}
-				inert={mobileOpen || undefined}
+				inert={drawerOpen || undefined}
 			>
 				<Sidebar />
 			</div>
 
-			{mobile && mobileOpen && (
+			{drawerOpen && (
 				<>
 					<button
 						type="button"
@@ -116,7 +124,7 @@ function AppShellInner({ children }: AppShellProps) {
 
 			<main
 				className="flex min-h-screen min-w-0 flex-1 flex-col"
-				inert={mobile && mobileOpen ? true : undefined}
+				inert={drawerOpen ? true : undefined}
 			>
 				<header className="flex h-14 shrink-0 items-center justify-between px-4 md:px-6">
 					<div className="flex items-center gap-3">
@@ -125,7 +133,7 @@ function AppShellInner({ children }: AppShellProps) {
 							type="button"
 							onClick={() => setMobileOpen(true)}
 							aria-label="Open navigation menu"
-							aria-expanded={mobileOpen}
+							aria-expanded={drawerOpen}
 							className={`flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground ${
 								resolved && !mobile ? "md:hidden" : mobile ? "" : "md:hidden"
 							}`}
