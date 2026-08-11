@@ -6,23 +6,45 @@ import type { MockCustomPost, MockPost, MockXPost } from "@/lib/mock-data";
 
 export const WatchlistPostCard = memo(function WatchlistPostCard({
 	post,
+	watchlistId,
 	onRemove,
+	onTranslated,
 }: {
 	post: MockPost;
+	watchlistId?: number;
 	onRemove?: (postId: number) => void;
+	onTranslated?: () => void;
 }) {
 	if (post.sourceType === "custom") {
-		return <CustomTimelineCard post={post} onRemove={onRemove} />;
+		return (
+			<CustomTimelineCard
+				post={post}
+				watchlistId={watchlistId}
+				onRemove={onRemove}
+				onTranslated={onTranslated}
+			/>
+		);
 	}
-	return <XTimelineCard post={post} onRemove={onRemove} />;
+	return (
+		<XTimelineCard
+			post={post}
+			watchlistId={watchlistId}
+			onRemove={onRemove}
+			onTranslated={onTranslated}
+		/>
+	);
 });
 
 const XTimelineCard = memo(function XTimelineCard({
 	post,
+	watchlistId,
 	onRemove,
+	onTranslated,
 }: {
 	post: MockXPost;
+	watchlistId?: number;
 	onRemove?: (postId: number) => void;
+	onTranslated?: () => void;
 }) {
 	const [translatedText, setTranslatedText] = useState(post.translatedText);
 	const [commentText, setCommentText] = useState(post.commentText);
@@ -30,6 +52,7 @@ const XTimelineCard = memo(function XTimelineCard({
 	const [translationError, setTranslationError] = useState(post.translationError);
 	const [retrying, setRetrying] = useState(false);
 	const [errorExpanded, setErrorExpanded] = useState(false);
+	const [retryKey, setRetryKey] = useState(0);
 
 	useEffect(() => {
 		if (post.translatedText && !translatedText) {
@@ -55,14 +78,48 @@ const XTimelineCard = memo(function XTimelineCard({
 	}, [onRemove, post.id]);
 
 	const handleRetry = useCallback(async () => {
-		if (retrying) return;
+		if (retrying || watchlistId == null) return;
 		setRetrying(true);
-		await new Promise((r) => setTimeout(r, 400));
-		setTranslatedText(`【译·retry】${post.tweet.text}`);
-		setCommentText("（mock）重试后的 AI Insight。");
 		setTranslationError(null);
-		setRetrying(false);
-	}, [retrying, post.tweet.text]);
+		try {
+			const res = await fetch(`/api/watchlists/${watchlistId}/translate`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "same-origin",
+				body: JSON.stringify({ item_ids: [post.id], limit: 1 }),
+			});
+			const json = (await res.json().catch(() => null)) as {
+				success?: boolean;
+				error?: string;
+				data?: {
+					results?: Array<{
+						id: number;
+						ai_status: string;
+						error?: string;
+						translatedText?: string | null;
+						summaryText?: string | null;
+					}>;
+				};
+			} | null;
+			if (!res.ok || !json?.success) {
+				throw new Error(json?.error || res.statusText || `HTTP ${res.status}`);
+			}
+			const row = json.data?.results?.find((r) => r.id === post.id) ?? json.data?.results?.[0];
+			if (row?.ai_status !== "succeeded" || !row.translatedText) {
+				throw new Error(row?.error || "Translation failed — configure AI Settings");
+			}
+			setTranslatedText(row.translatedText);
+			setCommentText(row.summaryText ?? null);
+			setQuotedTranslatedText(null);
+			setTranslationError(null);
+			setRetryKey((k) => k + 1);
+			onTranslated?.();
+		} catch (e) {
+			setTranslationError(e instanceof Error ? e.message : String(e));
+		} finally {
+			setRetrying(false);
+		}
+	}, [retrying, watchlistId, post.id, onTranslated]);
 
 	const errorBanner =
 		translationError && !translatedText ? (
@@ -94,7 +151,7 @@ const XTimelineCard = memo(function XTimelineCard({
 							e.preventDefault();
 							void handleRetry();
 						}}
-						disabled={retrying}
+						disabled={retrying || watchlistId == null}
 						className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-900/30"
 						title="Retry translation"
 					>
@@ -120,12 +177,16 @@ const XTimelineCard = memo(function XTimelineCard({
 			data-source-type="x.com"
 		>
 			<TweetCard
+				key={retryKey}
 				tweet={post.tweet}
 				sourceType="x.com"
 				linkToDetail={false}
+				watchlistId={watchlistId}
+				itemId={post.id}
 				initialTranslation={initialTranslation}
 				renderBeforeActionBar={errorBanner}
 				onRemove={onRemove ? handleRemove : undefined}
+				onTranslated={onTranslated}
 			/>
 		</div>
 	);
@@ -133,10 +194,14 @@ const XTimelineCard = memo(function XTimelineCard({
 
 const CustomTimelineCard = memo(function CustomTimelineCard({
 	post,
+	watchlistId,
 	onRemove,
+	onTranslated,
 }: {
 	post: MockCustomPost;
+	watchlistId?: number;
 	onRemove?: (postId: number) => void;
+	onTranslated?: () => void;
 }) {
 	return (
 		<div
@@ -151,7 +216,15 @@ const CustomTimelineCard = memo(function CustomTimelineCard({
 				url={post.url}
 				authorName={post.authorName}
 				producer={post.producer}
+				watchlistId={watchlistId}
+				itemId={post.id}
+				initialTranslation={
+					post.translatedText
+						? { translatedText: post.translatedText, summaryText: post.commentText }
+						: undefined
+				}
 				onRemove={onRemove ? () => onRemove(post.id) : undefined}
+				onTranslated={onTranslated}
 			/>
 		</div>
 	);

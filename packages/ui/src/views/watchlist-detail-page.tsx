@@ -366,6 +366,17 @@ export function WatchlistDetailPage() {
 													url={
 														(item.payload as { body?: { url?: string } } | null)?.body?.url ?? null
 													}
+													watchlistId={watchlistId}
+													itemId={item.id}
+													initialTranslation={
+														item.translatedText
+															? {
+																	translatedText: item.translatedText,
+																	summaryText: item.summaryText,
+																}
+															: undefined
+													}
+													onTranslated={() => void load()}
 												/>
 											</div>
 										) : (
@@ -378,6 +389,8 @@ export function WatchlistDetailPage() {
 															tweet={tweet}
 															sourceType="x.com"
 															linkToDetail={false}
+															watchlistId={watchlistId}
+															itemId={item.id}
 															initialTranslation={
 																item.translatedText
 																	? {
@@ -386,6 +399,7 @@ export function WatchlistDetailPage() {
 																		}
 																	: undefined
 															}
+															onTranslated={() => void load()}
 														/>
 													);
 												})()}

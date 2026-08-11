@@ -54,6 +54,15 @@ export interface TweetCardProps {
 	renderBeforeActionBar?: React.ReactNode;
 	/** Called when the user clicks "Remove" — parent should delete + unmount this card */
 	onRemove?: () => void;
+	/**
+	 * Real translate: parent provides watchlist + item so we hit
+	 * POST /api/watchlists/:id/translate { item_ids: [itemId] }.
+	 * Without these, Translate shows an error (no mock).
+	 */
+	watchlistId?: number;
+	itemId?: number;
+	/** Optional hook after successful server translate (e.g. parent reload) */
+	onTranslated?: () => void;
 }
 
 export const TweetCard = memo(function TweetCard({
@@ -65,6 +74,9 @@ export const TweetCard = memo(function TweetCard({
 	initialTranslation,
 	renderBeforeActionBar,
 	onRemove,
+	watchlistId,
+	itemId,
+	onTranslated,
 }: TweetCardProps) {
 	void linkToDetail;
 	const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -77,24 +89,25 @@ export const TweetCard = memo(function TweetCard({
 		initialTranslation?.quotedTranslatedText ?? null,
 	);
 	const [translating, setTranslating] = useState(false);
+	const [translateError, setTranslateError] = useState<string | null>(null);
 
 	// --- zhe.to state ---
 	const [zhetoStatus, setZhetoStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
-	// Sync from parent when initialTranslation changes (SSE push)
-	const prevInitial = initialTranslation?.translatedText;
-	useState(() => {
-		// This runs once on mount; subsequent syncs handled in the effect below
-	});
-	// biome-ignore lint: sync on external prop change
+	// Sync when parent reloads item (batch translate / SSE)
 	useEffect(() => {
-		if (prevInitial && !translatedText) {
-			setTranslatedText(prevInitial);
-			setCommentText(initialTranslation?.commentText ?? null);
-			setQuotedTranslatedText(initialTranslation?.quotedTranslatedText ?? null);
+		if (initialTranslation?.translatedText) {
+			setTranslatedText(initialTranslation.translatedText);
+			setCommentText(initialTranslation.commentText ?? null);
+			setQuotedTranslatedText(initialTranslation.quotedTranslatedText ?? null);
 			setLang("zh");
+			setTranslateError(null);
 		}
-	}, [prevInitial]);
+	}, [
+		initialTranslation?.translatedText,
+		initialTranslation?.commentText,
+		initialTranslation?.quotedTranslatedText,
+	]);
 
 	const hasTranslation = !!translatedText;
 
@@ -110,45 +123,50 @@ export const TweetCard = memo(function TweetCard({
 
 	const handleTranslate = useCallback(async () => {
 		if (translating) return;
+		if (watchlistId == null || itemId == null) {
+			setTranslateError("Translate requires watchlist context (open item from a watchlist).");
+			return;
+		}
 		setTranslating(true);
-		const applyMock = () => {
-			if (initialTranslation?.translatedText) {
-				setTranslatedText(initialTranslation.translatedText);
-				setCommentText(initialTranslation.commentText ?? null);
-				setQuotedTranslatedText(initialTranslation.quotedTranslatedText ?? null);
-			} else {
-				setTranslatedText(`【译】${tweet.text}`);
-				setCommentText("（mock）AI Insight 占位 — 正式翻译在 S5 AI 模块接通。");
-				if (tweet.quoted_tweet?.text) {
-					setQuotedTranslatedText(`【译】${tweet.quoted_tweet.text}`);
-				}
-			}
-			setLang("zh");
-		};
+		setTranslateError(null);
 		try {
-			const res = await fetch("/api/translate", {
+			const res = await fetch(`/api/watchlists/${watchlistId}/translate`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					text: tweet.text,
-					quotedText: tweet.quoted_tweet?.text ?? undefined,
-				}),
+				credentials: "same-origin",
+				body: JSON.stringify({ item_ids: [itemId], limit: 1 }),
 			});
-			const json = await res.json().catch(() => null);
-			if (res.ok && json?.success && json.data?.translatedText) {
-				setTranslatedText(json.data.translatedText);
-				setCommentText(json.data.commentText ?? null);
-				setQuotedTranslatedText(json.data.quotedTranslatedText ?? null);
-				setLang("zh");
-			} else {
-				applyMock();
+			const json = (await res.json().catch(() => null)) as {
+				success?: boolean;
+				error?: string;
+				data?: {
+					results?: Array<{
+						id: number;
+						ai_status: string;
+						error?: string;
+						translatedText?: string | null;
+						summaryText?: string | null;
+					}>;
+				};
+			} | null;
+			if (!res.ok || !json?.success) {
+				throw new Error(json?.error || res.statusText || `HTTP ${res.status}`);
 			}
-		} catch {
-			applyMock();
+			const row = json.data?.results?.find((r) => r.id === itemId) ?? json.data?.results?.[0];
+			if (row?.ai_status !== "succeeded" || !row.translatedText) {
+				throw new Error(row?.error || "Translation failed — configure AI Settings");
+			}
+			setTranslatedText(row.translatedText);
+			setCommentText(row.summaryText ?? null);
+			setQuotedTranslatedText(null);
+			setLang("zh");
+			onTranslated?.();
+		} catch (e) {
+			setTranslateError(e instanceof Error ? e.message : String(e));
 		} finally {
 			setTranslating(false);
 		}
-	}, [translating, tweet.text, tweet.quoted_tweet?.text, initialTranslation]);
+	}, [translating, watchlistId, itemId, onTranslated]);
 
 	const handleSaveToZheto = useCallback(async () => {
 		if (zhetoStatus === "saving" || zhetoStatus === "saved") return;
@@ -525,10 +543,18 @@ export const TweetCard = memo(function TweetCard({
 		</div>
 	) : null;
 
+	const errorBanner =
+		translateError && !hasTranslation ? (
+			<div className="border border-t-0 border-red-200 bg-red-50/80 px-3 py-2 dark:border-red-900/50 dark:bg-red-950/20">
+				<p className="text-xs text-red-700 dark:text-red-300 break-all">{translateError}</p>
+			</div>
+		) : null;
+
 	return (
 		<div>
 			{card}
 			{renderBeforeActionBar}
+			{errorBanner}
 			{aiInsight}
 			{actionBar}
 			<ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
