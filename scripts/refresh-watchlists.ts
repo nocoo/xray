@@ -4,14 +4,15 @@
  * → cache raw JSON → map canonical → batched ingest push.
  *
  * Docs: docs/09-local-producer-twitter-cli.md
- *
- *   bun run refresh:watchlists -- --help
- *   bun run refresh:watchlists -- --dry-run
- *   bun run refresh:watchlists -- --cache-only
- *   bun run refresh:watchlists -- --from-cache
- *   bun run refresh:watchlists --
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	renameSync,
+	unlinkSync,
+	writeFileSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
@@ -19,38 +20,52 @@ import {
 	buildIngestBatches,
 	type CanonicalItem,
 	cacheFileBase,
+	exitCodeForRefresh,
 	filterItemsByWindow,
 	isValidXHandle,
 	mapTwitterCliEnvelope,
-	normalizeHandle,
+	parseMembersGraph,
 	parsePushSuccessBody,
 	pushRetryDelayMs,
+	scrubEnvForTwitter,
 	shouldStopPush,
 } from "../packages/shared/src/index.ts";
 
-type Member = { handle: string; sourceType: string };
-type WatchlistGraph = { id: number; name: string; members: Member[] };
-type Graph = { watchlists: WatchlistGraph[] };
+type Graph = ReturnType<typeof parseMembersGraph>;
 
-const { values, positionals } = parseArgs({
-	args: Bun.argv.slice(2),
-	options: {
-		help: { type: "boolean", default: false },
-		"dry-run": { type: "boolean", default: false },
-		"cache-only": { type: "boolean", default: false },
-		"from-cache": { type: "boolean", default: false },
-		"members-file": { type: "string" },
-		"window-hours": { type: "string" },
-		max: { type: "string" },
-		"cache-dir": { type: "string" },
-		"ingest-base": { type: "string" },
-		"browser-base": { type: "string" },
-		"twitter-bin": { type: "string" },
-		"handle-delay-ms": { type: "string" },
-	},
-	allowPositionals: true,
-	strict: false,
-});
+let values: ReturnType<typeof parseArgs>["values"];
+let positionals: string[];
+try {
+	const parsed = parseArgs({
+		args: Bun.argv.slice(2),
+		options: {
+			help: { type: "boolean", default: false },
+			"dry-run": { type: "boolean", default: false },
+			"cache-only": { type: "boolean", default: false },
+			"from-cache": { type: "boolean", default: false },
+			"members-file": { type: "string" },
+			"window-hours": { type: "string" },
+			max: { type: "string" },
+			"cache-dir": { type: "string" },
+			"ingest-base": { type: "string" },
+			"browser-base": { type: "string" },
+			"twitter-bin": { type: "string" },
+			"handle-delay-ms": { type: "string" },
+		},
+		allowPositionals: true,
+		strict: true,
+	});
+	values = parsed.values;
+	positionals = parsed.positionals;
+} catch (e) {
+	console.error(e instanceof Error ? e.message : e);
+	console.error("Use --help for options");
+	process.exit(2);
+}
+if (positionals.length && !positionals.every((p) => p === "help")) {
+	console.error(`unexpected arguments: ${positionals.join(" ")}`);
+	process.exit(2);
+}
 
 if (values.help || positionals.includes("help")) {
 	console.log(`Usage: bun run refresh:watchlists -- [options]
@@ -61,26 +76,19 @@ Options:
   --from-cache        Reuse .cache raw JSON only (no twitter network)
   --members-file PATH Snapshot JSON (default: XRAY_MEMBERS_FILE or config/members.json)
   --window-hours N    Ingest window 1..168 (default: XRAY_WINDOW_HOURS or 24)
-  --max N             twitter user-posts --max (default: 20; modest; CLI may page up to N)
+  --max N             twitter user-posts --max (default: 20; CLI may page up to N)
   --cache-dir PATH    Raw cache root (default: XRAY_CACHE_DIR or .cache/twitter-cli)
-  --ingest-base URL   Default https://xray-ingest.hexly.ai (allowlisted hosts only)
-  --browser-base URL  For live graph (optional if members-file set)
+  --ingest-base URL   Default https://xray-ingest.hexly.ai (allowlisted)
+  --browser-base URL  Live graph (optional if members-file set)
   --twitter-bin PATH  Default TWITTER_BIN or twitter
   --handle-delay-ms N Sleep between twitter calls (default 3000)
 
-Env:
-  XRAY_PUSH_TOKEN          Bearer for ingest (required unless dry-run/cache-only)
-  XRAY_MEMBERS_FILE        Graph snapshot
-  XRAY_BROWSER_BASE        e.g. http://127.0.0.1:8787 or https://xray.hexly.ai
-  XRAY_CF_AUTHORIZATION    CF Access cookie value for prod browser API
-  XRAY_INGEST_BASE         Ingest host base URL
-  XRAY_WINDOW_HOURS        1..168
-  XRAY_TWITTER_MAX         modest upper bound (default 20)
-  TWITTER_BIN              twitter-cli binary
+Env: XRAY_PUSH_TOKEN, XRAY_MEMBERS_FILE, XRAY_BROWSER_BASE, XRAY_CF_AUTHORIZATION,
+     XRAY_INGEST_BASE, XRAY_WINDOW_HOURS, XRAY_TWITTER_MAX, TWITTER_BIN
 
 Notes:
-  Default always re-fetches twitter (overwrites cache). Use --from-cache to resume offline.
-  twitter-cli may issue multiple GraphQL pages until --max; we do not add our own page loop.
+  Default always re-fetches twitter. Use --from-cache offline.
+  twitter-cli may page until --max; we do not add our own cursor loop.
 `);
 	process.exit(0);
 }
@@ -110,6 +118,16 @@ function env(name: string): string | undefined {
 	return p?.env?.[name];
 }
 
+function fullEnv(): Record<string, string | undefined> {
+	// biome-ignore lint/suspicious/noExplicitAny: bun/process env
+	const p = (globalThis as any).process as { env?: Record<string, string | undefined> } | undefined;
+	return p?.env ?? {};
+}
+
+function twitterEnv(): Record<string, string> {
+	return scrubEnvForTwitter(fullEnv());
+}
+
 function clampInt(raw: string | undefined, fallback: number, min: number, max: number): number {
 	if (raw === undefined || raw === "") return fallback;
 	const n = Number(raw);
@@ -126,34 +144,14 @@ function sleep(ms: number): Promise<void> {
 
 async function loadGraph(): Promise<Graph> {
 	if (existsSync(membersFile)) {
-		const g = JSON.parse(readFileSync(membersFile, "utf8")) as Graph;
-		if (!g?.watchlists || !Array.isArray(g.watchlists)) {
-			throw new Error(`invalid members file: ${membersFile}`);
-		}
-		return normalizeGraph(g);
+		return parseMembersGraph(JSON.parse(readFileSync(membersFile, "utf8")) as unknown);
 	}
 	if (!browserBase) {
 		throw new Error(
-			`No graph source: set --members-file / XRAY_MEMBERS_FILE or XRAY_BROWSER_BASE (see docs/09)`,
+			"No graph source: set --members-file / XRAY_MEMBERS_FILE or XRAY_BROWSER_BASE (see docs/09)",
 		);
 	}
 	return fetchGraphFromBrowser(browserBase);
-}
-
-function normalizeGraph(g: Graph): Graph {
-	return {
-		watchlists: g.watchlists.map((w) => ({
-			id: Number(w.id),
-			name: String(w.name ?? w.id),
-			members: (w.members ?? [])
-				.filter((m) => m && (m.sourceType === "x.com" || m.sourceType === undefined))
-				.map((m) => ({
-					handle: normalizeHandle(String(m.handle)),
-					sourceType: "x.com" as const,
-				}))
-				.filter((m) => isValidXHandle(m.handle)),
-		})),
-	};
 }
 
 function browserHeaders(): HeadersInit {
@@ -173,41 +171,45 @@ function browserHeaders(): HeadersInit {
 async function fetchGraphFromBrowser(base: string): Promise<Graph> {
 	const headers = browserHeaders();
 	const wlRes = await fetch(`${base}/api/watchlists`, { headers });
-	if (!wlRes.ok) {
-		throw new Error(`GET /api/watchlists → ${wlRes.status} ${await wlRes.text()}`);
-	}
+	if (!wlRes.ok) throw new Error(`GET /api/watchlists → ${wlRes.status}`);
 	const wlBody = (await wlRes.json()) as { data?: Array<{ id: number; name: string }> };
 	const lists = wlBody.data ?? [];
-	const watchlists: WatchlistGraph[] = [];
+	const watchlists: Graph["watchlists"] = [];
 	for (const wl of lists) {
 		const mRes = await fetch(`${base}/api/watchlists/${wl.id}/members`, { headers });
-		if (!mRes.ok) {
-			throw new Error(`GET members ${wl.id} → ${mRes.status}`);
-		}
+		if (!mRes.ok) throw new Error(`GET members ${wl.id} → ${mRes.status}`);
 		const mBody = (await mRes.json()) as {
 			data?: Array<{ handle: string; sourceType: string }>;
 		};
-		watchlists.push({
-			id: wl.id,
-			name: wl.name,
-			members: (mBody.data ?? [])
-				.filter((m) => m.sourceType === "x.com")
-				.map((m) => ({ handle: normalizeHandle(m.handle), sourceType: "x.com" }))
-				.filter((m) => isValidXHandle(m.handle)),
+		const xMembers = (mBody.data ?? []).filter((m) => m.sourceType === "x.com");
+		if (xMembers.length === 0) {
+			watchlists.push({ id: wl.id, name: wl.name, members: [] });
+			continue;
+		}
+		const parsed = parseMembersGraph({
+			watchlists: [
+				{
+					id: wl.id,
+					name: wl.name,
+					members: xMembers.map((m) => ({ handle: m.handle, sourceType: "x.com" as const })),
+				},
+			],
 		});
+		const one = parsed.watchlists[0];
+		if (!one) throw new Error(`parse failed for wl ${wl.id}`);
+		watchlists.push(one);
 	}
-	return { watchlists };
+	return parseMembersGraph({ watchlists });
 }
 
 function uniqueHandles(graph: Graph): Map<string, number[]> {
 	const map = new Map<string, number[]>();
 	for (const wl of graph.watchlists) {
 		for (const m of wl.members) {
-			const h = m.handle;
-			if (!isValidXHandle(h)) continue;
-			const arr = map.get(h) ?? [];
+			if (!isValidXHandle(m.handle)) continue;
+			const arr = map.get(m.handle) ?? [];
 			if (!arr.includes(wl.id)) arr.push(wl.id);
-			map.set(h, arr);
+			map.set(m.handle, arr);
 		}
 	}
 	return map;
@@ -217,21 +219,18 @@ async function ensureTwitterAuth(): Promise<void> {
 	const proc = Bun.spawn([twitterBin, "status", "--json"], {
 		stdout: "pipe",
 		stderr: "pipe",
+		env: twitterEnv(),
 	});
 	const out = await new Response(proc.stdout).text();
 	const err = await new Response(proc.stderr).text();
 	const code = await proc.exited;
-	if (code !== 0) {
-		throw new Error(`twitter status failed (${code}): ${err || out}`);
-	}
-	let json: unknown;
-	try {
-		json = JSON.parse(out.includes("{") ? out.slice(out.indexOf("{")) : out);
-	} catch {
-		throw new Error(`twitter status non-JSON: ${out.slice(0, 200)}`);
-	}
-	const data = json as { ok?: boolean; data?: { authenticated?: boolean } };
-	if (!data.ok || !data.data?.authenticated) {
+	if (code !== 0) throw new Error(`twitter status failed (${code}): ${err || out}`);
+	const start = out.indexOf("{");
+	const json = JSON.parse(start >= 0 ? out.slice(start) : out) as {
+		ok?: boolean;
+		data?: { authenticated?: boolean };
+	};
+	if (!json.ok || !json.data?.authenticated) {
 		throw new Error("twitter-cli not authenticated — run: twitter whoami");
 	}
 }
@@ -241,10 +240,7 @@ function rawPathFor(handle: string): string {
 	const dir = join(cacheDir, "raw");
 	mkdirSync(dir, { recursive: true });
 	const path = join(dir, `${base}.json`);
-	// ensure path stays under raw dir
-	if (!resolve(path).startsWith(resolve(dir))) {
-		throw new Error(`cache path escape: ${path}`);
-	}
+	if (!resolve(path).startsWith(resolve(dir))) throw new Error(`cache path escape: ${path}`);
 	return path;
 }
 
@@ -253,28 +249,25 @@ async function fetchUserPostsOnce(
 ): Promise<{ ok: true; data: unknown } | { ok: false; err: string; rateLimited: boolean }> {
 	const proc = Bun.spawn(
 		[twitterBin, "user-posts", handle, "--json", "--max", String(twitterMax)],
-		{ stdout: "pipe", stderr: "pipe" },
+		{ stdout: "pipe", stderr: "pipe", env: twitterEnv() },
 	);
 	const out = await new Response(proc.stdout).text();
 	const err = await new Response(proc.stderr).text();
 	const code = await proc.exited;
 	const combined = `${err}\n${out}`;
 	if (code !== 0) {
-		const rateLimited = /429|Rate limited|rate_limited|rate.limit/i.test(combined);
-		return { ok: false, err: combined.slice(0, 500), rateLimited };
+		return {
+			ok: false,
+			err: combined.slice(0, 500),
+			rateLimited: /429|Rate limited|rate_limited|rate.limit/i.test(combined),
+		};
 	}
 	const start = out.indexOf("{");
-	if (start < 0) {
-		return { ok: false, err: `no JSON from user-posts @${handle}`, rateLimited: false };
-	}
+	if (start < 0) return { ok: false, err: `no JSON @${handle}`, rateLimited: false };
 	try {
 		return { ok: true, data: JSON.parse(out.slice(start)) as unknown };
 	} catch (e) {
-		return {
-			ok: false,
-			err: e instanceof Error ? e.message : String(e),
-			rateLimited: false,
-		};
+		return { ok: false, err: e instanceof Error ? e.message : String(e), rateLimited: false };
 	}
 }
 
@@ -284,25 +277,23 @@ async function fetchUserPosts(handle: string): Promise<unknown> {
 		if (!existsSync(rawPath)) throw new Error(`cache miss: ${rawPath}`);
 		return JSON.parse(readFileSync(rawPath, "utf8"));
 	}
-
-	// Default: always re-fetch. On rate-limit, do NOT hammer — skip handle (partial).
 	const r = await fetchUserPostsOnce(handle);
 	if (r.ok) {
 		const tmp = `${rawPath}.${process.pid}.tmp`;
-		writeFileSync(tmp, JSON.stringify(r.data, null, 2));
-		// atomic-ish replace
-		writeFileSync(rawPath, readFileSync(tmp));
 		try {
-			const { unlinkSync } = await import("node:fs");
-			unlinkSync(tmp);
-		} catch {
-			/* ignore */
+			writeFileSync(tmp, JSON.stringify(r.data, null, 2));
+			renameSync(tmp, rawPath);
+		} catch (e) {
+			try {
+				unlinkSync(tmp);
+			} catch {
+				/* ignore */
+			}
+			throw e;
 		}
 		return r.data;
 	}
-	if (r.rateLimited) {
-		throw new Error(`rate_limited @${handle}: ${r.err.slice(0, 200)}`);
-	}
+	if (r.rateLimited) throw new Error(`rate_limited @${handle}: ${r.err.slice(0, 200)}`);
 	throw new Error(`user-posts @${handle}: ${r.err}`);
 }
 
@@ -344,7 +335,6 @@ async function pushBatch(body: {
 			}
 			return { ok: false, status: 0, error: msg };
 		}
-
 		const text = await res.text();
 		let json: unknown;
 		try {
@@ -352,7 +342,6 @@ async function pushBatch(body: {
 		} catch {
 			json = null;
 		}
-
 		if (shouldStopPush(res.status)) {
 			return {
 				ok: false,
@@ -364,7 +353,6 @@ async function pushBatch(body: {
 				fatal: true,
 			};
 		}
-
 		if (!res.ok) {
 			const delay = pushRetryDelayMs(res.status, attempt);
 			const errMsg =
@@ -378,11 +366,8 @@ async function pushBatch(body: {
 			}
 			return { ok: false, status: res.status, error: errMsg };
 		}
-
 		const parsed = parsePushSuccessBody(json, body.items.length);
-		if (!parsed.ok) {
-			return { ok: false, status: res.status, error: parsed.reason };
-		}
+		if (!parsed.ok) return { ok: false, status: res.status, error: parsed.reason };
 		return {
 			ok: true,
 			status: res.status,
@@ -427,9 +412,7 @@ async function main(): Promise<void> {
 	);
 
 	if (dryRun) {
-		for (const [h, wls] of handleMap) {
-			console.log(`  @${h} → WL ${wls.join(",")}`);
-		}
+		for (const [h, wls] of handleMap) console.log(`  @${h} → WL ${wls.join(",")}`);
 		process.exit(0);
 	}
 
@@ -472,35 +455,30 @@ async function main(): Promise<void> {
 			const msg = e instanceof Error ? e.message : String(e);
 			handleErrors.push({ handle, error: msg });
 			console.error(`  ERROR @${handle}: ${msg}`);
-			// rate-limit: cool off once then continue others (no dense multi-retry)
 			if (/rate_limited/i.test(msg)) {
 				console.warn("  cooling 60s after rate limit…");
 				await sleep(60_000);
 			}
 		}
-		if (!fromCache && handleDelayMs > 0 && i < handleMap.size) {
-			await sleep(handleDelayMs);
-		}
+		if (!fromCache && handleDelayMs > 0 && i < handleMap.size) await sleep(handleDelayMs);
 	}
 
 	const itemsByWl = new Map<number, Map<string, CanonicalItem>>();
 	for (const [handle, items] of itemsByHandle) {
-		const wls = handleMap.get(handle) ?? [];
-		for (const wlId of wls) {
+		for (const wlId of handleMap.get(handle) ?? []) {
 			let bag = itemsByWl.get(wlId);
 			if (!bag) {
 				bag = new Map();
 				itemsByWl.set(wlId, bag);
 			}
-			for (const it of items) {
-				if (!bag.has(it.external_id)) bag.set(it.external_id, it);
-			}
+			for (const it of items) if (!bag.has(it.external_id)) bag.set(it.external_id, it);
 		}
 	}
 
 	const summary: Array<Record<string, unknown>> = [];
 	let pushErrors = 0;
 	let fatalPush = false;
+	let totalRejected = 0;
 
 	const finalize = (code: number) => {
 		const report = {
@@ -509,6 +487,7 @@ async function main(): Promise<void> {
 			totalMapped,
 			totalSkipped,
 			totalWindowDropped,
+			totalRejected,
 			handleErrors,
 			pushErrors,
 			summary,
@@ -520,72 +499,84 @@ async function main(): Promise<void> {
 	};
 
 	if (cacheOnly) {
-		const hard =
-			handleErrors.length > 0 && itemsByHandle.size === 0 ? 1 : handleErrors.length > 0 ? 1 : 0;
-		finalize(hard);
+		finalize(
+			exitCodeForRefresh({
+				handleErrors: handleErrors.length,
+				pushErrors: 0,
+				totalRejected: 0,
+				handlesPlanned: handleMap.size,
+				handlesOk: itemsByHandle.size,
+				fatalPush: false,
+			}),
+		);
 		return;
 	}
 
-	try {
-		for (const [wlId, bag] of itemsByWl) {
-			const items = [...bag.values()];
-			const batches = buildIngestBatches(wlId, items, { apply_window_hours: windowHours });
-			let accepted = 0;
-			let deduped = 0;
-			let rejected = 0;
-			const errors: string[] = [];
-			if (batches.length === 0) {
-				summary.push({
-					watchlist_id: wlId,
-					name: wlById.get(wlId)?.name,
-					items: 0,
-					accepted: 0,
-					deduped: 0,
-					rejected: 0,
-				});
-				continue;
-			}
-			for (const batch of batches) {
-				const res = await pushBatch(batch);
-				if (!res.ok) {
-					pushErrors += 1;
-					errors.push(`HTTP ${res.status}: ${res.error}`);
-					console.error(`push WL ${wlId} failed: ${res.error}`);
-					if (res.fatal) {
-						fatalPush = true;
-						break;
-					}
-					continue;
-				}
-				accepted += res.accepted ?? 0;
-				deduped += res.deduped ?? 0;
-				rejected += res.rejected ?? 0;
-			}
+	for (const [wlId, bag] of itemsByWl) {
+		const items = [...bag.values()];
+		const batches = buildIngestBatches(wlId, items, { apply_window_hours: windowHours });
+		let accepted = 0;
+		let deduped = 0;
+		let rejected = 0;
+		const errors: string[] = [];
+		if (batches.length === 0) {
 			summary.push({
 				watchlist_id: wlId,
 				name: wlById.get(wlId)?.name,
-				items: items.length,
-				batches: batches.length,
-				accepted,
-				deduped,
-				rejected,
-				errors: errors.length ? errors : undefined,
+				items: 0,
+				accepted: 0,
+				deduped: 0,
+				rejected: 0,
 			});
-			console.log(
-				`WL ${wlId} ${wlById.get(wlId)?.name}: items=${items.length} accepted=${accepted} deduped=${deduped} rejected=${rejected}`,
-			);
-			if (fatalPush) break;
+			continue;
 		}
-	} finally {
-		/* report always written via finalize */
+		for (const batch of batches) {
+			const res = await pushBatch(batch);
+			if (!res.ok) {
+				pushErrors += 1;
+				errors.push(`HTTP ${res.status}: ${res.error}`);
+				console.error(`push WL ${wlId} failed: ${res.error}`);
+				if (res.fatal) {
+					fatalPush = true;
+					break;
+				}
+				continue;
+			}
+			accepted += res.accepted ?? 0;
+			deduped += res.deduped ?? 0;
+			rejected += res.rejected ?? 0;
+			totalRejected += res.rejected ?? 0;
+		}
+		summary.push({
+			watchlist_id: wlId,
+			name: wlById.get(wlId)?.name,
+			items: items.length,
+			batches: batches.length,
+			accepted,
+			deduped,
+			rejected,
+			errors: errors.length ? errors : undefined,
+		});
+		console.log(
+			`WL ${wlId} ${wlById.get(wlId)?.name}: items=${items.length} accepted=${accepted} deduped=${deduped} rejected=${rejected}`,
+		);
+		if (fatalPush) break;
 	}
 
-	const incomplete =
-		handleErrors.length > 0 ||
-		pushErrors > 0 ||
-		fatalPush ||
-		(itemsByHandle.size === 0 && handleMap.size > 0);
-	finalize(incomplete ? 1 : 0);
+	const code = exitCodeForRefresh({
+		handleErrors: handleErrors.length,
+		pushErrors,
+		totalRejected,
+		handlesPlanned: handleMap.size,
+		handlesOk: itemsByHandle.size,
+		fatalPush,
+	});
+	const emptyMaps =
+		handleMap.size > 0 &&
+		itemsByHandle.size > 0 &&
+		totalMapped === 0 &&
+		[...itemsByHandle.values()].every((a) => a.length === 0);
+	finalize(code !== 0 || emptyMaps ? 1 : 0);
 }
 
 main().catch((e) => {

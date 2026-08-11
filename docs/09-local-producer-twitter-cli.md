@@ -79,9 +79,9 @@ Shipped mapper: `mapTwitterCliTweetToCanonical` / `mapTwitterCliEnvelope`.
 | Canonical field | Source |
 |-----------------|--------|
 | `source_type` | `"x.com"` |
-| `external_id` | `String(tweet.id)` |
+| `external_id` | tweet `id` as **string** (or safe integer → string); unsafe numbers rejected |
 | `created_at` | `toRfc3339Z(createdAtISO \|\| createdAt)` → `Date.toISOString()` |
-| `author.id` | `author.id` |
+| `author.id` | `author.id` (same id rules) |
 | `author.username` | `author.screenName` (normalized lower) |
 | `author.display_name` | `author.name` |
 | `author.avatar_url` | `profileImageUrl` with `http→https` if needed; drop if not https |
@@ -91,7 +91,7 @@ Shipped mapper: `mapTwitterCliTweetToCanonical` / `mapTwitterCliEnvelope`.
 | `body.tweet.created_at` | same Z timestamp |
 | `body.tweet.lang` | `lang` if non-empty |
 | `body.tweet.public_metrics` | likes→like_count, retweets→retweet_count, … |
-| `body.tweet.referenced_tweets` | retweet / quoted when present |
+| `body.tweet.referenced_tweets` | **quoted** only when `quotedTweet.id` present (plain retweets often lack original id in twitter-cli) |
 | `body.includes.users[0]` | author as XUser |
 | `body.includes.media` | synthetic `media_key` `m0…`; type photo\|video\|animated_gif only |
 | `body.tweet.attachments.media_keys` | matching keys |

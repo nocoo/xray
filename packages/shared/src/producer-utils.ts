@@ -2,15 +2,108 @@
 
 export const X_HANDLE_RE = /^[A-Za-z0-9_]{1,15}$/;
 
-const ALLOWED_INGEST_HOSTS = new Set(["xray-ingest.hexly.ai", "127.0.0.1", "localhost"]);
+const ALLOWED_INGEST_HOSTS = new Set([
+	"xray-ingest.hexly.ai",
+	"xray-ingest-staging.hexly.ai",
+	"127.0.0.1",
+	"localhost",
+]);
 
 const ALLOWED_BROWSER_HOSTS = new Set([
 	"xray.hexly.ai",
+	"xray-staging.hexly.ai",
 	"xray.dev.hexly.ai",
 	"127.0.0.1",
 	"localhost",
 ]);
 
+/** Env keys that must never be passed to twitter-cli child processes. */
+export const XRAY_SECRET_ENV_KEYS = ["XRAY_PUSH_TOKEN", "XRAY_CF_AUTHORIZATION"] as const;
+
+export function scrubEnvForTwitter(
+	env: Record<string, string | undefined>,
+): Record<string, string> {
+	const out: Record<string, string> = {};
+	for (const [k, v] of Object.entries(env)) {
+		if (v === undefined) continue;
+		if ((XRAY_SECRET_ENV_KEYS as readonly string[]).includes(k)) continue;
+		if (k.startsWith("XRAY_") && /TOKEN|SECRET|KEY|AUTH|COOKIE|PASSWORD/i.test(k)) continue;
+		out[k] = v;
+	}
+	return out;
+}
+
+export type MembersGraph = {
+	watchlists: Array<{
+		id: number;
+		name: string;
+		members: Array<{ handle: string; sourceType: "x.com" }>;
+	}>;
+};
+
+/** Strict parse of members snapshot / browser graph. Throws on invalid rows. */
+export function parseMembersGraph(raw: unknown): MembersGraph {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+		throw new Error("graph must be object");
+	}
+	const watchlists = (raw as { watchlists?: unknown }).watchlists;
+	if (!Array.isArray(watchlists) || watchlists.length === 0) {
+		throw new Error("graph.watchlists must be non-empty array");
+	}
+	const out: MembersGraph["watchlists"] = [];
+	for (const w of watchlists) {
+		if (!w || typeof w !== "object" || Array.isArray(w)) {
+			throw new Error("watchlist entry invalid");
+		}
+		const wr = w as Record<string, unknown>;
+		const id = wr.id;
+		if (typeof id !== "number" || !Number.isInteger(id) || id <= 0) {
+			throw new Error(`watchlist id invalid: ${String(id)}`);
+		}
+		if (typeof wr.name !== "string" || !wr.name.trim()) {
+			throw new Error(`watchlist ${id} name required`);
+		}
+		if (!Array.isArray(wr.members)) {
+			throw new Error(`watchlist ${id} members must be array`);
+		}
+		const members: Array<{ handle: string; sourceType: "x.com" }> = [];
+		for (const m of wr.members) {
+			if (!m || typeof m !== "object" || Array.isArray(m)) {
+				throw new Error(`watchlist ${id} member invalid`);
+			}
+			const mr = m as Record<string, unknown>;
+			if (mr.sourceType !== "x.com") {
+				throw new Error(`watchlist ${id} member sourceType must be x.com`);
+			}
+			if (typeof mr.handle !== "string" || !mr.handle.trim()) {
+				throw new Error(`watchlist ${id} member handle required`);
+			}
+			const handle = mr.handle.trim().replace(/^@/, "").toLowerCase();
+			if (!isValidXHandle(handle)) {
+				throw new Error(`watchlist ${id} invalid handle: ${mr.handle}`);
+			}
+			members.push({ handle, sourceType: "x.com" });
+		}
+		out.push({ id, name: wr.name.trim(), members });
+	}
+	return { watchlists: out };
+}
+
+export function exitCodeForRefresh(stats: {
+	handleErrors: number;
+	pushErrors: number;
+	totalRejected: number;
+	handlesPlanned: number;
+	handlesOk: number;
+	fatalPush: boolean;
+}): number {
+	if (stats.fatalPush) return 1;
+	if (stats.handleErrors > 0) return 1;
+	if (stats.pushErrors > 0) return 1;
+	if (stats.totalRejected > 0) return 1;
+	if (stats.handlesPlanned > 0 && stats.handlesOk === 0) return 1;
+	return 0;
+}
 export function isValidXHandle(handle: string): boolean {
 	return X_HANDLE_RE.test(handle);
 }

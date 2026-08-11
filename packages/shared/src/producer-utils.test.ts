@@ -2,9 +2,12 @@ import { describe, expect, test } from "vitest";
 import {
 	assertAllowedBaseUrl,
 	cacheFileBase,
+	exitCodeForRefresh,
 	isValidXHandle,
+	parseMembersGraph,
 	parsePushSuccessBody,
 	pushRetryDelayMs,
+	scrubEnvForTwitter,
 	shouldStopPush,
 } from "./producer-utils.js";
 
@@ -24,9 +27,15 @@ describe("isValidXHandle / cacheFileBase", () => {
 });
 
 describe("assertAllowedBaseUrl", () => {
-	test("allows prod ingest https and loopback", () => {
+	test("allows prod/staging ingest https and loopback", () => {
 		expect(assertAllowedBaseUrl("https://xray-ingest.hexly.ai/", "ingest")).toBe(
 			"https://xray-ingest.hexly.ai",
+		);
+		expect(assertAllowedBaseUrl("https://xray-ingest-staging.hexly.ai", "ingest")).toBe(
+			"https://xray-ingest-staging.hexly.ai",
+		);
+		expect(assertAllowedBaseUrl("https://xray-staging.hexly.ai", "browser")).toBe(
+			"https://xray-staging.hexly.ai",
 		);
 		expect(assertAllowedBaseUrl("http://127.0.0.1:8787", "ingest")).toBe("http://127.0.0.1:8787");
 	});
@@ -65,5 +74,95 @@ describe("push retry helpers", () => {
 		expect(pushRetryDelayMs(429, 1)).toBeGreaterThan(0);
 		expect(pushRetryDelayMs(503, 1)).toBeGreaterThan(0);
 		expect(pushRetryDelayMs(400, 1)).toBeNull();
+	});
+});
+
+describe("scrubEnvForTwitter", () => {
+	test("strips push token and access cookie", () => {
+		const out = scrubEnvForTwitter({
+			PATH: "/bin",
+			XRAY_PUSH_TOKEN: "secret",
+			XRAY_CF_AUTHORIZATION: "jwt",
+			XRAY_WINDOW_HOURS: "24",
+			HOME: "/tmp",
+		});
+		expect(out.PATH).toBe("/bin");
+		expect(out.XRAY_WINDOW_HOURS).toBe("24");
+		expect(out.XRAY_PUSH_TOKEN).toBeUndefined();
+		expect(out.XRAY_CF_AUTHORIZATION).toBeUndefined();
+	});
+});
+
+describe("parseMembersGraph", () => {
+	test("accepts valid snapshot", () => {
+		const g = parseMembersGraph({
+			watchlists: [
+				{
+					id: 1,
+					name: "AI",
+					members: [{ handle: "sama", sourceType: "x.com" }],
+				},
+			],
+		});
+		expect(g.watchlists[0]?.members[0]?.handle).toBe("sama");
+	});
+
+	test("rejects missing handle / bad id / wrong source", () => {
+		expect(() =>
+			parseMembersGraph({
+				watchlists: [{ id: 1, name: "x", members: [{ sourceType: "x.com" }] }],
+			}),
+		).toThrow(/handle/);
+		expect(() =>
+			parseMembersGraph({
+				watchlists: [{ id: 0, name: "x", members: [{ handle: "a", sourceType: "x.com" }] }],
+			}),
+		).toThrow(/id/);
+		expect(() =>
+			parseMembersGraph({
+				watchlists: [
+					{
+						id: 1,
+						name: "x",
+						members: [{ handle: "a", sourceType: "custom" }],
+					},
+				],
+			}),
+		).toThrow(/sourceType/);
+	});
+});
+
+describe("exitCodeForRefresh", () => {
+	test("non-zero on rejected items or handle errors", () => {
+		expect(
+			exitCodeForRefresh({
+				handleErrors: 0,
+				pushErrors: 0,
+				totalRejected: 0,
+				handlesPlanned: 2,
+				handlesOk: 2,
+				fatalPush: false,
+			}),
+		).toBe(0);
+		expect(
+			exitCodeForRefresh({
+				handleErrors: 0,
+				pushErrors: 0,
+				totalRejected: 1,
+				handlesPlanned: 2,
+				handlesOk: 2,
+				fatalPush: false,
+			}),
+		).toBe(1);
+		expect(
+			exitCodeForRefresh({
+				handleErrors: 1,
+				pushErrors: 0,
+				totalRejected: 0,
+				handlesPlanned: 2,
+				handlesOk: 1,
+				fatalPush: false,
+			}),
+		).toBe(1);
 	});
 });
