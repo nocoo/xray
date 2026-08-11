@@ -18,7 +18,7 @@ export type SourceType = (typeof SOURCE_TYPES)[number];
 
 | source_type | body.kind | Producer |
 |-------------|-----------|----------|
-| `x.com` | `x.post` only | twitter-cli-like, etc. |
+| `x.com` | `x.post` only | Local **twitter-cli** producer — see [09](09-local-producer-twitter-cli.md) |
 | `custom` | `custom` only | hermes, scripts |
 
 ## 3. Canonical item — discriminated union (XR-04)

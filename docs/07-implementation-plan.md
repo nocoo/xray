@@ -135,4 +135,5 @@ S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)
 1. 可选：本地起 UI+worker 后跑 `bun run test:l3`  
 2. 可选：生产 Access 浏览器登录 smoke + 真 push  
 3. 可选：`git push` + 项目 release 流程发 GitHub tag `2.0.0`  
+4. **Local producer**（[09](09-local-producer-twitter-cli.md)）：`bun run refresh:watchlists` — twitter-cli → cache → canonical → ingest  
 

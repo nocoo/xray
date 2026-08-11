@@ -12,6 +12,7 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 | 06 | [Testing 6DQ](06-testing-6dq.md) | L1/L2/L3 + G1/G2 + D1 |
 | 07 | [Implementation plan](07-implementation-plan.md) | **S1–S5** 执行阶段 + 原子 commit 清单 |
 | 08 | [Decisions log](08-open-questions.md) | Closed decisions |
+| 09 | [Local producer (twitter-cli)](09-local-producer-twitter-cli.md) | Local fetch → cache → canonical → ingest push |
 
 ## Locked constraints
 

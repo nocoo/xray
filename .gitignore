@@ -51,6 +51,11 @@ reports/
 .alma-snapshots/
 .superset/
 
+# Local twitter-cli producer cache + secrets
+.cache/
+*.push-token
+.xray-push.env
+
 # Local agent/test config fixtures
 config/
 
