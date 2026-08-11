@@ -41,7 +41,7 @@ APIs: `GET/POST /api/watchlists`, `GET/PATCH/DELETE /api/watchlists/:id`.
 
 | Capability | Behavior | Status |
 |------------|----------|--------|
-| Members | source-aware (source_type + handle); tags/notes | **done** — tags on add/edit: `repos/members.ts`, `member-card.tsx`, detail page |
+| Members | source-aware (source_type + handle); tags/notes | **done** — tags on add (`add-member-dialog`) + edit (`edit-member-dialog` + `PATCH .../members/:id`); display `member-card.tsx` |
 | Timeline | paginated items; filter All / x.com / custom | **done** |
 | Cards | tweet-card / custom card (sanitized markdown) | **done** — custom zhe.to Save: `custom-item-card.tsx`, `lib/zheto-save.ts` |
 | Translate | bounded batch ≤20; updates ai_status | **done** — + summary fill when `summaryPrompt` set (`repos/translate.ts`) |
