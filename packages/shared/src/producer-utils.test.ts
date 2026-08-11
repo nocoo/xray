@@ -78,18 +78,26 @@ describe("push retry helpers", () => {
 });
 
 describe("scrubEnvForTwitter", () => {
-	test("strips push token and access cookie", () => {
+	test("whitelist only — strips ambient secrets and xray tokens", () => {
 		const out = scrubEnvForTwitter({
 			PATH: "/bin",
+			HOME: "/tmp",
+			TWITTER_AUTH_TOKEN: "t",
+			TWITTER_CT0: "c",
 			XRAY_PUSH_TOKEN: "secret",
 			XRAY_CF_AUTHORIZATION: "jwt",
 			XRAY_WINDOW_HOURS: "24",
-			HOME: "/tmp",
+			GITHUB_TOKEN: "g",
+			CLOUDFLARE_API_TOKEN: "cf",
+			CF_ACCESS_CLIENT_SECRET: "s",
 		});
 		expect(out.PATH).toBe("/bin");
-		expect(out.XRAY_WINDOW_HOURS).toBe("24");
+		expect(out.TWITTER_AUTH_TOKEN).toBe("t");
 		expect(out.XRAY_PUSH_TOKEN).toBeUndefined();
-		expect(out.XRAY_CF_AUTHORIZATION).toBeUndefined();
+		expect(out.GITHUB_TOKEN).toBeUndefined();
+		expect(out.CLOUDFLARE_API_TOKEN).toBeUndefined();
+		expect(out.CF_ACCESS_CLIENT_SECRET).toBeUndefined();
+		expect(out.XRAY_WINDOW_HOURS).toBeUndefined();
 	});
 });
 

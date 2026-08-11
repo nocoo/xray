@@ -17,7 +17,44 @@ const ALLOWED_BROWSER_HOSTS = new Set([
 	"localhost",
 ]);
 
-/** Env keys that must never be passed to twitter-cli child processes. */
+/** Env keys allowed into twitter-cli child (whitelist — no ambient secrets). */
+export const TWITTER_CHILD_ENV_ALLOW = new Set([
+	"PATH",
+	"HOME",
+	"USER",
+	"LOGNAME",
+	"SHELL",
+	"TMPDIR",
+	"TEMP",
+	"TMP",
+	"TERM",
+	"LANG",
+	"LC_ALL",
+	"LC_CTYPE",
+	"LC_MESSAGES",
+	"TZ",
+	"HTTP_PROXY",
+	"HTTPS_PROXY",
+	"NO_PROXY",
+	"http_proxy",
+	"https_proxy",
+	"no_proxy",
+	"ALL_PROXY",
+	"all_proxy",
+	"SSL_CERT_FILE",
+	"SSL_CERT_DIR",
+	"REQUESTS_CA_BUNDLE",
+	"CURL_CA_BUNDLE",
+	"OUTPUT",
+	"TWITTER_AUTH_TOKEN",
+	"TWITTER_CT0",
+	"TWITTER_BROWSER",
+	"TWITTER_CHROME_PROFILE",
+	"TWITTER_PROXY",
+	"TWITTER_COOKIE",
+]);
+
+/** @deprecated secrets are excluded by whitelist; kept for export stability */
 export const XRAY_SECRET_ENV_KEYS = ["XRAY_PUSH_TOKEN", "XRAY_CF_AUTHORIZATION"] as const;
 
 export function scrubEnvForTwitter(
@@ -26,9 +63,9 @@ export function scrubEnvForTwitter(
 	const out: Record<string, string> = {};
 	for (const [k, v] of Object.entries(env)) {
 		if (v === undefined) continue;
-		if ((XRAY_SECRET_ENV_KEYS as readonly string[]).includes(k)) continue;
-		if (k.startsWith("XRAY_") && /TOKEN|SECRET|KEY|AUTH|COOKIE|PASSWORD/i.test(k)) continue;
-		out[k] = v;
+		if (TWITTER_CHILD_ENV_ALLOW.has(k) || k.startsWith("LC_")) {
+			out[k] = v;
+		}
 	}
 	return out;
 }
@@ -57,7 +94,7 @@ export function parseMembersGraph(raw: unknown): MembersGraph {
 		}
 		const wr = w as Record<string, unknown>;
 		const id = wr.id;
-		if (typeof id !== "number" || !Number.isInteger(id) || id <= 0) {
+		if (typeof id !== "number" || !Number.isSafeInteger(id) || id <= 0) {
 			throw new Error(`watchlist id invalid: ${String(id)}`);
 		}
 		if (typeof wr.name !== "string" || !wr.name.trim()) {

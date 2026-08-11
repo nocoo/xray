@@ -309,6 +309,7 @@ async function pushBatch(body: {
 	error?: string;
 	status: number;
 	fatal?: boolean;
+	itemErrors?: unknown;
 }> {
 	const maxAttempts = 4;
 	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -374,6 +375,7 @@ async function pushBatch(body: {
 			accepted: parsed.accepted,
 			deduped: parsed.deduped,
 			rejected: parsed.rejected,
+			itemErrors: parsed.errors,
 		};
 	}
 	return { ok: false, status: 0, error: "push exhausted retries" };
@@ -441,6 +443,12 @@ async function main(): Promise<void> {
 			}
 			totalMapped += mapped.items.length;
 			totalSkipped += mapped.skipped.length;
+			if (mapped.items.length === 0 && mapped.skipped.length > 0) {
+				handleErrors.push({
+					handle,
+					error: `all tweets failed convert (${mapped.skipped.length} skipped)`,
+				});
+			}
 			const { kept, dropped } = filterItemsByWindow(mapped.items, windowHours);
 			totalWindowDropped += dropped;
 			itemsByHandle.set(handle, kept);
@@ -519,6 +527,7 @@ async function main(): Promise<void> {
 		let deduped = 0;
 		let rejected = 0;
 		const errors: string[] = [];
+		const itemErrors: unknown[] = [];
 		if (batches.length === 0) {
 			summary.push({
 				watchlist_id: wlId,
@@ -546,6 +555,7 @@ async function main(): Promise<void> {
 			deduped += res.deduped ?? 0;
 			rejected += res.rejected ?? 0;
 			totalRejected += res.rejected ?? 0;
+			if (res.itemErrors !== undefined) itemErrors.push(res.itemErrors);
 		}
 		summary.push({
 			watchlist_id: wlId,
@@ -556,6 +566,7 @@ async function main(): Promise<void> {
 			deduped,
 			rejected,
 			errors: errors.length ? errors : undefined,
+			itemErrors: itemErrors.length ? itemErrors : undefined,
 		});
 		console.log(
 			`WL ${wlId} ${wlById.get(wlId)?.name}: items=${items.length} accepted=${accepted} deduped=${deduped} rejected=${rejected}`,

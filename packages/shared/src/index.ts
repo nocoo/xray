@@ -28,6 +28,7 @@ export {
 	pushRetryDelayMs,
 	scrubEnvForTwitter,
 	shouldStopPush,
+	TWITTER_CHILD_ENV_ALLOW,
 	X_HANDLE_RE,
 	XRAY_SECRET_ENV_KEYS,
 } from "./producer-utils.js";
