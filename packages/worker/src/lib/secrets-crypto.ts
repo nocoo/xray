@@ -17,10 +17,14 @@ export function parseKek(raw: string | undefined, version: number): KekMaterial 
 	if (new TextEncoder().encode(raw).byteLength === 32 && raw.length === 32) {
 		bytes = new TextEncoder().encode(raw);
 	} else {
-		const b64 = raw.replace(/-/g, "+").replace(/_/g, "/");
-		const pad = b64.length % 4 === 0 ? "" : "=".repeat(4 - (b64.length % 4));
-		const bin = atob(b64 + pad);
-		bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+		try {
+			const b64 = raw.replace(/-/g, "+").replace(/_/g, "/");
+			const pad = b64.length % 4 === 0 ? "" : "=".repeat(4 - (b64.length % 4));
+			const bin = atob(b64 + pad);
+			bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+		} catch {
+			throw new Error("KEK must be exactly 32 bytes");
+		}
 	}
 	if (bytes.byteLength !== 32) throw new Error("KEK must be exactly 32 bytes");
 	return { bytes, version };

@@ -54,7 +54,12 @@ export async function putZhetoSettingsRoute(c: Context<AppEnv>) {
 	} catch (e) {
 		if (e instanceof IntegrationValidationError) return jsonErr(c, e.message, 400);
 		if (e instanceof Error && /KEK/i.test(e.message)) {
-			return jsonErr(c, "secrets KEK not configured", 500);
+			const msg = e.message;
+			if (/missing/i.test(msg)) return jsonErr(c, "secrets KEK not configured", 500);
+			if (/32 bytes|exactly/i.test(msg)) {
+				return jsonErr(c, "secrets KEK invalid (need 32-byte raw or base64)", 500);
+			}
+			return jsonErr(c, `secrets KEK error: ${msg}`, 500);
 		}
 		throw e;
 	}

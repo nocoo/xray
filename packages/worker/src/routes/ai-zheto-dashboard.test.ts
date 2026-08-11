@@ -569,6 +569,22 @@ describe("more coverage", () => {
 			body: JSON.stringify({ provider: "openai", apiKey: "sk" }),
 		});
 		expect(res.status).toBe(500);
+		const body = (await res.json()) as { error?: string };
+		expect(body.error).toMatch(/KEK not configured/i);
+	});
+
+	test("ai put with malformed KEK returns 500 invalid", async () => {
+		const db = makeDb();
+		// Valid base64 but not 32 decoded bytes
+		const a = app(db, { XRAY_SECRETS_KEK: "YWJj" });
+		const res = await a.request("/api/ai-config", {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ provider: "openai", apiKey: "sk" }),
+		});
+		expect(res.status).toBe(500);
+		const body = (await res.json()) as { error?: string };
+		expect(body.error).toMatch(/KEK invalid/i);
 	});
 
 	test("zheto save upstream 200 isExisting", async () => {

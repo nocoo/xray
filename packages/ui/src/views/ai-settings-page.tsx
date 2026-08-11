@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { type AiConfig, fetchAiConfig, saveAiConfig, testAiConfig } from "@/api/ai";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function AiSettingsPage() {
 	const { setBreadcrumbs } = useBreadcrumbs();
@@ -14,8 +15,10 @@ export function AiSettingsPage() {
 	const [summaryPrompt, setSummaryPrompt] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [saved, setSaved] = useState(false);
+	const [testOk, setTestOk] = useState<boolean | null>(null);
 	const [testMsg, setTestMsg] = useState<string | null>(null);
 	const [testing, setTesting] = useState(false);
+	const [saving, setSaving] = useState(false);
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
@@ -51,6 +54,7 @@ export function AiSettingsPage() {
 		e.preventDefault();
 		setError(null);
 		setSaved(false);
+		setSaving(true);
 		try {
 			const data = await saveAiConfig({
 				provider,
@@ -65,28 +69,34 @@ export function AiSettingsPage() {
 			setSaved(true);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
+		} finally {
+			setSaving(false);
 		}
 	};
 
 	const onTest = async () => {
 		setTesting(true);
 		setTestMsg(null);
+		setTestOk(null);
 		setError(null);
+		setSaved(false);
 		try {
-			// Ping draft form values (not only last saved row)
 			const r = await testAiConfig({
 				provider,
 				model: model || null,
 				baseUrl: baseUrl || null,
 				apiKey: apiKey || undefined,
 			});
-			setTestMsg(
-				r.ok
-					? `OK (${r.provider ?? provider} / ${r.model ?? model})`
-					: `Failed: ${r.error ?? r.status}`,
-			);
+			if (r.ok) {
+				setTestOk(true);
+				setTestMsg(`OK (${r.provider ?? provider} / ${r.model ?? model ?? "default"})`);
+			} else {
+				setTestOk(false);
+				setTestMsg(`Failed: ${r.error ?? r.status ?? "unknown error"}`);
+			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err));
+			setTestOk(false);
+			setTestMsg(err instanceof Error ? err.message : String(err));
 		} finally {
 			setTesting(false);
 		}
@@ -99,9 +109,6 @@ export function AiSettingsPage() {
 				Provider keys are encrypted at rest (AES-GCM). Plaintext is never echoed back.
 			</p>
 			{loading && <p className="text-sm text-muted-foreground">Loading…</p>}
-			{error && <p className="text-sm text-destructive">{error}</p>}
-			{saved && <p className="text-sm text-green-600">Saved.</p>}
-			{testMsg && <p className="text-sm text-muted-foreground">{testMsg}</p>}
 			<form className="max-w-lg space-y-3" onSubmit={(ev) => void onSave(ev)}>
 				<label className="block text-sm">
 					<span className="text-muted-foreground">Provider</span>
@@ -161,9 +168,9 @@ export function AiSettingsPage() {
 						placeholder="If set, translate batch also writes summary_text"
 					/>
 				</label>
-				<div className="flex gap-2">
-					<Button type="submit" size="sm">
-						Save
+				<div className="flex flex-wrap items-center gap-2 pt-1">
+					<Button type="submit" size="sm" disabled={saving}>
+						{saving ? "Saving…" : "Save"}
 					</Button>
 					<Button
 						type="button"
@@ -175,6 +182,35 @@ export function AiSettingsPage() {
 						{testing ? "Testing…" : "Test connection"}
 					</Button>
 				</div>
+				{/* Status strip sits under actions — success green / failure red */}
+				{(testMsg || error || saved) && (
+					<div className="space-y-1.5" role="status" aria-live="polite">
+						{testMsg && (
+							<p
+								className={cn(
+									"rounded-md border px-3 py-2 text-sm font-medium",
+									testOk === true &&
+										"border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300",
+									testOk === false &&
+										"border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300",
+									testOk === null && "border-border bg-secondary text-muted-foreground",
+								)}
+							>
+								{testMsg}
+							</p>
+						)}
+						{error && (
+							<p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+								{error}
+							</p>
+						)}
+						{saved && !error && (
+							<p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+								Saved.
+							</p>
+						)}
+					</div>
+				)}
 			</form>
 		</div>
 	);
