@@ -36,8 +36,17 @@ bun run deploy       # build then wrangler deploy --env production
 
 ## Version
 
-Root `package.json` version is the source of truth (currently **2.0.0**).  
-`@xray/shared` reads its package version (kept in sync) and exports `XRAY_VERSION`.
+Root `package.json` version is the source of truth.  
+`@xray/shared` exports `XRAY_VERSION` (kept in sync with workspace packages).
+
+```bash
+bun run release              # Z+1 patch
+bun run release -- minor     # Y+1 minor
+bun run release -- major     # X+1 major
+bun run release -- --dry-run # preview
+```
+
+After release: CI on push; deploy Worker with `bun run deploy` when CD is not automatic.
 
 See [CHANGELOG.md](CHANGELOG.md) and GitHub Releases for what’s new.
 

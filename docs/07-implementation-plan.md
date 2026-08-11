@@ -160,7 +160,8 @@ S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)
 
 1. 本地起 UI+worker 后跑 `bun run test:l3`；可选 CI 挂 L3  
 2. 生产 Access 浏览器登录 smoke + 真 push  
-3. 项目 release 流程发 GitHub tag `2.0.0`  
+3. `bun run release`（`scripts/release.ts`）发 GitHub tag + release；Worker `bun run deploy`  
+
 4. 加深 migrate L2 e2e（S4.7 still thin）  
 5. KEK read-repair write-back + `scripts/reencrypt-secrets.ts`  
 6. Ingest CF RL 生产验证 / 硬化  
