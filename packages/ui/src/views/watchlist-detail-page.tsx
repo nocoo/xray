@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
 import { translateWatchlist } from "@/api/ai";
 import {
-	addMember,
 	deleteMember,
 	fetchItems,
 	fetchMembers,
@@ -16,6 +15,7 @@ import {
 import { CustomItemCard } from "@/components/cards/custom-item-card";
 import { MemberCard } from "@/components/cards/member-card";
 import { TweetCard } from "@/components/cards/tweet-card";
+import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { SourceFilter, type SourceFilterValue } from "@/components/source-filter";
 import { Button } from "@/components/ui/button";
@@ -92,6 +92,7 @@ export function WatchlistDetailPage() {
 	const { id } = useParams();
 	const watchlistId = Number(id);
 	const { setBreadcrumbs } = useBreadcrumbs();
+	const { openAddMember } = useCreateDialogs();
 	const [activeTab, setActiveTab] = useState<"members" | "posts">("posts");
 	const [sourceFilter, setSourceFilter] = useState<SourceFilterValue>("all");
 	const [wl, setWl] = useState<Watchlist | null>(null);
@@ -194,17 +195,11 @@ export function WatchlistDetailPage() {
 		return cols;
 	}, [items, columnCount]);
 
-	const onAddMember = async () => {
-		const handle = window.prompt("Handle (x.com username or custom handle)");
-		if (!handle?.trim()) return;
-		const stRaw = window.prompt("source_type: x.com or custom", "x.com") || "x.com";
-		const sourceType = (stRaw === "custom" ? "custom" : "x.com") as SourceType;
-		try {
-			await addMember(watchlistId, { sourceType, handle });
-			await load();
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		}
+	const onAddMember = () => {
+		openAddMember(
+			{ kind: "watchlist", id: watchlistId, name: wl?.name },
+			{ onAdded: () => void load() },
+		);
 	};
 
 	const onTranslate = async () => {
@@ -269,7 +264,7 @@ export function WatchlistDetailPage() {
 
 				<div className="flex items-center gap-1.5">
 					{activeTab === "members" && (
-						<Button size="sm" type="button" onClick={() => void onAddMember()}>
+						<Button size="sm" type="button" onClick={onAddMember}>
 							<Plus className="h-4 w-4" />
 							Add
 						</Button>

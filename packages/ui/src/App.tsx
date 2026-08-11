@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router";
+import { CreateDialogsProvider } from "@/components/dialogs/create-dialogs-context";
 import { AppShell } from "@/components/layout";
 import { SessionGate } from "@/components/session-gate";
 import { AiSettingsPage } from "@/views/ai-settings-page";
@@ -13,9 +14,11 @@ import { WatchlistsPage } from "@/views/watchlists-page";
 function ShellLayout() {
 	return (
 		<SessionGate>
-			<AppShell>
-				<Outlet />
-			</AppShell>
+			<CreateDialogsProvider>
+				<AppShell>
+					<Outlet />
+				</AppShell>
+			</CreateDialogsProvider>
 		</SessionGate>
 	);
 }

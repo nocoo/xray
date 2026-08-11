@@ -1,7 +1,8 @@
 import { Brain, Eye, Plus, Server, TrendingUp } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router";
-import { createWatchlist, fetchWatchlists, type Watchlist } from "@/api/watchlists";
+import { Link, useSearchParams } from "react-router";
+import { fetchWatchlists, type Watchlist } from "@/api/watchlists";
+import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { Button } from "@/components/ui/button";
 import { cn, getAvatarColor } from "@/lib/utils";
@@ -15,10 +16,11 @@ const ICONS: Record<string, typeof Eye> = {
 
 export function WatchlistsPage() {
 	const { setBreadcrumbs } = useBreadcrumbs();
+	const { openCreateWatchlist, listVersion } = useCreateDialogs();
+	const [searchParams, setSearchParams] = useSearchParams();
 	const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [creating, setCreating] = useState(false);
 
 	useEffect(() => {
 		setBreadcrumbs([{ label: "Watchlists" }]);
@@ -38,22 +40,16 @@ export function WatchlistsPage() {
 	}, []);
 
 	useEffect(() => {
+		void listVersion;
 		void load();
-	}, [load]);
+	}, [load, listVersion]);
 
-	const onCreate = async () => {
-		const name = window.prompt("Watchlist name");
-		if (!name?.trim()) return;
-		setCreating(true);
-		try {
-			await createWatchlist({ name: name.trim() });
-			await load();
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		} finally {
-			setCreating(false);
+	useEffect(() => {
+		if (searchParams.get("new") === "1") {
+			openCreateWatchlist();
+			setSearchParams({}, { replace: true });
 		}
-	};
+	}, [searchParams, setSearchParams, openCreateWatchlist]);
 
 	return (
 		<div className="space-y-6">
@@ -64,7 +60,7 @@ export function WatchlistsPage() {
 						Create and manage collections of Twitter/X and custom sources.
 					</p>
 				</div>
-				<Button size="sm" type="button" onClick={() => void onCreate()} disabled={creating}>
+				<Button size="sm" type="button" onClick={openCreateWatchlist}>
 					<Plus className="h-4 w-4" />
 					New Watchlist
 				</Button>
@@ -79,6 +75,10 @@ export function WatchlistsPage() {
 					<p className="mt-1 text-xs text-muted-foreground">
 						Create one to start the mix timeline.
 					</p>
+					<Button size="sm" type="button" className="mt-4" onClick={openCreateWatchlist}>
+						<Plus className="h-4 w-4" />
+						New Watchlist
+					</Button>
 				</div>
 			)}
 

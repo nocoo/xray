@@ -1,11 +1,13 @@
 import { Copy, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { createPushToken, fetchPushTokens, type PushToken, revokePushToken } from "@/api/tokens";
+import { fetchPushTokens, type PushToken, revokePushToken } from "@/api/tokens";
+import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { Button } from "@/components/ui/button";
 
 export function TokensPage() {
 	const { setBreadcrumbs } = useBreadcrumbs();
+	const { openCreateToken } = useCreateDialogs();
 	const [tokens, setTokens] = useState<PushToken[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -32,15 +34,13 @@ export function TokensPage() {
 		void load();
 	}, [load]);
 
-	const onCreate = async () => {
-		const label = window.prompt("Token label", "cli") || "cli";
-		try {
-			const t = await createPushToken(label);
-			if (t.token) setOnceSecret(t.token);
-			await load();
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		}
+	const onCreate = () => {
+		openCreateToken({
+			onCreated: (plaintext) => {
+				if (plaintext) setOnceSecret(plaintext);
+				void load();
+			},
+		});
 	};
 
 	const onRevoke = async (id: number) => {
@@ -64,7 +64,7 @@ export function TokensPage() {
 						host.
 					</p>
 				</div>
-				<Button size="sm" type="button" onClick={() => void onCreate()}>
+				<Button size="sm" type="button" onClick={onCreate}>
 					<Plus className="h-4 w-4" />
 					New token
 				</Button>

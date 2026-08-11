@@ -1,10 +1,7 @@
-import type { SourceType } from "@xray/shared";
 import { Plus, Trash2, Users } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import {
-	addGroupMember,
-	createGroup,
 	deleteGroup,
 	deleteGroupMember,
 	fetchGroupMembers,
@@ -13,12 +10,15 @@ import {
 	type GroupMember,
 	updateGroup,
 } from "@/api/groups";
+import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
+import { RenameDialog } from "@/components/dialogs/rename-dialog";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { Button } from "@/components/ui/button";
 import { cn, getAvatarColor } from "@/lib/utils";
 
 export function GroupsPage() {
 	const { setBreadcrumbs } = useBreadcrumbs();
+	const { openCreateGroup, openAddMember, listVersion, notifyListsChanged } = useCreateDialogs();
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [groups, setGroups] = useState<Group[]>([]);
 	const [selectedId, setSelectedId] = useState<number | null>(() => {
@@ -29,6 +29,7 @@ export function GroupsPage() {
 	const [members, setMembers] = useState<GroupMember[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [renameTarget, setRenameTarget] = useState<Group | null>(null);
 
 	useEffect(() => {
 		setBreadcrumbs([{ label: "Groups" }]);
@@ -39,7 +40,13 @@ export function GroupsPage() {
 		const raw = searchParams.get("id");
 		const n = raw ? Number(raw) : NaN;
 		setSelectedId(Number.isFinite(n) ? n : null);
-	}, [searchParams]);
+		if (searchParams.get("new") === "1") {
+			openCreateGroup();
+			const next = new URLSearchParams(searchParams);
+			next.delete("new");
+			setSearchParams(next, { replace: true });
+		}
+	}, [searchParams, setSearchParams, openCreateGroup]);
 
 	const selectGroup = (id: number | null) => {
 		setSelectedId(id);
@@ -60,8 +67,9 @@ export function GroupsPage() {
 	}, []);
 
 	useEffect(() => {
+		void listVersion;
 		void load();
-	}, [load]);
+	}, [load, listVersion]);
 
 	const loadMembers = useCallback(async (id: number) => {
 		try {
@@ -76,53 +84,30 @@ export function GroupsPage() {
 		else setMembers([]);
 	}, [selectedId, loadMembers]);
 
-	const onCreate = async () => {
-		const name = window.prompt("Group name");
-		if (!name?.trim()) return;
-		try {
-			const g = await createGroup({ name: name.trim() });
-			await load();
-			selectGroup(g.id);
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		}
-	};
-
-	const onRename = async (g: Group) => {
-		const name = window.prompt("Rename group", g.name);
-		if (!name?.trim()) return;
-		try {
-			await updateGroup(g.id, { name: name.trim() });
-			await load();
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		}
-	};
-
 	const onDelete = async (g: Group) => {
 		if (!window.confirm(`Delete group “${g.name}”?`)) return;
 		try {
 			await deleteGroup(g.id);
 			if (selectedId === g.id) selectGroup(null);
 			await load();
+			notifyListsChanged();
 		} catch (e) {
 			setError(e instanceof Error ? e.message : String(e));
 		}
 	};
 
-	const onAddMember = async () => {
+	const onAddMember = () => {
 		if (selectedId == null) return;
-		const handle = window.prompt("Handle");
-		if (!handle?.trim()) return;
-		const stRaw = window.prompt("source_type: x.com or custom", "x.com") || "x.com";
-		const sourceType = (stRaw === "custom" ? "custom" : "x.com") as SourceType;
-		try {
-			await addGroupMember(selectedId, { sourceType, handle });
-			await loadMembers(selectedId);
-			await load();
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		}
+		const g = groups.find((x) => x.id === selectedId);
+		openAddMember(
+			{ kind: "group", id: selectedId, name: g?.name },
+			{
+				onAdded: () => {
+					void loadMembers(selectedId);
+					void load();
+				},
+			},
+		);
 	};
 
 	const onRemoveMember = async (memberId: number) => {
@@ -145,16 +130,23 @@ export function GroupsPage() {
 						Source-aware member pools you can copy into watchlists.
 					</p>
 				</div>
-				<Button size="sm" type="button" onClick={() => void onCreate()}>
+				<Button size="sm" type="button" onClick={openCreateGroup}>
 					<Plus className="h-4 w-4" />
 					New Group
 				</Button>
 			</div>
 			{loading && <p className="text-sm text-muted-foreground">Loading…</p>}
 			{error && <p className="text-sm text-destructive">{error}</p>}
-			{!loading && groups.length === 0 && (
-				<div className="rounded-card bg-secondary p-10 text-center text-sm text-muted-foreground">
-					No groups yet.
+			{!loading && groups.length === 0 && !error && (
+				<div className="rounded-card bg-secondary p-10 text-center">
+					<p className="text-sm font-medium">No groups yet.</p>
+					<p className="mt-1 text-xs text-muted-foreground">
+						Create a reusable member pool to copy into watchlists.
+					</p>
+					<Button size="sm" type="button" className="mt-4" onClick={openCreateGroup}>
+						<Plus className="h-4 w-4" />
+						New Group
+					</Button>
 				</div>
 			)}
 			<ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -185,7 +177,7 @@ export function GroupsPage() {
 							<button
 								type="button"
 								className="text-xs text-muted-foreground hover:text-foreground"
-								onClick={() => void onRename(g)}
+								onClick={() => setRenameTarget(g)}
 							>
 								Rename
 							</button>
@@ -201,11 +193,27 @@ export function GroupsPage() {
 				))}
 			</ul>
 
+			<RenameDialog
+				open={renameTarget != null}
+				onOpenChange={(o) => {
+					if (!o) setRenameTarget(null);
+				}}
+				title="Rename group"
+				description="Update the display name for this member pool."
+				initialName={renameTarget?.name ?? ""}
+				onSubmit={async (name) => {
+					if (!renameTarget) return;
+					await updateGroup(renameTarget.id, { name });
+					await load();
+					notifyListsChanged();
+				}}
+			/>
+
 			{selectedId != null && (
 				<div className="space-y-3 rounded-card border border-border p-4">
 					<div className="flex items-center justify-between">
 						<h2 className="text-sm font-medium">Members</h2>
-						<Button size="sm" type="button" onClick={() => void onAddMember()}>
+						<Button size="sm" type="button" onClick={onAddMember}>
 							<Plus className="h-4 w-4" />
 							Add
 						</Button>

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { fetchGroups, type Group } from "@/api/groups";
 import { fetchWatchlists, type Watchlist } from "@/api/watchlists";
+import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -22,7 +23,7 @@ function useSidebarUser() {
 	return { name, email, initial, image: user.image };
 }
 
-function useSidebarWatchlists() {
+function useSidebarWatchlists(listVersion: number) {
 	const [watchlists, setWatchlists] = useState<Pick<Watchlist, "id" | "name" | "icon">[]>([]);
 	const refresh = useCallback(async () => {
 		try {
@@ -33,12 +34,13 @@ function useSidebarWatchlists() {
 		}
 	}, []);
 	useEffect(() => {
+		void listVersion;
 		void refresh();
-	}, [refresh]);
+	}, [refresh, listVersion]);
 	return { watchlists, refresh };
 }
 
-function useSidebarGroups() {
+function useSidebarGroups(listVersion: number) {
 	const [groups, setGroups] = useState<Pick<Group, "id" | "name" | "icon">[]>([]);
 	const refresh = useCallback(async () => {
 		try {
@@ -49,8 +51,9 @@ function useSidebarGroups() {
 		}
 	}, []);
 	useEffect(() => {
+		void listVersion;
 		void refresh();
-	}, [refresh]);
+	}, [refresh, listVersion]);
 	return { groups, refresh };
 }
 
@@ -148,10 +151,12 @@ function WatchlistNavSection({
 	watchlists,
 	pathname,
 	defaultOpen,
+	onNew,
 }: {
 	watchlists: Pick<Watchlist, "id" | "name" | "icon">[];
 	pathname: string;
 	defaultOpen: boolean;
+	onNew: () => void;
 }) {
 	const [open, setOpen] = useState(defaultOpen);
 	return (
@@ -188,15 +193,16 @@ function WatchlistNavSection({
 							pathname={pathname}
 						/>
 					))}
-					<Link
-						to="/watchlist?new=1"
+					<button
+						type="button"
+						onClick={onNew}
 						className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-normal text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
 					>
 						<div className="flex h-5 w-5 items-center justify-center rounded border border-dashed border-muted-foreground/30">
 							<Plus className="h-3 w-3" strokeWidth={2} />
 						</div>
 						<span className="flex-1 text-left">New watchlist</span>
-					</Link>
+					</button>
 				</div>
 			</CollapsibleContent>
 		</Collapsible>
@@ -208,11 +214,13 @@ function GroupsNavSection({
 	pathname,
 	search,
 	defaultOpen,
+	onNew,
 }: {
 	groups: Pick<Group, "id" | "name" | "icon">[];
 	pathname: string;
 	search: string;
 	defaultOpen: boolean;
+	onNew: () => void;
 }) {
 	const [open, setOpen] = useState(defaultOpen);
 	return (
@@ -250,15 +258,16 @@ function GroupsNavSection({
 							search={search}
 						/>
 					))}
-					<Link
-						to="/groups?new=1"
+					<button
+						type="button"
+						onClick={onNew}
 						className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-normal text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
 					>
 						<div className="flex h-5 w-5 items-center justify-center rounded border border-dashed border-muted-foreground/30">
 							<Plus className="h-3 w-3" strokeWidth={2} />
 						</div>
 						<span className="flex-1 text-left">New group</span>
-					</Link>
+					</button>
 				</div>
 			</CollapsibleContent>
 		</Collapsible>
@@ -308,8 +317,9 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 	const { pathname, search } = useLocation();
 	const { collapsed, toggle, setMobileOpen } = useSidebar();
 	const user = useSidebarUser();
-	const { watchlists } = useSidebarWatchlists();
-	const { groups: entityGroups } = useSidebarGroups();
+	const { openCreateWatchlist, openCreateGroup, listVersion } = useCreateDialogs();
+	const { watchlists } = useSidebarWatchlists(listVersion);
+	const { groups: entityGroups } = useSidebarGroups(listVersion);
 	const navGroups = getV2NavGroups();
 	const flatItems = navGroups.flatMap((g) => g.items);
 	const showCollapsed = !mobile && collapsed;
@@ -410,6 +420,7 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 												watchlists={watchlists}
 												pathname={pathname}
 												defaultOpen={group.defaultOpen}
+												onNew={openCreateWatchlist}
 											/>
 										);
 									}
@@ -421,6 +432,7 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 												pathname={pathname}
 												search={search}
 												defaultOpen={group.defaultOpen}
+												onNew={openCreateGroup}
 											/>
 										);
 									}
