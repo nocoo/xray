@@ -17,17 +17,45 @@ export type TwitterCliDeps = {
 
 export type TwitterCliIssueKind = "not_installed" | "not_authenticated" | "rate_limited" | "failed";
 
+/** Structured diagnostics for logs / run reports (safe to JSON-serialize). */
+export type TwitterCliIssueDebug = {
+	kind: TwitterCliIssueKind;
+	/** Why this kind was chosen (human + machine). */
+	kindReason: string;
+	exitCode: number | null;
+	context?: string;
+	/** First regex match that triggered rate_limited (if any). */
+	rateLimitMatch: string | null;
+	stderrHead: string;
+	stdoutHead: string;
+	spawnError?: string;
+};
+
 export type TwitterCliIssue = {
 	kind: TwitterCliIssueKind;
 	/** Multi-line operator-facing message (stdout-ready). */
 	message: string;
+	debug: TwitterCliIssueDebug;
 };
+
+const DEBUG_CLIP = 1200;
+
+function clip(s: string, n = DEBUG_CLIP): string {
+	const t = s.replace(/\0/g, "");
+	if (t.length <= n) return t;
+	return `${t.slice(0, n)}\n…[+${t.length - n} chars]`;
+}
 
 function combinedText(stdout?: string, stderr?: string, spawnError?: unknown): string {
 	const parts = [stderr ?? "", stdout ?? ""];
 	if (spawnError instanceof Error) parts.push(spawnError.message);
 	else if (spawnError != null) parts.push(String(spawnError));
 	return parts.join("\n");
+}
+
+function rateLimitMatch(text: string): string | null {
+	const m = text.match(/429|rate[_\s-]?limited|rate\.limit/i);
+	return m?.[0] ?? null;
 }
 
 function looksNotInstalled(bin: string, code: number | undefined, text: string): boolean {
@@ -53,8 +81,33 @@ function looksNotAuthenticated(text: string, authenticated?: boolean): boolean {
 	);
 }
 
-function looksRateLimited(text: string): boolean {
-	return /429|rate limited|rate_limited|rate.limit/i.test(text);
+function buildDebug(
+	kind: TwitterCliIssueKind,
+	kindReason: string,
+	input: {
+		code?: number;
+		stdout?: string;
+		stderr?: string;
+		spawnError?: unknown;
+		context?: string;
+	},
+	text: string,
+): TwitterCliIssueDebug {
+	return {
+		kind,
+		kindReason,
+		exitCode: input.code ?? null,
+		context: input.context,
+		rateLimitMatch: rateLimitMatch(text),
+		stderrHead: clip(input.stderr ?? ""),
+		stdoutHead: clip(input.stdout ?? ""),
+		spawnError:
+			input.spawnError instanceof Error
+				? input.spawnError.message
+				: input.spawnError != null
+					? String(input.spawnError)
+					: undefined,
+	};
 }
 
 /** Operator-facing guidance for missing binary / expired login / etc. */
@@ -76,6 +129,14 @@ export function formatTwitterCliIssue(input: {
 	if (looksNotInstalled(bin, input.code, text) || isEnoent(input.spawnError)) {
 		return {
 			kind: "not_installed",
+			debug: buildDebug(
+				"not_installed",
+				isEnoent(input.spawnError)
+					? "spawn ENOENT"
+					: `exit/text looks missing binary (code=${input.code ?? "?"})`,
+				input,
+				text,
+			),
 			message: [
 				`twitter-cli binary not found or not executable: "${bin}"${ctx}`,
 				"",
@@ -96,11 +157,14 @@ export function formatTwitterCliIssue(input: {
 		};
 	}
 
-	if (looksRateLimited(text)) {
+	const rl = rateLimitMatch(text);
+	if (rl) {
 		return {
 			kind: "rate_limited",
+			debug: buildDebug("rate_limited", `matched ${JSON.stringify(rl)} in cli output`, input, text),
 			message: [
 				`twitter-cli rate limited (HTTP 429).${ctx}`,
+				`match: ${rl}`,
 				"",
 				"Wait 15+ minutes, increase --handle-delay-ms (e.g. 4000), then retry.",
 				"Already-fetched handles: bun run refresh:watchlists -- --from-cache ...",
@@ -111,6 +175,14 @@ export function formatTwitterCliIssue(input: {
 	if (looksNotAuthenticated(text, input.authenticated) || input.authenticated === false) {
 		return {
 			kind: "not_authenticated",
+			debug: buildDebug(
+				"not_authenticated",
+				input.authenticated === false
+					? "authenticated flag false"
+					: "auth keywords / 401|403 in cli output",
+				input,
+				text,
+			),
 			message: [
 				`twitter-cli is not logged in (session missing or expired).${ctx}`,
 				"",
@@ -138,6 +210,12 @@ export function formatTwitterCliIssue(input: {
 	const detail = text.trim().slice(0, 400) || `(exit ${input.code ?? "?"})`;
 	return {
 		kind: "failed",
+		debug: buildDebug(
+			"failed",
+			`unclassified failure (exit=${input.code ?? "?"}, stderrLen=${(input.stderr ?? "").length}, stdoutLen=${(input.stdout ?? "").length})`,
+			input,
+			text,
+		),
 		message: [
 			`twitter-cli command failed${ctx}`,
 			detail,
@@ -158,10 +236,14 @@ function isEnoent(err: unknown): boolean {
 
 export class TwitterCliError extends Error {
 	readonly kind: TwitterCliIssueKind;
+	readonly debug: TwitterCliIssueDebug;
+	readonly rateLimited: boolean;
 	constructor(issue: TwitterCliIssue) {
 		super(issue.message);
 		this.name = "TwitterCliError";
 		this.kind = issue.kind;
+		this.debug = issue.debug;
+		this.rateLimited = issue.kind === "rate_limited";
 	}
 }
 
@@ -239,11 +321,8 @@ export async function twitterUserPosts(
 			spawnError,
 			context: `user-posts @${handle}`,
 		});
-		const err = new TwitterCliError(issue) as TwitterCliError & { rateLimited?: boolean };
-		err.rateLimited = issue.kind === "rate_limited";
-		throw err;
+		throw new TwitterCliError(issue);
 	}
-	const combined = `${res.stderr}\n${res.stdout}`;
 	if (res.code !== 0) {
 		const issue = formatTwitterCliIssue({
 			bin: deps.bin,
@@ -252,9 +331,7 @@ export async function twitterUserPosts(
 			stderr: res.stderr,
 			context: `user-posts @${handle}`,
 		});
-		const err = new TwitterCliError(issue) as TwitterCliError & { rateLimited?: boolean };
-		err.rateLimited = issue.kind === "rate_limited" || looksRateLimited(combined);
-		throw err;
+		throw new TwitterCliError(issue);
 	}
 	const start = res.stdout.indexOf("{");
 	if (start < 0) {

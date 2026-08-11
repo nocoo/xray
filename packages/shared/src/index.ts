@@ -33,6 +33,7 @@ export type {
 	SpawnResult,
 	TwitterCliDeps,
 	TwitterCliIssue,
+	TwitterCliIssueDebug,
 	TwitterCliIssueKind,
 } from "./producer-spawn.js";
 /** @deprecated */

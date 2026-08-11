@@ -321,16 +321,36 @@ async function main(): Promise<void> {
 	}
 
 	const itemsByHandle = new Map<string, CanonicalItem[]>();
-	const handleErrors: Array<{ handle: string; error: string }> = [];
+	type HandleErrorRow = {
+		handle: string;
+		error: string;
+		kind?: string;
+		durationMs: number;
+		debug?: unknown;
+		debugPath?: string;
+	};
+	const handleErrors: HandleErrorRow[] = [];
 	let totalMapped = 0;
 	let totalSkipped = 0;
 	let totalWindowDropped = 0;
+	const debugDir = join(cacheDir, "debug");
+	mkdirSync(debugDir, { recursive: true });
 
 	let i = 0;
 	for (const handle of handleMap.keys()) {
 		i += 1;
+		const t0 = Date.now();
 		try {
-			console.log(`[${i}/${handleMap.size}] fetch @${handle}`);
+			console.log(
+				JSON.stringify({
+					event: "fetch_start",
+					i,
+					total: handleMap.size,
+					handle,
+					fromCache,
+					handleDelayMs,
+				}),
+			);
 			const rawPath = rawPathFor(source.id, handle);
 			let result: Awaited<ReturnType<XTimelineSource["fetchHandle"]>>;
 			if (fromCache) {
@@ -352,6 +372,8 @@ async function main(): Promise<void> {
 				handleErrors.push({
 					handle,
 					error: `all tweets failed convert (${result.skipped.length} skipped)`,
+					kind: "convert_all_skipped",
+					durationMs: Date.now() - t0,
 				});
 			}
 			const { kept, dropped } = filterItemsByWindow(result.items, windowHours);
@@ -362,29 +384,93 @@ async function main(): Promise<void> {
 				JSON.stringify(kept, null, 2),
 			);
 			console.log(
-				`  mapped=${result.items.length} skipped=${result.skipped.length} in_window=${kept.length}`,
+				JSON.stringify({
+					event: "fetch_ok",
+					handle,
+					durationMs: Date.now() - t0,
+					mapped: result.items.length,
+					skipped: result.skipped.length,
+					inWindow: kept.length,
+					windowDropped: dropped,
+				}),
 			);
 		} catch (e) {
+			const durationMs = Date.now() - t0;
 			const msg = e instanceof Error ? e.message : String(e);
 			const kind =
 				e && typeof e === "object" && "kind" in e
 					? String((e as { kind?: string }).kind)
 					: undefined;
-			handleErrors.push({ handle, error: msg.split("\n")[0] ?? msg });
+			const debug =
+				e && typeof e === "object" && "debug" in e ? (e as { debug?: unknown }).debug : undefined;
+			const rateLimited =
+				e && typeof e === "object" && "rateLimited" in e
+					? Boolean((e as { rateLimited?: boolean }).rateLimited)
+					: kind === "rate_limited" || /rate_limited/i.test(msg);
+
+			const debugPayload = {
+				event: "fetch_error",
+				handle,
+				i,
+				total: handleMap.size,
+				durationMs,
+				kind: kind ?? "unknown",
+				rateLimited,
+				error: msg.split("\n")[0] ?? msg,
+				debug: debug ?? null,
+				stack: e instanceof Error ? e.stack?.split("\n").slice(0, 8) : undefined,
+				at: new Date().toISOString(),
+			};
+			const debugPath = join(debugDir, `${cacheFileBase(handle)}-${Date.now()}.json`);
+			try {
+				writeFileSync(debugPath, JSON.stringify(debugPayload, null, 2));
+			} catch {
+				/* ignore disk errors */
+			}
+
+			handleErrors.push({
+				handle,
+				error: msg.split("\n")[0] ?? msg,
+				kind: kind ?? "unknown",
+				durationMs,
+				debug: debug ?? null,
+				debugPath,
+			});
+
+			// Full multi-line operator message + structured debug on stderr
+			console.error(`  ERROR @${handle} (${durationMs}ms) kind=${kind ?? "unknown"}`);
+			console.error(msg);
+			console.error(
+				JSON.stringify(
+					{
+						event: "fetch_error_debug",
+						handle,
+						kind: kind ?? "unknown",
+						rateLimited,
+						durationMs,
+						debug: debug ?? null,
+						debugPath,
+					},
+					null,
+					2,
+				),
+			);
+
 			if (kind === "not_installed" || kind === "not_authenticated") {
-				console.error(msg);
 				console.error(
 					`\nAborting remaining handles — fix ${source.id} install/login, or use --from-cache.`,
 				);
 				break;
 			}
-			console.error(`  ERROR @${handle}: ${msg.split("\n")[0] ?? msg}`);
-			if (kind === "rate_limited" || /rate_limited/i.test(msg)) {
+			if (rateLimited) {
 				console.warn("  cooling 60s after rate limit…");
 				await sleep(60_000);
 			}
 		}
-		if (!fromCache && handleDelayMs > 0 && i < handleMap.size) await sleep(handleDelayMs);
+		if (!fromCache && handleDelayMs > 0 && i < handleMap.size) {
+			console.log(JSON.stringify({ event: "handle_delay", ms: handleDelayMs, after: handle }));
+			await sleep(handleDelayMs);
+		}
 	}
 
 	const itemsByWl = new Map<number, Map<string, CanonicalItem>>();
@@ -408,6 +494,9 @@ async function main(): Promise<void> {
 		const report = {
 			event: cacheOnly ? "cache_only_done" : "refresh_done",
 			windowHours,
+			handleDelayMs,
+			fromCache,
+			cacheOnly,
 			totalMapped,
 			totalSkipped,
 			totalWindowDropped,
@@ -415,8 +504,35 @@ async function main(): Promise<void> {
 			handleErrors,
 			pushErrors,
 			summary,
+			debugDir,
 		};
 		const reportPath = writeReport(report);
+		if (handleErrors.length) {
+			console.error(
+				JSON.stringify(
+					{
+						event: "handle_errors_summary",
+						count: handleErrors.length,
+						handles: handleErrors.map((h) => ({
+							handle: h.handle,
+							kind: h.kind,
+							durationMs: h.durationMs,
+							error: h.error,
+							debugPath: h.debugPath,
+							rateLimitMatch:
+								h.debug &&
+								typeof h.debug === "object" &&
+								h.debug !== null &&
+								"rateLimitMatch" in h.debug
+									? (h.debug as { rateLimitMatch?: string | null }).rateLimitMatch
+									: undefined,
+						})),
+					},
+					null,
+					2,
+				),
+			);
+		}
 		console.log(JSON.stringify(report, null, 2));
 		console.log(`report: ${reportPath}`);
 		process.exit(code);
