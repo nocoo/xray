@@ -17,8 +17,17 @@ export {
 export { normalizeHandle } from "./handle.js";
 export type { NavGroupDef, NavItemDef } from "./nav.js";
 export { V2_NAV_GROUPS, V2_NAV_LABELS } from "./nav.js";
+
+// --- Producer core (source-agnostic) ---
+export type { IngestPushBody } from "./producer-core.js";
+export {
+	buildIngestBatches,
+	filterItemsByWindow,
+	INGEST_MAX_ITEMS,
+} from "./producer-core.js";
 export type { FetchFn, PushBatchDeps, PushBatchResult } from "./producer-push.js";
 export { pushIngestBatch } from "./producer-push.js";
+/** @deprecated use createTwitterCliSource */
 export type {
 	SpawnFn,
 	SpawnResult,
@@ -26,6 +35,7 @@ export type {
 	TwitterCliIssue,
 	TwitterCliIssueKind,
 } from "./producer-spawn.js";
+/** @deprecated */
 export {
 	atomicWriteJson,
 	formatTwitterCliIssue,
@@ -34,6 +44,7 @@ export {
 	twitterUserPosts,
 } from "./producer-spawn.js";
 export type { MembersGraph } from "./producer-utils.js";
+/** @deprecated twitter-cli private env scrub */
 export {
 	assertAllowedBaseUrl,
 	cacheFileBase,
@@ -50,21 +61,30 @@ export {
 } from "./producer-utils.js";
 export type { SourceType } from "./source.js";
 export { isSourceType, SOURCE_TYPE_LABELS, SOURCE_TYPES } from "./source.js";
+/** @deprecated internal */
 export type {
 	EnvelopeMapResult,
-	IngestPushBody,
 	MapFail,
 	MapOk,
 	MapResult,
 	TwitterCliEnvelope,
 	TwitterCliTweet,
 } from "./twitter-cli-map.js";
+/** @deprecated internal — tests / adapter only */
 export {
-	buildIngestBatches,
-	filterItemsByWindow,
-	INGEST_MAX_ITEMS,
 	mapTwitterCliEnvelope,
 	mapTwitterCliTweetToCanonical,
 	toRfc3339Z,
 } from "./twitter-cli-map.js";
+// --- twitter-cli adapter (replaceable; do not leak into other packages) ---
+export type { TwitterCliSourceDeps } from "./twitter-cli-source.js";
+export {
+	createTwitterCliSource,
+	TWITTER_CLI_SOURCE_ID,
+} from "./twitter-cli-source.js";
 export { XRAY_VERSION } from "./version.js";
+export type {
+	TimelineFetchResult,
+	TimelineSkip,
+	XTimelineSource,
+} from "./x-timeline-source.js";

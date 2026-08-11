@@ -15,6 +15,61 @@ Local, script-first producer that refreshes **x.com** members on all watchlists 
 | P3 | **Convert at push** — mapper turns each tweet into `source_type=x.com` / `body.kind=x.post`; only `parseCanonicalItem`-valid items are POSTed. |
 | P4 | **Script-primary** — `bun run refresh:watchlists` is the stable entry; agents only orchestrate the same script. |
 | P5 | **Dual auth** — twitter-cli cookies (read X) ≠ X-Ray push token (write ingest) ≠ browser session (list WLs). |
+| P6 | **Minimal vendor boundary** — orchestrator only sees `XTimelineSource`; twitter-cli JSON/CLI never leak into Worker or generic producer code. |
+
+---
+
+## 1.1 Data boundary (replaceability)
+
+```
+                    ┌─────────────────────────────────────┐
+  orchestrator      │  scripts/refresh-watchlists.ts      │
+  (source-agnostic) │  graph · window · batch · ingest    │
+                    └──────────────┬──────────────────────┘
+                                   │ XTimelineSource only
+                                   │  ready()
+                                   │  fetchHandle(handle) → { items: CanonicalItem[], raw: opaque }
+                                   │  parseCachedRaw(raw) → { items, skipped }
+                    ┌──────────────▼──────────────────────┐
+  adapter           │  createTwitterCliSource()           │
+  (vendor-private)  │  spawn · map · env scrub · errors   │
+                    └──────────────┬──────────────────────┘
+                                   │ CLI + vendor JSON only here
+                                   ▼
+                            twitter-cli binary
+```
+
+### What may cross the boundary
+
+| Direction | Payload | Notes |
+|-----------|---------|--------|
+| → adapter | `handle` string, `max` hint | normalized x.com username |
+| ← adapter | `CanonicalItem[]` | already `parseCanonicalItem`-valid |
+| ← adapter | `skipped[]` | mapper drops, not ingest errors |
+| ← adapter | `raw: unknown` | **opaque** cache blob; never POST |
+| → adapter | cached `raw` | round-trip only via `parseCachedRaw` |
+
+### What must NOT cross
+
+- `screenName`, `createdAtISO`, `metrics.likes`, envelope `schema_version`, …
+- Direct `twitter status` / `user-posts` calls from the script
+- `mapTwitterCli*` imports outside the adapter module
+- Raw vendor JSON on `POST /api/v1/ingest/push`
+
+### Module map
+
+| Layer | Modules |
+|-------|---------|
+| Core (keep when swapping source) | `producer-core` (window/batch), `producer-utils` (graph/url/exit), `producer-push`, `canonical-item`, `x-timeline-source` |
+| twitter-cli adapter (delete/replace together) | `twitter-cli-source`, `twitter-cli-map`, `producer-spawn` (+ TWITTER_* env scrub) |
+| Entry | `scripts/refresh-watchlists.ts` — only `createTwitterCliSource` as vendor line |
+
+### Swap recipe
+
+1. Implement `XTimelineSource` for the new reader (e.g. official API, another CLI).
+2. In `refresh-watchlists.ts`, replace `createTwitterCliSource(...)` with the new factory.
+3. Point cache dir at `.cache/<source.id>/` (or `XRAY_CACHE_DIR`).
+4. Delete or stop exporting `twitter-cli-*` modules when unused.
 
 ---
 
@@ -232,12 +287,15 @@ Handle **dedupe across lists**: one fetch; items cloned into each watchlist’s 
 
 | Path | Role |
 |------|------|
-| `docs/09-local-producer-twitter-cli.md` | this design |
-| `packages/shared/src/twitter-cli-map.ts` | pure map + window filter + batch chunk |
-| `packages/shared/src/twitter-cli-map.test.ts` | fixtures → `parseCanonicalItem` |
-| `packages/shared/src/fixtures/twitter-cli-user-posts.json` | representative envelope |
-| `scripts/refresh-watchlists.ts` | operator CLI |
-| `.cache/twitter-cli/` | gitignored raw + run logs |
+| `docs/09-local-producer-twitter-cli.md` | this design + **boundary** |
+| `packages/shared/src/x-timeline-source.ts` | **stable** adapter interface |
+| `packages/shared/src/producer-core.ts` | window filter + ingest batch (source-agnostic) |
+| `packages/shared/src/twitter-cli-source.ts` | **adapter factory** (`createTwitterCliSource`) |
+| `packages/shared/src/twitter-cli-map.ts` | vendor JSON → canonical (private to adapter) |
+| `packages/shared/src/producer-spawn.ts` | vendor CLI spawn + error copy |
+| `packages/shared/src/fixtures/twitter-cli-user-posts.json` | mapper fixtures |
+| `scripts/refresh-watchlists.ts` | orchestrator (one vendor import line) |
+| `.cache/twitter-cli/` | gitignored opaque raw + run logs |
 | `config/members.json` | optional snapshot (gitignored via `config/`) |
 
 ---

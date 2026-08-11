@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 /**
- * Local producer: resolve watchlist x.com members → twitter-cli user-posts
- * → cache raw JSON → map canonical → batched ingest push.
+ * Local producer orchestrator — source-agnostic after XTimelineSource boundary.
+ * Default adapter: twitter-cli (createTwitterCliSource). Swap adapter to replace vendor.
  *
- * Docs: docs/09-local-producer-twitter-cli.md
+ * Docs: docs/09-local-producer-twitter-cli.md § boundary
  */
 import {
 	existsSync,
@@ -21,14 +21,13 @@ import {
 	buildIngestBatches,
 	type CanonicalItem,
 	cacheFileBase,
+	createTwitterCliSource,
 	exitCodeForRefresh,
 	filterItemsByWindow,
 	isValidXHandle,
-	mapTwitterCliEnvelope,
 	parseMembersGraph,
 	pushIngestBatch,
-	twitterStatus,
-	twitterUserPosts,
+	type XTimelineSource,
 } from "../packages/shared/src/index.ts";
 
 type Graph = ReturnType<typeof parseMembersGraph>;
@@ -103,7 +102,6 @@ const fromCache = Boolean(values["from-cache"]);
 const windowHours = clampInt(values["window-hours"] ?? env("XRAY_WINDOW_HOURS"), 24, 1, 168);
 const twitterMax = clampInt(values.max ?? env("XRAY_TWITTER_MAX"), 20, 1, 100);
 const handleDelayMs = clampInt(values["handle-delay-ms"], 3000, 0, 60_000);
-const cacheDir = resolve(values["cache-dir"] ?? env("XRAY_CACHE_DIR") ?? ".cache/twitter-cli");
 const ingestBase = assertAllowedBaseUrl(
 	values["ingest-base"] ?? env("XRAY_INGEST_BASE") ?? "https://xray-ingest.hexly.ai",
 	"ingest",
@@ -115,6 +113,8 @@ const browserBase = browserBaseRaw
 const twitterBin = values["twitter-bin"] ?? env("TWITTER_BIN") ?? "twitter";
 const pushToken = env("XRAY_PUSH_TOKEN") ?? "";
 const membersFile = values["members-file"] ?? env("XRAY_MEMBERS_FILE") ?? "config/members.json";
+// Default cache root uses adapter id; override with XRAY_CACHE_DIR.
+const cacheDir = resolve(values["cache-dir"] ?? env("XRAY_CACHE_DIR") ?? ".cache/twitter-cli");
 
 function env(name: string): string | undefined {
 	// biome-ignore lint/suspicious/noExplicitAny: bun/process env
@@ -233,58 +233,24 @@ function uniqueHandles(graph: Graph): Map<string, number[]> {
 	return map;
 }
 
-async function ensureTwitterAuth(): Promise<void> {
-	// Throws TwitterCliError with install / re-login guidance when missing or expired.
-	await twitterStatus({
+/** Sole vendor touchpoint in this script — swap factory to replace twitter-cli. */
+function createTimelineSource(): XTimelineSource {
+	return createTwitterCliSource({
 		spawn: bunSpawn,
 		bin: twitterBin,
 		env: fullEnv(),
 		max: twitterMax,
 	});
-	console.log(`twitter-cli OK (${twitterBin})`);
 }
 
-function rawPathFor(handle: string): string {
+function rawPathFor(sourceId: string, handle: string): string {
 	const base = cacheFileBase(handle);
 	const dir = join(cacheDir, "raw");
 	mkdirSync(dir, { recursive: true });
 	const path = join(dir, `${base}.json`);
 	if (!resolve(path).startsWith(resolve(dir))) throw new Error(`cache path escape: ${path}`);
+	void sourceId; // reserved for multi-adapter cache namespaces
 	return path;
-}
-
-async function fetchUserPostsOnce(
-	handle: string,
-): Promise<{ ok: true; data: unknown } | { ok: false; err: string; rateLimited: boolean }> {
-	try {
-		const r = await twitterUserPosts(
-			{ spawn: bunSpawn, bin: twitterBin, env: fullEnv(), max: twitterMax },
-			handle,
-		);
-		return { ok: true, data: r.data };
-	} catch (e) {
-		const err = e as Error & { rateLimited?: boolean };
-		return {
-			ok: false,
-			err: err.message ?? String(e),
-			rateLimited: Boolean(err.rateLimited),
-		};
-	}
-}
-
-async function fetchUserPosts(handle: string): Promise<unknown> {
-	const rawPath = rawPathFor(handle);
-	if (fromCache) {
-		if (!existsSync(rawPath)) throw new Error(`cache miss: ${rawPath}`);
-		return JSON.parse(readFileSync(rawPath, "utf8"));
-	}
-	const r = await fetchUserPostsOnce(handle);
-	if (r.ok) {
-		atomicWriteJson(rawPath, r.data, { writeFileSync, renameSync, unlinkSync }, process.pid);
-		return r.data;
-	}
-	if (r.rateLimited) throw new Error(`rate_limited @${handle}: ${r.err.slice(0, 200)}`);
-	throw new Error(`user-posts @${handle}: ${r.err}`);
 }
 
 async function pushBatch(body: {
@@ -315,6 +281,7 @@ function writeReport(report: unknown): string {
 
 async function main(): Promise<void> {
 	mkdirSync(cacheDir, { recursive: true });
+	const source = createTimelineSource();
 	const graph = await loadGraph();
 	const handleMap = uniqueHandles(graph);
 	const wlById = new Map(graph.watchlists.map((w) => [w.id, w]));
@@ -323,6 +290,7 @@ async function main(): Promise<void> {
 		JSON.stringify(
 			{
 				event: "plan",
+				source: source.id,
 				watchlists: graph.watchlists.length,
 				uniqueHandles: handleMap.size,
 				windowHours,
@@ -343,7 +311,10 @@ async function main(): Promise<void> {
 		process.exit(0);
 	}
 
-	if (!fromCache) await ensureTwitterAuth();
+	if (!fromCache) {
+		await source.ready();
+		console.log(`timeline source OK (${source.id})`);
+	}
 	if (!cacheOnly && !pushToken) {
 		console.error("XRAY_PUSH_TOKEN required for push (or use --cache-only / --dry-run)");
 		process.exit(2);
@@ -360,21 +331,30 @@ async function main(): Promise<void> {
 		i += 1;
 		try {
 			console.log(`[${i}/${handleMap.size}] fetch @${handle}`);
-			const raw = await fetchUserPosts(handle);
-			const mapped = mapTwitterCliEnvelope(raw);
-			if (mapped.envelopeError) {
-				handleErrors.push({ handle, error: mapped.envelopeError });
-				continue;
+			const rawPath = rawPathFor(source.id, handle);
+			let result: Awaited<ReturnType<XTimelineSource["fetchHandle"]>>;
+			if (fromCache) {
+				if (!existsSync(rawPath)) throw new Error(`cache miss: ${rawPath}`);
+				const raw = JSON.parse(readFileSync(rawPath, "utf8")) as unknown;
+				result = source.parseCachedRaw(raw);
+			} else {
+				result = await source.fetchHandle(handle);
+				atomicWriteJson(
+					rawPath,
+					result.raw,
+					{ writeFileSync, renameSync, unlinkSync },
+					process.pid,
+				);
 			}
-			totalMapped += mapped.items.length;
-			totalSkipped += mapped.skipped.length;
-			if (mapped.items.length === 0 && mapped.skipped.length > 0) {
+			totalMapped += result.items.length;
+			totalSkipped += result.skipped.length;
+			if (result.items.length === 0 && result.skipped.length > 0) {
 				handleErrors.push({
 					handle,
-					error: `all tweets failed convert (${mapped.skipped.length} skipped)`,
+					error: `all tweets failed convert (${result.skipped.length} skipped)`,
 				});
 			}
-			const { kept, dropped } = filterItemsByWindow(mapped.items, windowHours);
+			const { kept, dropped } = filterItemsByWindow(result.items, windowHours);
 			totalWindowDropped += dropped;
 			itemsByHandle.set(handle, kept);
 			writeFileSync(
@@ -382,7 +362,7 @@ async function main(): Promise<void> {
 				JSON.stringify(kept, null, 2),
 			);
 			console.log(
-				`  mapped=${mapped.items.length} skipped=${mapped.skipped.length} in_window=${kept.length}`,
+				`  mapped=${result.items.length} skipped=${result.skipped.length} in_window=${kept.length}`,
 			);
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e);
@@ -391,11 +371,10 @@ async function main(): Promise<void> {
 					? String((e as { kind?: string }).kind)
 					: undefined;
 			handleErrors.push({ handle, error: msg.split("\n")[0] ?? msg });
-			// Full multi-line guidance once for install/login; short line otherwise
 			if (kind === "not_installed" || kind === "not_authenticated") {
 				console.error(msg);
 				console.error(
-					"\nAborting remaining handles — fix twitter-cli install/login, or use --from-cache.",
+					`\nAborting remaining handles — fix ${source.id} install/login, or use --from-cache.`,
 				);
 				break;
 			}

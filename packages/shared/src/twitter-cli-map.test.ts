@@ -3,10 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { parseCanonicalItem } from "./canonical-item.js";
+import { buildIngestBatches, filterItemsByWindow, INGEST_MAX_ITEMS } from "./producer-core.js";
 import {
-	buildIngestBatches,
-	filterItemsByWindow,
-	INGEST_MAX_ITEMS,
 	mapTwitterCliEnvelope,
 	mapTwitterCliTweetToCanonical,
 	toRfc3339Z,

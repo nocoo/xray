@@ -1,6 +1,6 @@
 import type { CanonicalItem } from "./canonical-item.js";
+import type { IngestPushBody } from "./producer-core.js";
 import { parsePushSuccessBody, pushRetryDelayMs, shouldStopPush } from "./producer-utils.js";
-import type { IngestPushBody } from "./twitter-cli-map.js";
 
 export type FetchFn = (
 	url: string,

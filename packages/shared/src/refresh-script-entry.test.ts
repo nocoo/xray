@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 
 /**
- * Structural guard: the operator entry must import symbols it calls.
- * Catches the regression where pushIngestBatch was used without import.
+ * Structural guard: the operator entry must import symbols it calls,
+ * and must not bypass the XTimelineSource boundary into vendor APIs.
  */
 describe("scripts/refresh-watchlists.ts entry wiring", () => {
 	const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -18,8 +18,13 @@ describe("scripts/refresh-watchlists.ts entry wiring", () => {
 		expect(src).toMatch(/\bpushIngestBatch\s*\(/);
 	});
 
-	test("imports mapTwitterCliEnvelope and buildIngestBatches", () => {
-		expect(src).toMatch(/\bmapTwitterCliEnvelope\b/);
+	test("uses XTimelineSource adapter, not vendor map/CLI calls", () => {
+		expect(src).toMatch(/\bcreateTwitterCliSource\b/);
+		expect(src).toMatch(/\bXTimelineSource\b/);
 		expect(src).toMatch(/\bbuildIngestBatches\b/);
+		// Boundary: orchestrator must not call vendor mapper or CLI helpers directly
+		expect(src).not.toMatch(/\bmapTwitterCliEnvelope\b/);
+		expect(src).not.toMatch(/\btwitterUserPosts\b/);
+		expect(src).not.toMatch(/\btwitterStatus\b/);
 	});
 });
