@@ -1,5 +1,21 @@
 README.md
 
+## Secrets / local producer (not in git)
+
+| Path | Contents |
+|------|----------|
+| **`~/.config/xray/push.env`** | Prod push token + ingest defaults. `chmod 600`. Load: `set -a && source ~/.config/xray/push.env && set +a` |
+| `.xray-push.env` (repo, gitignored) | Optional pointer only — never the real token |
+
+Prod refresh:
+
+```bash
+set -a && source ~/.config/xray/push.env && set +a
+bun run refresh:watchlists --
+```
+
+Reset token: mint via UI or wrangler D1 (`push_tokens` hash from `mintPushToken()`), rewrite `~/.config/xray/push.env`. Details: `docs/09-local-producer-twitter-cli.md`.
+
 ## Release
 
 Version is managed in `package.json` (single source of truth). Versioning follows SemVer: X (major/breaking), Y (minor/feature), Z (patch/fix). Default bump is Z+1.
