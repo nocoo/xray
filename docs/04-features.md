@@ -64,7 +64,7 @@ Add members into a watchlist (copy handles with source_type).
 | Capability | API / code | Status |
 |------------|------------|--------|
 | CRUD + members | `/api/groups`, `groups-page.tsx` | **done** |
-| Bulk import | `POST /api/groups/:id/members/import` body `{ text }` — parse `packages/shared/src/twitter-export.ts`; repo `bulkImportGroupMembers` | **done** |
+| Bulk import | `POST /api/groups/:id/members/import` body `{ text }` — parse `packages/shared/src/twitter-export.ts` (**only scrapeable handles**: `@user`, `x.com/user`, or export rows with `screen_name` / path username; accountId-only skipped offline); batch `INSERT OR IGNORE` | **done** |
 | Copy → watchlist | `POST /api/groups/:id/copy-to-watchlist` body `{ watchlistId, memberIds? }` — `copyGroupMembersToWatchlist` | **done** |
 
 ## 5. Integrations — zhe.to full keep (XR-11, R4-03)

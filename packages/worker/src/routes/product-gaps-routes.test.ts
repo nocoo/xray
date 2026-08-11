@@ -13,7 +13,11 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { encryptSecret, parseKek } from "../lib/secrets-crypto.js";
 import type { AppEnv, AuthUser } from "../types.js";
 import { testAiConfigRoute } from "./ai.js";
-import { bulkImportGroupMembersRoute, copyGroupToWatchlistRoute } from "./groups.js";
+import {
+	bulkImportGroupMembersRoute,
+	copyGroupToWatchlistRoute,
+	listGroupsRoute,
+} from "./groups.js";
 import { listWatchlistIngestLogsRoute } from "./ingest-logs.js";
 
 const KEK = "0123456789abcdef0123456789abcdef";
@@ -101,6 +105,19 @@ function mockProductDb() {
 							return null;
 						},
 						async all<T>() {
+							if (
+								s.includes("FROM groups g WHERE g.user_id") ||
+								s.includes("FROM groups g WHERE")
+							) {
+								return {
+									results: groups
+										.filter((g) => g.user_id === binds[0])
+										.map((g) => ({
+											...g,
+											member_count: group_members.filter((m) => m.group_id === g.id).length,
+										})) as T[],
+								};
+							}
 							if (s.includes("FROM group_members WHERE user_id")) {
 								return {
 									results: group_members.filter(
@@ -128,15 +145,20 @@ function mockProductDb() {
 							return { results: [] as T[] };
 						},
 						async run() {
-							if (s.startsWith("INSERT INTO group_members")) {
-								const handle = binds[4] as string;
+							if (s.includes("INSERT") && s.includes("group_members")) {
+								const isBulk = s.includes("OR IGNORE") && s.includes("'x.com'");
+								const handle = (isBulk ? binds[3] : binds[4]) as string;
 								const group_id = binds[1] as number;
+								const source_type = isBulk ? "x.com" : (binds[2] as string);
 								if (
 									group_members.some(
 										(m) =>
-											m.group_id === group_id && m.handle === handle && m.source_type === binds[2],
+											m.group_id === group_id &&
+											m.handle === handle &&
+											m.source_type === source_type,
 									)
 								) {
+									if (s.includes("OR IGNORE")) return { meta: { last_row_id: 0, changes: 0 } };
 									throw new Error("UNIQUE constraint failed");
 								}
 								const id = gmid++;
@@ -144,25 +166,28 @@ function mockProductDb() {
 									id,
 									user_id: binds[0],
 									group_id,
-									source_type: binds[2],
-									external_author_id: binds[3],
+									source_type,
+									external_author_id: isBulk ? binds[2] : binds[3],
 									handle,
-									display_name: binds[5],
-									added_at_ms: binds[6],
+									display_name: isBulk ? binds[4] : binds[5],
+									added_at_ms: isBulk ? binds[5] : binds[6],
 								});
 								return { meta: { last_row_id: id, changes: 1 } };
 							}
-							if (s.startsWith("INSERT INTO watchlist_members")) {
+							if (s.includes("INSERT") && s.includes("watchlist_members")) {
+								const isBulk = s.includes("OR IGNORE");
 								const handle = binds[4] as string;
 								const watchlist_id = binds[1] as number;
+								const source_type = binds[2] as string;
 								if (
 									watchlist_members.some(
 										(m) =>
 											m.watchlist_id === watchlist_id &&
 											m.handle === handle &&
-											m.source_type === binds[2],
+											m.source_type === source_type,
 									)
 								) {
+									if (isBulk) return { meta: { last_row_id: 0, changes: 0 } };
 									throw new Error("UNIQUE constraint failed");
 								}
 								const id = wmid++;
@@ -170,12 +195,12 @@ function mockProductDb() {
 									id,
 									user_id: binds[0],
 									watchlist_id,
-									source_type: binds[2],
+									source_type,
 									external_author_id: binds[3],
 									handle,
 									display_name: binds[5],
-									note: binds[6],
-									added_at_ms: binds[7],
+									note: isBulk ? null : binds[6],
+									added_at_ms: isBulk ? binds[6] : binds[7],
 								});
 								return { meta: { last_row_id: id, changes: 1 } };
 							}
@@ -185,8 +210,10 @@ function mockProductDb() {
 				},
 			};
 		},
-		async batch() {
-			return [];
+		async batch(stmts: Array<{ run: () => Promise<{ meta: { changes: number } }> }>) {
+			const out = [];
+			for (const st of stmts) out.push(await st.run());
+			return out;
 		},
 	} as unknown as D1Database;
 
@@ -281,6 +308,7 @@ function appWithUser(
 		} as AppEnv["Bindings"];
 		await next();
 	});
+	app.get("/api/groups", listGroupsRoute);
 	app.post("/api/groups/:id/members/import", bulkImportGroupMembersRoute);
 	app.post("/api/groups/:id/copy-to-watchlist", copyGroupToWatchlistRoute);
 	app.get("/api/watchlists/:id/ingest-logs", listWatchlistIngestLogsRoute);
@@ -293,6 +321,23 @@ const origFetch = globalThis.fetch;
 afterEach(() => {
 	globalThis.fetch = origFetch;
 	vi.restoreAllMocks();
+});
+
+describe("GET /api/groups", () => {
+	test("401 without user", async () => {
+		const { db } = mockProductDb();
+		const app = appWithUser(null, db);
+		expect((await app.request("http://localhost/api/groups")).status).toBe(401);
+	});
+	test("lists groups for user", async () => {
+		const mock = mockProductDb();
+		mock.seedGroup("u1", "Alpha");
+		const app = appWithUser(user, mock.db);
+		const res = await app.request("http://localhost/api/groups");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { data: Array<{ name: string }> };
+		expect(body.data.some((g) => g.name === "Alpha")).toBe(true);
+	});
 });
 
 describe("POST /api/groups/:id/members/import", () => {
@@ -341,6 +386,22 @@ describe("POST /api/groups/:id/members/import", () => {
 		const body = (await res.json()) as { success: boolean; error: string };
 		expect(body.success).toBe(false);
 		expect(body.error).toMatch(/text required/i);
+	});
+
+	test("400 when only accountId archive (no scrapeable handles)", async () => {
+		const mock = mockProductDb();
+		const gid = mock.seedGroup("u1");
+		const app = appWithUser(user, mock.db);
+		const res = await app.request(`http://localhost/api/groups/${gid}/members/import`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				text: `window.YTD.following.part0 = [{"following":{"accountId":"1"}}];`,
+			}),
+		});
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toMatch(/scrapeable|no members/i);
 	});
 
 	test("404 cross-user group", async () => {
@@ -485,7 +546,11 @@ describe("POST /api/ai-config/test (route harness)", () => {
 		globalThis.fetch = fetchMock as unknown as typeof fetch;
 
 		const app = appWithUser(user, mock.db);
-		const res = await app.request("http://localhost/api/ai-config/test", { method: "POST" });
+		const res = await app.request("http://localhost/api/ai-config/test", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: "{}",
+		});
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
 			success: boolean;
@@ -511,7 +576,11 @@ describe("POST /api/ai-config/test (route harness)", () => {
 		) as unknown as typeof fetch;
 
 		const app = appWithUser(user, mock.db);
-		const res = await app.request("http://localhost/api/ai-config/test", { method: "POST" });
+		const res = await app.request("http://localhost/api/ai-config/test", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: "{}",
+		});
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
 			success: boolean;
@@ -526,9 +595,39 @@ describe("POST /api/ai-config/test (route harness)", () => {
 	test("400 when AI not configured", async () => {
 		const mock = mockProductDb();
 		const app = appWithUser(user, mock.db);
-		const res = await app.request("http://localhost/api/ai-config/test", { method: "POST" });
+		const res = await app.request("http://localhost/api/ai-config/test", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: "{}",
+		});
 		expect(res.status).toBe(400);
 		const body = (await res.json()) as { error: string };
-		expect(body.error).toMatch(/not configured/i);
+		expect(body.error).toMatch(/not configured|API key/i);
+	});
+
+	test("400 on fractional ingest-logs limit", async () => {
+		const mock = mockProductDb();
+		const wlid = mock.seedWatchlist("u1");
+		const app = appWithUser(user, mock.db);
+		const res = await app.request(`http://localhost/api/watchlists/${wlid}/ingest-logs?limit=1.5`);
+		expect(res.status).toBe(400);
+	});
+
+	test("empty memberIds copies zero", async () => {
+		const mock = mockProductDb();
+		const gid = mock.seedGroup("u1");
+		const wlid = mock.seedWatchlist("u1");
+		mock.seedGroupMember("u1", gid, "alice");
+		const app = appWithUser(user, mock.db);
+		const res = await app.request(`http://localhost/api/groups/${gid}/copy-to-watchlist`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ watchlistId: wlid, memberIds: [] }),
+		});
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { data: { added: number; total: number } };
+		expect(body.data.added).toBe(0);
+		expect(body.data.total).toBe(0);
+		expect(mock.watchlist_members).toHaveLength(0);
 	});
 });

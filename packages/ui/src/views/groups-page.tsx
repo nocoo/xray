@@ -291,7 +291,7 @@ export function GroupsPage() {
 
 					<div className="space-y-2 border-t border-border pt-3">
 						<p className="text-xs font-medium text-muted-foreground">
-							Bulk import (following.js / handles)
+							Bulk import (@handles / export with screen_name)
 						</p>
 						<Textarea
 							value={importText}
