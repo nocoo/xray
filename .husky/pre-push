@@ -1,13 +1,12 @@
 #!/usr/bin/env sh
-# S3: L2 tests + coverage + G2 (hard fail)
+# 6DQ pre-push: L2 (real-HTTP worker e2e + route gate) ‖ G2 (gitleaks + osv)
 set -e
 cd "$(dirname "$0")/.."
 
-echo "━━━ L2 worker tests ━━━"
-bun run test:l2
-
-echo "━━━ L1 coverage gate ━━━"
-bun run test:coverage
+echo "━━━ L2 real-HTTP + route coverage ━━━"
+# Isolation: unset remote CF credentials so wrangler cannot touch prod
+env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID -u CF_API_TOKEN \
+  bun run test:l2
 
 if ! command -v gitleaks >/dev/null 2>&1; then
   echo "❌ gitleaks required for pre-push G2" >&2

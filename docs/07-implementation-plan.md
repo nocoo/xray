@@ -5,6 +5,17 @@
 
 ---
 
+## 进度（2026-08-12）
+
+| 项 | 状态 |
+|----|------|
+| MVVM (`packages/ui/src/viewmodels/*`) | **done** |
+| L1 coverage ≥95% 3维 (View exempt) | **done** (`bun run test:coverage`) |
+| L2 real-HTTP + route gate (all `/api/*`) | **done** (`bun run test:l2`) |
+| D1 isolation (`env.test` / `xray-db-test` / `state-l2`) | **done** |
+| L3 main flows (`e2e/*.pw.ts`) | **done** (local UI+worker) |
+| Husky 6DQ pre-commit L1+G1 / pre-push L2+G2 | **done** |
+
 ## 进度（2026-08-11）
 
 | 阶段 | 状态 | 说明 |

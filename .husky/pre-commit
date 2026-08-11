@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# S3: L1 + G1 + gitleaks (BD-1 hard gate starts at pre-push for L2)
+# 6DQ pre-commit: G1 (lint + typecheck) + L1 (unit + coverage)
 set -e
 cd "$(dirname "$0")/.."
 
@@ -9,11 +9,11 @@ bun run lint
 echo "━━━ typecheck (G1) ━━━"
 bun run typecheck
 
-echo "━━━ unit tests (L1) ━━━"
-bun run test
+echo "━━━ L1 unit + coverage (≥95% lines/funcs/branches) ━━━"
+bun run test:coverage
 
 if command -v gitleaks >/dev/null 2>&1; then
-  echo "━━━ gitleaks ━━━"
+  echo "━━━ gitleaks (staged) ━━━"
   gitleaks protect --staged --no-banner
 else
   echo "⚠ gitleaks not installed — skip"

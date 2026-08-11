@@ -4,9 +4,9 @@
 
 | Dimension | X-Ray v2 |
 |-----------|----------|
-| **L1** | vitest; domain/VM/repos+mock-d1; coverage gate ≥90% lines domain |
-| **L2** | Vitest HTTP/route/repo matrix with D1-shaped mocks (primary hard gate); wrangler `--local` isolated D1 smoke optional release gate |
-| **L3** | Playwright — **from S5**; CI required on main after introduced |
+| **L1** | vitest; VM/lib/middleware pure units; coverage gate **≥95%** lines/functions/branches (View shells exempt) |
+| **L2** | **Real HTTP** via `wrangler dev --local --persist-to .wrangler/state-l2` (port 18787) + route-coverage gate (100% `/api/*`); unit route mocks remain as L1 helpers |
+| **L3** | Playwright `e2e/*.pw.ts` — dual-host smoke + watchlists/groups/tokens/settings/AI/zheto/dashboard flows; local isolated data |
 | **G1** | biome + tsc strict |
 | **G2** | osv-scanner + gitleaks |
 | **D1 isolation** | DB `xray-db-test`; persist `.wrangler/state-l2` / `state-l3`; never prod |
@@ -45,7 +45,7 @@ Vitest D1-shaped stubs (no auto migration apply)ss (bat pattern).
 
 ## 4. L2 layout
 
-**Current hard gate (BD-1 / XR-14):** `bun run test` + `bun run test:coverage` over worker unit/route matrix (mock D1). Full `wrangler --local` process matrix remains a release-gate deepening item, not a pre-push blocker.
+**Hard gate:** `bun run test:l2` = worker `test:e2e` (wrangler `--local`, persist `.wrangler/state-l2`, env `test` / `xray-db-test`) + `gate:routes`. Pre-push blocks on L2 + G2. L1 coverage ≥95% is pre-commit.
 
 ## 4b. L2 file layout
 
@@ -65,7 +65,7 @@ packages/worker/src/test (Vitest; hand-written SQL-shaped stubs — not auto-app
 ## 5. L3 Playwright (S5+)
 
 ```
-packages/ui/e2e/*.pw.ts
+e2e/*.pw.ts   # dual-host-smoke, watchlists, groups, tokens-settings flows
 ```
 
 Paths grow per module (07 S5). Include zheto **save** with mock upstream (04 §5).
