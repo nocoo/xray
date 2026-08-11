@@ -1,5 +1,6 @@
 import { isSourceType, type SourceType } from "@xray/shared";
 import { normalizeHandle } from "../lib/handle.js";
+import { addMember, MemberConflictError, MemberValidationError } from "./members.js";
 
 export type GroupRow = {
 	id: number;
@@ -216,4 +217,119 @@ export async function deleteGroupMember(
 		.bind(...(opts?.groupId != null ? [memberId, userId, opts.groupId] : [memberId, userId]))
 		.run();
 	return (result.meta.changes ?? 0) > 0;
+}
+
+export type BulkImportResult = {
+	added: number;
+	skipped: number;
+	total: number;
+};
+
+/** Idempotent bulk add of x.com members (skip UNIQUE conflicts). */
+export async function bulkImportGroupMembers(
+	db: D1Database,
+	userId: string,
+	groupId: number,
+	seeds: Array<{
+		handle: string;
+		externalAuthorId?: string | null;
+		displayName?: string | null;
+	}>,
+): Promise<BulkImportResult> {
+	const g = await getGroup(db, userId, groupId);
+	if (!g) throw new GroupNotFoundError();
+	let added = 0;
+	let skipped = 0;
+	for (const s of seeds) {
+		try {
+			await addGroupMember(db, userId, groupId, {
+				sourceType: "x.com",
+				handle: s.handle,
+				externalAuthorId: s.externalAuthorId,
+				displayName: s.displayName,
+			});
+			added += 1;
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			if (/UNIQUE|unique|member exists/i.test(msg)) {
+				skipped += 1;
+				continue;
+			}
+			if (/handle required/i.test(msg)) {
+				skipped += 1;
+				continue;
+			}
+			throw e;
+		}
+	}
+	return { added, skipped, total: seeds.length };
+}
+
+export class GroupNotFoundError extends Error {
+	constructor() {
+		super("group not found");
+		this.name = "GroupNotFoundError";
+	}
+}
+
+export type CopyToWatchlistResult = {
+	added: number;
+	skipped: number;
+	total: number;
+};
+
+/** Copy group members into a watchlist (same user); skip existing handles. */
+export async function copyGroupMembersToWatchlist(
+	db: D1Database,
+	userId: string,
+	groupId: number,
+	watchlistId: number,
+	opts?: { memberIds?: number[] },
+): Promise<CopyToWatchlistResult> {
+	const g = await getGroup(db, userId, groupId);
+	if (!g) throw new GroupNotFoundError();
+	const wl = await db
+		.prepare(`SELECT id FROM watchlists WHERE user_id = ? AND id = ? LIMIT 1`)
+		.bind(userId, watchlistId)
+		.first<{ id: number }>();
+	if (!wl) throw new WatchlistNotFoundError();
+
+	let members = await listGroupMembers(db, userId, groupId);
+	if (opts?.memberIds?.length) {
+		const want = new Set(opts.memberIds);
+		members = members.filter((m) => want.has(m.id));
+	}
+
+	let added = 0;
+	let skipped = 0;
+	for (const m of members) {
+		try {
+			await addMember(db, userId, watchlistId, {
+				sourceType: m.sourceType,
+				handle: m.handle,
+				displayName: m.displayName,
+				externalAuthorId: m.externalAuthorId,
+			});
+			added += 1;
+		} catch (e) {
+			if (e instanceof MemberConflictError || e instanceof MemberValidationError) {
+				skipped += 1;
+				continue;
+			}
+			const msg = e instanceof Error ? e.message : String(e);
+			if (/UNIQUE|unique|already exists/i.test(msg)) {
+				skipped += 1;
+				continue;
+			}
+			throw e;
+		}
+	}
+	return { added, skipped, total: members.length };
+}
+
+export class WatchlistNotFoundError extends Error {
+	constructor() {
+		super("watchlist not found");
+		this.name = "WatchlistNotFoundError";
+	}
 }

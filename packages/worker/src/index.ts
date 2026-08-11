@@ -4,10 +4,12 @@ import { classifyHost } from "./lib/hosts.js";
 import { accessAuth } from "./middleware/access-auth.js";
 import { observability } from "./middleware/observability.js";
 import { originCheck } from "./middleware/origin-check.js";
-import { getAiConfigRoute, putAiConfigRoute } from "./routes/ai.js";
+import { getAiConfigRoute, putAiConfigRoute, testAiConfigRoute } from "./routes/ai.js";
 import { getDashboardRoute } from "./routes/dashboard.js";
 import {
 	addGroupMemberRoute,
+	bulkImportGroupMembersRoute,
+	copyGroupToWatchlistRoute,
 	createGroupRoute,
 	deleteGroupMemberRoute,
 	deleteGroupRoute,
@@ -16,6 +18,7 @@ import {
 	listGroupsRoute,
 	patchGroupRoute,
 } from "./routes/groups.js";
+import { listWatchlistIngestLogsRoute } from "./routes/ingest-logs.js";
 import { ingestPushRoute } from "./routes/ingest-push.js";
 import { deleteItemRoute, listItemsRoute } from "./routes/items.js";
 import { liveRoute } from "./routes/live.js";
@@ -82,6 +85,7 @@ app.post("/api/watchlists/:id/members", addMemberRoute);
 app.patch("/api/watchlists/:id/members/:memberId", patchMemberRoute);
 app.delete("/api/watchlists/:id/members/:memberId", deleteMemberRoute);
 app.get("/api/watchlists/:id/items", listItemsRoute);
+app.get("/api/watchlists/:id/ingest-logs", listWatchlistIngestLogsRoute);
 app.delete("/api/items/:itemId", deleteItemRoute);
 
 app.get("/api/tags", listTagsRoute);
@@ -94,6 +98,8 @@ app.patch("/api/groups/:id", patchGroupRoute);
 app.delete("/api/groups/:id", deleteGroupRoute);
 app.get("/api/groups/:id/members", listGroupMembersRoute);
 app.post("/api/groups/:id/members", addGroupMemberRoute);
+app.post("/api/groups/:id/members/import", bulkImportGroupMembersRoute);
+app.post("/api/groups/:id/copy-to-watchlist", copyGroupToWatchlistRoute);
 app.delete("/api/groups/:id/members/:memberId", deleteGroupMemberRoute);
 
 app.get("/api/settings", getSettingsRoute);
@@ -103,6 +109,7 @@ app.get("/api/dashboard", getDashboardRoute);
 
 app.get("/api/ai-config", getAiConfigRoute);
 app.put("/api/ai-config", putAiConfigRoute);
+app.post("/api/ai-config/test", testAiConfigRoute);
 app.post("/api/watchlists/:id/translate", translateWatchlistRoute);
 
 app.get("/api/integrations/zheto", getZhetoSettingsRoute);

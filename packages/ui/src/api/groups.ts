@@ -53,3 +53,20 @@ export function addGroupMember(
 export function deleteGroupMember(groupId: number, memberId: number) {
 	return apiDelete<{ deleted: boolean }>(`/api/groups/${groupId}/members/${memberId}`);
 }
+
+export function bulkImportGroupMembers(groupId: number, text: string) {
+	return apiPost<{ added: number; skipped: number; total: number }>(
+		`/api/groups/${groupId}/members/import`,
+		{ text },
+	);
+}
+
+export function copyGroupToWatchlist(
+	groupId: number,
+	input: { watchlistId: number; memberIds?: number[] },
+) {
+	return apiPost<{ added: number; skipped: number; total: number }>(
+		`/api/groups/${groupId}/copy-to-watchlist`,
+		input,
+	);
+}

@@ -2,6 +2,8 @@ import { Plus, Trash2, Users } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import {
+	bulkImportGroupMembers,
+	copyGroupToWatchlist,
 	deleteGroup,
 	deleteGroupMember,
 	fetchGroupMembers,
@@ -10,10 +12,12 @@ import {
 	type GroupMember,
 	updateGroup,
 } from "@/api/groups";
+import { fetchWatchlists, type Watchlist } from "@/api/watchlists";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { RenameDialog } from "@/components/dialogs/rename-dialog";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { cn, getAvatarColor } from "@/lib/utils";
 
 export function GroupsPage() {
@@ -30,6 +34,12 @@ export function GroupsPage() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [renameTarget, setRenameTarget] = useState<Group | null>(null);
+	const [importText, setImportText] = useState("");
+	const [importBusy, setImportBusy] = useState(false);
+	const [importInfo, setImportInfo] = useState<string | null>(null);
+	const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
+	const [copyWlId, setCopyWlId] = useState<number | "">("");
+	const [copyBusy, setCopyBusy] = useState(false);
 
 	useEffect(() => {
 		setBreadcrumbs([{ label: "Groups" }]);
@@ -58,7 +68,9 @@ export function GroupsPage() {
 		setLoading(true);
 		setError(null);
 		try {
-			setGroups(await fetchGroups());
+			const [gs, wls] = await Promise.all([fetchGroups(), fetchWatchlists()]);
+			setGroups(gs);
+			setWatchlists(wls);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : String(e));
 		} finally {
@@ -93,6 +105,40 @@ export function GroupsPage() {
 			notifyListsChanged();
 		} catch (e) {
 			setError(e instanceof Error ? e.message : String(e));
+		}
+	};
+
+	const onImport = async () => {
+		if (selectedId == null || !importText.trim()) return;
+		setImportBusy(true);
+		setImportInfo(null);
+		setError(null);
+		try {
+			const r = await bulkImportGroupMembers(selectedId, importText);
+			setImportInfo(`Imported ${r.added}, skipped ${r.skipped} (of ${r.total})`);
+			setImportText("");
+			await loadMembers(selectedId);
+			await load();
+			notifyListsChanged();
+		} catch (e) {
+			setError(e instanceof Error ? e.message : String(e));
+		} finally {
+			setImportBusy(false);
+		}
+	};
+
+	const onCopyToWl = async () => {
+		if (selectedId == null || copyWlId === "") return;
+		setCopyBusy(true);
+		setError(null);
+		try {
+			const r = await copyGroupToWatchlist(selectedId, { watchlistId: Number(copyWlId) });
+			setImportInfo(`Copied ${r.added} to watchlist, skipped ${r.skipped}`);
+			notifyListsChanged();
+		} catch (e) {
+			setError(e instanceof Error ? e.message : String(e));
+		} finally {
+			setCopyBusy(false);
 		}
 	};
 
@@ -210,7 +256,7 @@ export function GroupsPage() {
 			/>
 
 			{selectedId != null && (
-				<div className="space-y-3 rounded-card border border-border p-4">
+				<div className="space-y-4 rounded-card border border-border p-4">
 					<div className="flex items-center justify-between">
 						<h2 className="text-sm font-medium">Members</h2>
 						<Button size="sm" type="button" onClick={onAddMember}>
@@ -242,6 +288,54 @@ export function GroupsPage() {
 							))}
 						</ul>
 					)}
+
+					<div className="space-y-2 border-t border-border pt-3">
+						<p className="text-xs font-medium text-muted-foreground">
+							Bulk import (following.js / handles)
+						</p>
+						<Textarea
+							value={importText}
+							onChange={(e) => setImportText(e.target.value)}
+							placeholder={"Paste Twitter export following.js, or one @handle per line"}
+							rows={4}
+							className="font-mono text-xs"
+						/>
+						<Button
+							size="sm"
+							type="button"
+							disabled={importBusy || !importText.trim()}
+							onClick={() => void onImport()}
+						>
+							{importBusy ? "Importing…" : "Import members"}
+						</Button>
+					</div>
+
+					<div className="flex flex-wrap items-end gap-2 border-t border-border pt-3">
+						<div className="min-w-[12rem] flex-1 space-y-1">
+							<p className="text-xs font-medium text-muted-foreground">Copy into watchlist</p>
+							<select
+								className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+								value={copyWlId === "" ? "" : String(copyWlId)}
+								onChange={(e) => setCopyWlId(e.target.value ? Number(e.target.value) : "")}
+							>
+								<option value="">Select watchlist…</option>
+								{watchlists.map((w) => (
+									<option key={w.id} value={w.id}>
+										{w.name}
+									</option>
+								))}
+							</select>
+						</div>
+						<Button
+							size="sm"
+							type="button"
+							disabled={copyBusy || copyWlId === "" || members.length === 0}
+							onClick={() => void onCopyToWl()}
+						>
+							{copyBusy ? "Copying…" : "Copy members"}
+						</Button>
+					</div>
+					{importInfo && <p className="text-xs text-muted-foreground">{importInfo}</p>}
 				</div>
 			)}
 		</div>
