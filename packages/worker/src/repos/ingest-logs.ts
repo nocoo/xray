@@ -34,13 +34,20 @@ function toDto(row: IngestLogRow): IngestLogDto {
 }
 
 /** Recent logs for one watchlist (tenant-scoped). */
+function clampLimit(limit: number, fallback: number, max: number): number {
+	if (!Number.isFinite(limit)) return fallback;
+	const n = Math.trunc(limit);
+	if (!Number.isSafeInteger(n) || n < 1) return fallback;
+	return Math.min(n, max);
+}
+
 export async function listIngestLogsForWatchlist(
 	db: D1Database,
 	userId: string,
 	watchlistId: number,
 	limit = 20,
 ): Promise<IngestLogDto[]> {
-	const lim = Math.min(Math.max(1, limit), 100);
+	const lim = clampLimit(limit, 20, 100);
 	// ownership via user_id on logs
 	const { results } = await db
 		.prepare(
@@ -61,7 +68,7 @@ export async function listRecentIngestLogs(
 	userId: string,
 	limit = 10,
 ): Promise<IngestLogDto[]> {
-	const lim = Math.min(Math.max(1, limit), 50);
+	const lim = clampLimit(limit, 10, 50);
 	const { results } = await db
 		.prepare(
 			`SELECT id, watchlist_id, attempted, accepted, deduped, rejected, errors_json, created_at_ms
