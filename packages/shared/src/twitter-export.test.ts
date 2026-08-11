@@ -61,6 +61,13 @@ describe("parseMemberImportText", () => {
 		expect(() => parseMemberImportText("a".repeat(MEMBER_IMPORT_MAX_CHARS + 1))).toThrow(/exceeds/);
 	});
 
+	test("throws when more than max seeds", () => {
+		const handles = Array.from({ length: 501 }, (_, i) => `u${String(i).padStart(4, "0")}`).join(
+			"\n",
+		);
+		expect(() => parseMemberImportText(handles)).toThrow(/max is 500/);
+	});
+
 	test("rejects invalid handle tokens", () => {
 		expect(parseMemberImportText("not-valid-handle!!\ntoolonghandle12345")).toBeNull();
 	});

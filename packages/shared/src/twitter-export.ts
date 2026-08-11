@@ -190,7 +190,12 @@ export function parseTwitterExportFile(content: string): string[] | null {
 }
 
 function capSeeds(seeds: ImportMemberSeed[]): ImportMemberSeed[] {
-	return seeds.slice(0, MEMBER_IMPORT_MAX_SEEDS);
+	if (seeds.length > MEMBER_IMPORT_MAX_SEEDS) {
+		throw new RangeError(
+			`import yields ${seeds.length} members; max is ${MEMBER_IMPORT_MAX_SEEDS}`,
+		);
+	}
+	return seeds;
 }
 
 function dedupeSeeds(seeds: ImportMemberSeed[]): ImportMemberSeed[] {
