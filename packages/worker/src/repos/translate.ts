@@ -74,12 +74,15 @@ export const defaultTranslateFn: TranslateFn = async ({
 			}),
 			signal,
 		});
-		if (sumRes.ok) {
-			const sumJson = (await sumRes.json()) as {
-				choices?: Array<{ message?: { content?: string } }>;
-			};
-			summaryText = sumJson.choices?.[0]?.message?.content?.trim() || null;
+		if (!sumRes.ok) {
+			const body = await sumRes.text().catch(() => "");
+			throw new Error(`summary upstream ${sumRes.status}: ${body.slice(0, 200)}`);
 		}
+		const sumJson = (await sumRes.json()) as {
+			choices?: Array<{ message?: { content?: string } }>;
+		};
+		summaryText = sumJson.choices?.[0]?.message?.content?.trim() || null;
+		if (!summaryText) throw new Error("empty summary");
 	}
 
 	return { translatedText: translated, summaryText };

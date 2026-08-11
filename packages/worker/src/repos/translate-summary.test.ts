@@ -1,5 +1,12 @@
 import { describe, expect, test } from "vitest";
-import { defaultTranslateFn, markTranslateResult, runTranslateBatch } from "./translate.js";
+import {
+	defaultTranslateFn,
+	markTranslateResult,
+	resetStalePending,
+	runTranslateBatch,
+	selectTranslateCandidates,
+	TRANSLATE_MAX,
+} from "./translate.js";
 
 describe("defaultTranslateFn summary", () => {
 	test("fills summaryText when summaryPrompt set", async () => {
@@ -51,6 +58,94 @@ describe("defaultTranslateFn summary", () => {
 				signal: new AbortController().signal,
 			});
 			expect(out.summaryText).toBeNull();
+		} finally {
+			globalThis.fetch = orig;
+		}
+	});
+
+	test("upstream error body read failure still throws", async () => {
+		const orig = globalThis.fetch;
+		globalThis.fetch = (async () =>
+			({
+				ok: false,
+				status: 500,
+				text: async () => {
+					throw new Error("read fail");
+				},
+			}) as unknown as Response) as typeof fetch;
+		try {
+			await expect(
+				defaultTranslateFn({
+					text: "hello",
+					apiKey: "k",
+					provider: "openai",
+					model: "m",
+					baseUrl: "https://api.example/v1",
+					translationPrompt: null,
+					summaryPrompt: null,
+					signal: new AbortController().signal,
+				}),
+			).rejects.toThrow(/upstream 500/);
+		} finally {
+			globalThis.fetch = orig;
+		}
+	});
+
+	test("summary non-2xx fails whole translate", async () => {
+		let calls = 0;
+		const orig = globalThis.fetch;
+		globalThis.fetch = (async () => {
+			calls += 1;
+			if (calls === 1) {
+				return new Response(JSON.stringify({ choices: [{ message: { content: "译" } }] }), {
+					status: 200,
+				});
+			}
+			return new Response("nope", { status: 503 });
+		}) as typeof fetch;
+		try {
+			await expect(
+				defaultTranslateFn({
+					text: "hello",
+					apiKey: "k",
+					provider: "openai",
+					model: "m",
+					baseUrl: "https://api.example/v1",
+					translationPrompt: "tr",
+					summaryPrompt: "sum",
+					signal: new AbortController().signal,
+				}),
+			).rejects.toThrow(/summary upstream 503/);
+		} finally {
+			globalThis.fetch = orig;
+		}
+	});
+
+	test("empty summary fails", async () => {
+		let calls = 0;
+		const orig = globalThis.fetch;
+		globalThis.fetch = (async () => {
+			calls += 1;
+			return new Response(
+				JSON.stringify({
+					choices: [{ message: { content: calls === 1 ? "译" : "   " } }],
+				}),
+				{ status: 200 },
+			);
+		}) as typeof fetch;
+		try {
+			await expect(
+				defaultTranslateFn({
+					text: "hello",
+					apiKey: "k",
+					provider: "openai",
+					model: "m",
+					baseUrl: "https://api.example/v1",
+					translationPrompt: null,
+					summaryPrompt: "sum",
+					signal: new AbortController().signal,
+				}),
+			).rejects.toThrow(/empty summary/);
 		} finally {
 			globalThis.fetch = orig;
 		}
@@ -176,5 +271,63 @@ describe("runTranslateBatch persists summary_text", () => {
 			123,
 		);
 		expect(bindsLog[0]).toEqual([123, "t", "s", "u1", 7]);
+	});
+
+	test("markTranslateResult failed path", async () => {
+		let sqlHit = "";
+		const db = {
+			prepare(sql: string) {
+				sqlHit = sql;
+				return {
+					bind() {
+						return this;
+					},
+					async run() {
+						return { meta: { changes: 1 } };
+					},
+				};
+			},
+		} as unknown as D1Database;
+		await markTranslateResult(db, "u1", 1, { ok: false, error: "x" }, 1);
+		expect(sqlHit).toMatch(/failed/);
+	});
+
+	test("selectTranslateCandidates with itemIds and empty", async () => {
+		const db = {
+			prepare() {
+				return {
+					bind() {
+						return this;
+					},
+					async all() {
+						return { results: [{ id: 1, text: "a" }] };
+					},
+				};
+			},
+		} as unknown as D1Database;
+		const rows = await selectTranslateCandidates(db, "u1", 1, {
+			limit: TRANSLATE_MAX,
+			itemIds: [1, 2],
+		});
+		expect(rows).toHaveLength(1);
+		// empty itemIds falls through to status-based select (same mock)
+		const all = await selectTranslateCandidates(db, "u1", 1, { limit: 5 });
+		expect(all).toHaveLength(1);
+	});
+
+	test("resetStalePending returns changes", async () => {
+		const db = {
+			prepare() {
+				return {
+					bind() {
+						return this;
+					},
+					async run() {
+						return { meta: { changes: 3 } };
+					},
+				};
+			},
+		} as unknown as D1Database;
+		expect(await resetStalePending(db, "u1", 1, Date.now())).toBe(3);
 	});
 });
