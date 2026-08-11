@@ -2,6 +2,12 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.1.1
+
+### Added
+- Wire card translate to real api
+- Add worker ai client for translate
+
 ## v2.1.0
 
 ### Added
