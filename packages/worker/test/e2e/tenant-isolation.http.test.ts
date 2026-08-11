@@ -87,7 +87,7 @@ describe("L2 tenant isolation (real HTTP, dual actor)", () => {
 		}
 	});
 
-	test("AI config is per-user (B does not inherit A)", async () => {
+	test("AI + zhe.to secrets are per-user (B does not inherit A)", async () => {
 		const putA = await jsonFetch("/api/ai-config", {
 			method: "PUT",
 			headers: actorHeaders("a"),
@@ -109,7 +109,28 @@ describe("L2 tenant isolation (real HTTP, dual actor)", () => {
 		);
 		expect(cfgB.model === "gpt-actor-a-only").toBe(false);
 		expect(cfgB.hasApiKey === true && cfgB.model === "gpt-actor-a-only").toBe(false);
+
+		// allowlisted local host (ZHETO_WEBHOOK_ALLOW_HOSTS in L2 global-setup)
+		const zheA = await jsonFetch("/api/integrations/zheto", {
+			method: "PUT",
+			headers: actorHeaders("a"),
+			body: JSON.stringify({
+				webhookUrl: "https://localhost/api/webhook/actor-a-secret",
+				folder: "folder-a",
+			}),
+		});
+		expect(zheA.status).toBe(200);
+		const zheAbody = dataOf<{ configured: boolean; folder: string | null }>(zheA.body);
+		expect(zheAbody.configured).toBe(true);
+		expect(zheAbody.folder).toBe("folder-a");
+
+		const zheB = await jsonFetch("/api/integrations/zheto", { headers: actorHeaders("b") });
+		expect(zheB.status).toBe(200);
+		const zheBbody = dataOf<{ configured: boolean; folder: string | null }>(zheB.body);
+		expect(zheBbody.configured).toBe(false);
+		expect(zheBbody.folder).toBeNull();
 	});
+
 
 	test("B cannot revoke A token; B cannot delete A item", async () => {
 		const wlA = await createWatchlistAs("a", `iso-item-${Date.now()}`);
