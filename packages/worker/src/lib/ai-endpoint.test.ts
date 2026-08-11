@@ -29,9 +29,18 @@ describe("resolveAiBaseUrl", () => {
 		expect(resolveAiBaseUrl("https://0.0.0.0/v1").ok).toBe(false);
 		expect(resolveAiBaseUrl("https://169.254.1.1/v1").ok).toBe(false);
 		expect(resolveAiBaseUrl("https://foo.localhost/v1").ok).toBe(false);
+		expect(resolveAiBaseUrl("https://localhost./v1").ok).toBe(false);
+		expect(resolveAiBaseUrl("https://foo.local./v1").ok).toBe(false);
 		expect(resolveAiBaseUrl("https://[fe80::1]/v1").ok).toBe(false);
 		expect(resolveAiBaseUrl("https://[fd12::1]/v1").ok).toBe(false);
+		expect(resolveAiBaseUrl("https://[::ffff:127.0.0.1]/v1").ok).toBe(false);
+		expect(resolveAiBaseUrl("https://[::ffff:7f00:1]/v1").ok).toBe(false);
 		expect(resolveAiBaseUrl("not a url!!!").ok).toBe(false);
+	});
+
+	test("does not false-positive public fc/fd hostnames", () => {
+		expect(resolveAiBaseUrl("https://fc-api.example.com/v1").ok).toBe(true);
+		expect(resolveAiBaseUrl("https://fd.example.com/v1").ok).toBe(true);
 	});
 });
 

@@ -15,6 +15,7 @@ import {
 	createGroup,
 	deleteGroup,
 	deleteGroupMember,
+	GroupCopyLimitError,
 	GroupNotFoundError,
 	getGroup,
 	listGroupMembers,
@@ -212,6 +213,7 @@ export async function copyGroupToWatchlistRoute(c: Context<AppEnv>) {
 		if (e instanceof GroupNotFoundError || e instanceof WatchlistNotFoundError) {
 			return jsonErr(c, "Not found", 404);
 		}
+		if (e instanceof GroupCopyLimitError) return jsonErr(c, e.message, 400);
 		throw e;
 	}
 }

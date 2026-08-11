@@ -225,11 +225,18 @@ export type BulkImportResult = {
 };
 
 /**
- * Multi-row INSERT size: 6 binds/row → 10 rows = 60 binds (D1 ~100 bind budget).
- * One statement per chunk keeps free-tier query budget usable for large imports.
+ * Multi-row INSERT size: 6 binds/row → 15 rows = 90 binds (D1 ~100 bind budget).
+ * Chunks run in a single db.batch() so Free-tier query count stays low and atomic per batch.
  */
-export const GROUP_BULK_ROWS_PER_STMT = 10;
+export const GROUP_BULK_ROWS_PER_STMT = 15;
 export const GROUP_COPY_MAX = 500;
+
+export class GroupCopyLimitError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "GroupCopyLimitError";
+	}
+}
 
 type Seed = {
 	handle: string;
@@ -266,24 +273,34 @@ export async function bulkImportGroupMembers(
 			displayName: s.displayName?.trim() || null,
 		});
 	}
+	const stmts: D1PreparedStatement[] = [];
+	const chunkSizes: number[] = [];
 	for (let i = 0; i < rows.length; i += GROUP_BULK_ROWS_PER_STMT) {
 		const chunk = rows.slice(i, i + GROUP_BULK_ROWS_PER_STMT);
+		chunkSizes.push(chunk.length);
 		const ph = chunk.map(() => "(?, ?, 'x.com', ?, ?, ?, ?)").join(", ");
 		const binds: unknown[] = [];
 		for (const r of chunk) {
 			binds.push(userId, groupId, r.externalAuthorId, r.handle, r.displayName, now);
 		}
-		const result = await db
-			.prepare(
-				`INSERT OR IGNORE INTO group_members
-         (user_id, group_id, source_type, external_author_id, handle, display_name, added_at_ms)
-         VALUES ${ph}`,
-			)
-			.bind(...binds)
-			.run();
-		const ch = result.meta?.changes ?? 0;
-		added += ch;
-		skipped += chunk.length - ch;
+		stmts.push(
+			db
+				.prepare(
+					`INSERT OR IGNORE INTO group_members
+           (user_id, group_id, source_type, external_author_id, handle, display_name, added_at_ms)
+           VALUES ${ph}`,
+				)
+				.bind(...binds),
+		);
+	}
+	if (stmts.length) {
+		const results = await db.batch(stmts);
+		for (let i = 0; i < results.length; i++) {
+			const ch = results[i]?.meta?.changes ?? 0;
+			const sz = chunkSizes[i] ?? 0;
+			added += ch;
+			skipped += sz - ch;
+		}
 	}
 	return { added, skipped, total: seeds.length };
 }
@@ -330,7 +347,7 @@ export async function copyGroupMembersToWatchlist(
 			.first<{ c: number }>();
 		const total = Number(before?.c ?? 0);
 		if (total > GROUP_COPY_MAX) {
-			throw new Error(`group has ${total} members; copy max is ${GROUP_COPY_MAX}`);
+			throw new GroupCopyLimitError(`group has ${total} members; copy max is ${GROUP_COPY_MAX}`);
 		}
 		if (total === 0) return { added: 0, skipped: 0, total: 0 };
 		const result = await db
@@ -352,15 +369,18 @@ export async function copyGroupMembersToWatchlist(
 	members = members.filter((m) => want.has(m.id));
 	if (!members.length) return { added: 0, skipped: 0, total: 0 };
 	if (members.length > GROUP_COPY_MAX) {
-		throw new Error(`memberIds exceeds ${GROUP_COPY_MAX}`);
+		throw new GroupCopyLimitError(`memberIds exceeds ${GROUP_COPY_MAX}`);
 	}
 
 	let added = 0;
 	let skipped = 0;
 	const rows = members.filter((m) => normalizeHandle(m.handle) && isSourceType(m.sourceType));
 	skipped += members.length - rows.length;
+	const stmts: D1PreparedStatement[] = [];
+	const chunkSizes: number[] = [];
 	for (let i = 0; i < rows.length; i += GROUP_BULK_ROWS_PER_STMT) {
 		const chunk = rows.slice(i, i + GROUP_BULK_ROWS_PER_STMT);
+		chunkSizes.push(chunk.length);
 		const ph = chunk.map(() => "(?, ?, ?, ?, ?, ?, NULL, ?)").join(", ");
 		const binds: unknown[] = [];
 		for (const m of chunk) {
@@ -374,17 +394,24 @@ export async function copyGroupMembersToWatchlist(
 				now,
 			);
 		}
-		const result = await db
-			.prepare(
-				`INSERT OR IGNORE INTO watchlist_members
-         (user_id, watchlist_id, source_type, external_author_id, handle, display_name, note, added_at_ms)
-         VALUES ${ph}`,
-			)
-			.bind(...binds)
-			.run();
-		const ch = result.meta?.changes ?? 0;
-		added += ch;
-		skipped += chunk.length - ch;
+		stmts.push(
+			db
+				.prepare(
+					`INSERT OR IGNORE INTO watchlist_members
+           (user_id, watchlist_id, source_type, external_author_id, handle, display_name, note, added_at_ms)
+           VALUES ${ph}`,
+				)
+				.bind(...binds),
+		);
+	}
+	if (stmts.length) {
+		const results = await db.batch(stmts);
+		for (let i = 0; i < results.length; i++) {
+			const ch = results[i]?.meta?.changes ?? 0;
+			const sz = chunkSizes[i] ?? 0;
+			added += ch;
+			skipped += sz - ch;
+		}
 	}
 	return { added, skipped, total: members.length };
 }
