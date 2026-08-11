@@ -1,56 +1,23 @@
-import { useCallback, useEffect, useState } from "react";
-import { fetchZhetoSettings, saveZhetoSettings, type ZhetoSettings } from "@/api/zheto";
+import { useEffect, useMemo } from "react";
+import * as zhetoApi from "@/api/zheto";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { Button } from "@/components/ui/button";
+import { useVm } from "@/viewmodels/use-vm";
+import { createZhetoSettingsVm } from "@/viewmodels/zheto-settings-vm";
 
 export function IntegrationsZhetoPage() {
 	const { setBreadcrumbs } = useBreadcrumbs();
-	const [settings, setSettings] = useState<ZhetoSettings | null>(null);
-	const [webhookUrl, setWebhookUrl] = useState("");
-	const [folder, setFolder] = useState("");
-	const [error, setError] = useState<string | null>(null);
-	const [saved, setSaved] = useState(false);
-	const [loading, setLoading] = useState(true);
+	const vm = useMemo(() => createZhetoSettingsVm(zhetoApi), []);
+	const { settings, webhookUrl, folder, error, saved, loading } = useVm(vm);
 
 	useEffect(() => {
 		setBreadcrumbs([{ label: "Integrations" }, { label: "zhe.to" }]);
 		return () => setBreadcrumbs([]);
 	}, [setBreadcrumbs]);
 
-	const load = useCallback(async () => {
-		setLoading(true);
-		setError(null);
-		try {
-			const s = await fetchZhetoSettings();
-			setSettings(s);
-			setFolder(s.folder ?? "");
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
 	useEffect(() => {
-		void load();
-	}, [load]);
-
-	const onSave = async (e: React.FormEvent) => {
-		e.preventDefault();
-		setError(null);
-		setSaved(false);
-		try {
-			const s = await saveZhetoSettings({
-				webhookUrl: webhookUrl || undefined,
-				folder: folder || null,
-			});
-			setSettings(s);
-			setWebhookUrl("");
-			setSaved(true);
-		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err));
-		}
-	};
+		void vm.load();
+	}, [vm]);
 
 	return (
 		<div className="space-y-3">
@@ -65,13 +32,19 @@ export function IntegrationsZhetoPage() {
 				Status:{" "}
 				{settings?.configured ? `configured (${settings.webhookUrlMasked})` : "not configured"}
 			</div>
-			<form className="max-w-lg space-y-3" onSubmit={(ev) => void onSave(ev)}>
+			<form
+				className="max-w-lg space-y-3"
+				onSubmit={(ev) => {
+					ev.preventDefault();
+					void vm.save();
+				}}
+			>
 				<label className="block text-sm">
 					<span className="text-muted-foreground">Webhook URL</span>
 					<input
 						className="mt-1 w-full rounded-md border border-border bg-secondary px-3 py-2"
 						value={webhookUrl}
-						onChange={(e) => setWebhookUrl(e.target.value)}
+						onChange={(e) => vm.setWebhookUrl(e.target.value)}
 						placeholder={
 							settings?.configured ? "leave blank to keep" : "https://zhe.to/api/webhook/…"
 						}
@@ -83,7 +56,7 @@ export function IntegrationsZhetoPage() {
 					<input
 						className="mt-1 w-full rounded-md border border-border bg-secondary px-3 py-2"
 						value={folder}
-						onChange={(e) => setFolder(e.target.value)}
+						onChange={(e) => vm.setFolder(e.target.value)}
 						maxLength={50}
 					/>
 				</label>

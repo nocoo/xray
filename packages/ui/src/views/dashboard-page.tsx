@@ -1,45 +1,24 @@
-import { useCallback, useEffect, useState } from "react";
-import { type DashboardAggregates, fetchDashboard } from "@/api/dashboard";
+import { useEffect, useMemo } from "react";
+import * as dashboardApi from "@/api/dashboard";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
+import { createDashboardVm } from "@/viewmodels/dashboard-vm";
+import { useVm } from "@/viewmodels/use-vm";
 
 export function DashboardPage() {
 	const { setBreadcrumbs } = useBreadcrumbs();
-	const [data, setData] = useState<DashboardAggregates | null>(null);
-	const [error, setError] = useState<string | null>(null);
-	const [loading, setLoading] = useState(true);
+	const vm = useMemo(() => createDashboardVm(dashboardApi), []);
+	const { data, error, loading } = useVm(vm);
+	const cards = vm.cards();
+	const logs = data?.recentIngestLogs ?? [];
 
 	useEffect(() => {
 		setBreadcrumbs([]);
 		return () => setBreadcrumbs([]);
 	}, [setBreadcrumbs]);
 
-	const load = useCallback(async () => {
-		setLoading(true);
-		setError(null);
-		try {
-			setData(await fetchDashboard());
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
 	useEffect(() => {
-		void load();
-	}, [load]);
-
-	const cards = data
-		? [
-				{ label: "Watchlists", value: data.watchlistCount },
-				{ label: "Groups", value: data.groupCount },
-				{ label: "Members", value: data.memberCount },
-				{ label: "Items (24h)", value: data.items24h },
-				{ label: "Pending AI", value: data.pendingAi },
-			]
-		: [];
-
-	const logs = data?.recentIngestLogs ?? [];
+		void vm.load();
+	}, [vm]);
 
 	return (
 		<div className="space-y-4">

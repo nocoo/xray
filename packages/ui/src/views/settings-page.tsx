@@ -1,52 +1,24 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { Link } from "react-router";
-import { fetchSettings, patchSettings } from "@/api/settings";
+import * as settingsApi from "@/api/settings";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { Button } from "@/components/ui/button";
+import { createSettingsVm } from "@/viewmodels/settings-vm";
+import { useVm } from "@/viewmodels/use-vm";
 
 export function SettingsPage() {
 	const { setBreadcrumbs } = useBreadcrumbs();
-	const [email, setEmail] = useState<string>("");
-	const [windowHours, setWindowHours] = useState(24);
-	const [error, setError] = useState<string | null>(null);
-	const [saved, setSaved] = useState(false);
-	const [loading, setLoading] = useState(true);
+	const vm = useMemo(() => createSettingsVm(settingsApi), []);
+	const { email, windowHours, error, saved, loading } = useVm(vm);
 
 	useEffect(() => {
 		setBreadcrumbs([{ label: "Settings" }]);
 		return () => setBreadcrumbs([]);
 	}, [setBreadcrumbs]);
 
-	const load = useCallback(async () => {
-		setLoading(true);
-		setError(null);
-		try {
-			const s = await fetchSettings();
-			setEmail(s.email);
-			setWindowHours(s.ingest.windowHours);
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
 	useEffect(() => {
-		void load();
-	}, [load]);
-
-	const onSave = async (e: React.FormEvent) => {
-		e.preventDefault();
-		setError(null);
-		setSaved(false);
-		try {
-			const s = await patchSettings(windowHours);
-			setWindowHours(s.ingest.windowHours);
-			setSaved(true);
-		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err));
-		}
-	};
+		void vm.load();
+	}, [vm]);
 
 	return (
 		<div className="space-y-4">
@@ -59,7 +31,13 @@ export function SettingsPage() {
 					Signed in as <span className="text-foreground">{email}</span>
 				</p>
 			)}
-			<form className="max-w-sm space-y-3" onSubmit={(ev) => void onSave(ev)}>
+			<form
+				className="max-w-sm space-y-3"
+				onSubmit={(ev) => {
+					ev.preventDefault();
+					void vm.save();
+				}}
+			>
 				<label className="block text-sm">
 					<span className="text-muted-foreground">Ingest window hours (1–168)</span>
 					<input
@@ -68,7 +46,7 @@ export function SettingsPage() {
 						max={168}
 						className="mt-1 w-full rounded-md border border-border bg-secondary px-3 py-2"
 						value={windowHours}
-						onChange={(e) => setWindowHours(Number(e.target.value))}
+						onChange={(e) => vm.setWindowHours(Number(e.target.value))}
 					/>
 				</label>
 				<Button type="submit" size="sm">

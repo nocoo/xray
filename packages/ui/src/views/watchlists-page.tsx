@@ -1,11 +1,13 @@
 import { Brain, Eye, Plus, Server, TrendingUp } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router";
-import { fetchWatchlists, type Watchlist } from "@/api/watchlists";
+import * as watchlistsApi from "@/api/watchlists";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { Button } from "@/components/ui/button";
 import { cn, getAvatarColor } from "@/lib/utils";
+import { useVm } from "@/viewmodels/use-vm";
+import { createWatchlistsVm } from "@/viewmodels/watchlists-vm";
 
 const ICONS: Record<string, typeof Eye> = {
 	brain: Brain,
@@ -18,31 +20,18 @@ export function WatchlistsPage() {
 	const { setBreadcrumbs } = useBreadcrumbs();
 	const { openCreateWatchlist, listVersion } = useCreateDialogs();
 	const [searchParams, setSearchParams] = useSearchParams();
-	const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	const vm = useMemo(() => createWatchlistsVm(watchlistsApi), []);
+	const { watchlists, loading, error } = useVm(vm);
 
 	useEffect(() => {
 		setBreadcrumbs([{ label: "Watchlists" }]);
 		return () => setBreadcrumbs([]);
 	}, [setBreadcrumbs]);
 
-	const load = useCallback(async () => {
-		setLoading(true);
-		setError(null);
-		try {
-			setWatchlists(await fetchWatchlists());
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
 	useEffect(() => {
 		void listVersion;
-		void load();
-	}, [load, listVersion]);
+		void vm.load();
+	}, [vm, listVersion]);
 
 	useEffect(() => {
 		if (searchParams.get("new") === "1") {

@@ -1,56 +1,39 @@
 import { Copy, Plus, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { fetchPushTokens, type PushToken, revokePushToken } from "@/api/tokens";
+import { useEffect, useMemo } from "react";
+import * as tokensApi from "@/api/tokens";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { Button } from "@/components/ui/button";
+import { createTokensVm } from "@/viewmodels/tokens-vm";
+import { useVm } from "@/viewmodels/use-vm";
 
 export function TokensPage() {
 	const { setBreadcrumbs } = useBreadcrumbs();
 	const { openCreateToken } = useCreateDialogs();
-	const [tokens, setTokens] = useState<PushToken[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-	const [onceSecret, setOnceSecret] = useState<string | null>(null);
+	const vm = useMemo(() => createTokensVm(tokensApi), []);
+	const { tokens, loading, error, onceSecret } = useVm(vm);
 
 	useEffect(() => {
 		setBreadcrumbs([{ label: "Settings", href: "/settings" }, { label: "Push tokens" }]);
 		return () => setBreadcrumbs([]);
 	}, [setBreadcrumbs]);
 
-	const load = useCallback(async () => {
-		setLoading(true);
-		setError(null);
-		try {
-			setTokens(await fetchPushTokens());
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
 	useEffect(() => {
-		void load();
-	}, [load]);
+		void vm.load();
+	}, [vm]);
 
 	const onCreate = () => {
 		openCreateToken({
 			onCreated: (plaintext) => {
-				if (plaintext) setOnceSecret(plaintext);
-				void load();
+				if (plaintext) vm.setOnceSecret(plaintext);
+				void vm.load();
 			},
 		});
 	};
 
 	const onRevoke = async (id: number) => {
 		if (!window.confirm("Revoke this token?")) return;
-		try {
-			await revokePushToken(id);
-			await load();
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		}
+		await vm.revoke(id);
 	};
 
 	return (
@@ -99,7 +82,7 @@ export function TokensPage() {
 						size="xs"
 						variant="ghost"
 						type="button"
-						onClick={() => setOnceSecret(null)}
+						onClick={() => vm.setOnceSecret(null)}
 					>
 						Dismiss
 					</Button>

@@ -1,45 +1,38 @@
 import { Plus, Trash2, Users } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
-import {
-	bulkImportGroupMembers,
-	copyGroupToWatchlist,
-	deleteGroup,
-	deleteGroupMember,
-	fetchGroupMembers,
-	fetchGroups,
-	type Group,
-	type GroupMember,
-	updateGroup,
-} from "@/api/groups";
-import { fetchWatchlists, type Watchlist } from "@/api/watchlists";
+import type { Group } from "@/api/groups";
+import * as groupsApi from "@/api/groups";
+import * as watchlistsApi from "@/api/watchlists";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { RenameDialog } from "@/components/dialogs/rename-dialog";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn, getAvatarColor } from "@/lib/utils";
+import { createGroupsVm } from "@/viewmodels/groups-vm";
+import { useVm } from "@/viewmodels/use-vm";
 
 export function GroupsPage() {
 	const { setBreadcrumbs } = useBreadcrumbs();
 	const { openCreateGroup, openAddMember, listVersion, notifyListsChanged } = useCreateDialogs();
 	const [searchParams, setSearchParams] = useSearchParams();
-	const [groups, setGroups] = useState<Group[]>([]);
-	const [selectedId, setSelectedId] = useState<number | null>(() => {
-		const raw = searchParams.get("id");
-		const n = raw ? Number(raw) : NaN;
-		return Number.isFinite(n) ? n : null;
-	});
-	const [members, setMembers] = useState<GroupMember[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	const vm = useMemo(
+		() =>
+			createGroupsVm({
+				fetchGroups: groupsApi.fetchGroups,
+				fetchWatchlists: watchlistsApi.fetchWatchlists,
+				fetchGroupMembers: groupsApi.fetchGroupMembers,
+				deleteGroup: groupsApi.deleteGroup,
+				updateGroup: groupsApi.updateGroup,
+				deleteGroupMember: groupsApi.deleteGroupMember,
+				bulkImportGroupMembers: groupsApi.bulkImportGroupMembers,
+				copyGroupToWatchlist: groupsApi.copyGroupToWatchlist,
+			}),
+		[],
+	);
+	const s = useVm(vm);
 	const [renameTarget, setRenameTarget] = useState<Group | null>(null);
-	const [importText, setImportText] = useState("");
-	const [importBusy, setImportBusy] = useState(false);
-	const [importInfo, setImportInfo] = useState<string | null>(null);
-	const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
-	const [copyWlId, setCopyWlId] = useState<number | "">("");
-	const [copyBusy, setCopyBusy] = useState(false);
 
 	useEffect(() => {
 		setBreadcrumbs([{ label: "Groups" }]);
@@ -49,122 +42,63 @@ export function GroupsPage() {
 	useEffect(() => {
 		const raw = searchParams.get("id");
 		const n = raw ? Number(raw) : NaN;
-		setSelectedId(Number.isFinite(n) ? n : null);
+		const id = Number.isFinite(n) ? n : null;
+		if (id !== s.selectedId) vm.selectGroup(id);
 		if (searchParams.get("new") === "1") {
 			openCreateGroup();
 			const next = new URLSearchParams(searchParams);
 			next.delete("new");
 			setSearchParams(next, { replace: true });
 		}
-	}, [searchParams, setSearchParams, openCreateGroup]);
+	}, [searchParams, setSearchParams, openCreateGroup, vm, s.selectedId]);
 
 	const selectGroup = (id: number | null) => {
-		setSelectedId(id);
+		vm.selectGroup(id);
 		if (id == null) setSearchParams({}, { replace: true });
 		else setSearchParams({ id: String(id) }, { replace: true });
 	};
 
-	const load = useCallback(async () => {
-		setLoading(true);
-		setError(null);
-		try {
-			const [gs, wls] = await Promise.all([fetchGroups(), fetchWatchlists()]);
-			setGroups(gs);
-			setWatchlists(wls);
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
 	useEffect(() => {
 		void listVersion;
-		void load();
-	}, [load, listVersion]);
-
-	const loadMembers = useCallback(async (id: number) => {
-		try {
-			setMembers(await fetchGroupMembers(id));
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		}
-	}, []);
+		void vm.load();
+	}, [vm, listVersion]);
 
 	useEffect(() => {
-		if (selectedId != null) void loadMembers(selectedId);
-		else setMembers([]);
-	}, [selectedId, loadMembers]);
+		if (s.selectedId != null) void vm.loadMembers(s.selectedId);
+	}, [s.selectedId, vm]);
 
 	const onDelete = async (g: Group) => {
 		if (!window.confirm(`Delete group “${g.name}”?`)) return;
-		try {
-			await deleteGroup(g.id);
-			if (selectedId === g.id) selectGroup(null);
-			await load();
+		const ok = await vm.deleteGroup(g);
+		if (ok) {
+			if (s.selectedId === g.id) selectGroup(null);
 			notifyListsChanged();
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
 		}
 	};
 
 	const onImport = async () => {
-		if (selectedId == null || !importText.trim()) return;
-		setImportBusy(true);
-		setImportInfo(null);
-		setError(null);
-		try {
-			const r = await bulkImportGroupMembers(selectedId, importText);
-			setImportInfo(`Imported ${r.added}, skipped ${r.skipped} (of ${r.total})`);
-			setImportText("");
-			await loadMembers(selectedId);
-			await load();
-			notifyListsChanged();
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		} finally {
-			setImportBusy(false);
-		}
+		await vm.importMembers();
+		notifyListsChanged();
 	};
 
 	const onCopyToWl = async () => {
-		if (selectedId == null || copyWlId === "") return;
-		setCopyBusy(true);
-		setError(null);
-		try {
-			const r = await copyGroupToWatchlist(selectedId, { watchlistId: Number(copyWlId) });
-			setImportInfo(`Copied ${r.added} to watchlist, skipped ${r.skipped}`);
-			notifyListsChanged();
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		} finally {
-			setCopyBusy(false);
-		}
+		await vm.copyToWatchlist();
+		notifyListsChanged();
 	};
 
 	const onAddMember = () => {
-		if (selectedId == null) return;
-		const g = groups.find((x) => x.id === selectedId);
+		if (s.selectedId == null) return;
+		const g = s.groups.find((x) => x.id === s.selectedId);
 		openAddMember(
-			{ kind: "group", id: selectedId, name: g?.name },
+			{ kind: "group", id: s.selectedId, name: g?.name },
 			{
 				onAdded: () => {
-					void loadMembers(selectedId);
-					void load();
+					const id = s.selectedId;
+					if (id != null) void vm.loadMembers(id);
+					void vm.load();
 				},
 			},
 		);
-	};
-
-	const onRemoveMember = async (memberId: number) => {
-		if (selectedId == null) return;
-		try {
-			await deleteGroupMember(selectedId, memberId);
-			await loadMembers(selectedId);
-			await load();
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		}
 	};
 
 	return (
@@ -181,9 +115,9 @@ export function GroupsPage() {
 					New Group
 				</Button>
 			</div>
-			{loading && <p className="text-sm text-muted-foreground">Loading…</p>}
-			{error && <p className="text-sm text-destructive">{error}</p>}
-			{!loading && groups.length === 0 && !error && (
+			{s.loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+			{s.error && <p className="text-sm text-destructive">{s.error}</p>}
+			{!s.loading && s.groups.length === 0 && !s.error && (
 				<div className="rounded-card bg-secondary p-10 text-center">
 					<p className="text-sm font-medium">No groups yet.</p>
 					<p className="mt-1 text-xs text-muted-foreground">
@@ -196,14 +130,14 @@ export function GroupsPage() {
 				</div>
 			)}
 			<ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-				{groups.map((g) => (
+				{s.groups.map((g) => (
 					<li key={g.id}>
 						<button
 							type="button"
 							onClick={() => selectGroup(g.id)}
 							className={cn(
 								"flex w-full items-center gap-3 rounded-card bg-secondary p-4 text-left",
-								selectedId === g.id && "ring-2 ring-primary",
+								s.selectedId === g.id && "ring-2 ring-primary",
 							)}
 						>
 							<div
@@ -249,13 +183,12 @@ export function GroupsPage() {
 				initialName={renameTarget?.name ?? ""}
 				onSubmit={async (name) => {
 					if (!renameTarget) return;
-					await updateGroup(renameTarget.id, { name });
-					await load();
+					await vm.rename(renameTarget.id, name);
 					notifyListsChanged();
 				}}
 			/>
 
-			{selectedId != null && (
+			{s.selectedId != null && (
 				<div className="space-y-4 rounded-card border border-border p-4">
 					<div className="flex items-center justify-between">
 						<h2 className="text-sm font-medium">Members</h2>
@@ -264,11 +197,11 @@ export function GroupsPage() {
 							Add
 						</Button>
 					</div>
-					{members.length === 0 ? (
+					{s.members.length === 0 ? (
 						<p className="text-sm text-muted-foreground">No members in this group.</p>
 					) : (
 						<ul className="space-y-2">
-							{members.map((m) => (
+							{s.members.map((m) => (
 								<li
 									key={m.id}
 									className="flex items-center justify-between rounded-md bg-secondary px-3 py-2 text-sm"
@@ -279,7 +212,7 @@ export function GroupsPage() {
 									<button
 										type="button"
 										className="text-muted-foreground hover:text-destructive"
-										onClick={() => void onRemoveMember(m.id)}
+										onClick={() => void vm.removeMember(m.id)}
 										title="Remove"
 									>
 										<Trash2 className="h-3.5 w-3.5" />
@@ -294,8 +227,8 @@ export function GroupsPage() {
 							Bulk import (@handles / export with screen_name)
 						</p>
 						<Textarea
-							value={importText}
-							onChange={(e) => setImportText(e.target.value)}
+							value={s.importText}
+							onChange={(e) => vm.setImportText(e.target.value)}
 							placeholder={"Paste Twitter export following.js, or one @handle per line"}
 							rows={4}
 							className="font-mono text-xs"
@@ -303,10 +236,10 @@ export function GroupsPage() {
 						<Button
 							size="sm"
 							type="button"
-							disabled={importBusy || !importText.trim()}
+							disabled={s.importBusy || !s.importText.trim()}
 							onClick={() => void onImport()}
 						>
-							{importBusy ? "Importing…" : "Import members"}
+							{s.importBusy ? "Importing…" : "Import members"}
 						</Button>
 					</div>
 
@@ -315,11 +248,11 @@ export function GroupsPage() {
 							<p className="text-xs font-medium text-muted-foreground">Copy into watchlist</p>
 							<select
 								className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-								value={copyWlId === "" ? "" : String(copyWlId)}
-								onChange={(e) => setCopyWlId(e.target.value ? Number(e.target.value) : "")}
+								value={s.copyWlId === "" ? "" : String(s.copyWlId)}
+								onChange={(e) => vm.setCopyWlId(e.target.value ? Number(e.target.value) : "")}
 							>
 								<option value="">Select watchlist…</option>
-								{watchlists.map((w) => (
+								{s.watchlists.map((w) => (
 									<option key={w.id} value={w.id}>
 										{w.name}
 									</option>
@@ -329,13 +262,13 @@ export function GroupsPage() {
 						<Button
 							size="sm"
 							type="button"
-							disabled={copyBusy || copyWlId === "" || members.length === 0}
+							disabled={s.copyBusy || s.copyWlId === "" || s.members.length === 0}
 							onClick={() => void onCopyToWl()}
 						>
-							{copyBusy ? "Copying…" : "Copy members"}
+							{s.copyBusy ? "Copying…" : "Copy members"}
 						</Button>
 					</div>
-					{importInfo && <p className="text-xs text-muted-foreground">{importInfo}</p>}
+					{s.importInfo && <p className="text-xs text-muted-foreground">{s.importInfo}</p>}
 				</div>
 			)}
 		</div>
