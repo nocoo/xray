@@ -16,7 +16,11 @@ let jwksCacheTeamDomain: string | null = null;
 /** Injectable for tests (S23-05). */
 export type JwtVerifier = (token: string, teamDomain: string, aud: string) => Promise<JWTPayload>;
 
-let jwtVerifier: JwtVerifier = async (token, teamDomain, aud) => {
+async function defaultJwtVerifier(
+	token: string,
+	teamDomain: string,
+	aud: string,
+): Promise<JWTPayload> {
 	if (!(jwksCache && jwksCacheTeamDomain === teamDomain)) {
 		jwksCache = createRemoteJWKSet(new URL(`https://${teamDomain}/cdn-cgi/access/certs`));
 		jwksCacheTeamDomain = teamDomain;
@@ -26,26 +30,14 @@ let jwtVerifier: JwtVerifier = async (token, teamDomain, aud) => {
 		audience: aud,
 	});
 	return payload;
-};
+}
+
+let jwtVerifier: JwtVerifier = defaultJwtVerifier;
 
 export function setJwtVerifierForTests(fn: JwtVerifier | null) {
 	jwksCache = null;
 	jwksCacheTeamDomain = null;
-	if (fn) {
-		jwtVerifier = fn;
-	} else {
-		jwtVerifier = async (token, teamDomain, aud) => {
-			if (!(jwksCache && jwksCacheTeamDomain === teamDomain)) {
-				jwksCache = createRemoteJWKSet(new URL(`https://${teamDomain}/cdn-cgi/access/certs`));
-				jwksCacheTeamDomain = teamDomain;
-			}
-			const { payload } = await jwtVerify(token, jwksCache, {
-				issuer: `https://${teamDomain}`,
-				audience: aud,
-			});
-			return payload;
-		};
-	}
+	jwtVerifier = fn ?? defaultJwtVerifier;
 }
 
 async function resolveIdentity(
