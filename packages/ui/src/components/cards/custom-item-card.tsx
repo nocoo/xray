@@ -27,7 +27,7 @@ export type CustomItemCardProps = {
 		translatedText: string;
 		summaryText?: string | null;
 	};
-	onTranslated?: () => void;
+	onTranslated?: (result: { translatedText: string; summaryText?: string | null }) => void;
 };
 
 /** Custom / push item card — source_type=custom, distinct from x.com tweet cards. */
@@ -104,7 +104,10 @@ export function CustomItemCard({
 			setTranslatedText(row.translatedText);
 			setSummaryText(row.summaryText ?? null);
 			setLang("zh");
-			onTranslated?.();
+			onTranslated?.({
+				translatedText: row.translatedText,
+				summaryText: row.summaryText ?? null,
+			});
 		} catch (e) {
 			setTranslateError(e instanceof Error ? e.message : String(e));
 		} finally {

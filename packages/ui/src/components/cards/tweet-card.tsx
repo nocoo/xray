@@ -61,8 +61,8 @@ export interface TweetCardProps {
 	 */
 	watchlistId?: number;
 	itemId?: number;
-	/** Optional hook after successful server translate (e.g. parent reload) */
-	onTranslated?: () => void;
+	/** After successful translate — parent should patch item in place (no full-page reload). */
+	onTranslated?: (result: { translatedText: string; summaryText?: string | null }) => void;
 }
 
 export const TweetCard = memo(function TweetCard({
@@ -160,7 +160,10 @@ export const TweetCard = memo(function TweetCard({
 			setCommentText(row.summaryText ?? null);
 			setQuotedTranslatedText(null);
 			setLang("zh");
-			onTranslated?.();
+			onTranslated?.({
+				translatedText: row.translatedText,
+				summaryText: row.summaryText ?? null,
+			});
 		} catch (e) {
 			setTranslateError(e instanceof Error ? e.message : String(e));
 		} finally {

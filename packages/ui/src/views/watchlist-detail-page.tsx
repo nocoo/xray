@@ -110,36 +110,58 @@ export function WatchlistDetailPage() {
 
 	const columnCount = useColumns();
 
-	const load = useCallback(async () => {
-		if (!Number.isInteger(watchlistId) || watchlistId <= 0) {
-			setError("invalid watchlist");
-			setLoading(false);
-			return;
-		}
-		setLoading(true);
-		setError(null);
-		try {
-			const itemOpts =
-				sourceFilter === "all"
-					? { limit: 50 }
-					: { limit: 50, source_type: sourceFilter as SourceType };
-			const [w, m, it, logRows] = await Promise.all([
-				fetchWatchlist(watchlistId),
-				fetchMembers(watchlistId),
-				fetchItems(watchlistId, itemOpts),
-				fetchWatchlistIngestLogs(watchlistId, 15),
-			]);
-			setWl(w);
-			setMembers(m);
-			setItems(it.items);
-			setNextCursor(it.next_cursor);
-			setLogs(logRows);
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
-		} finally {
-			setLoading(false);
-		}
-	}, [watchlistId, sourceFilter]);
+	const load = useCallback(
+		async (opts?: { silent?: boolean }) => {
+			if (!Number.isInteger(watchlistId) || watchlistId <= 0) {
+				setError("invalid watchlist");
+				setLoading(false);
+				return;
+			}
+			// silent: keep posts mounted (per-card translate / batch) — avoid flash to logs only
+			if (!opts?.silent) setLoading(true);
+			setError(null);
+			try {
+				const itemOpts =
+					sourceFilter === "all"
+						? { limit: 50 }
+						: { limit: 50, source_type: sourceFilter as SourceType };
+				const [w, m, it, logRows] = await Promise.all([
+					fetchWatchlist(watchlistId),
+					fetchMembers(watchlistId),
+					fetchItems(watchlistId, itemOpts),
+					fetchWatchlistIngestLogs(watchlistId, 15),
+				]);
+				setWl(w);
+				setMembers(m);
+				setItems(it.items);
+				setNextCursor(it.next_cursor);
+				setLogs(logRows);
+			} catch (e) {
+				setError(e instanceof Error ? e.message : String(e));
+			} finally {
+				if (!opts?.silent) setLoading(false);
+			}
+		},
+		[watchlistId, sourceFilter],
+	);
+
+	/** Patch one item after card-level translate — no list unmount. */
+	const onItemTranslated = useCallback(
+		(itemId: number, patch: { translatedText: string; summaryText?: string | null }) => {
+			setItems((prev) =>
+				prev.map((it) =>
+					it.id === itemId
+						? {
+								...it,
+								translatedText: patch.translatedText,
+								summaryText: patch.summaryText ?? null,
+							}
+						: it,
+				),
+			);
+		},
+		[],
+	);
 
 	const loadMore = useCallback(async () => {
 		if (!nextCursor || loadingMore) return;
@@ -214,7 +236,7 @@ export function WatchlistDetailPage() {
 		setError(null);
 		try {
 			const r = await translateWatchlist(watchlistId, { limit: 20 });
-			await load();
+			await load({ silent: true });
 			if (r.timed_out) setError("Translate timed out (partial results applied)");
 		} catch (e) {
 			setError(e instanceof Error ? e.message : String(e));
@@ -376,7 +398,7 @@ export function WatchlistDetailPage() {
 																}
 															: undefined
 													}
-													onTranslated={() => void load()}
+													onTranslated={(result) => onItemTranslated(item.id, result)}
 												/>
 											</div>
 										) : (
@@ -399,7 +421,7 @@ export function WatchlistDetailPage() {
 																		}
 																	: undefined
 															}
-															onTranslated={() => void load()}
+															onTranslated={(result) => onItemTranslated(item.id, result)}
 														/>
 													);
 												})()}

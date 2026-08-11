@@ -13,7 +13,7 @@ export const WatchlistPostCard = memo(function WatchlistPostCard({
 	post: MockPost;
 	watchlistId?: number;
 	onRemove?: (postId: number) => void;
-	onTranslated?: () => void;
+	onTranslated?: (result: { translatedText: string; summaryText?: string | null }) => void;
 }) {
 	if (post.sourceType === "custom") {
 		return (
@@ -44,7 +44,7 @@ const XTimelineCard = memo(function XTimelineCard({
 	post: MockXPost;
 	watchlistId?: number;
 	onRemove?: (postId: number) => void;
-	onTranslated?: () => void;
+	onTranslated?: (result: { translatedText: string; summaryText?: string | null }) => void;
 }) {
 	const [translatedText, setTranslatedText] = useState(post.translatedText);
 	const [commentText, setCommentText] = useState(post.commentText);
@@ -113,7 +113,10 @@ const XTimelineCard = memo(function XTimelineCard({
 			setQuotedTranslatedText(null);
 			setTranslationError(null);
 			setRetryKey((k) => k + 1);
-			onTranslated?.();
+			onTranslated?.({
+				translatedText: row.translatedText,
+				summaryText: row.summaryText ?? null,
+			});
 		} catch (e) {
 			setTranslationError(e instanceof Error ? e.message : String(e));
 		} finally {
@@ -201,7 +204,7 @@ const CustomTimelineCard = memo(function CustomTimelineCard({
 	post: MockCustomPost;
 	watchlistId?: number;
 	onRemove?: (postId: number) => void;
-	onTranslated?: () => void;
+	onTranslated?: (result: { translatedText: string; summaryText?: string | null }) => void;
 }) {
 	return (
 		<div
