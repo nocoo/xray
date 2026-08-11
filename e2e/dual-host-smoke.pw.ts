@@ -1,5 +1,4 @@
 import { expect, test } from "@playwright/test";
-import { BROWSER as H_BROWSER, WORKER as H_WORKER, INGEST as H_INGEST, requireWorker } from "./helpers";
 
 /**
  * Dual-host smoke (docs/06 / plan M8).

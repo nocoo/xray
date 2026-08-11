@@ -61,14 +61,26 @@ async function resolveIdentity(
 				error: "AUTH_DEV_BYPASS forbidden outside development/test",
 			};
 		}
+		// L2 dual-tenant: X-Test-Actor: a|b (test/development only)
+		const actor = (c.req.header("x-test-actor") || "a").toLowerCase();
+		const identity =
+			actor === "b"
+				? {
+						email: "dev-b@xray.local",
+						name: "Dev User B",
+						image: null as string | null,
+						accessIss: DEV_BYPASS_IDENTITY.accessIss,
+						accessSub: "dev-bypass-sub-b",
+					}
+				: {
+						email: DEV_BYPASS_IDENTITY.email,
+						name: DEV_BYPASS_IDENTITY.name,
+						image: DEV_BYPASS_IDENTITY.image,
+						accessIss: DEV_BYPASS_IDENTITY.accessIss,
+						accessSub: DEV_BYPASS_IDENTITY.accessSub,
+					};
 		try {
-			const user = await upsertUserByAccess(env.DB, {
-				email: DEV_BYPASS_IDENTITY.email,
-				name: DEV_BYPASS_IDENTITY.name,
-				image: DEV_BYPASS_IDENTITY.image,
-				accessIss: DEV_BYPASS_IDENTITY.accessIss,
-				accessSub: DEV_BYPASS_IDENTITY.accessSub,
-			});
+			const user = await upsertUserByAccess(env.DB, identity);
 			return { ok: true, user };
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e);

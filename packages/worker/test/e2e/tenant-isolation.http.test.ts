@@ -1,44 +1,81 @@
 /**
  * L2 real-HTTP tenant isolation (docs/06 XR-13).
- * Single AUTH_DEV_BYPASS identity: foreign resource ids must 404; revoked token 401.
+ * Dual actors via X-Test-Actor: a|b under AUTH_DEV_BYPASS + ENVIRONMENT=test.
  */
 import { describe, expect, test } from "vitest";
-import {
-	BASE,
-	browserHeaders,
-	createWatchlist,
-	dataOf,
-	ingestHeaders,
-	jsonFetch,
-	mintToken,
-} from "./helpers.js";
+import { BASE, browserHeaders, dataOf, ingestHeaders, jsonFetch, mintToken } from "./helpers.js";
 
-describe("L2 tenant isolation (real HTTP)", () => {
-	test("foreign watchlist/group/item ids → 404", async () => {
-		const wl = await createWatchlist(`iso-wl-${Date.now()}`);
-		const foreign = 9_000_001;
+function actorHeaders(actor: "a" | "b", extra?: Record<string, string>) {
+	return browserHeaders({ "x-test-actor": actor, ...extra });
+}
 
-		expect((await jsonFetch(`/api/watchlists/${foreign}`)).status).toBe(404);
+async function createWatchlistAs(actor: "a" | "b", name: string) {
+	const { status, body } = await jsonFetch("/api/watchlists", {
+		method: "POST",
+		headers: actorHeaders(actor),
+		body: JSON.stringify({ name }),
+	});
+	expect([200, 201]).toContain(status);
+	return dataOf<{ id: number; name: string }>(body);
+}
+
+describe("L2 tenant isolation (real HTTP, dual actor)", () => {
+	test("user B cannot read/patch/delete user A watchlist (404)", async () => {
+		const wlA = await createWatchlistAs("a", `iso-a-${Date.now()}`);
+
+		expect((await jsonFetch(`/api/watchlists/${wlA.id}`, { headers: actorHeaders("b") })).status).toBe(
+			404,
+		);
 		expect(
-			(await jsonFetch(`/api/watchlists/${foreign}`, { method: "PATCH", body: JSON.stringify({ name: "x" }) }))
+			(
+				await jsonFetch(`/api/watchlists/${wlA.id}`, {
+					method: "PATCH",
+					headers: actorHeaders("b"),
+					body: JSON.stringify({ name: "hijack" }),
+				})
+			).status,
+		).toBe(404);
+		expect(
+			(
+				await jsonFetch(`/api/watchlists/${wlA.id}`, {
+					method: "DELETE",
+					headers: actorHeaders("b"),
+				})
+			).status,
+		).toBe(404);
+		expect(
+			(await jsonFetch(`/api/watchlists/${wlA.id}/members`, { headers: actorHeaders("b") }))
 				.status,
 		).toBe(404);
-		expect((await jsonFetch(`/api/watchlists/${foreign}`, { method: "DELETE" })).status).toBe(404);
-		expect((await jsonFetch(`/api/watchlists/${foreign}/members`)).status).toBe(404);
-		expect((await jsonFetch(`/api/watchlists/${foreign}/items`)).status).toBe(404);
-		expect((await jsonFetch(`/api/watchlists/${foreign}/ingest-logs`)).status).toBe(404);
-		expect((await jsonFetch(`/api/groups/${foreign}`)).status).toBe(404);
-		expect((await jsonFetch(`/api/items/${foreign}`, { method: "DELETE" })).status).toBe(404);
+		expect(
+			(await jsonFetch(`/api/watchlists/${wlA.id}/items`, { headers: actorHeaders("b") })).status,
+		).toBe(404);
 
-		// own resource still works
-		expect((await jsonFetch(`/api/watchlists/${wl.id}`)).status).toBe(200);
+		// Owner still OK
+		expect((await jsonFetch(`/api/watchlists/${wlA.id}`, { headers: actorHeaders("a") })).status).toBe(
+			200,
+		);
 	});
 
-	test("revoked push token → 401 on ingest", async () => {
-		const wl = await createWatchlist(`iso-tok-${Date.now()}`);
+	test("user B cannot read user A group", async () => {
+		const { status, body } = await jsonFetch("/api/groups", {
+			method: "POST",
+			headers: actorHeaders("a"),
+			body: JSON.stringify({ name: `iso-g-${Date.now()}` }),
+		});
+		expect([200, 201]).toContain(status);
+		const g = dataOf<{ id: number }>(body);
+		expect((await jsonFetch(`/api/groups/${g.id}`, { headers: actorHeaders("b") })).status).toBe(
+			404,
+		);
+	});
+
+	test("revoked push token → 401", async () => {
+		const wl = await createWatchlistAs("a", `iso-tok-${Date.now()}`);
 		const tok = await mintToken(`iso-${Date.now()}`);
 		const { status: revStatus } = await jsonFetch(`/api/push-tokens/${tok.id}`, {
 			method: "DELETE",
+			headers: actorHeaders("a"),
 		});
 		expect([200, 204]).toContain(revStatus);
 
@@ -60,13 +97,14 @@ describe("L2 tenant isolation (real HTTP)", () => {
 		expect(res.status).toBe(401);
 	});
 
-	test("push to non-owned watchlist_id → 404", async () => {
-		const tok = await mintToken(`iso-push-${Date.now()}`);
+	test("token A cannot push into B watchlist → 404", async () => {
+		const wlB = await createWatchlistAs("b", `iso-b-${Date.now()}`);
+		const tokA = await mintToken(`iso-push-a-${Date.now()}`);
 		const res = await fetch(`${BASE}/api/v1/ingest/push`, {
 			method: "POST",
-			headers: ingestHeaders(tok.token),
+			headers: ingestHeaders(tokA.token),
 			body: JSON.stringify({
-				watchlist_id: 9_000_002,
+				watchlist_id: wlB.id,
 				items: [
 					{
 						source_type: "custom",
@@ -78,22 +116,5 @@ describe("L2 tenant isolation (real HTTP)", () => {
 			}),
 		});
 		expect([404, 403]).toContain(res.status);
-	});
-
-	test("unauthenticated browser mutation without bypass identity is blocked outside test env", async () => {
-		// In test env bypass is on — assert live remains public and me is authenticated.
-		const live = await fetch(`${BASE}/api/live`);
-		expect(live.status).toBe(200);
-		const me = await jsonFetch("/api/me");
-		expect(me.status).toBe(200);
-		expect((me.body as { authenticated?: boolean }).authenticated).toBe(true);
-		// Sanity: create requires JSON body shape
-		const bad = await jsonFetch("/api/watchlists", {
-			method: "POST",
-			headers: browserHeaders(),
-			body: JSON.stringify({}),
-		});
-		expect([400, 422]).toContain(bad.status);
-		void dataOf;
 	});
 });

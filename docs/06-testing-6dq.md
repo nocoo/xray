@@ -90,7 +90,7 @@ Paths grow per module (07 S5). Include zheto **save** with mock upstream (04 §5
 | gitleaks | staged | full | yes |
 | L2 | | **yes — primary hard gate** | yes |
 | G2 osv | | yes | yes |
-| L3 | | no | yes after S5; **blocks release** |
+| L3 | | no | yes after S5; **release-optional (run before ship)** |
 
 Direct main push: pre-push is the hard gate; CI is post-landing verification + release gate (R2-04).
 

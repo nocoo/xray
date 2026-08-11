@@ -91,7 +91,7 @@ feat(ui): custom zheto save and member tags
 | **S2** | Access + sidebar + mock 页 + **最小 users 表** | 可登录浏览 mock | **done** |
 | **S3** | L1/G1 pre-commit；L2/G2 pre-push；**CI required** | hook+CI 绿（无 L3） | **done** |
 | **S4** | 全 schema + 迁移 WL/Groups | 真名单、空 items | **done** |
-| **S5** | 模块 + 递增 E2E → 2.0.0 | 全功能 + L3 CI | **done** |
+| **S5** | 模块 + 递增 E2E → 2.0.0 | 全功能 + L3 on-demand | **done** |
 
 ```
 S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)

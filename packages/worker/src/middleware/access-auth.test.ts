@@ -465,3 +465,16 @@ describe("accessAuth real jose/JWKS path (S23R3-01)", () => {
 		).toBe(403);
 	});
 });
+
+test("dev bypass X-Test-Actor b is distinct user", async () => {
+	const app = makeApp({ AUTH_DEV_BYPASS: "true", ENVIRONMENT: "test" });
+	const a = await app.request("/api/me", { headers: { host: "localhost", "x-test-actor": "a" } });
+	const b = await app.request("/api/me", { headers: { host: "localhost", "x-test-actor": "b" } });
+	expect(a.status).toBe(200);
+	expect(b.status).toBe(200);
+	const ja = (await a.json()) as { user: { id: string; email: string } };
+	const jb = (await b.json()) as { user: { id: string; email: string } };
+	expect(ja.user.email).toContain("dev@");
+	expect(jb.user.email).toContain("dev-b@");
+	expect(ja.user.id).not.toBe(jb.user.id);
+});
