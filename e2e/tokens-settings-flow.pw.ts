@@ -26,16 +26,19 @@ test.describe("L3 tokens + settings + AI + zheto shells", () => {
 	test("AI settings and zheto pages load", async ({ page, request }) => {
 		await requireWorker(request);
 
-		await page.goto(`${BROWSER}/settings/ai`);
+		await page.goto(`${BROWSER}/ai-settings`);
 		await expect(page.getByRole("heading", { name: /AI Settings/i })).toBeVisible({
 			timeout: 15_000,
 		});
 		await expect(page.getByText(/Provider/i).first()).toBeVisible();
 
 		await page.goto(`${BROWSER}/integrations/zheto`);
-		await expect(page.getByRole("heading", { name: /zhe\.to/i })).toBeVisible({
+		await expect(page.getByRole("heading", { name: /zhe/i })).toBeVisible({
 			timeout: 15_000,
 		});
+		await expect(page.getByText(/Webhook URL/i).first()).toBeVisible();
+
+
 	});
 
 	test("dashboard aggregates shell", async ({ page, request }) => {
