@@ -39,4 +39,25 @@ describe("createZhetoSettingsVm", () => {
 		await vm.save();
 		expect(vm.getState().error).toBe("zsave");
 	});
+
+	test("folder null from settings", async () => {
+		const vm = createZhetoSettingsVm({
+			fetchZhetoSettings: vi.fn().mockResolvedValue({
+				configured: false,
+				webhookUrlMasked: "",
+				folder: null,
+				updatedAtMs: null,
+			}),
+			saveZhetoSettings: vi.fn().mockResolvedValue({
+				configured: true,
+				webhookUrlMasked: "…",
+				folder: null,
+				updatedAtMs: 1,
+			}),
+		});
+		await vm.load();
+		expect(vm.getState().folder).toBe("");
+		await vm.save();
+		expect(vm.getState().saved).toBe(true);
+	});
 });

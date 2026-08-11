@@ -41,9 +41,14 @@ describe("api modules hit real client", () => {
 		await watchlists.patchMember(1, 2, { note: "n" });
 		await watchlists.deleteMember(1, 2);
 		await watchlists.fetchItems(1, { limit: 10, source_type: "x.com", cursor: "c" });
+		await watchlists.fetchItems(1);
+		await watchlists.fetchItems(1, { limit: 5 });
+		await watchlists.fetchItems(1, { source_type: "custom" });
+		await watchlists.fetchItems(1, { cursor: "n" });
 		await watchlists.fetchTags();
 		await watchlists.createTag("t", "#fff");
 		await watchlists.fetchWatchlistIngestLogs(1, 5);
+		await watchlists.fetchWatchlistIngestLogs(1);
 
 		await groups.createGroup({ name: "g" });
 		await groups.updateGroup(1, { name: "g2" });

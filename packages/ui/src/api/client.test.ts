@@ -80,11 +80,43 @@ describe("api client", () => {
 		});
 		vi.stubGlobal("fetch", fetchMock);
 		await apiPost("/api/x", { a: 1 });
+		await apiPost("/api/x");
 		await apiPatch("/api/x", { a: 2 });
 		await apiPut("/api/x", { a: 3 });
 		await apiDelete("/api/x");
-		expect(fetchMock).toHaveBeenCalledTimes(4);
+		expect(fetchMock).toHaveBeenCalledTimes(5);
 		expect(fetchMock.mock.calls[0]?.[1]?.method).toBe("POST");
-		expect(fetchMock.mock.calls[3]?.[1]?.method).toBe("DELETE");
+		expect(fetchMock.mock.calls[4]?.[1]?.method).toBe("DELETE");
+	});
+
+	test("503 message and empty error fallback", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: false,
+				status: 503,
+				statusText: "Unavailable",
+				json: async () => ({}),
+			}),
+		);
+		await expect(apiGet("/api/x")).rejects.toMatchObject({
+			message: expect.stringMatching(/Worker unreachable|503/),
+		});
+	});
+
+	test("success false without error field", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: async () => ({ success: false }),
+			}),
+		);
+		await expect(apiGet("/api/x")).rejects.toMatchObject({ message: "request failed" });
+	});
+
+	test("network non-Error throw", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue("boom"));
+		await expect(apiGet("/api/x")).rejects.toMatchObject({ status: 0 });
 	});
 });

@@ -88,5 +88,13 @@ describe("createAiSettingsVm", () => {
 		await vm2.load();
 		await vm2.test();
 		expect(vm2.getState().testMsg).toContain("OK");
+		// failure without error or status
+		const vm3 = createAiSettingsVm({
+			fetchAiConfig: vi.fn().mockResolvedValue({ configured: false }),
+			saveAiConfig: vi.fn(),
+			testAiConfig: vi.fn().mockResolvedValue({ ok: false }),
+		});
+		await vm3.test();
+		expect(vm3.getState().testMsg).toContain("unknown");
 	});
 });

@@ -174,6 +174,28 @@ describe("createWatchlistDetailVm", () => {
 		expect(vm.getState().error).toBe("invalid watchlist");
 	});
 
+	test("itemToTweet more author branches", () => {
+		const t = itemToTweet({
+			...item,
+			authorUsername: "from-item",
+			payload: {
+				body: {
+					tweet: { text: "t" },
+					includes: { users: [{ id: "x", username: "u" }] },
+				},
+			},
+		});
+		expect(t?.author.username).toBe("from-item");
+		const t2 = itemToTweet({
+			...item,
+			sourceType: "x.com",
+			payload: {
+				body: { tweet: { id: "i", text: "x", author_id: "missing" }, includes: { users: [] } },
+			},
+		});
+		expect(t2?.id).toBe("i");
+	});
+
 	test("load/loadMore/translate/remove errors + filter reload", async () => {
 		const api = {
 			fetchWatchlist: vi.fn().mockRejectedValueOnce(new Error("L")).mockResolvedValue(wl),
