@@ -175,5 +175,120 @@ describe("atomicWriteJson", () => {
 		};
 		expect(() => atomicWriteJson("/cache/b.json", {}, fsFail, 1)).toThrow(/eexist/);
 		expect(ops.some((x) => x.startsWith("unlink2:"))).toBe(true);
+
+		const fsUnlinkFail = {
+			writeFileSync: () => {},
+			renameSync: () => {
+				throw new Error("rename-fail");
+			},
+			unlinkSync: () => {
+				throw new Error("unlink-fail");
+			},
+		};
+		expect(() => atomicWriteJson("/cache/c.json", {}, fsUnlinkFail, 2)).toThrow(/rename-fail/);
+	});
+});
+
+describe("twitterStatus / user-posts more branches", () => {
+	test("status non-zero code throws", async () => {
+		const spawn: SpawnFn = async () => ({
+			code: 2,
+			stdout: "",
+			stderr: "boom",
+		});
+		await expect(twitterStatus({ spawn, bin: "twitter", max: 1, env: {} })).rejects.toBeInstanceOf(
+			TwitterCliError,
+		);
+	});
+
+	test("status invalid JSON throws", async () => {
+		const spawn: SpawnFn = async () => ({
+			code: 0,
+			stdout: "not-json",
+			stderr: "",
+		});
+		await expect(twitterStatus({ spawn, bin: "twitter", max: 1, env: {} })).rejects.toMatchObject({
+			kind: expect.any(String),
+		});
+	});
+
+	test("user-posts spawn ENOENT", async () => {
+		const spawn: SpawnFn = async () => {
+			throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+		};
+		await expect(
+			twitterUserPosts({ spawn, bin: "twitter", max: 5, env: {} }, "x"),
+		).rejects.toMatchObject({ kind: "not_installed" });
+	});
+
+	test("user-posts non-zero without rate limit", async () => {
+		const spawn: SpawnFn = async () => ({
+			code: 1,
+			stdout: "",
+			stderr: "other error",
+		});
+		await expect(
+			twitterUserPosts({ spawn, bin: "twitter", max: 5, env: {} }, "x"),
+		).rejects.toBeInstanceOf(TwitterCliError);
+	});
+
+	test("user-posts no JSON in stdout", async () => {
+		const spawn: SpawnFn = async () => ({
+			code: 0,
+			stdout: "plain text only",
+			stderr: "",
+		});
+		await expect(
+			twitterUserPosts({ spawn, bin: "twitter", max: 5, env: {} }, "x"),
+		).rejects.toBeInstanceOf(TwitterCliError);
+	});
+
+	test("user-posts envelope ok=false", async () => {
+		const spawn: SpawnFn = async () => ({
+			code: 0,
+			stdout: JSON.stringify({ ok: false, error: { code: "auth" } }),
+			stderr: "",
+		});
+		await expect(
+			twitterUserPosts({ spawn, bin: "twitter", max: 5, env: {} }, "x"),
+		).rejects.toBeInstanceOf(TwitterCliError);
+	});
+
+	test("formatTwitterCliIssue generic failure", () => {
+		const issue = formatTwitterCliIssue({
+			bin: "twitter",
+			code: 1,
+			stderr: "something else",
+			context: "ctx",
+		});
+		expect(issue.kind).toBe("failed");
+		expect(issue.message).toMatch(/ctx|twitter|something else/i);
+	});
+
+	test("ENOENT via message text and empty bin", () => {
+		const issue = formatTwitterCliIssue({
+			bin: "",
+			spawnError: new Error("spawn ENOENT failed"),
+		});
+		expect(issue.kind).toBe("not_installed");
+		const rate = formatTwitterCliIssue({
+			bin: "twitter",
+			stderr: "HTTP 429 Too Many Requests",
+		});
+		expect(rate.kind).toBe("rate_limited");
+		// isEnoent false paths
+		const failed = formatTwitterCliIssue({
+			bin: "twitter",
+			spawnError: "string-err",
+			code: 1,
+			stderr: "x",
+		});
+		expect(failed.kind).toBe("failed");
+		const failed2 = formatTwitterCliIssue({
+			bin: "twitter",
+			spawnError: null,
+			code: 99,
+		});
+		expect(failed2.kind).toBe("failed");
 	});
 });

@@ -97,6 +97,65 @@ describe("handleFromUserLink", () => {
 	test("path username", () => {
 		expect(handleFromUserLink("https://x.com/elonmusk")).toBe("elonmusk");
 	});
+	test("screen_name query and rejects", () => {
+		expect(handleFromUserLink("https://x.com/i/user?screen_name=jack")).toBe("jack");
+		expect(handleFromUserLink("https://x.com/intent/user")).toBeNull();
+		expect(handleFromUserLink(null)).toBeNull();
+		expect(handleFromUserLink("not-a-url")).toBeNull();
+		expect(handleFromUserLink("https://x.com/home")).toBeNull();
+	});
+});
+
+describe("parseMemberImportText extra", () => {
+	test("empty and oversized", () => {
+		expect(parseMemberImportText("")).toBeNull();
+		expect(parseMemberImportText("   ")).toBeNull();
+		expect(() => parseMemberImportText("x".repeat(2_000_000))).toThrow(RangeError);
+	});
+	test("js object keys normalize", () => {
+		const content = `window.YTD.following.part0 = [{following:{accountId:"1",userLink:"https://x.com/a"}},];`;
+		const r = parseMemberImportText(content);
+		expect(r?.some((s) => s.handle === "a")).toBe(true);
+	});
+	test("plain handles list", () => {
+		const r = parseMemberImportText("@one\ntwo\n");
+		expect(r?.map((s) => s.handle).sort()).toEqual(["one", "two"]);
+	});
+	test("unparseable ytd becomes empty then null", () => {
+		const content = `window.YTD.following.part0 = [{{{];`;
+		expect(parseMemberImportText(content)).toBeNull();
+	});
+	test("follower entries", () => {
+		const content = `window.YTD.follower.part0 = [{"follower":{"accountId":"9","userLink":"https://x.com/z"}}]`;
+		const r = parseMemberImportText(content);
+		expect(r?.[0]?.handle).toBe("z");
+	});
+	test("max seeds throws", () => {
+		const lines = Array.from({ length: 600 }, (_, i) => `user${i}`).join("\n");
+		expect(() => parseMemberImportText(lines)).toThrow(/max is/);
+	});
+	test("json object array with handles", () => {
+		const r = parseMemberImportText(
+			JSON.stringify([
+				{ handle: "aaa", accountId: "1" },
+				{ screen_name: "bbb" },
+				{ username: "ccc", id: 3 },
+				{ handle: "!!!" },
+			]),
+		);
+		expect(r?.map((s) => s.handle).sort()).toEqual(["aaa", "bbb", "ccc"]);
+	});
+	test("x.com url lines and dedupe", () => {
+		const r = parseMemberImportText("https://x.com/one\nhttps://twitter.com/one\n@two");
+		expect(r?.map((s) => s.handle).sort()).toEqual(["one", "two"]);
+	});
+	test("following without userLink yields null", () => {
+		const content = `window.YTD.following.part0 = [{"following":{"accountId":"1"}}]`;
+		expect(parseMemberImportText(content)).toBeNull();
+	});
+	test("bad json array falls through", () => {
+		expect(parseMemberImportText("[not-json")).toBeNull();
+	});
 });
 
 describe("parseTwitterExportFile legacy", () => {
