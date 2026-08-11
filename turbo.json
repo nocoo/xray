@@ -1,5 +1,17 @@
 {
 	"$schema": "https://turbo.build/schema.json",
+	"globalPassThroughEnv": [
+		"XRAY_PUSH_TOKEN",
+		"XRAY_MEMBERS_FILE",
+		"XRAY_BROWSER_BASE",
+		"XRAY_CF_AUTHORIZATION",
+		"XRAY_INGEST_BASE",
+		"XRAY_WINDOW_HOURS",
+		"XRAY_TWITTER_MAX",
+		"XRAY_CACHE_DIR",
+		"XRAY_REFRESH_FORCE",
+		"TWITTER_BIN"
+	],
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],

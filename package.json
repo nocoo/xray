@@ -22,6 +22,7 @@
 		"test:l2": "bun run --filter @xray/worker test",
 		"db:migrate:local": "cd packages/worker && bunx wrangler d1 migrations apply xray-db --local --env development",
 		"migrate:v1": "bun run scripts/migrate-v1-to-d1.ts",
+		"refresh:watchlists": "bun run scripts/refresh-watchlists.ts",
 		"test:l3": "playwright test",
 		"test:ai": "bun run --filter @xray/worker test src/routes/ai-zheto-dashboard.test.ts src/lib/secrets-crypto.test.ts"
 	},
