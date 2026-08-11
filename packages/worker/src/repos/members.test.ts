@@ -187,9 +187,15 @@ describe("members repo", () => {
 
 		const updated = await updateMember(db, "u1", m.id, { note: "hi", tagIds: [] });
 		expect(updated?.note).toBe("hi");
+		expect(updated?.tags).toEqual([]);
+
+		const retagged = await updateMember(db, "u1", m.id, { tagIds: [1] });
+		expect(retagged?.tags[0]?.name).toBe("AI");
+		expect(retagged?.note).toBe("hi");
 
 		const list = await listMembers(db, "u1", 1);
 		expect(list).toHaveLength(1);
+		expect(list[0]?.tags[0]?.name).toBe("AI");
 		expect(await deleteMember(db, "u1", m.id)).toBe(true);
 	});
 });
