@@ -29,6 +29,7 @@ export type UiNavItem = {
 export type UiNavGroup = {
 	label: string;
 	defaultOpen: boolean;
+	dynamic?: "watchlists" | "groups";
 	items: UiNavItem[];
 };
 
@@ -36,6 +37,7 @@ export function getV2NavGroups(): UiNavGroup[] {
 	return V2_NAV_GROUPS.map((g: NavGroupDef) => ({
 		label: g.label,
 		defaultOpen: g.defaultOpen ?? true,
+		dynamic: g.dynamic,
 		items: g.items.map((item) => ({
 			href: item.href,
 			label: item.label,

@@ -1,6 +1,7 @@
 import type { SourceType } from "@xray/shared";
 import { Plus, Trash2, Users } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import {
 	addGroupMember,
 	createGroup,
@@ -18,8 +19,13 @@ import { cn, getAvatarColor } from "@/lib/utils";
 
 export function GroupsPage() {
 	const { setBreadcrumbs } = useBreadcrumbs();
+	const [searchParams, setSearchParams] = useSearchParams();
 	const [groups, setGroups] = useState<Group[]>([]);
-	const [selectedId, setSelectedId] = useState<number | null>(null);
+	const [selectedId, setSelectedId] = useState<number | null>(() => {
+		const raw = searchParams.get("id");
+		const n = raw ? Number(raw) : NaN;
+		return Number.isFinite(n) ? n : null;
+	});
 	const [members, setMembers] = useState<GroupMember[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -28,6 +34,18 @@ export function GroupsPage() {
 		setBreadcrumbs([{ label: "Groups" }]);
 		return () => setBreadcrumbs([]);
 	}, [setBreadcrumbs]);
+
+	useEffect(() => {
+		const raw = searchParams.get("id");
+		const n = raw ? Number(raw) : NaN;
+		setSelectedId(Number.isFinite(n) ? n : null);
+	}, [searchParams]);
+
+	const selectGroup = (id: number | null) => {
+		setSelectedId(id);
+		if (id == null) setSearchParams({}, { replace: true });
+		else setSearchParams({ id: String(id) }, { replace: true });
+	};
 
 	const load = useCallback(async () => {
 		setLoading(true);
@@ -64,7 +82,7 @@ export function GroupsPage() {
 		try {
 			const g = await createGroup({ name: name.trim() });
 			await load();
-			setSelectedId(g.id);
+			selectGroup(g.id);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : String(e));
 		}
@@ -85,7 +103,7 @@ export function GroupsPage() {
 		if (!window.confirm(`Delete group “${g.name}”?`)) return;
 		try {
 			await deleteGroup(g.id);
-			if (selectedId === g.id) setSelectedId(null);
+			if (selectedId === g.id) selectGroup(null);
 			await load();
 		} catch (e) {
 			setError(e instanceof Error ? e.message : String(e));
@@ -144,7 +162,7 @@ export function GroupsPage() {
 					<li key={g.id}>
 						<button
 							type="button"
-							onClick={() => setSelectedId(g.id)}
+							onClick={() => selectGroup(g.id)}
 							className={cn(
 								"flex w-full items-center gap-3 rounded-card bg-secondary p-4 text-left",
 								selectedId === g.id && "ring-2 ring-primary",

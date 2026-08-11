@@ -1,4 +1,4 @@
-/** v2 sidebar navigation — single source for UI + smoke asserts. */
+/** v2 sidebar navigation — static groups; Watchlists/Groups children are dynamic in UI. */
 export type NavItemDef = {
 	readonly href: string;
 	readonly label: string;
@@ -8,6 +8,8 @@ export type NavItemDef = {
 export type NavGroupDef = {
 	readonly label: string;
 	readonly defaultOpen?: boolean;
+	/** When true, UI loads children from API (watchlists / groups). */
+	readonly dynamic?: "watchlists" | "groups";
 	readonly items: readonly NavItemDef[];
 };
 
@@ -20,12 +22,15 @@ export const V2_NAV_GROUPS: readonly NavGroupDef[] = [
 	{
 		label: "Watchlists",
 		defaultOpen: true,
-		items: [{ href: "/watchlist", label: "Watchlists", icon: "Eye" }],
+		dynamic: "watchlists",
+		// Fallback / collapsed single entry
+		items: [{ href: "/watchlist", label: "All watchlists", icon: "Eye" }],
 	},
 	{
 		label: "Groups",
 		defaultOpen: true,
-		items: [{ href: "/groups", label: "Groups", icon: "Users" }],
+		dynamic: "groups",
+		items: [{ href: "/groups", label: "All groups", icon: "Users" }],
 	},
 	{
 		label: "Integrations",

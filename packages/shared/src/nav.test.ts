@@ -5,8 +5,8 @@ describe("V2_NAV", () => {
 	test("includes core v2 surface labels", () => {
 		for (const label of [
 			"Dashboard",
-			"Watchlists",
-			"Groups",
+			"All watchlists",
+			"All groups",
 			"zhe.to",
 			"AI Settings",
 			"Settings",
@@ -14,6 +14,12 @@ describe("V2_NAV", () => {
 		]) {
 			expect(V2_NAV_LABELS).toContain(label);
 		}
+		const groupLabels = V2_NAV_GROUPS.map((g) => g.label);
+		expect(groupLabels).toEqual(
+			expect.arrayContaining(["Watchlists", "Groups", "Dashboard", "Settings"]),
+		);
+		expect(V2_NAV_GROUPS.find((g) => g.label === "Watchlists")?.dynamic).toBe("watchlists");
+		expect(V2_NAV_GROUPS.find((g) => g.label === "Groups")?.dynamic).toBe("groups");
 	});
 
 	test("excludes removed v1 nav", () => {

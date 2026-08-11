@@ -1,0 +1,60 @@
+import {
+	Activity,
+	Bookmark,
+	Brain,
+	Briefcase,
+	Code,
+	Coins,
+	Eye,
+	Flame,
+	Globe,
+	Hash,
+	Heart,
+	Lightbulb,
+	type LucideIcon,
+	MessageCircle,
+	Microscope,
+	Music,
+	Newspaper,
+	Radar,
+	Rocket,
+	Shield,
+	Star,
+	Target,
+	TrendingUp,
+	Users,
+	Zap,
+} from "lucide-react";
+
+/** Icon keys stored on watchlists/groups (legacy-compatible). */
+export const WATCHLIST_ICONS: Record<string, LucideIcon> = {
+	eye: Eye,
+	radar: Radar,
+	brain: Brain,
+	zap: Zap,
+	star: Star,
+	heart: Heart,
+	flame: Flame,
+	rocket: Rocket,
+	target: Target,
+	shield: Shield,
+	globe: Globe,
+	users: Users,
+	bookmark: Bookmark,
+	"trending-up": TrendingUp,
+	activity: Activity,
+	lightbulb: Lightbulb,
+	"message-circle": MessageCircle,
+	code: Code,
+	coins: Coins,
+	briefcase: Briefcase,
+	newspaper: Newspaper,
+	microscope: Microscope,
+	music: Music,
+	hash: Hash,
+};
+
+export function resolveIcon(key: string | null | undefined): LucideIcon {
+	if (!key) return Eye;
+	return WATCHLIST_ICONS[key] ?? Eye;
+}
