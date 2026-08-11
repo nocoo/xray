@@ -30,12 +30,14 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 
 ## Execution phases (see [07](07-implementation-plan.md))
 
-| Phase | Goal | Status (2026-08-10) |
+| Phase | Goal | Status (2026-08-11) |
 |-------|------|---------------------|
 | **S1** | Archive v1 → `legacy/v1/`, scaffold monorepo | **done** |
 | **S2** | Login shell + sidebar + mock pages (real CSS) | **done** |
 | **S3** | 6DQ automation except E2E (pre-commit / pre-push) | **done** |
-| **S4** | D1 schema + migrate WL/groups | todo |
-| **S5** | Modules one-by-one + growing Playwright E2E → 2.0.0 | todo |
+| **S4** | D1 schema + migrate WL/groups | **done**（主路径；migrate L2 e2e still thin） |
+| **S5** | Modules one-by-one + growing Playwright E2E → 2.0.0 | **done** |
 
-Progress detail and commit map: [07 §进度](07-implementation-plan.md#进度2026-08-10).
+Progress detail and commit map: [07 §进度](07-implementation-plan.md#进度2026-08-11).
+
+**Current stop**: S5 complete; prod dual-host deployed. Optional: L3 local smoke, release tag `2.0.0`, deepen ingest / migrate e2e.
