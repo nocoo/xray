@@ -118,3 +118,18 @@ export function fetchTags() {
 export function createTag(name: string, color: string) {
 	return apiPost<Tag>("/api/tags", { name, color });
 }
+
+export type IngestLog = {
+	id: number;
+	watchlistId: number;
+	attempted: number;
+	accepted: number;
+	deduped: number;
+	rejected: number;
+	errorsJson: string | null;
+	createdAtMs: number;
+};
+
+export function fetchWatchlistIngestLogs(watchlistId: number, limit = 20) {
+	return apiGet<IngestLog[]>(`/api/watchlists/${watchlistId}/ingest-logs?limit=${limit}`);
+}

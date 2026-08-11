@@ -20,6 +20,22 @@ describe("dashboard aggregates", () => {
 						return { c: 0 } as T;
 					},
 					async all<T>() {
+						if (sql.includes("FROM ingest_logs")) {
+							return {
+								results: [
+									{
+										id: 1,
+										watchlist_id: 1,
+										attempted: 2,
+										accepted: 1,
+										deduped: 1,
+										rejected: 0,
+										errors_json: null,
+										created_at_ms: 1,
+									},
+								] as T[],
+							};
+						}
 						return { results: [{ sourceType: "x.com", count: 4 }] as T[] };
 					},
 				};

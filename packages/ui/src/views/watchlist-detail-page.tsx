@@ -8,6 +8,8 @@ import {
 	fetchItems,
 	fetchMembers,
 	fetchWatchlist,
+	fetchWatchlistIngestLogs,
+	type IngestLog,
 	type Member,
 	type TimelineItem,
 	type Watchlist,
@@ -102,6 +104,8 @@ export function WatchlistDetailPage() {
 	const [loading, setLoading] = useState(true);
 	const [loadingMore, setLoadingMore] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [logs, setLogs] = useState<IngestLog[]>([]);
+
 	const columnCount = useColumns();
 
 	const load = useCallback(async () => {
@@ -117,15 +121,17 @@ export function WatchlistDetailPage() {
 				sourceFilter === "all"
 					? { limit: 50 }
 					: { limit: 50, source_type: sourceFilter as SourceType };
-			const [w, m, it] = await Promise.all([
+			const [w, m, it, logRows] = await Promise.all([
 				fetchWatchlist(watchlistId),
 				fetchMembers(watchlistId),
 				fetchItems(watchlistId, itemOpts),
+				fetchWatchlistIngestLogs(watchlistId, 15),
 			]);
 			setWl(w);
 			setMembers(m);
 			setItems(it.items);
 			setNextCursor(it.next_cursor);
+			setLogs(logRows);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : String(e));
 		} finally {
@@ -393,6 +399,24 @@ export function WatchlistDetailPage() {
 					)}
 				</div>
 			)}
+
+			<div className="space-y-2 border-t border-border pt-4" data-testid="ingest-logs">
+				<h2 className="text-sm font-medium">Ingest logs</h2>
+				{logs.length === 0 ? (
+					<p className="text-xs text-muted-foreground">No pushes logged yet.</p>
+				) : (
+					<ul className="space-y-1 text-xs text-muted-foreground">
+						{logs.map((log) => (
+							<li key={log.id} className="flex flex-wrap gap-x-2 tabular-nums">
+								<span>{new Date(log.createdAtMs).toLocaleString()}</span>
+								<span>
+									+{log.accepted} / dup {log.deduped} / rej {log.rejected} (of {log.attempted})
+								</span>
+							</li>
+						))}
+					</ul>
+				)}
+			</div>
 		</div>
 	);
 }

@@ -1,3 +1,5 @@
+import { type IngestLogDto, listRecentIngestLogs } from "./ingest-logs.js";
+
 export type DashboardAggregates = {
 	watchlistCount: number;
 	groupCount: number;
@@ -5,6 +7,7 @@ export type DashboardAggregates = {
 	items24h: number;
 	pendingAi: number;
 	bySourceType: { sourceType: string; count: number }[];
+	recentIngestLogs: IngestLogDto[];
 };
 
 export async function getDashboardAggregates(
@@ -50,6 +53,8 @@ export async function getDashboardAggregates(
 		.bind(userId)
 		.all<{ sourceType: string; count: number }>();
 
+	const recentIngestLogs = await listRecentIngestLogs(db, userId, 10);
+
 	return {
 		watchlistCount: Number(wl?.c ?? 0),
 		groupCount: Number(groups?.c ?? 0),
@@ -60,5 +65,6 @@ export async function getDashboardAggregates(
 			sourceType: r.sourceType,
 			count: Number(r.count),
 		})),
+		recentIngestLogs,
 	};
 }
