@@ -76,7 +76,7 @@ export function AiSettingsPage() {
 				<label className="block text-sm">
 					<span className="text-muted-foreground">Provider</span>
 					<input
-						className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+						className="mt-1 w-full rounded-md border border-border bg-secondary px-3 py-2"
 						value={provider}
 						onChange={(e) => setProvider(e.target.value)}
 						required
@@ -85,7 +85,7 @@ export function AiSettingsPage() {
 				<label className="block text-sm">
 					<span className="text-muted-foreground">Model</span>
 					<input
-						className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+						className="mt-1 w-full rounded-md border border-border bg-secondary px-3 py-2"
 						value={model}
 						onChange={(e) => setModel(e.target.value)}
 					/>
@@ -93,7 +93,7 @@ export function AiSettingsPage() {
 				<label className="block text-sm">
 					<span className="text-muted-foreground">Base URL (optional)</span>
 					<input
-						className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+						className="mt-1 w-full rounded-md border border-border bg-secondary px-3 py-2"
 						value={baseUrl}
 						onChange={(e) => setBaseUrl(e.target.value)}
 						placeholder="https://api.openai.com/v1"
@@ -105,7 +105,7 @@ export function AiSettingsPage() {
 					</span>
 					<input
 						type="password"
-						className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+						className="mt-1 w-full rounded-md border border-border bg-secondary px-3 py-2"
 						value={apiKey}
 						onChange={(e) => setApiKey(e.target.value)}
 						placeholder={cfg?.hasApiKey ? "leave blank to keep" : "sk-…"}
@@ -115,7 +115,7 @@ export function AiSettingsPage() {
 				<label className="block text-sm">
 					<span className="text-muted-foreground">Translation prompt</span>
 					<textarea
-						className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+						className="mt-1 w-full rounded-md border border-border bg-secondary px-3 py-2"
 						rows={3}
 						value={translationPrompt}
 						onChange={(e) => setTranslationPrompt(e.target.value)}

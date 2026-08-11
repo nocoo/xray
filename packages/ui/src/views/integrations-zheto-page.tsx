@@ -61,7 +61,7 @@ export function IntegrationsZhetoPage() {
 			{loading && <p className="text-sm text-muted-foreground">Loading…</p>}
 			{error && <p className="text-sm text-destructive">{error}</p>}
 			{saved && <p className="text-sm text-green-600">Saved.</p>}
-			<div className="rounded-[var(--radius-card)] border border-border bg-secondary p-4 text-sm">
+			<div className="rounded-[var(--radius-card)] bg-secondary p-4 text-sm">
 				Status:{" "}
 				{settings?.configured ? `configured (${settings.webhookUrlMasked})` : "not configured"}
 			</div>
@@ -69,7 +69,7 @@ export function IntegrationsZhetoPage() {
 				<label className="block text-sm">
 					<span className="text-muted-foreground">Webhook URL</span>
 					<input
-						className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+						className="mt-1 w-full rounded-md border border-border bg-secondary px-3 py-2"
 						value={webhookUrl}
 						onChange={(e) => setWebhookUrl(e.target.value)}
 						placeholder={
@@ -81,7 +81,7 @@ export function IntegrationsZhetoPage() {
 				<label className="block text-sm">
 					<span className="text-muted-foreground">Default folder</span>
 					<input
-						className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+						className="mt-1 w-full rounded-md border border-border bg-secondary px-3 py-2"
 						value={folder}
 						onChange={(e) => setFolder(e.target.value)}
 						maxLength={50}

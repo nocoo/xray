@@ -383,9 +383,9 @@ if (!Number.isInteger(keyVersion) || keyVersion < 1 || keyVersion > 255) {
 }
 
 if (aiByUser.size && !kek) {
-	const msg = `AI configs for ${aiByUser.size} user(s) require --kek-env (AES-GCM)`;
-	if (dry) warnings.push(msg);
-	else fatals.push(msg);
+	warnings.push(
+		`AI configs for ${aiByUser.size} user(s) skipped — pass --kek-env to migrate AES-GCM secrets`,
+	);
 } else if (kek) {
 	let kekBytes: Uint8Array;
 	try {
@@ -522,7 +522,7 @@ async function wranglerExecute(extra: string[]): Promise<{ code: number; text: s
 }
 
 function firstCount(text: string): number | null {
-	// wrangler --json returns nested results; pick first integer count-like value
+	// wrangler --json nests `results: [{ c: N }]`; ignore meta floats like sql_duration_ms.
 	try {
 		const data = JSON.parse(text) as unknown;
 		const stack: unknown[] = [data];
@@ -534,9 +534,13 @@ function firstCount(text: string): number | null {
 			}
 			if (cur && typeof cur === "object") {
 				const o = cur as Record<string, unknown>;
+				if (typeof o.c === "number" && Number.isInteger(o.c)) return o.c;
+				if (typeof o.COUNT === "number" && Number.isInteger(o.COUNT)) return o.COUNT;
 				for (const [k, v] of Object.entries(o)) {
-					if (typeof v === "number" && /^(bad_|missing_|count|COUNT)/i.test(k)) return v;
-					if (typeof v === "number" && Object.keys(o).length === 1) return v;
+					if (k === "meta" || k === "timings") continue;
+					if (typeof v === "number" && Number.isInteger(v) && /^(bad_|missing_|count)/i.test(k)) {
+						return v;
+					}
 					stack.push(v);
 				}
 			}
@@ -544,7 +548,7 @@ function firstCount(text: string): number | null {
 	} catch {
 		/* fall through */
 	}
-	const m = text.match(/"\w+"\s*:\s*(\d+)/);
+	const m = text.match(/"c"\s*:\s*(\d+)/);
 	return m ? Number(m[1]) : null;
 }
 

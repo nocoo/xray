@@ -46,10 +46,7 @@ export function DashboardPage() {
 			{error && <p className="text-sm text-destructive">{error}</p>}
 			<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
 				{cards.map((c) => (
-					<div
-						key={c.label}
-						className="rounded-[var(--radius-widget)] border border-border bg-secondary p-4"
-					>
+					<div key={c.label} className="rounded-[var(--radius-widget)] bg-secondary p-4">
 						<p className="text-xs uppercase tracking-wide text-muted-foreground">{c.label}</p>
 						<p className="mt-1 text-2xl font-semibold tabular-nums">{c.value}</p>
 					</div>

@@ -226,7 +226,8 @@
 	--destructive-foreground: 0 65% 92%;
 
 	--border: 0 0% 16%;
-	--input: 0 0% 12%;
+	/* L3 border affordance (B05); not a fill color for controls */
+	--input: 0 0% 18%;
 	--ring: 230 60% 50%;
 
 	--sidebar-background: 0 0% 9%;

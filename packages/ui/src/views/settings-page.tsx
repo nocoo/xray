@@ -66,7 +66,7 @@ export function SettingsPage() {
 						type="number"
 						min={1}
 						max={168}
-						className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+						className="mt-1 w-full rounded-md border border-border bg-secondary px-3 py-2"
 						value={windowHours}
 						onChange={(e) => setWindowHours(Number(e.target.value))}
 					/>

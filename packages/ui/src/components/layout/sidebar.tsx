@@ -1,14 +1,23 @@
 import { ChevronUp, PanelLeft } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuthUser } from "@/hooks/me-context";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/version";
 import { getV2NavGroups, isActivePath, type UiNavGroup, type UiNavItem } from "./nav-config";
 import { useSidebar } from "./sidebar-context";
 import { SIDEBAR_GEOMETRY as G } from "./sidebar-geometry";
+
+function useSidebarUser() {
+	const user = useAuthUser();
+	const name = user.name?.trim() || user.email.split("@")[0] || "User";
+	const email = user.email;
+	const initial = (name[0] ?? email[0] ?? "?").toUpperCase();
+	return { name, email, initial, image: user.image };
+}
 
 function ExpandedNavLink({ item, pathname }: { item: UiNavItem; pathname: string }) {
 	const active = isActivePath(pathname, item.href);
@@ -96,11 +105,10 @@ function NavGroupSection({ group, pathname }: { group: UiNavGroup; pathname: str
 	);
 }
 
-const DEV_USER = { name: "Dev User", email: "local bypass", initial: "D" };
-
 export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 	const { pathname } = useLocation();
 	const { collapsed, toggle, setMobileOpen } = useSidebar();
+	const user = useSidebarUser();
 	const groups = getV2NavGroups();
 	const flatItems = groups.flatMap((g) => g.items);
 	const showCollapsed = !mobile && collapsed;
@@ -153,8 +161,9 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 
 						<div className="flex w-full justify-center py-3">
 							<Avatar className="h-9 w-9 shrink-0">
-								<AvatarFallback className={cn("text-xs text-white", getAvatarColor(DEV_USER.name))}>
-									{DEV_USER.initial}
+								{user.image ? <AvatarImage src={user.image} alt={user.name} /> : null}
+								<AvatarFallback className={cn("text-xs text-white", getAvatarColor(user.name))}>
+									{user.initial}
 								</AvatarFallback>
 							</Avatar>
 						</div>
@@ -201,15 +210,14 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 						<div className={G.footerPadClass}>
 							<div className="flex items-center gap-3">
 								<Avatar className="h-9 w-9 shrink-0">
-									<AvatarFallback
-										className={cn("text-xs text-white", getAvatarColor(DEV_USER.name))}
-									>
-										{DEV_USER.initial}
+									{user.image ? <AvatarImage src={user.image} alt={user.name} /> : null}
+									<AvatarFallback className={cn("text-xs text-white", getAvatarColor(user.name))}>
+										{user.initial}
 									</AvatarFallback>
 								</Avatar>
 								<div className="min-w-0 flex-1">
-									<p className="truncate text-sm font-medium text-foreground">{DEV_USER.name}</p>
-									<p className="truncate text-xs text-muted-foreground">{DEV_USER.email}</p>
+									<p className="truncate text-sm font-medium text-foreground">{user.name}</p>
+									<p className="truncate text-xs text-muted-foreground">{user.email}</p>
 								</div>
 							</div>
 							{mobile && (

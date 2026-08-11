@@ -53,3 +53,5 @@ reports/
 
 # Local agent/test config fixtures
 config/
+
+.migrate-tmp/

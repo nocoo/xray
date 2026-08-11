@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { MeProvider } from "@/hooks/me-context";
 import { useMe } from "@/hooks/use-me";
 
 export function SessionGate({ children }: { children: ReactNode }) {
@@ -40,5 +41,5 @@ export function SessionGate({ children }: { children: ReactNode }) {
 		);
 	}
 
-	return <>{children}</>;
+	return <MeProvider user={me.user}>{children}</MeProvider>;
 }
