@@ -2,7 +2,7 @@ import type { SourceType } from "@xray/shared";
 import { UserPlus } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { addGroupMember } from "@/api/groups";
-import { addMember } from "@/api/watchlists";
+import { addMember, fetchTags, type Tag } from "@/api/watchlists";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -39,6 +39,8 @@ export function AddMemberDialog({
 	const [sourceType, setSourceType] = useState<SourceType>("x.com");
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [tags, setTags] = useState<Tag[]>([]);
+	const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
 	useEffect(() => {
 		if (!open) return;
@@ -47,7 +49,15 @@ export function AddMemberDialog({
 		setSourceType("x.com");
 		setError(null);
 		setSaving(false);
-	}, [open]);
+		setSelectedTagIds([]);
+		if (target?.kind === "watchlist") {
+			void fetchTags()
+				.then(setTags)
+				.catch(() => setTags([]));
+		} else {
+			setTags([]);
+		}
+	}, [open, target?.kind]);
 
 	const submit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -65,6 +75,7 @@ export function AddMemberDialog({
 					sourceType,
 					handle: h,
 					note: note.trim() || null,
+					tagIds: selectedTagIds.length ? selectedTagIds : undefined,
 				});
 			} else {
 				await addGroupMember(target.id, {
@@ -150,6 +161,36 @@ export function AddMemberDialog({
 								/>
 							</div>
 						</div>
+						{target?.kind === "watchlist" && tags.length > 0 && (
+							<div className="grid gap-2">
+								<span className="text-sm font-medium">Tags</span>
+								<div className="flex flex-wrap gap-2">
+									{tags.map((tag) => {
+										const on = selectedTagIds.includes(tag.id);
+										return (
+											<button
+												key={tag.id}
+												type="button"
+												onClick={() =>
+													setSelectedTagIds((prev) =>
+														on ? prev.filter((id) => id !== tag.id) : [...prev, tag.id],
+													)
+												}
+												className={cn(
+													"rounded-full border px-2.5 py-0.5 text-xs transition-colors",
+													on
+														? "border-primary bg-primary/15 text-foreground"
+														: "border-border text-muted-foreground",
+												)}
+												style={on ? { borderColor: tag.color } : undefined}
+											>
+												{tag.name}
+											</button>
+										);
+									})}
+								</div>
+							</div>
+						)}
 						{target?.kind === "watchlist" && (
 							<div className="grid gap-2">
 								<Label htmlFor={noteId}>Note</Label>

@@ -1,7 +1,9 @@
 import type { SourceType } from "@xray/shared";
-import { ExternalLink } from "lucide-react";
+import { Bookmark, ExternalLink, Loader2 } from "lucide-react";
+import { useCallback, useState } from "react";
 import { SourceChip } from "@/components/source-chip";
-import { formatTimeAgo } from "@/lib/utils";
+import { cn, formatTimeAgo } from "@/lib/utils";
+import { canSaveToZheto, postZhetoSave, type ZhetoSaveState } from "@/lib/zheto-save";
 
 export type CustomItemCardProps = {
 	title: string | null;
@@ -9,9 +11,7 @@ export type CustomItemCardProps = {
 	createdAt: string;
 	url?: string | null;
 	authorName?: string | null;
-	/** Always custom for this shell. */
 	sourceType?: Extract<SourceType, "custom">;
-	/** Optional producer (hermes / cli) — not source_type. */
 	producer?: string | null;
 	onRemove?: () => void;
 };
@@ -27,6 +27,21 @@ export function CustomItemCard({
 	producer,
 	onRemove,
 }: CustomItemCardProps) {
+	const [zhetoStatus, setZhetoStatus] = useState<ZhetoSaveState>("idle");
+	const canSave = canSaveToZheto(url);
+
+	const onSave = useCallback(async () => {
+		if (!canSaveToZheto(url) || zhetoStatus === "saving" || zhetoStatus === "saved") return;
+		setZhetoStatus("saving");
+		const res = await postZhetoSave({ url, note: title || body.slice(0, 200) });
+		if (res.ok) {
+			setZhetoStatus("saved");
+		} else {
+			setZhetoStatus("error");
+			setTimeout(() => setZhetoStatus("idle"), 3000);
+		}
+	}, [url, zhetoStatus, title, body]);
+
 	return (
 		<article
 			data-testid="custom-item-card"
@@ -52,7 +67,7 @@ export function CustomItemCard({
 				{body}
 			</p>
 
-			{(url || onRemove) && (
+			{(url || onRemove || canSave) && (
 				<div className="mt-3 flex items-center gap-1 border-t border-border/60 pt-2">
 					{url && (
 						<a
@@ -64,6 +79,36 @@ export function CustomItemCard({
 							<ExternalLink className="h-3 w-3" />
 							Open
 						</a>
+					)}
+					{canSave && (
+						<button
+							type="button"
+							onClick={() => void onSave()}
+							disabled={zhetoStatus === "saving" || zhetoStatus === "saved"}
+							className={cn(
+								"flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] transition-colors",
+								zhetoStatus === "saved"
+									? "text-emerald-600"
+									: zhetoStatus === "error"
+										? "text-destructive"
+										: "text-muted-foreground hover:bg-accent hover:text-foreground",
+								(zhetoStatus === "saving" || zhetoStatus === "saved") &&
+									"opacity-60 cursor-default",
+							)}
+						>
+							{zhetoStatus === "saving" ? (
+								<Loader2 className="h-3 w-3 animate-spin" />
+							) : (
+								<Bookmark className="h-3 w-3" />
+							)}
+							{zhetoStatus === "saving"
+								? "Saving…"
+								: zhetoStatus === "saved"
+									? "Saved"
+									: zhetoStatus === "error"
+										? "Error"
+										: "zhe.to"}
+						</button>
 					)}
 					{onRemove && (
 						<button
