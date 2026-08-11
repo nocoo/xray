@@ -132,23 +132,18 @@ async function bunSpawn(
 	argv: string[],
 	opts: { env: Record<string, string> },
 ): Promise<{ code: number; stdout: string; stderr: string }> {
-	try {
-		const proc = Bun.spawn(argv, { stdout: "pipe", stderr: "pipe", env: opts.env });
-		const stdout = await new Response(proc.stdout).text();
-		const stderr = await new Response(proc.stderr).text();
-		const code = await proc.exited;
-		// workerd/bun sometimes exit 1 with empty output when binary missing
-		if (code === 127 || (code !== 0 && /not found|ENOENT/i.test(`${stderr}\n${stdout}`))) {
-			const err = Object.assign(new Error(stderr || stdout || `command not found: ${argv[0]}`), {
-				code: code === 127 ? "ENOENT" : undefined,
-			});
-			throw err;
-		}
-		return { code, stdout, stderr };
-	} catch (e) {
-		// Re-throw so twitterStatus/userPosts can format not_installed / etc.
-		throw e;
+	const proc = Bun.spawn(argv, { stdout: "pipe", stderr: "pipe", env: opts.env });
+	const stdout = await new Response(proc.stdout).text();
+	const stderr = await new Response(proc.stderr).text();
+	const code = await proc.exited;
+	// workerd/bun sometimes exit 1 with empty output when binary missing
+	if (code === 127 || (code !== 0 && /not found|ENOENT/i.test(`${stderr}\n${stdout}`))) {
+		const err = Object.assign(new Error(stderr || stdout || `command not found: ${argv[0]}`), {
+			code: code === 127 ? "ENOENT" : undefined,
+		});
+		throw err;
 	}
+	return { code, stdout, stderr };
 }
 
 function clampInt(raw: string | undefined, fallback: number, min: number, max: number): number {
