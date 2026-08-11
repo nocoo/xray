@@ -89,15 +89,24 @@ function mockDb() {
 								});
 								return { meta: { last_row_id: id, changes: 1 } };
 							}
-							if (s.startsWith("INSERT INTO group_members")) {
-								const handle = binds[4] as string;
+							if (s.includes("INSERT") && s.includes("group_members")) {
+								// bulk: user, group, ext, handle, display, now  | single add: user, group, source, ext, handle, display, now
+								const isBulk = s.includes("OR IGNORE") && s.includes("'x.com'");
+								const handle = (isBulk ? binds[3] : binds[4]) as string;
 								const group_id = binds[1] as number;
+								const source_type = isBulk ? "x.com" : (binds[2] as string);
+								const external_author_id = (isBulk ? binds[2] : binds[3]) as string | null;
+								const display_name = (isBulk ? binds[4] : binds[5]) as string | null;
+								const added_at_ms = (isBulk ? binds[5] : binds[6]) as number;
 								if (
 									group_members.some(
 										(m) =>
-											m.group_id === group_id && m.handle === handle && m.source_type === binds[2],
+											m.group_id === group_id &&
+											m.handle === handle &&
+											m.source_type === source_type,
 									)
 								) {
+									if (s.includes("OR IGNORE")) return { meta: { last_row_id: 0, changes: 0 } };
 									throw new Error("UNIQUE constraint failed");
 								}
 								const id = gmid++;
@@ -105,25 +114,28 @@ function mockDb() {
 									id,
 									user_id: binds[0],
 									group_id,
-									source_type: binds[2],
-									external_author_id: binds[3],
+									source_type,
+									external_author_id,
 									handle,
-									display_name: binds[5],
-									added_at_ms: binds[6],
+									display_name,
+									added_at_ms,
 								});
 								return { meta: { last_row_id: id, changes: 1 } };
 							}
-							if (s.startsWith("INSERT INTO watchlist_members")) {
+							if (s.includes("INSERT") && s.includes("watchlist_members")) {
+								const isBulk = s.includes("OR IGNORE");
 								const handle = binds[4] as string;
 								const watchlist_id = binds[1] as number;
+								const source_type = binds[2] as string;
 								if (
 									watchlist_members.some(
 										(m) =>
 											m.watchlist_id === watchlist_id &&
 											m.handle === handle &&
-											m.source_type === binds[2],
+											m.source_type === source_type,
 									)
 								) {
+									if (isBulk) return { meta: { last_row_id: 0, changes: 0 } };
 									throw new Error("UNIQUE constraint failed");
 								}
 								const id = wmid++;
@@ -131,12 +143,12 @@ function mockDb() {
 									id,
 									user_id: binds[0],
 									watchlist_id,
-									source_type: binds[2],
+									source_type,
 									external_author_id: binds[3],
 									handle,
 									display_name: binds[5],
-									note: binds[6],
-									added_at_ms: binds[7],
+									note: isBulk ? null : binds[6],
+									added_at_ms: isBulk ? binds[6] : binds[7],
 								});
 								return { meta: { last_row_id: id, changes: 1 } };
 							}
@@ -146,8 +158,12 @@ function mockDb() {
 				},
 			};
 		},
-		async batch() {
-			return [];
+		async batch(
+			stmts: Array<{ run: () => Promise<{ meta: { changes: number; last_row_id?: number } }> }>,
+		) {
+			const out = [];
+			for (const s of stmts) out.push(await s.run());
+			return out;
 		},
 	} as unknown as D1Database;
 

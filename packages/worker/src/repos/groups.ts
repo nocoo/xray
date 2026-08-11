@@ -1,6 +1,5 @@
 import { isSourceType, type SourceType } from "@xray/shared";
 import { normalizeHandle } from "../lib/handle.js";
-import { addMember, MemberConflictError, MemberValidationError } from "./members.js";
 
 export type GroupRow = {
 	id: number;
@@ -225,7 +224,10 @@ export type BulkImportResult = {
 	total: number;
 };
 
-/** Idempotent bulk add of x.com members (skip UNIQUE conflicts). */
+/** D1 statements per batch — stay well under invocation query budget. */
+export const GROUP_BULK_BATCH_SIZE = 40;
+
+/** Idempotent bulk add of x.com members via INSERT OR IGNORE batches (no per-row SELECT). */
 export async function bulkImportGroupMembers(
 	db: D1Database,
 	userId: string,
@@ -240,26 +242,38 @@ export async function bulkImportGroupMembers(
 	if (!g) throw new GroupNotFoundError();
 	let added = 0;
 	let skipped = 0;
+	const now = Date.now();
+	const prepared: D1PreparedStatement[] = [];
 	for (const s of seeds) {
-		try {
-			await addGroupMember(db, userId, groupId, {
-				sourceType: "x.com",
-				handle: s.handle,
-				externalAuthorId: s.externalAuthorId,
-				displayName: s.displayName,
-			});
-			added += 1;
-		} catch (e) {
-			const msg = e instanceof Error ? e.message : String(e);
-			if (/UNIQUE|unique|member exists/i.test(msg)) {
-				skipped += 1;
-				continue;
-			}
-			if (/handle required/i.test(msg)) {
-				skipped += 1;
-				continue;
-			}
-			throw e;
+		const handle = normalizeHandle(s.handle);
+		if (!handle) {
+			skipped += 1;
+			continue;
+		}
+		prepared.push(
+			db
+				.prepare(
+					`INSERT OR IGNORE INTO group_members
+           (user_id, group_id, source_type, external_author_id, handle, display_name, added_at_ms)
+           VALUES (?, ?, 'x.com', ?, ?, ?, ?)`,
+				)
+				.bind(
+					userId,
+					groupId,
+					s.externalAuthorId?.trim() || null,
+					handle,
+					s.displayName?.trim() || null,
+					now,
+				),
+		);
+	}
+	for (let i = 0; i < prepared.length; i += GROUP_BULK_BATCH_SIZE) {
+		const chunk = prepared.slice(i, i + GROUP_BULK_BATCH_SIZE);
+		const results = await db.batch(chunk);
+		for (const r of results) {
+			const ch = r.meta?.changes ?? 0;
+			if (ch > 0) added += 1;
+			else skipped += 1;
 		}
 	}
 	return { added, skipped, total: seeds.length };
@@ -278,7 +292,10 @@ export type CopyToWatchlistResult = {
 	total: number;
 };
 
-/** Copy group members into a watchlist (same user); skip existing handles. */
+/**
+ * Copy group members into a watchlist (same user).
+ * `memberIds` omitted → all members; `memberIds: []` → copy none (not “all”).
+ */
 export async function copyGroupMembersToWatchlist(
 	db: D1Database,
 	userId: string,
@@ -295,33 +312,39 @@ export async function copyGroupMembersToWatchlist(
 	if (!wl) throw new WatchlistNotFoundError();
 
 	let members = await listGroupMembers(db, userId, groupId);
-	if (opts?.memberIds?.length) {
+	if (opts?.memberIds !== undefined) {
 		const want = new Set(opts.memberIds);
 		members = members.filter((m) => want.has(m.id));
 	}
+	if (!members.length) return { added: 0, skipped: 0, total: 0 };
 
 	let added = 0;
 	let skipped = 0;
+	const now = Date.now();
+	const prepared: D1PreparedStatement[] = [];
 	for (const m of members) {
-		try {
-			await addMember(db, userId, watchlistId, {
-				sourceType: m.sourceType,
-				handle: m.handle,
-				displayName: m.displayName,
-				externalAuthorId: m.externalAuthorId,
-			});
-			added += 1;
-		} catch (e) {
-			if (e instanceof MemberConflictError || e instanceof MemberValidationError) {
-				skipped += 1;
-				continue;
-			}
-			const msg = e instanceof Error ? e.message : String(e);
-			if (/UNIQUE|unique|already exists/i.test(msg)) {
-				skipped += 1;
-				continue;
-			}
-			throw e;
+		const handle = normalizeHandle(m.handle);
+		if (!handle || !isSourceType(m.sourceType)) {
+			skipped += 1;
+			continue;
+		}
+		prepared.push(
+			db
+				.prepare(
+					`INSERT OR IGNORE INTO watchlist_members
+           (user_id, watchlist_id, source_type, external_author_id, handle, display_name, note, added_at_ms)
+           VALUES (?, ?, ?, ?, ?, ?, NULL, ?)`,
+				)
+				.bind(userId, watchlistId, m.sourceType, m.externalAuthorId, handle, m.displayName, now),
+		);
+	}
+	for (let i = 0; i < prepared.length; i += GROUP_BULK_BATCH_SIZE) {
+		const chunk = prepared.slice(i, i + GROUP_BULK_BATCH_SIZE);
+		const results = await db.batch(chunk);
+		for (const r of results) {
+			const ch = r.meta?.changes ?? 0;
+			if (ch > 0) added += 1;
+			else skipped += 1;
 		}
 	}
 	return { added, skipped, total: members.length };

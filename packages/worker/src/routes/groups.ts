@@ -127,6 +127,8 @@ export async function deleteGroupMemberRoute(c: Context<AppEnv>) {
 	return jsonOk(c, { deleted: true });
 }
 
+const IMPORT_TEXT_MAX = 512_000;
+
 /** POST /api/groups/:id/members/import — body: { text: string } Twitter export or handle list */
 export async function bulkImportGroupMembersRoute(c: Context<AppEnv>) {
 	const user = requireUser(c);
@@ -141,9 +143,23 @@ export async function bulkImportGroupMembersRoute(c: Context<AppEnv>) {
 	if (typeof text !== "string" || !text.trim()) {
 		return jsonErr(c, "text required (export file contents or one handle per line)", 400);
 	}
-	const seeds = parseMemberImportText(text);
-	if (!seeds?.length) return jsonErr(c, "no members found in text", 400);
-	if (seeds.length > 500) return jsonErr(c, "max 500 members per import", 400);
+	if (text.length > IMPORT_TEXT_MAX) {
+		return jsonErr(c, `text exceeds ${IMPORT_TEXT_MAX} characters`, 400);
+	}
+	let seeds: ReturnType<typeof parseMemberImportText>;
+	try {
+		seeds = parseMemberImportText(text);
+	} catch (e) {
+		if (e instanceof RangeError) return jsonErr(c, e.message, 400);
+		throw e;
+	}
+	if (!seeds?.length) {
+		return jsonErr(
+			c,
+			"no scrapeable members found (need @handles or export rows with screen_name / x.com/user path)",
+			400,
+		);
+	}
 	try {
 		const data = await bulkImportGroupMembers(c.env.DB, user.id, id, seeds);
 		return jsonOk(c, data);
@@ -167,7 +183,7 @@ export async function copyGroupToWatchlistRoute(c: Context<AppEnv>) {
 	const watchlistId =
 		typeof body.watchlistId === "number" && Number.isInteger(body.watchlistId)
 			? body.watchlistId
-			: typeof body.watchlistId === "string"
+			: typeof body.watchlistId === "string" && /^\d+$/.test(body.watchlistId)
 				? Number(body.watchlistId)
 				: NaN;
 	if (!Number.isInteger(watchlistId) || watchlistId <= 0) {
@@ -175,9 +191,16 @@ export async function copyGroupToWatchlistRoute(c: Context<AppEnv>) {
 	}
 	let memberIds: number[] | undefined;
 	if (body.memberIds !== undefined) {
-		if (!Array.isArray(body.memberIds) || !body.memberIds.every((x) => Number.isInteger(x))) {
-			return jsonErr(c, "memberIds must be integer array", 400);
+		if (
+			!Array.isArray(body.memberIds) ||
+			!body.memberIds.every((x) => typeof x === "number" && Number.isSafeInteger(x) && x > 0)
+		) {
+			return jsonErr(c, "memberIds must be positive integer array", 400);
 		}
+		if (body.memberIds.length > 500) {
+			return jsonErr(c, "memberIds max 500", 400);
+		}
+		// empty array = copy none (not all)
 		memberIds = body.memberIds as number[];
 	}
 	try {
