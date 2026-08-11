@@ -19,9 +19,17 @@ export type { NavGroupDef, NavItemDef } from "./nav.js";
 export { V2_NAV_GROUPS, V2_NAV_LABELS } from "./nav.js";
 export type { FetchFn, PushBatchDeps, PushBatchResult } from "./producer-push.js";
 export { pushIngestBatch } from "./producer-push.js";
-export type { SpawnFn, SpawnResult, TwitterCliDeps } from "./producer-spawn.js";
+export type {
+	SpawnFn,
+	SpawnResult,
+	TwitterCliDeps,
+	TwitterCliIssue,
+	TwitterCliIssueKind,
+} from "./producer-spawn.js";
 export {
 	atomicWriteJson,
+	formatTwitterCliIssue,
+	TwitterCliError,
 	twitterStatus,
 	twitterUserPosts,
 } from "./producer-spawn.js";

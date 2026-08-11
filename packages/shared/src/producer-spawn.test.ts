@@ -1,10 +1,54 @@
 import { describe, expect, test } from "vitest";
 import {
 	atomicWriteJson,
+	formatTwitterCliIssue,
 	type SpawnFn,
+	TwitterCliError,
 	twitterStatus,
 	twitterUserPosts,
 } from "./producer-spawn.js";
+
+describe("formatTwitterCliIssue", () => {
+	test("not_installed guides install + PATH", () => {
+		const issue = formatTwitterCliIssue({
+			bin: "twitter",
+			code: 127,
+			stderr: "twitter: command not found",
+		});
+		expect(issue.kind).toBe("not_installed");
+		expect(issue.message).toMatch(/uv tool install twitter-cli/);
+		expect(issue.message).toMatch(/TWITTER_BIN/);
+	});
+
+	test("ENOENT spawnError → not_installed", () => {
+		const err = Object.assign(new Error("spawn twitter ENOENT"), { code: "ENOENT" });
+		const issue = formatTwitterCliIssue({ bin: "/missing/twitter", spawnError: err });
+		expect(issue.kind).toBe("not_installed");
+		expect(issue.message).toContain("/missing/twitter");
+	});
+
+	test("not_authenticated guides browser + env + from-cache", () => {
+		const issue = formatTwitterCliIssue({
+			bin: "twitter",
+			authenticated: false,
+			stdout: JSON.stringify({ ok: true, data: { authenticated: false } }),
+		});
+		expect(issue.kind).toBe("not_authenticated");
+		expect(issue.message).toMatch(/twitter whoami/);
+		expect(issue.message).toMatch(/TWITTER_AUTH_TOKEN/);
+		expect(issue.message).toMatch(/--from-cache/);
+		expect(issue.message).toMatch(/x\.com/);
+	});
+
+	test("cookie expired text → not_authenticated", () => {
+		const issue = formatTwitterCliIssue({
+			bin: "twitter",
+			code: 1,
+			stderr: "Cookie expired (401/403)",
+		});
+		expect(issue.kind).toBe("not_authenticated");
+	});
+});
 
 describe("twitterStatus / twitterUserPosts orchestration", () => {
 	test("passes scrubbed env to spawn (no ambient secrets)", async () => {
@@ -41,6 +85,31 @@ describe("twitterStatus / twitterUserPosts orchestration", () => {
 		expect(r.spawnEnv.XRAY_PUSH_TOKEN).toBeUndefined();
 	});
 
+	test("status unauthenticated throws TwitterCliError with fix steps", async () => {
+		const spawn: SpawnFn = async () => ({
+			code: 0,
+			stdout: JSON.stringify({ ok: true, data: { authenticated: false } }),
+			stderr: "",
+		});
+		await expect(
+			twitterStatus({ spawn, bin: "twitter", max: 20, env: { PATH: "/bin" } }),
+		).rejects.toBeInstanceOf(TwitterCliError);
+		await expect(
+			twitterStatus({ spawn, bin: "twitter", max: 20, env: { PATH: "/bin" } }),
+		).rejects.toMatchObject({ kind: "not_authenticated" });
+	});
+
+	test("status missing binary throws not_installed", async () => {
+		const spawn: SpawnFn = async () => {
+			throw Object.assign(new Error('Executable not found in $PATH: "twitter"'), {
+				code: "ENOENT",
+			});
+		};
+		await expect(twitterStatus({ spawn, bin: "twitter", max: 20, env: {} })).rejects.toMatchObject({
+			kind: "not_installed",
+		});
+	});
+
 	test("user-posts marks rateLimited on 429 stderr", async () => {
 		const spawn: SpawnFn = async () => ({
 			code: 1,
@@ -57,7 +126,7 @@ describe("twitterStatus / twitterUserPosts orchestration", () => {
 				},
 				"sama",
 			),
-		).rejects.toMatchObject({ rateLimited: true });
+		).rejects.toMatchObject({ rateLimited: true, kind: "rate_limited" });
 	});
 
 	test("user-posts returns parsed envelope on success", async () => {

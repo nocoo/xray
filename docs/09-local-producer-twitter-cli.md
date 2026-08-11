@@ -213,7 +213,9 @@ Handle **dedupe across lists**: one fetch; items cloned into each watchlist’s 
 
 | Symptom | Handling |
 |---------|----------|
-| `twitter` missing / not authenticated | Exit non-zero before fetch; message points to SKILL auth |
+| **`twitter` not installed / not on PATH** | Preflight (`twitter status`) fails → **exit 2** with install steps (`uv tool install twitter-cli`), `TWITTER_BIN` / `--twitter-bin`, and verify commands |
+| **Login missing or cookies expired** | Preflight sees `authenticated !== true` or 401/403/cookie errors → **exit 2** with browser re-login, `TWITTER_AUTH_TOKEN`+`TWITTER_CT0`, and `--from-cache` offline option |
+| Mid-run auth failure on a handle | Print same guidance once, **abort remaining handles** (all would fail the same way) |
 | Single handle rate-limit | Log + 60s cool-off + continue other handles (partial, exit 1). Do not dense multi-retry (twitter-cli already retried). Resume offline with `--from-cache` for successes; default re-run re-fetches all |
 | Single handle 404 / other | Log + continue (partial, exit 1) |
 | Convert skip | Counted in `skipped`; not POSTed |

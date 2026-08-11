@@ -89,6 +89,10 @@ Env: XRAY_PUSH_TOKEN, XRAY_MEMBERS_FILE, XRAY_BROWSER_BASE, XRAY_CF_AUTHORIZATIO
 Notes:
   Default always re-fetches twitter. Use --from-cache offline.
   twitter-cli may page until --max; we do not add our own cursor loop.
+
+Preflight (when not --from-cache / --dry-run):
+  Requires twitter-cli on PATH (or TWITTER_BIN) and a valid login.
+  Missing binary / expired cookies print install & re-login steps, then exit 2.
 `);
 	process.exit(0);
 }
@@ -128,11 +132,23 @@ async function bunSpawn(
 	argv: string[],
 	opts: { env: Record<string, string> },
 ): Promise<{ code: number; stdout: string; stderr: string }> {
-	const proc = Bun.spawn(argv, { stdout: "pipe", stderr: "pipe", env: opts.env });
-	const stdout = await new Response(proc.stdout).text();
-	const stderr = await new Response(proc.stderr).text();
-	const code = await proc.exited;
-	return { code, stdout, stderr };
+	try {
+		const proc = Bun.spawn(argv, { stdout: "pipe", stderr: "pipe", env: opts.env });
+		const stdout = await new Response(proc.stdout).text();
+		const stderr = await new Response(proc.stderr).text();
+		const code = await proc.exited;
+		// workerd/bun sometimes exit 1 with empty output when binary missing
+		if (code === 127 || (code !== 0 && /not found|ENOENT/i.test(`${stderr}\n${stdout}`))) {
+			const err = Object.assign(new Error(stderr || stdout || `command not found: ${argv[0]}`), {
+				code: code === 127 ? "ENOENT" : undefined,
+			});
+			throw err;
+		}
+		return { code, stdout, stderr };
+	} catch (e) {
+		// Re-throw so twitterStatus/userPosts can format not_installed / etc.
+		throw e;
+	}
 }
 
 function clampInt(raw: string | undefined, fallback: number, min: number, max: number): number {
@@ -223,13 +239,14 @@ function uniqueHandles(graph: Graph): Map<string, number[]> {
 }
 
 async function ensureTwitterAuth(): Promise<void> {
-	const r = await twitterStatus({
+	// Throws TwitterCliError with install / re-login guidance when missing or expired.
+	await twitterStatus({
 		spawn: bunSpawn,
 		bin: twitterBin,
 		env: fullEnv(),
 		max: twitterMax,
 	});
-	if (!r.authenticated) throw new Error("twitter-cli not authenticated — run: twitter whoami");
+	console.log(`twitter-cli OK (${twitterBin})`);
 }
 
 function rawPathFor(handle: string): string {
@@ -374,9 +391,21 @@ async function main(): Promise<void> {
 			);
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e);
-			handleErrors.push({ handle, error: msg });
-			console.error(`  ERROR @${handle}: ${msg}`);
-			if (/rate_limited/i.test(msg)) {
+			const kind =
+				e && typeof e === "object" && "kind" in e
+					? String((e as { kind?: string }).kind)
+					: undefined;
+			handleErrors.push({ handle, error: msg.split("\n")[0] ?? msg });
+			// Full multi-line guidance once for install/login; short line otherwise
+			if (kind === "not_installed" || kind === "not_authenticated") {
+				console.error(msg);
+				console.error(
+					"\nAborting remaining handles — fix twitter-cli install/login, or use --from-cache.",
+				);
+				break;
+			}
+			console.error(`  ERROR @${handle}: ${msg.split("\n")[0] ?? msg}`);
+			if (kind === "rate_limited" || /rate_limited/i.test(msg)) {
 				console.warn("  cooling 60s after rate limit…");
 				await sleep(60_000);
 			}
@@ -504,11 +533,16 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-	console.error(e instanceof Error ? e.message : e);
+	const msg = e instanceof Error ? e.message : String(e);
+	// Multi-line guidance (install / re-login) — print as-is to stderr
+	console.error(msg);
+	const kind =
+		e && typeof e === "object" && "kind" in e ? String((e as { kind?: string }).kind) : undefined;
 	try {
-		writeReport({ event: "fatal", error: String(e) });
+		writeReport({ event: "fatal", error: msg, kind });
 	} catch {
 		/* ignore */
 	}
-	process.exit(1);
+	// 2 = operator preflight (missing cli / login); 1 = run failure
+	process.exit(kind === "not_installed" || kind === "not_authenticated" ? 2 : 1);
 });
