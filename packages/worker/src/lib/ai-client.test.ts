@@ -20,6 +20,7 @@ describe("chatCompletion", () => {
 			apiKey: "sk",
 			baseUrl: "https://api.example.com/v1",
 			messages: [{ role: "user", content: "ping" }],
+			maxTokens: 8,
 		});
 		expect(out.content).toBe("hi");
 	});
