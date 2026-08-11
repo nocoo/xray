@@ -16,10 +16,14 @@ const INGEST = env("PLAYWRIGHT_INGEST_URL") || WORKER;
 
 test.describe("dual-host smoke", () => {
 	test("browser shell authenticates (dev bypass) and shows dashboard", async ({ page }) => {
-		const live = await page.request.get(`${WORKER}/api/live`, {
-			headers: { host: "localhost" },
-		});
-		test.skip(!live.ok(), "worker not reachable — start bun run dev");
+		try {
+			const live = await page.request.get(`${WORKER}/api/live`, {
+				headers: { host: "localhost" },
+			});
+			test.skip(!live.ok(), "worker not reachable — start bun run dev");
+		} catch {
+			test.skip(true, "worker not reachable — start bun run dev");
+		}
 
 		await page.goto(BROWSER + "/");
 		// SessionGate may load /api/me via vite proxy
@@ -29,8 +33,12 @@ test.describe("dual-host smoke", () => {
 	});
 
 	test("ingest host accepts Bearer push that appears on timeline API", async ({ request }) => {
-		const live = await request.get(`${WORKER}/api/live`, { headers: { host: "localhost" } });
-		test.skip(!live.ok(), "worker not reachable");
+		try {
+			const live = await request.get(`${WORKER}/api/live`, { headers: { host: "localhost" } });
+			test.skip(!live.ok(), "worker not reachable");
+		} catch {
+			test.skip(true, "worker not reachable");
+		}
 
 		// Create WL + token via browser host headers (dev bypass)
 		const browserHeaders = {

@@ -1,3 +1,5 @@
+import { test } from "@playwright/test";
+
 /** Shared L3 env — isolated local ports (docs/02). */
 export function env(name: string): string | undefined {
 	// biome-ignore lint/suspicious/noExplicitAny: process may be absent in some runners
@@ -15,3 +17,15 @@ export const browserApiHeaders = {
 	origin: "http://localhost:7007",
 	"content-type": "application/json",
 };
+
+/** Skip the test when local worker is down (L3 is on-demand, not pre-push). */
+export async function requireWorker(
+	request: { get: (url: string, opts?: { headers?: Record<string, string> }) => Promise<{ ok: () => boolean }> },
+): Promise<void> {
+	try {
+		const live = await request.get(`${WORKER}/api/live`, { headers: { host: "localhost" } });
+		test.skip(!live.ok(), "worker not reachable — start bun run dev");
+	} catch {
+		test.skip(true, "worker not reachable — start bun run dev");
+	}
+}

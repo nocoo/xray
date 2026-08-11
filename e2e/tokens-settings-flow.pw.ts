@@ -1,10 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { BROWSER, WORKER, browserApiHeaders } from "./helpers";
+import { BROWSER, WORKER, browserApiHeaders, requireWorker } from "./helpers";
 
 test.describe("L3 tokens + settings + AI + zheto shells", () => {
 	test("settings and tokens pages load", async ({ page, request }) => {
-		const live = await request.get(`${WORKER}/api/live`, { headers: { host: "localhost" } });
-		test.skip(!live.ok(), "worker not reachable");
+		await requireWorker(request);
 
 		await page.goto(`${BROWSER}/settings`);
 		await expect(page.getByRole("heading", { name: /Settings/i })).toBeVisible({
@@ -25,8 +24,7 @@ test.describe("L3 tokens + settings + AI + zheto shells", () => {
 	});
 
 	test("AI settings and zheto pages load", async ({ page, request }) => {
-		const live = await request.get(`${WORKER}/api/live`, { headers: { host: "localhost" } });
-		test.skip(!live.ok(), "worker not reachable");
+		await requireWorker(request);
 
 		await page.goto(`${BROWSER}/settings/ai`);
 		await expect(page.getByRole("heading", { name: /AI Settings/i })).toBeVisible({
@@ -41,8 +39,7 @@ test.describe("L3 tokens + settings + AI + zheto shells", () => {
 	});
 
 	test("dashboard aggregates shell", async ({ page, request }) => {
-		const live = await request.get(`${WORKER}/api/live`, { headers: { host: "localhost" } });
-		test.skip(!live.ok(), "worker not reachable");
+		await requireWorker(request);
 
 		await page.goto(`${BROWSER}/`);
 		await expect(page.getByRole("heading", { name: /Dashboard/i })).toBeVisible({

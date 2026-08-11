@@ -1,10 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { BROWSER, WORKER, browserApiHeaders } from "./helpers";
+import { BROWSER, WORKER, browserApiHeaders, requireWorker } from "./helpers";
 
 test.describe("L3 watchlists flow", () => {
 	test("list page + create via API appears in UI", async ({ page, request }) => {
-		const live = await request.get(`${WORKER}/api/live`, { headers: { host: "localhost" } });
-		test.skip(!live.ok(), "worker not reachable — start bun run dev");
+		await requireWorker(request);
 
 		const name = `pw-wl-${Date.now()}`;
 		const create = await request.post(`${WORKER}/api/watchlists`, {
