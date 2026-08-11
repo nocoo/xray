@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { BROWSER as H_BROWSER, WORKER as H_WORKER, INGEST as H_INGEST, requireWorker } from "./helpers";
 
 /**
  * Dual-host smoke (docs/06 / plan M8).
@@ -20,8 +21,12 @@ test.describe("dual-host smoke", () => {
 			const live = await page.request.get(`${WORKER}/api/live`, {
 				headers: { host: "localhost" },
 			});
-			test.skip(!live.ok(), "worker not reachable — start bun run dev");
-		} catch {
+			if (!live.ok()) {
+				if (env("CI")) throw new Error("L3 CI requires worker");
+				test.skip(true, "worker not reachable — start bun run dev");
+			}
+		} catch (e) {
+			if (env("CI")) throw e instanceof Error ? e : new Error("L3 CI requires worker");
 			test.skip(true, "worker not reachable — start bun run dev");
 		}
 
@@ -35,8 +40,12 @@ test.describe("dual-host smoke", () => {
 	test("ingest host accepts Bearer push that appears on timeline API", async ({ request }) => {
 		try {
 			const live = await request.get(`${WORKER}/api/live`, { headers: { host: "localhost" } });
-			test.skip(!live.ok(), "worker not reachable");
-		} catch {
+			if (!live.ok()) {
+				if (env("CI")) throw new Error("L3 CI requires worker");
+				test.skip(true, "worker not reachable");
+			}
+		} catch (e) {
+			if (env("CI")) throw e instanceof Error ? e : new Error("L3 CI requires worker");
 			test.skip(true, "worker not reachable");
 		}
 

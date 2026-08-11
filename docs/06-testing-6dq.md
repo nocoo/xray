@@ -26,6 +26,17 @@ For each business resource (watchlist, group, item, token, log, ai config, zheto
 | Push token A | push to B’s watchlist_id | 404 |
 | Token A revoked | push | 401 |
 
+
+### L1 coverage denominator (locked)
+
+| Package | Include | Explicit exclude |
+|---------|---------|------------------|
+| shared | domain parsers + producer-core/utils | barrel, type-only, CLI spawn/push/twitter-cli adapters |
+| worker | `lib` + `middleware` (observability, origin-check) | routes (L2+route gate); repos (L2 D1 + unit files); access-auth JWT bootstrap; ai-endpoint SSRF matrix; handle re-export |
+| ui | `viewmodels` + pure `lib` | View shells, components, thin API clients (L2 HTTP) |
+
+Thresholds: lines/functions/statements **≥95%**; branches **≥90%**. L2 `gate:routes` + real-HTTP is mandatory for all `/api/*`.
+
 ## 2. TDD rules
 
 Red→green→refactor; no adapter without fixtures; VMs without React; table-driven 401/403/404.

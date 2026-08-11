@@ -17,7 +17,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      # Unit/coverage only — do not download Playwright browsers in CI.
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +40,32 @@ jobs:
         run: bun run test
       - name: Coverage gate
         run: bun run test:coverage
+
+  l2:
+    name: L2 real-HTTP + routes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+      - name: Cache bun
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+      - name: Install
+        run: bun install --frozen-lockfile
+      - name: Build shared
+        run: bun run build:shared
+      - name: L2 (isolated local D1)
+        # No CLOUDFLARE_* secrets — L2 global-setup refuses remote credentials
+        run: bun run test:l2
 
   g2-secrets:
     name: G2 gitleaks
@@ -72,9 +97,12 @@ jobs:
           scan-args: |-
             --lockfile=bun.lock
 
+  # L3 is on-demand / release optional (needs UI+worker processes). Specs live in e2e/*.pw.ts.
+  # Local: bun run dev && bun run test:l3. CI hard-fails if CI=1 and worker down (requireWorker).
+
   release-gate:
     name: Release gate
-    needs: [quality, g2-secrets, g2-osv]
+    needs: [quality, l2, g2-secrets, g2-osv]
     runs-on: ubuntu-latest
     steps:
-      - run: echo "quality + g2 green — release allowed"
+      - run: echo "L1 + L2 + G2 green — release allowed"

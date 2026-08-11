@@ -18,14 +18,26 @@ export const browserApiHeaders = {
 	"content-type": "application/json",
 };
 
-/** Skip the test when local worker is down (L3 is on-demand, not pre-push). */
-export async function requireWorker(
-	request: { get: (url: string, opts?: { headers?: Record<string, string> }) => Promise<{ ok: () => boolean }> },
-): Promise<void> {
+/**
+ * Require local worker. In CI: hard-fail if unreachable (no silent all-skip green).
+ * Locally: skip so `bun run test:l3` is safe without servers.
+ */
+export async function requireWorker(request: {
+	get: (url: string, opts?: { headers?: Record<string, string> }) => Promise<{ ok: () => boolean }>;
+}): Promise<void> {
+	const ci = !!env("CI");
 	try {
 		const live = await request.get(`${WORKER}/api/live`, { headers: { host: "localhost" } });
-		test.skip(!live.ok(), "worker not reachable — start bun run dev");
-	} catch {
+		if (!live.ok()) {
+			if (ci) throw new Error(`L3 CI requires worker at ${WORKER}/api/live (got non-OK)`);
+			test.skip(true, "worker not reachable — start bun run dev");
+		}
+	} catch (e) {
+		if (ci) {
+			throw e instanceof Error
+				? e
+				: new Error(`L3 CI requires worker at ${WORKER}/api/live`);
+		}
 		test.skip(true, "worker not reachable — start bun run dev");
 	}
 }

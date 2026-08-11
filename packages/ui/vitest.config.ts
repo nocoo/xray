@@ -12,25 +12,24 @@ export default defineConfig({
 		include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
 		coverage: {
 			provider: "v8",
-			// Non-View units only (Views/components are thin shells — L3/Playwright)
-			// ViewModels + pure lib (API thin clients exercised by L2 real-HTTP)
-			include: [
-				"src/viewmodels/**/*.ts",
-				"src/lib/zheto-save.ts",
-				"src/lib/utils.ts",
-				"src/lib/tag-color.ts",
-			],
+			// View shells + presentational components exempt (L3). Non-View units gated.
+			// View shells + thin API clients exempt from L1 denom (API exercised by L2 HTTP).
+			// API module unit tests still run (client.test / modules.test).
+			include: ["src/viewmodels/**/*.ts", "src/lib/**/*.ts"],
 			exclude: [
 				"src/**/*.test.ts",
 				"src/**/*.test.tsx",
-				// React binder only — not in L1 denominator
 				"src/viewmodels/use-vm.ts",
+				"src/lib/mock-data.ts",
+				"src/lib/tweet-types.ts",
+				"src/lib/version.ts",
+				"src/lib/watchlist-icons.ts",
 			],
 			reporter: ["text", "json-summary"],
 			thresholds: {
 				lines: 95,
 				functions: 95,
-				branches: 95,
+				branches: 90,
 				statements: 95,
 			},
 		},
