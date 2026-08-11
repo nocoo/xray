@@ -1,0 +1,79 @@
+{
+	"ok": true,
+	"schema_version": "1",
+	"data": [
+		{
+			"id": "2050704462759747727",
+			"text": "祝大家都交好运哟 https://t.co/nHfFp6d66o",
+			"author": {
+				"id": "19098925",
+				"name": "nocoo",
+				"screenName": "zhengli",
+				"profileImageUrl": "https://pbs.twimg.com/profile_images/2086595906380681216/iF-XtMg3_normal.jpg",
+				"verified": true
+			},
+			"metrics": {
+				"likes": 0,
+				"retweets": 0,
+				"replies": 3,
+				"quotes": 0,
+				"views": 140,
+				"bookmarks": 0
+			},
+			"createdAt": "Sat May 02 22:30:18 +0000 2026",
+			"createdAtLocal": "2026-05-03 06:30",
+			"createdAtISO": "2026-05-02T22:30:18+00:00",
+			"media": [
+				{
+					"type": "photo",
+					"url": "https://pbs.twimg.com/media/HHWQ1embIAAfo68.jpg",
+					"width": 1493,
+					"height": 2048
+				}
+			],
+			"urls": [],
+			"isRetweet": false,
+			"retweetedBy": null,
+			"lang": "zh",
+			"score": null
+		},
+		{
+			"id": "999001",
+			"text": "Quoted thought",
+			"author": {
+				"id": "42",
+				"name": "Alice",
+				"screenName": "Alice",
+				"profileImageUrl": "http://pbs.twimg.com/profile_images/x_normal.jpg",
+				"verified": false
+			},
+			"metrics": {
+				"likes": 10,
+				"retweets": 2,
+				"replies": 1,
+				"quotes": 0,
+				"views": 500,
+				"bookmarks": 3
+			},
+			"createdAtISO": "2026-08-10T12:00:00+00:00",
+			"media": [],
+			"isRetweet": false,
+			"lang": "en",
+			"quotedTweet": {
+				"id": "888",
+				"text": "original",
+				"author": { "screenName": "bob", "name": "Bob" }
+			}
+		},
+		{
+			"id": "",
+			"text": "bad missing id",
+			"createdAtISO": "2026-08-10T12:00:00+00:00"
+		},
+		{
+			"id": "bad-time",
+			"text": "no timestamp",
+			"createdAtISO": "not-a-date"
+		}
+	]
+}
