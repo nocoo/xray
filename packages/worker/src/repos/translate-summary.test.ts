@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
 	defaultTranslateFn,
+	loadSucceededTranslations,
 	markTranslateResult,
 	resetStalePending,
 	runTranslateBatch,
@@ -115,7 +116,7 @@ describe("defaultTranslateFn summary", () => {
 					summaryPrompt: "sum",
 					signal: new AbortController().signal,
 				}),
-			).rejects.toThrow(/summary upstream 503/);
+			).rejects.toThrow(/upstream 503/);
 		} finally {
 			globalThis.fetch = orig;
 		}
@@ -145,7 +146,7 @@ describe("defaultTranslateFn summary", () => {
 					summaryPrompt: "sum",
 					signal: new AbortController().signal,
 				}),
-			).rejects.toThrow(/empty summary/);
+			).rejects.toThrow(/empty model response/);
 		} finally {
 			globalThis.fetch = orig;
 		}
@@ -313,6 +314,61 @@ describe("runTranslateBatch persists summary_text", () => {
 		// empty itemIds falls through to status-based select (same mock)
 		const all = await selectTranslateCandidates(db, "u1", 1, { limit: 5 });
 		expect(all).toHaveLength(1);
+	});
+
+	test("runTranslateBatch returns existing succeeded for item_ids", async () => {
+		const db = {
+			prepare(sql: string) {
+				return {
+					bind() {
+						return this;
+					},
+					async all() {
+						if (sql.includes("ai_status = 'succeeded'")) {
+							return {
+								results: [{ id: 9, translated_text: "已译", summary_text: "摘要" }],
+							};
+						}
+						return { results: [] };
+					},
+					async run() {
+						return { meta: { changes: 0 } };
+					},
+				};
+			},
+		} as unknown as D1Database;
+
+		const existing = await loadSucceededTranslations(db, "u1", 1, [9]);
+		expect(existing).toEqual([
+			{
+				id: 9,
+				ai_status: "succeeded",
+				translatedText: "已译",
+				summaryText: "摘要",
+			},
+		]);
+
+		const out = await runTranslateBatch(db, "u1", 1, {
+			itemIds: [9],
+			limit: 1,
+			config: {
+				user_id: "u1",
+				provider: "openai",
+				model: "m",
+				base_url: null,
+				api_key_ciphertext: new ArrayBuffer(0),
+				api_key_key_version: 1,
+				translation_prompt: null,
+				summary_prompt: null,
+				updated_at_ms: 0,
+			},
+			apiKey: "sk",
+			translateFn: async () => {
+				throw new Error("should not call");
+			},
+		});
+		expect(out.results).toHaveLength(1);
+		expect(out.results[0]?.translatedText).toBe("已译");
 	});
 
 	test("resetStalePending returns changes", async () => {

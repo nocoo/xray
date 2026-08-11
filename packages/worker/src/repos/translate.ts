@@ -1,4 +1,4 @@
-import { readResponseBounded, resolveAiBaseUrl } from "../lib/ai-endpoint.js";
+import { translateAndSummarize } from "../lib/ai-client.js";
 import type { TranslateFn } from "../types.js";
 import type { AiConfigRow } from "./ai-configs.js";
 
@@ -16,7 +16,7 @@ export type TranslateItemResult = {
 
 export type { TranslateFn };
 
-/** Default OpenAI-compatible chat completion translator. */
+/** Default translator via worker AI client (OpenAI-compatible / next-ai-style). */
 export const defaultTranslateFn: TranslateFn = async ({
 	text,
 	apiKey,
@@ -26,75 +26,16 @@ export const defaultTranslateFn: TranslateFn = async ({
 	summaryPrompt,
 	signal,
 }) => {
-	const ep = resolveAiBaseUrl(baseUrl);
-	if (!ep.ok) throw new Error(ep.error);
-	const endpoint = ep.chatCompletionsUrl;
-	const system =
-		translationPrompt?.trim() ||
-		"Translate the user message to Simplified Chinese. Reply with translation only.";
-	const res = await fetch(endpoint, {
-		method: "POST",
-		headers: {
-			"content-type": "application/json",
-			authorization: `Bearer ${apiKey}`,
-		},
-		body: JSON.stringify({
-			model: model || "gpt-4o-mini",
-			messages: [
-				{ role: "system", content: system },
-				{ role: "user", content: text },
-			],
-			temperature: 0.2,
-		}),
+	const out = await translateAndSummarize({
+		text,
+		apiKey,
+		model,
+		baseUrl,
+		translationPrompt,
+		summaryPrompt,
 		signal,
 	});
-	const bodyText = await readResponseBounded(res, 32_768);
-	if (!res.ok) {
-		throw new Error(`upstream ${res.status}: ${bodyText.slice(0, 200)}`);
-	}
-	let json: { choices?: Array<{ message?: { content?: string } }> };
-	try {
-		json = JSON.parse(bodyText) as typeof json;
-	} catch {
-		throw new Error("upstream response is not JSON");
-	}
-	const translated = json.choices?.[0]?.message?.content?.trim();
-	if (!translated) throw new Error("empty translation");
-
-	let summaryText: string | null = null;
-	const sumPrompt = summaryPrompt?.trim();
-	if (sumPrompt) {
-		const sumRes = await fetch(endpoint, {
-			method: "POST",
-			headers: {
-				"content-type": "application/json",
-				authorization: `Bearer ${apiKey}`,
-			},
-			body: JSON.stringify({
-				model: model || "gpt-4o-mini",
-				messages: [
-					{ role: "system", content: sumPrompt },
-					{ role: "user", content: text },
-				],
-				temperature: 0.2,
-			}),
-			signal,
-		});
-		const sumBody = await readResponseBounded(sumRes, 32_768);
-		if (!sumRes.ok) {
-			throw new Error(`summary upstream ${sumRes.status}: ${sumBody.slice(0, 200)}`);
-		}
-		let sumJson: { choices?: Array<{ message?: { content?: string } }> };
-		try {
-			sumJson = JSON.parse(sumBody) as typeof sumJson;
-		} catch {
-			throw new Error("summary response is not JSON");
-		}
-		summaryText = sumJson.choices?.[0]?.message?.content?.trim() || null;
-		if (!summaryText) throw new Error("empty summary");
-	}
-
-	return { translatedText: translated, summaryText };
+	return { translatedText: out.translatedText, summaryText: out.summaryText };
 };
 
 export async function resetStalePending(
@@ -115,6 +56,34 @@ export async function resetStalePending(
 		.bind(nowMs, userId, watchlistId, cutoff)
 		.run();
 	return result.meta.changes ?? 0;
+}
+
+/** Already-succeeded items for explicit item_ids (idempotent per-card translate). */
+export async function loadSucceededTranslations(
+	db: D1Database,
+	userId: string,
+	watchlistId: number,
+	itemIds: number[],
+): Promise<TranslateItemResult[]> {
+	const ids = itemIds.filter((n) => Number.isInteger(n) && n > 0).slice(0, TRANSLATE_MAX);
+	if (!ids.length) return [];
+	const ph = ids.map(() => "?").join(",");
+	const { results } = await db
+		.prepare(
+			`SELECT id, translated_text, summary_text FROM items
+       WHERE user_id = ? AND watchlist_id = ?
+         AND id IN (${ph})
+         AND ai_status = 'succeeded'
+         AND translated_text IS NOT NULL`,
+		)
+		.bind(userId, watchlistId, ...ids)
+		.all<{ id: number; translated_text: string; summary_text: string | null }>();
+	return (results ?? []).map((r) => ({
+		id: r.id,
+		ai_status: "succeeded" as const,
+		translatedText: r.translated_text,
+		summaryText: r.summary_text,
+	}));
 }
 
 export async function selectTranslateCandidates(
@@ -232,7 +201,14 @@ export async function runTranslateBatch(
 		limit: opts.limit ?? TRANSLATE_MAX,
 		itemIds: opts.itemIds,
 	});
-	if (!candidates.length) return { results: [], timed_out: false };
+	if (!candidates.length) {
+		// Per-card translate with item_ids: return already-succeeded rows so UI can hydrate.
+		if (opts.itemIds?.length) {
+			const existing = await loadSucceededTranslations(db, userId, watchlistId, opts.itemIds);
+			return { results: existing, timed_out: false };
+		}
+		return { results: [], timed_out: false };
+	}
 
 	await markPending(
 		db,
