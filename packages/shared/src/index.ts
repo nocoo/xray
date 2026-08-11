@@ -17,6 +17,12 @@ export {
 export { normalizeHandle } from "./handle.js";
 export type { NavGroupDef, NavItemDef } from "./nav.js";
 export { V2_NAV_GROUPS, V2_NAV_LABELS } from "./nav.js";
+export type { SpawnFn, SpawnResult, TwitterCliDeps } from "./producer-spawn.js";
+export {
+	atomicWriteJson,
+	twitterStatus,
+	twitterUserPosts,
+} from "./producer-spawn.js";
 export type { MembersGraph } from "./producer-utils.js";
 export {
 	assertAllowedBaseUrl,

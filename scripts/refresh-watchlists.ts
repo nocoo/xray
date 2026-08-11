@@ -17,6 +17,7 @@ import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
 	assertAllowedBaseUrl,
+	atomicWriteJson,
 	buildIngestBatches,
 	type CanonicalItem,
 	cacheFileBase,
@@ -27,8 +28,9 @@ import {
 	parseMembersGraph,
 	parsePushSuccessBody,
 	pushRetryDelayMs,
-	scrubEnvForTwitter,
 	shouldStopPush,
+	twitterStatus,
+	twitterUserPosts,
 } from "../packages/shared/src/index.ts";
 
 type Graph = ReturnType<typeof parseMembersGraph>;
@@ -124,8 +126,15 @@ function fullEnv(): Record<string, string | undefined> {
 	return p?.env ?? {};
 }
 
-function twitterEnv(): Record<string, string> {
-	return scrubEnvForTwitter(fullEnv());
+async function bunSpawn(
+	argv: string[],
+	opts: { env: Record<string, string> },
+): Promise<{ code: number; stdout: string; stderr: string }> {
+	const proc = Bun.spawn(argv, { stdout: "pipe", stderr: "pipe", env: opts.env });
+	const stdout = await new Response(proc.stdout).text();
+	const stderr = await new Response(proc.stderr).text();
+	const code = await proc.exited;
+	return { code, stdout, stderr };
 }
 
 function clampInt(raw: string | undefined, fallback: number, min: number, max: number): number {
@@ -216,23 +225,13 @@ function uniqueHandles(graph: Graph): Map<string, number[]> {
 }
 
 async function ensureTwitterAuth(): Promise<void> {
-	const proc = Bun.spawn([twitterBin, "status", "--json"], {
-		stdout: "pipe",
-		stderr: "pipe",
-		env: twitterEnv(),
+	const r = await twitterStatus({
+		spawn: bunSpawn,
+		bin: twitterBin,
+		env: fullEnv(),
+		max: twitterMax,
 	});
-	const out = await new Response(proc.stdout).text();
-	const err = await new Response(proc.stderr).text();
-	const code = await proc.exited;
-	if (code !== 0) throw new Error(`twitter status failed (${code}): ${err || out}`);
-	const start = out.indexOf("{");
-	const json = JSON.parse(start >= 0 ? out.slice(start) : out) as {
-		ok?: boolean;
-		data?: { authenticated?: boolean };
-	};
-	if (!json.ok || !json.data?.authenticated) {
-		throw new Error("twitter-cli not authenticated — run: twitter whoami");
-	}
+	if (!r.authenticated) throw new Error("twitter-cli not authenticated — run: twitter whoami");
 }
 
 function rawPathFor(handle: string): string {
@@ -247,27 +246,19 @@ function rawPathFor(handle: string): string {
 async function fetchUserPostsOnce(
 	handle: string,
 ): Promise<{ ok: true; data: unknown } | { ok: false; err: string; rateLimited: boolean }> {
-	const proc = Bun.spawn(
-		[twitterBin, "user-posts", handle, "--json", "--max", String(twitterMax)],
-		{ stdout: "pipe", stderr: "pipe", env: twitterEnv() },
-	);
-	const out = await new Response(proc.stdout).text();
-	const err = await new Response(proc.stderr).text();
-	const code = await proc.exited;
-	const combined = `${err}\n${out}`;
-	if (code !== 0) {
+	try {
+		const r = await twitterUserPosts(
+			{ spawn: bunSpawn, bin: twitterBin, env: fullEnv(), max: twitterMax },
+			handle,
+		);
+		return { ok: true, data: r.data };
+	} catch (e) {
+		const err = e as Error & { rateLimited?: boolean };
 		return {
 			ok: false,
-			err: combined.slice(0, 500),
-			rateLimited: /429|Rate limited|rate_limited|rate.limit/i.test(combined),
+			err: err.message ?? String(e),
+			rateLimited: Boolean(err.rateLimited),
 		};
-	}
-	const start = out.indexOf("{");
-	if (start < 0) return { ok: false, err: `no JSON @${handle}`, rateLimited: false };
-	try {
-		return { ok: true, data: JSON.parse(out.slice(start)) as unknown };
-	} catch (e) {
-		return { ok: false, err: e instanceof Error ? e.message : String(e), rateLimited: false };
 	}
 }
 
@@ -279,18 +270,7 @@ async function fetchUserPosts(handle: string): Promise<unknown> {
 	}
 	const r = await fetchUserPostsOnce(handle);
 	if (r.ok) {
-		const tmp = `${rawPath}.${process.pid}.tmp`;
-		try {
-			writeFileSync(tmp, JSON.stringify(r.data, null, 2));
-			renameSync(tmp, rawPath);
-		} catch (e) {
-			try {
-				unlinkSync(tmp);
-			} catch {
-				/* ignore */
-			}
-			throw e;
-		}
+		atomicWriteJson(rawPath, r.data, { writeFileSync, renameSync, unlinkSync }, process.pid);
 		return r.data;
 	}
 	if (r.rateLimited) throw new Error(`rate_limited @${handle}: ${r.err.slice(0, 200)}`);
