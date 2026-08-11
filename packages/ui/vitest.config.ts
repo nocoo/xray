@@ -12,24 +12,33 @@ export default defineConfig({
 		include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
 		coverage: {
 			provider: "v8",
-			// View shells + presentational components exempt (L3). Non-View units gated.
-			// View shells + thin API clients exempt from L1 denom (API exercised by L2 HTTP).
-			// API module unit tests still run (client.test / modules.test).
-			include: ["src/viewmodels/**/*.ts", "src/lib/**/*.ts"],
+			// Non-View only: VMs, pure lib, API clients, hooks. Views/components = View shells.
+			include: [
+				"src/viewmodels/**/*.ts",
+				"src/lib/**/*.ts",
+				"src/api/**/*.ts",
+				"src/hooks/**/*.ts",
+			],
 			exclude: [
 				"src/**/*.test.ts",
 				"src/**/*.test.tsx",
+				// React binder (useSyncExternalStore glue)
 				"src/viewmodels/use-vm.ts",
+				// Types / static mock fixtures (not executable product logic)
 				"src/lib/mock-data.ts",
 				"src/lib/tweet-types.ts",
 				"src/lib/version.ts",
 				"src/lib/watchlist-icons.ts",
+				// React context shells
+				"src/hooks/me-context.tsx",
+				"src/hooks/use-mobile.tsx",
+				"src/hooks/use-columns.ts",
 			],
 			reporter: ["text", "json-summary"],
 			thresholds: {
 				lines: 95,
 				functions: 95,
-				branches: 90,
+				branches: 95,
 				statements: 95,
 			},
 		},
