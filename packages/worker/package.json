@@ -16,7 +16,7 @@
 		"jose": "^6.2.8"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "5.20260809.1",
+		"@cloudflare/workers-types": "5.20260811.1",
 		"@vitest/coverage-v8": "4.1.10",
 		"typescript": "^7.0.2",
 		"vitest": "4.1.10",
