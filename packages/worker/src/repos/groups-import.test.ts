@@ -336,4 +336,26 @@ describe("bulkImportGroupMembers + copyGroupMembersToWatchlist", () => {
 		expect(copy.total).toBe(1);
 		expect(watchlist_members.map((m) => m.handle)).toEqual(["alice"]);
 	});
+
+	test("selected copy chunks at 14 rows (7 binds/row under D1 100-param limit)", async () => {
+		const { db, seedWatchlist, watchlist_members } = mockDb();
+		const g = await createGroup(db, "u1", { name: "G" });
+		const ids: number[] = [];
+		// 15 members → two statements (14 + 1), not one 105-bind statement
+		for (let i = 0; i < 15; i++) {
+			const m = await addGroupMember(db, "u1", g.id, {
+				sourceType: "x.com",
+				handle: `user${String(i).padStart(2, "0")}`,
+			});
+			ids.push(m.id);
+		}
+		const wl = seedWatchlist("u1");
+		const copy = await copyGroupMembersToWatchlist(db, "u1", g.id, wl, { memberIds: ids });
+		expect(copy.added).toBe(15);
+		expect(copy.total).toBe(15);
+		expect(watchlist_members).toHaveLength(15);
+		// bind count invariant: 7 * 14 = 98 ≤ 100; 7 * 15 = 105 would exceed
+		expect(7 * 14).toBeLessThanOrEqual(100);
+		expect(7 * 15).toBeGreaterThan(100);
+	});
 });

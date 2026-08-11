@@ -225,10 +225,14 @@ export type BulkImportResult = {
 };
 
 /**
- * Multi-row INSERT size: 6 binds/row → 15 rows = 90 binds (D1 ~100 bind budget).
- * Chunks run in a single db.batch() so Free-tier query count stays low and atomic per batch.
+ * Multi-row INSERT sizes stay under D1’s ~100 bind parameters per statement.
+ * - import: 6 binds/row → 15 rows = 90
+ * - selected copy: 7 binds/row → 14 rows = 98
+ * Chunks run in a single db.batch() so Free-tier query count stays low.
  */
 export const GROUP_BULK_ROWS_PER_STMT = 15;
+/** Selected-member copy VALUES clause uses 7 placeholders per row. */
+export const GROUP_COPY_ROWS_PER_STMT = 14;
 export const GROUP_COPY_MAX = 500;
 
 export class GroupCopyLimitError extends Error {
@@ -378,9 +382,10 @@ export async function copyGroupMembersToWatchlist(
 	skipped += members.length - rows.length;
 	const stmts: D1PreparedStatement[] = [];
 	const chunkSizes: number[] = [];
-	for (let i = 0; i < rows.length; i += GROUP_BULK_ROWS_PER_STMT) {
-		const chunk = rows.slice(i, i + GROUP_BULK_ROWS_PER_STMT);
+	for (let i = 0; i < rows.length; i += GROUP_COPY_ROWS_PER_STMT) {
+		const chunk = rows.slice(i, i + GROUP_COPY_ROWS_PER_STMT);
 		chunkSizes.push(chunk.length);
+		// 7 binds/row; keep chunk ≤ GROUP_COPY_ROWS_PER_STMT (14 → 98 binds)
 		const ph = chunk.map(() => "(?, ?, ?, ?, ?, ?, NULL, ?)").join(", ");
 		const binds: unknown[] = [];
 		for (const m of chunk) {
