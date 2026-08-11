@@ -36,8 +36,10 @@ bun run deploy       # build then wrangler deploy --env production
 
 ## Version
 
-Root `package.json` version is the source of truth (currently **pre-release** `2.0.0-dev.0` until S5/M8).  
+Root `package.json` version is the source of truth (currently **2.0.0**).  
 `@xray/shared` reads its package version (kept in sync) and exports `XRAY_VERSION`.
+
+See [CHANGELOG.md](CHANGELOG.md) and GitHub Releases for what’s new.
 
 
 ## Auth (local)

@@ -54,7 +54,9 @@ zone_name = "hexly.ai"
 
 [[env.production.routes]]
 pattern = "xray-ingest.hexly.ai"
-custom_domain = true# S45-04 — production ingest rate limit (replace namespace_id with CF dashboard value)
+custom_domain = true
+
+# S45-04 — production ingest rate limit (replace namespace_id with CF dashboard value)
 # Without this binding, production push fail-closes (429 rate_limit_unavailable).
 [[env.production.ratelimits]]
 name = "XRAY_INGEST_RL"
