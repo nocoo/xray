@@ -15,11 +15,17 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
+	assertAllowedBaseUrl,
 	buildIngestBatches,
 	type CanonicalItem,
+	cacheFileBase,
 	filterItemsByWindow,
+	isValidXHandle,
 	mapTwitterCliEnvelope,
 	normalizeHandle,
+	parsePushSuccessBody,
+	pushRetryDelayMs,
+	shouldStopPush,
 } from "../packages/shared/src/index.ts";
 
 type Member = { handle: string; sourceType: string };
@@ -52,15 +58,15 @@ if (values.help || positionals.includes("help")) {
 Options:
   --dry-run           Resolve graph + plan only (no twitter, no push)
   --cache-only        Fetch + cache + convert; no push
-  --from-cache        Reuse .cache raw JSON; convert + push
+  --from-cache        Reuse .cache raw JSON only (no twitter network)
   --members-file PATH Snapshot JSON (default: XRAY_MEMBERS_FILE or config/members.json)
   --window-hours N    Ingest window 1..168 (default: XRAY_WINDOW_HOURS or 24)
-  --max N             twitter user-posts --max (default: XRAY_TWITTER_MAX or 20)
+  --max N             twitter user-posts --max (default: 20; modest; CLI may page up to N)
   --cache-dir PATH    Raw cache root (default: XRAY_CACHE_DIR or .cache/twitter-cli)
-  --ingest-base URL   Default https://xray-ingest.hexly.ai
+  --ingest-base URL   Default https://xray-ingest.hexly.ai (allowlisted hosts only)
   --browser-base URL  For live graph (optional if members-file set)
   --twitter-bin PATH  Default TWITTER_BIN or twitter
-  --handle-delay-ms N Sleep between twitter calls (default 1500)
+  --handle-delay-ms N Sleep between twitter calls (default 3000)
 
 Env:
   XRAY_PUSH_TOKEN          Bearer for ingest (required unless dry-run/cache-only)
@@ -69,8 +75,12 @@ Env:
   XRAY_CF_AUTHORIZATION    CF Access cookie value for prod browser API
   XRAY_INGEST_BASE         Ingest host base URL
   XRAY_WINDOW_HOURS        1..168
-  XRAY_TWITTER_MAX         modest natural page size
+  XRAY_TWITTER_MAX         modest upper bound (default 20)
   TWITTER_BIN              twitter-cli binary
+
+Notes:
+  Default always re-fetches twitter (overwrites cache). Use --from-cache to resume offline.
+  twitter-cli may issue multiple GraphQL pages until --max; we do not add our own page loop.
 `);
 	process.exit(0);
 }
@@ -78,23 +88,27 @@ Env:
 const dryRun = Boolean(values["dry-run"]);
 const cacheOnly = Boolean(values["cache-only"]);
 const fromCache = Boolean(values["from-cache"]);
-const windowHours = clampInt(values["window-hours"] ?? process.env.XRAY_WINDOW_HOURS, 24, 1, 168);
-const twitterMax = clampInt(values.max ?? process.env.XRAY_TWITTER_MAX, 20, 1, 100);
-const handleDelayMs = clampInt(values["handle-delay-ms"], 1500, 0, 60_000);
-const cacheDir = resolve(values["cache-dir"] ?? process.env.XRAY_CACHE_DIR ?? ".cache/twitter-cli");
-const ingestBase = (
-	values["ingest-base"] ??
-	process.env.XRAY_INGEST_BASE ??
-	"https://xray-ingest.hexly.ai"
-).replace(/\/$/, "");
-const browserBase = (values["browser-base"] ?? process.env.XRAY_BROWSER_BASE ?? "").replace(
-	/\/$/,
-	"",
+const windowHours = clampInt(values["window-hours"] ?? env("XRAY_WINDOW_HOURS"), 24, 1, 168);
+const twitterMax = clampInt(values.max ?? env("XRAY_TWITTER_MAX"), 20, 1, 100);
+const handleDelayMs = clampInt(values["handle-delay-ms"], 3000, 0, 60_000);
+const cacheDir = resolve(values["cache-dir"] ?? env("XRAY_CACHE_DIR") ?? ".cache/twitter-cli");
+const ingestBase = assertAllowedBaseUrl(
+	values["ingest-base"] ?? env("XRAY_INGEST_BASE") ?? "https://xray-ingest.hexly.ai",
+	"ingest",
 );
-const twitterBin = values["twitter-bin"] ?? process.env.TWITTER_BIN ?? "twitter";
-const pushToken = process.env.XRAY_PUSH_TOKEN ?? "";
-const membersFile =
-	values["members-file"] ?? process.env.XRAY_MEMBERS_FILE ?? "config/members.json";
+const browserBaseRaw = values["browser-base"] ?? env("XRAY_BROWSER_BASE") ?? "";
+const browserBase = browserBaseRaw
+	? assertAllowedBaseUrl(browserBaseRaw.replace(/\/$/, ""), "browser")
+	: "";
+const twitterBin = values["twitter-bin"] ?? env("TWITTER_BIN") ?? "twitter";
+const pushToken = env("XRAY_PUSH_TOKEN") ?? "";
+const membersFile = values["members-file"] ?? env("XRAY_MEMBERS_FILE") ?? "config/members.json";
+
+function env(name: string): string | undefined {
+	// biome-ignore lint/suspicious/noExplicitAny: bun/process env
+	const p = (globalThis as any).process as { env?: Record<string, string | undefined> } | undefined;
+	return p?.env?.[name];
+}
 
 function clampInt(raw: string | undefined, fallback: number, min: number, max: number): number {
 	if (raw === undefined || raw === "") return fallback;
@@ -135,9 +149,9 @@ function normalizeGraph(g: Graph): Graph {
 				.filter((m) => m && (m.sourceType === "x.com" || m.sourceType === undefined))
 				.map((m) => ({
 					handle: normalizeHandle(String(m.handle)),
-					sourceType: "x.com",
+					sourceType: "x.com" as const,
 				}))
-				.filter((m) => m.handle.length > 0),
+				.filter((m) => isValidXHandle(m.handle)),
 		})),
 	};
 }
@@ -147,9 +161,8 @@ function browserHeaders(): HeadersInit {
 		accept: "application/json",
 		"content-type": "application/json",
 	};
-	const cf = process.env.XRAY_CF_AUTHORIZATION;
+	const cf = env("XRAY_CF_AUTHORIZATION");
 	if (cf) h.cookie = `CF_Authorization=${cf}`;
-	// local AUTH_DEV_BYPASS
 	if (browserBase.includes("127.0.0.1") || browserBase.includes("localhost")) {
 		h.host = "localhost";
 		h.origin = "http://localhost:7007";
@@ -179,18 +192,19 @@ async function fetchGraphFromBrowser(base: string): Promise<Graph> {
 			name: wl.name,
 			members: (mBody.data ?? [])
 				.filter((m) => m.sourceType === "x.com")
-				.map((m) => ({ handle: normalizeHandle(m.handle), sourceType: "x.com" })),
+				.map((m) => ({ handle: normalizeHandle(m.handle), sourceType: "x.com" }))
+				.filter((m) => isValidXHandle(m.handle)),
 		});
 	}
 	return { watchlists };
 }
 
 function uniqueHandles(graph: Graph): Map<string, number[]> {
-	/** handle → watchlist ids */
 	const map = new Map<string, number[]>();
 	for (const wl of graph.watchlists) {
 		for (const m of wl.members) {
 			const h = m.handle;
+			if (!isValidXHandle(h)) continue;
 			const arr = map.get(h) ?? [];
 			if (!arr.includes(wl.id)) arr.push(wl.id);
 			map.set(h, arr);
@@ -212,7 +226,7 @@ async function ensureTwitterAuth(): Promise<void> {
 	}
 	let json: unknown;
 	try {
-		json = JSON.parse(out);
+		json = JSON.parse(out.includes("{") ? out.slice(out.indexOf("{")) : out);
 	} catch {
 		throw new Error(`twitter status non-JSON: ${out.slice(0, 200)}`);
 	}
@@ -220,6 +234,18 @@ async function ensureTwitterAuth(): Promise<void> {
 	if (!data.ok || !data.data?.authenticated) {
 		throw new Error("twitter-cli not authenticated — run: twitter whoami");
 	}
+}
+
+function rawPathFor(handle: string): string {
+	const base = cacheFileBase(handle);
+	const dir = join(cacheDir, "raw");
+	mkdirSync(dir, { recursive: true });
+	const path = join(dir, `${base}.json`);
+	// ensure path stays under raw dir
+	if (!resolve(path).startsWith(resolve(dir))) {
+		throw new Error(`cache path escape: ${path}`);
+	}
+	return path;
 }
 
 async function fetchUserPostsOnce(
@@ -234,12 +260,13 @@ async function fetchUserPostsOnce(
 	const code = await proc.exited;
 	const combined = `${err}\n${out}`;
 	if (code !== 0) {
-		const rateLimited = /429|Rate limited|rate.limit/i.test(combined);
+		const rateLimited = /429|Rate limited|rate_limited|rate.limit/i.test(combined);
 		return { ok: false, err: combined.slice(0, 500), rateLimited };
 	}
 	const start = out.indexOf("{");
-	if (start < 0)
+	if (start < 0) {
 		return { ok: false, err: `no JSON from user-posts @${handle}`, rateLimited: false };
+	}
 	try {
 		return { ok: true, data: JSON.parse(out.slice(start)) as unknown };
 	} catch (e) {
@@ -252,77 +279,126 @@ async function fetchUserPostsOnce(
 }
 
 async function fetchUserPosts(handle: string): Promise<unknown> {
-	const rawPath = join(cacheDir, "raw", `${handle}.json`);
-	mkdirSync(join(cacheDir, "raw"), { recursive: true });
+	const rawPath = rawPathFor(handle);
 	if (fromCache) {
 		if (!existsSync(rawPath)) throw new Error(`cache miss: ${rawPath}`);
 		return JSON.parse(readFileSync(rawPath, "utf8"));
 	}
-	// Prefer existing cache (resume after partial rate-limit runs)
-	if (existsSync(rawPath) && process.env.XRAY_REFRESH_FORCE !== "1") {
-		return JSON.parse(readFileSync(rawPath, "utf8"));
-	}
 
-	const maxAttempts = 4;
-	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-		const r = await fetchUserPostsOnce(handle);
-		if (r.ok) {
-			writeFileSync(rawPath, JSON.stringify(r.data, null, 2));
-			return r.data;
+	// Default: always re-fetch. On rate-limit, do NOT hammer — skip handle (partial).
+	const r = await fetchUserPostsOnce(handle);
+	if (r.ok) {
+		const tmp = `${rawPath}.${process.pid}.tmp`;
+		writeFileSync(tmp, JSON.stringify(r.data, null, 2));
+		// atomic-ish replace
+		writeFileSync(rawPath, readFileSync(tmp));
+		try {
+			const { unlinkSync } = await import("node:fs");
+			unlinkSync(tmp);
+		} catch {
+			/* ignore */
 		}
-		if (r.rateLimited && attempt < maxAttempts) {
-			const wait = 45_000 * attempt;
-			console.warn(
-				`  rate-limited @${handle}, sleep ${wait / 1000}s (attempt ${attempt}/${maxAttempts})`,
-			);
-			await sleep(wait);
-			continue;
-		}
-		throw new Error(`user-posts @${handle}: ${r.err}`);
+		return r.data;
 	}
-	throw new Error(`user-posts @${handle}: exhausted retries`);
+	if (r.rateLimited) {
+		throw new Error(`rate_limited @${handle}: ${r.err.slice(0, 200)}`);
+	}
+	throw new Error(`user-posts @${handle}: ${r.err}`);
 }
-async function pushBatch(body: unknown): Promise<{
+
+async function pushBatch(body: {
+	watchlist_id: number;
+	items: CanonicalItem[];
+	options?: { apply_window_hours?: number };
+}): Promise<{
 	ok: boolean;
 	accepted?: number;
 	deduped?: number;
 	rejected?: number;
 	error?: string;
 	status: number;
+	fatal?: boolean;
 }> {
-	const res = await fetch(`${ingestBase}/api/v1/ingest/push`, {
-		method: "POST",
-		headers: {
-			authorization: `Bearer ${pushToken}`,
-			"content-type": "application/json",
-			// Host header for dual-host local tests; browsers ignore on prod HTTPS
-			...(ingestBase.includes("127.0.0.1") || ingestBase.includes("localhost")
-				? { host: "xray-ingest.hexly.ai" }
-				: {}),
-		},
-		body: JSON.stringify(body),
-	});
-	const text = await res.text();
-	let json: Record<string, unknown> = {};
-	try {
-		json = JSON.parse(text) as Record<string, unknown>;
-	} catch {
-		/* raw */
-	}
-	if (!res.ok) {
+	const maxAttempts = 4;
+	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+		let res: Response;
+		try {
+			res = await fetch(`${ingestBase}/api/v1/ingest/push`, {
+				method: "POST",
+				headers: {
+					authorization: `Bearer ${pushToken}`,
+					"content-type": "application/json",
+					...(ingestBase.includes("127.0.0.1") || ingestBase.includes("localhost")
+						? { host: "xray-ingest.hexly.ai" }
+						: {}),
+				},
+				body: JSON.stringify(body),
+			});
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			const delay = pushRetryDelayMs(0, attempt);
+			if (delay != null && attempt < maxAttempts) {
+				console.warn(`  push network error, retry in ${delay}ms: ${msg}`);
+				await sleep(delay);
+				continue;
+			}
+			return { ok: false, status: 0, error: msg };
+		}
+
+		const text = await res.text();
+		let json: unknown;
+		try {
+			json = JSON.parse(text);
+		} catch {
+			json = null;
+		}
+
+		if (shouldStopPush(res.status)) {
+			return {
+				ok: false,
+				status: res.status,
+				error:
+					typeof (json as { error?: string } | null)?.error === "string"
+						? (json as { error: string }).error
+						: text.slice(0, 300),
+				fatal: true,
+			};
+		}
+
+		if (!res.ok) {
+			const delay = pushRetryDelayMs(res.status, attempt);
+			const errMsg =
+				typeof (json as { error?: string } | null)?.error === "string"
+					? (json as { error: string }).error
+					: text.slice(0, 300);
+			if (delay != null && attempt < maxAttempts) {
+				console.warn(`  push HTTP ${res.status}, retry in ${delay}ms`);
+				await sleep(delay);
+				continue;
+			}
+			return { ok: false, status: res.status, error: errMsg };
+		}
+
+		const parsed = parsePushSuccessBody(json, body.items.length);
+		if (!parsed.ok) {
+			return { ok: false, status: res.status, error: parsed.reason };
+		}
 		return {
-			ok: false,
+			ok: true,
 			status: res.status,
-			error: typeof json.error === "string" ? json.error : text.slice(0, 300),
+			accepted: parsed.accepted,
+			deduped: parsed.deduped,
+			rejected: parsed.rejected,
 		};
 	}
-	return {
-		ok: true,
-		status: res.status,
-		accepted: Number(json.accepted ?? 0),
-		deduped: Number(json.deduped ?? 0),
-		rejected: Number(json.rejected ?? 0),
-	};
+	return { ok: false, status: 0, error: "push exhausted retries" };
+}
+
+function writeReport(report: unknown): string {
+	mkdirSync(cacheDir, { recursive: true });
+	const reportPath = join(cacheDir, `run-${Date.now()}.json`);
+	writeFileSync(reportPath, JSON.stringify(report, null, 2));
+	return reportPath;
 }
 
 async function main(): Promise<void> {
@@ -363,7 +439,6 @@ async function main(): Promise<void> {
 		process.exit(2);
 	}
 
-	/** handle → in-window canonical items */
 	const itemsByHandle = new Map<string, CanonicalItem[]>();
 	const handleErrors: Array<{ handle: string; error: string }> = [];
 	let totalMapped = 0;
@@ -387,7 +462,7 @@ async function main(): Promise<void> {
 			totalWindowDropped += dropped;
 			itemsByHandle.set(handle, kept);
 			writeFileSync(
-				join(cacheDir, "raw", `${handle}.canonical.json`),
+				join(cacheDir, "raw", `${cacheFileBase(handle)}.canonical.json`),
 				JSON.stringify(kept, null, 2),
 			);
 			console.log(
@@ -397,13 +472,17 @@ async function main(): Promise<void> {
 			const msg = e instanceof Error ? e.message : String(e);
 			handleErrors.push({ handle, error: msg });
 			console.error(`  ERROR @${handle}: ${msg}`);
+			// rate-limit: cool off once then continue others (no dense multi-retry)
+			if (/rate_limited/i.test(msg)) {
+				console.warn("  cooling 60s after rate limit…");
+				await sleep(60_000);
+			}
 		}
 		if (!fromCache && handleDelayMs > 0 && i < handleMap.size) {
 			await sleep(handleDelayMs);
 		}
 	}
 
-	/** watchlist_id → items (dedupe by external_id) */
 	const itemsByWl = new Map<number, Map<string, CanonicalItem>>();
 	for (const [handle, items] of itemsByHandle) {
 		const wls = handleMap.get(handle) ?? [];
@@ -421,96 +500,100 @@ async function main(): Promise<void> {
 
 	const summary: Array<Record<string, unknown>> = [];
 	let pushErrors = 0;
+	let fatalPush = false;
+
+	const finalize = (code: number) => {
+		const report = {
+			event: cacheOnly ? "cache_only_done" : "refresh_done",
+			windowHours,
+			totalMapped,
+			totalSkipped,
+			totalWindowDropped,
+			handleErrors,
+			pushErrors,
+			summary,
+		};
+		const reportPath = writeReport(report);
+		console.log(JSON.stringify(report, null, 2));
+		console.log(`report: ${reportPath}`);
+		process.exit(code);
+	};
 
 	if (cacheOnly) {
-		console.log(
-			JSON.stringify(
-				{
-					event: "cache_only_done",
-					totalMapped,
-					totalSkipped,
-					totalWindowDropped,
-					handleErrors,
-					perWatchlist: [...itemsByWl.entries()].map(([id, bag]) => ({
-						watchlist_id: id,
-						name: wlById.get(id)?.name,
-						items: bag.size,
-					})),
-				},
-				null,
-				2,
-			),
-		);
-		process.exit(handleErrors.length && itemsByHandle.size === 0 ? 1 : 0);
+		const hard =
+			handleErrors.length > 0 && itemsByHandle.size === 0 ? 1 : handleErrors.length > 0 ? 1 : 0;
+		finalize(hard);
+		return;
 	}
 
-	for (const [wlId, bag] of itemsByWl) {
-		const items = [...bag.values()];
-		const batches = buildIngestBatches(wlId, items, { apply_window_hours: windowHours });
-		let accepted = 0;
-		let deduped = 0;
-		let rejected = 0;
-		const errors: string[] = [];
-		if (batches.length === 0) {
+	try {
+		for (const [wlId, bag] of itemsByWl) {
+			const items = [...bag.values()];
+			const batches = buildIngestBatches(wlId, items, { apply_window_hours: windowHours });
+			let accepted = 0;
+			let deduped = 0;
+			let rejected = 0;
+			const errors: string[] = [];
+			if (batches.length === 0) {
+				summary.push({
+					watchlist_id: wlId,
+					name: wlById.get(wlId)?.name,
+					items: 0,
+					accepted: 0,
+					deduped: 0,
+					rejected: 0,
+				});
+				continue;
+			}
+			for (const batch of batches) {
+				const res = await pushBatch(batch);
+				if (!res.ok) {
+					pushErrors += 1;
+					errors.push(`HTTP ${res.status}: ${res.error}`);
+					console.error(`push WL ${wlId} failed: ${res.error}`);
+					if (res.fatal) {
+						fatalPush = true;
+						break;
+					}
+					continue;
+				}
+				accepted += res.accepted ?? 0;
+				deduped += res.deduped ?? 0;
+				rejected += res.rejected ?? 0;
+			}
 			summary.push({
 				watchlist_id: wlId,
 				name: wlById.get(wlId)?.name,
-				items: 0,
-				accepted: 0,
-				deduped: 0,
-				rejected: 0,
+				items: items.length,
+				batches: batches.length,
+				accepted,
+				deduped,
+				rejected,
+				errors: errors.length ? errors : undefined,
 			});
-			continue;
+			console.log(
+				`WL ${wlId} ${wlById.get(wlId)?.name}: items=${items.length} accepted=${accepted} deduped=${deduped} rejected=${rejected}`,
+			);
+			if (fatalPush) break;
 		}
-		for (const batch of batches) {
-			const res = await pushBatch(batch);
-			if (!res.ok) {
-				pushErrors += 1;
-				errors.push(`HTTP ${res.status}: ${res.error}`);
-				console.error(`push WL ${wlId} failed: ${res.error}`);
-				continue;
-			}
-			accepted += res.accepted ?? 0;
-			deduped += res.deduped ?? 0;
-			rejected += res.rejected ?? 0;
-		}
-		summary.push({
-			watchlist_id: wlId,
-			name: wlById.get(wlId)?.name,
-			items: items.length,
-			batches: batches.length,
-			accepted,
-			deduped,
-			rejected,
-			errors: errors.length ? errors : undefined,
-		});
-		console.log(
-			`WL ${wlId} ${wlById.get(wlId)?.name}: items=${items.length} accepted=${accepted} deduped=${deduped} rejected=${rejected}`,
-		);
+	} finally {
+		/* report always written via finalize */
 	}
 
-	const report = {
-		event: "refresh_done",
-		windowHours,
-		totalMapped,
-		totalSkipped,
-		totalWindowDropped,
-		handleErrors,
-		pushErrors,
-		summary,
-	};
-	const reportPath = join(cacheDir, `run-${Date.now()}.json`);
-	writeFileSync(reportPath, JSON.stringify(report, null, 2));
-	console.log(JSON.stringify(report, null, 2));
-	console.log(`report: ${reportPath}`);
-
-	const hardFail =
-		(handleErrors.length > 0 && itemsByHandle.size === 0) ||
-		(pushErrors > 0 && summary.every((s) => !s.accepted && !s.deduped));
-	process.exit(hardFail ? 1 : 0);
+	const incomplete =
+		handleErrors.length > 0 ||
+		pushErrors > 0 ||
+		fatalPush ||
+		(itemsByHandle.size === 0 && handleMap.size > 0);
+	finalize(incomplete ? 1 : 0);
 }
 
 main().catch((e) => {
 	console.error(e instanceof Error ? e.message : e);
+	try {
+		writeReport({ event: "fatal", error: String(e) });
+	} catch {
+		/* ignore */
+	}
 	process.exit(1);
 });

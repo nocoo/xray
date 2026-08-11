@@ -10,7 +10,7 @@ Local, script-first producer that refreshes **x.com** members on all watchlists 
 
 | # | Rule |
 |---|------|
-| P1 | **Flexible window** — one natural `user-posts` page per unique handle (`--max` modest, default 20). No extra pages “to fill” a count or window. |
+| P1 | **Flexible window** — modest `--max` (default 20). We do **not** add our own cursor loop. Note: upstream twitter-cli may issue multiple GraphQL pages until it reaches `--max`; keep max small so that stays near one natural page. |
 | P2 | **Raw cache independent** — twitter-cli JSON stays on disk under `.cache/twitter-cli/`; never sent raw to X-Ray. |
 | P3 | **Convert at push** — mapper turns each tweet into `source_type=x.com` / `body.kind=x.post`; only `parseCanonicalItem`-valid items are POSTed. |
 | P4 | **Script-primary** — `bun run refresh:watchlists` is the stable entry; agents only orchestrate the same script. |
@@ -68,7 +68,7 @@ Key fields from `tweet_to_dict`:
 | `isRetweet`, `retweetedBy`, `quotedTweet` | optional refs |
 | `lang` | optional |
 
-**Window policy**: use whatever the single page returns. Client-side (and/or ingest `apply_window_hours`) drops older items. Do **not** follow `nextCursor` solely to pad volume.
+**Window policy**: one `user-posts` invocation per unique handle; client-side (and/or ingest `apply_window_hours`) drops older items. Do **not** implement our own `nextCursor` loop. Prefer `--max 20` (≈ one timeline page). Upstream CLI may still page internally up to `--max` — that is intentional capping, not “pad until window full”.
 
 ---
 
@@ -186,25 +186,26 @@ export TWITTER_BIN=twitter
 
 # 3. Run
 bun run refresh:watchlists -- --help
-bun run refresh:watchlists -- --dry-run     # resolve + map counts, no twitter/no push
+bun run refresh:watchlists -- --dry-run     # resolve graph + plan only (no twitter/no push)
 bun run refresh:watchlists -- --cache-only  # fetch+cache+convert, no push
-bun run refresh:watchlists --               # full: fetch → cache → convert → push
-bun run refresh:watchlists -- --from-cache  # reuse raw JSON, convert + push
+bun run refresh:watchlists --               # full: always re-fetch → cache → convert → push
+bun run refresh:watchlists -- --from-cache  # offline: reuse raw JSON only, convert + push
 ```
 
 Pipeline stages:
 
 ```
-resolve graph → unique handles
-  → twitter user-posts (once per handle) → .cache/twitter-cli/raw/<handle>.json
+resolve graph → unique handles (^[A-Za-z0-9_]{1,15}$)
+  → twitter user-posts (once per handle; default re-fetch) → .cache/twitter-cli/raw/<handle>.json
   → map envelope → canonical[]
   → filter by windowHours (client)
   → fan-out items to each watchlist that lists that handle
-  → chunk ≤50 → POST ingest
-  → print accepted/deduped/rejected per WL
+  → chunk ≤50 → POST ingest (retry 429/5xx; 401/403 fatal)
+  → print accepted/deduped/rejected per WL; non-zero exit if partial
 ```
 
-Handle **dedupe across lists**: one fetch; items cloned into each watchlist’s push batches.
+Handle **dedupe across lists**: one fetch; items cloned into each watchlist’s push batches.  
+**Cache**: default run always overwrites raw JSON. Only `--from-cache` reuses disk without calling X.
 
 ---
 
@@ -213,7 +214,8 @@ Handle **dedupe across lists**: one fetch; items cloned into each watchlist’s 
 | Symptom | Handling |
 |---------|----------|
 | `twitter` missing / not authenticated | Exit non-zero before fetch; message points to SKILL auth |
-| Single handle rate-limit / 404 | Script-level backoff (45s × attempt, up to 4); then log + continue (partial OK). Re-run reuses `.cache/.../raw/<handle>.json` so only misses re-hit X |
+| Single handle rate-limit | Log + 60s cool-off + continue other handles (partial, exit 1). Do not dense multi-retry (twitter-cli already retried). Resume offline with `--from-cache` for successes; default re-run re-fetches all |
+| Single handle 404 / other | Log + continue (partial, exit 1) |
 | Convert skip | Counted in `skipped`; not POSTed |
 | Ingest 401 | Bad/revoked `XRAY_PUSH_TOKEN` |
 | Ingest 404 watchlist | Token user ≠ WL owner or wrong id (e.g. e2e seed lists) — filter snapshot to your `user_id` |
