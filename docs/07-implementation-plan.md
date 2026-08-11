@@ -44,7 +44,7 @@
 | P2 | Group → watchlist member copy | `POST /api/groups/:id/copy-to-watchlist`; `repos/groups.ts` `copyGroupMembersToWatchlist` | **done** |
 | P3 | Ingest logs list + dashboard recent | `GET /api/watchlists/:id/ingest-logs`; `repos/ingest-logs.ts`; dashboard `recentIngestLogs` | **done** |
 | P4 | AI test connection + summary fill | `POST /api/ai-config/test`; `repos/translate.ts` summary path; `ai-settings-page.tsx` | **done** |
-| P5 | Custom card zhe.to Save + member tags | `custom-item-card.tsx`, `lib/zheto-save.ts`; members tags on add | **done** |
+| P5 | Custom card zhe.to Save + member tags | `custom-item-card.tsx`, `lib/zheto-save.ts`; tags on add + edit (`edit-member-dialog`) | **done** |
 
 **Route harness (L2):** `packages/worker/src/routes/product-gaps-routes.test.ts` + `ai-test.test.ts` — each of import / copy-to-watchlist / ingest-logs / ai-config/test covers **401**, happy JSON shape, and failure (bad body or cross-user 404); AI test mocks `fetch` for `{ok:true}` and upstream non-OK `{ok:false}`.
 
