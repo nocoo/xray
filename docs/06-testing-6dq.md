@@ -31,11 +31,11 @@ For each business resource (watchlist, group, item, token, log, ai config, zheto
 
 | Package | Include | Explicit exclude |
 |---------|---------|------------------|
-| shared | domain parsers + producer-core/utils | barrel, type-only, CLI spawn/push/twitter-cli adapters |
-| worker | `lib` + `middleware` (observability, origin-check) | routes (L2+route gate); repos (L2 D1 + unit files); access-auth JWT bootstrap; ai-endpoint SSRF matrix; handle re-export |
-| ui | `viewmodels` + pure `lib` | View shells, components, thin API clients (L2 HTTP) |
+| shared | `src/**/*.ts` domain surface | barrel `index.ts`, type-only boundary |
+| worker | `lib` + `middleware` + `repos` + `routes` | test helpers, `handle` re-export |
+| ui | `viewmodels` + pure `lib` + `api` + `hooks` | View shells, React binders, static fixtures |
 
-Thresholds: lines/functions/statements **≥95%**; branches **≥90%**. L2 `gate:routes` + real-HTTP is mandatory for all `/api/*`.
+**Thresholds (OBJECTIVE / gate):** lines **≥95%**, functions **≥95%**, branches **≥95%** (statements tracked; CLI `scripts/check-coverage.sh 95 95 95`). L2 `gate:routes` + real-HTTP is mandatory for all `/api/*`.
 
 ## 2. TDD rules
 

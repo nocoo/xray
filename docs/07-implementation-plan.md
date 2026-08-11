@@ -10,7 +10,7 @@
 | 项 | 状态 |
 |----|------|
 | MVVM (`packages/ui/src/viewmodels/*`) | **done** |
-| L1 coverage ≥95% 3维 (View exempt) | **done** (`bun run test:coverage`) |
+| L1 coverage ≥95% lines/funcs/**branches** (denom: worker lib+middleware+repos+routes; View exempt) | **done** (`bash scripts/check-coverage.sh 95 95 95`) |
 | L2 real-HTTP + route gate (all `/api/*`) | **done** (`bun run test:l2`) |
 | D1 isolation (`env.test` / `xray-db-test` / `state-l2`) | **done** |
 | L3 main flows (`e2e/*.pw.ts`) | **done** (local UI+worker) |
