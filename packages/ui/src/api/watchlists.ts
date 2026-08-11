@@ -93,6 +93,18 @@ export function addMember(
 	return apiPost<Member>(`/api/watchlists/${watchlistId}/members`, input);
 }
 
+export function patchMember(
+	watchlistId: number,
+	memberId: number,
+	input: {
+		displayName?: string | null;
+		note?: string | null;
+		tagIds?: number[];
+	},
+) {
+	return apiPatch<Member>(`/api/watchlists/${watchlistId}/members/${memberId}`, input);
+}
+
 export function deleteMember(watchlistId: number, memberId: number) {
 	return apiDelete<{ deleted: boolean }>(`/api/watchlists/${watchlistId}/members/${memberId}`);
 }

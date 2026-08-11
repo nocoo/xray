@@ -18,6 +18,7 @@ import { CustomItemCard } from "@/components/cards/custom-item-card";
 import { MemberCard } from "@/components/cards/member-card";
 import { TweetCard } from "@/components/cards/tweet-card";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
+import { EditMemberDialog } from "@/components/dialogs/edit-member-dialog";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { SourceFilter, type SourceFilterValue } from "@/components/source-filter";
 import { Button } from "@/components/ui/button";
@@ -97,6 +98,7 @@ export function WatchlistDetailPage() {
 	const { openAddMember } = useCreateDialogs();
 	const [activeTab, setActiveTab] = useState<"members" | "posts">("posts");
 	const [sourceFilter, setSourceFilter] = useState<SourceFilterValue>("all");
+	const [editMember, setEditMember] = useState<Member | null>(null);
 	const [wl, setWl] = useState<Watchlist | null>(null);
 	const [members, setMembers] = useState<Member[]>([]);
 	const [items, setItems] = useState<TimelineItem[]>([]);
@@ -309,6 +311,7 @@ export function WatchlistDetailPage() {
 								<MemberCard
 									key={m.id}
 									member={memberToCard(m)}
+									onEdit={() => setEditMember(m)}
 									onDelete={() => void onRemoveMember(m.id)}
 								/>
 							))}
@@ -320,6 +323,15 @@ export function WatchlistDetailPage() {
 							</p>
 						</div>
 					)}
+					<EditMemberDialog
+						open={editMember != null}
+						onOpenChange={(o) => {
+							if (!o) setEditMember(null);
+						}}
+						watchlistId={watchlistId}
+						member={editMember}
+						onSaved={() => void load()}
+					/>
 				</div>
 			)}
 
