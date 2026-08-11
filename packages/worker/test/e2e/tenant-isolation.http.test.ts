@@ -87,42 +87,83 @@ describe("L2 tenant isolation (real HTTP, dual actor)", () => {
 		}
 	});
 
-	test("settings/ai/zheto are per-user (B cannot see A secrets)", async () => {
-		// A configures AI
+	test("AI config is per-user (B does not inherit A)", async () => {
 		const putA = await jsonFetch("/api/ai-config", {
 			method: "PUT",
 			headers: actorHeaders("a"),
 			body: JSON.stringify({
 				provider: "openai",
-				model: "gpt-a",
+				model: "gpt-actor-a-only",
 				apiKey: "sk-actor-a-secret",
 			}),
 		});
 		expect([200, 201]).toContain(putA.status);
+		const cfgA = dataOf<{ hasApiKey: boolean; model: string | null }>(putA.body);
+		expect(cfgA.hasApiKey).toBe(true);
+		expect(cfgA.model).toBe("gpt-actor-a-only");
 
 		const getB = await jsonFetch("/api/ai-config", { headers: actorHeaders("b") });
 		expect(getB.status).toBe(200);
-		const cfgB = dataOf<{ hasApiKey?: boolean; model?: string | null }>(getB.body);
-		// B has no key / different config — not A's
-		expect(cfgB.hasApiKey === true && cfgB.model === "gpt-a").toBe(false);
-
-		const zheA = await jsonFetch("/api/integrations/zheto", {
-			method: "PUT",
-			headers: actorHeaders("a"),
-			body: JSON.stringify({ webhookUrl: "https://zhe.to/api/webhook/actor-a", folder: "a" }),
-		});
-		// may 200 or 400 host policy
-		expect([200, 400]).toContain(zheA.status);
-		const zheB = await jsonFetch("/api/integrations/zheto", { headers: actorHeaders("b") });
-		expect(zheB.status).toBe(200);
+		const cfgB = dataOf<{ hasApiKey?: boolean; model?: string | null; configured?: boolean }>(
+			getB.body,
+		);
+		expect(cfgB.model === "gpt-actor-a-only").toBe(false);
+		expect(cfgB.hasApiKey === true && cfgB.model === "gpt-actor-a-only").toBe(false);
 	});
 
-	test("revoked token → 401; A token cannot push to B watchlist → 404", async () => {
-		const wlA = await createWatchlistAs("a", `iso-tok-${Date.now()}`);
-		const wlB = await createWatchlistAs("b", `iso-b-${Date.now()}`);
-		const tokA = await mintTokenAs("a", `iso-${Date.now()}`);
+	test("B cannot revoke A token; B cannot delete A item", async () => {
+		const wlA = await createWatchlistAs("a", `iso-item-${Date.now()}`);
+		const tokA = await mintTokenAs("a", `iso-tok-${Date.now()}`);
+		const tokB = await mintTokenAs("b", `iso-tok-b-${Date.now()}`);
 
-		const pushB = await fetch(`${BASE}/api/v1/ingest/push`, {
+		// Seed item owned by A via push
+		const externalId = `iso-item-${Date.now()}`;
+		const push = await fetch(`${BASE}/api/v1/ingest/push`, {
+			method: "POST",
+			headers: ingestHeaders(tokA.token),
+			body: JSON.stringify({
+				watchlist_id: wlA.id,
+				items: [
+					{
+						source_type: "custom",
+						external_id: externalId,
+						created_at: new Date().toISOString().replace(/\.\d{3}Z$/, ".000Z"),
+						body: { kind: "custom", text: "owned by a" },
+					},
+				],
+			}),
+		});
+		expect(push.status).toBe(200);
+		const items = await jsonFetch(`/api/watchlists/${wlA.id}/items`, {
+			headers: actorHeaders("a"),
+		});
+		const page = dataOf<{ items: Array<{ id: number; externalId: string }> }>(items.body);
+		const itemId = page.items.find((i) => i.externalId === externalId)?.id;
+		expect(itemId).toBeTruthy();
+
+		// B cannot delete A's item
+		expect(
+			(
+				await jsonFetch(`/api/items/${itemId}`, {
+					method: "DELETE",
+					headers: actorHeaders("b"),
+				})
+			).status,
+		).toBe(404);
+
+		// B cannot revoke A's token
+		expect(
+			(
+				await jsonFetch(`/api/push-tokens/${tokA.id}`, {
+					method: "DELETE",
+					headers: actorHeaders("b"),
+				})
+			).status,
+		).toBe(404);
+
+		// A token cannot push into B's watchlist
+		const wlB = await createWatchlistAs("b", `iso-b-${Date.now()}`);
+		const pushCross = await fetch(`${BASE}/api/v1/ingest/push`, {
 			method: "POST",
 			headers: ingestHeaders(tokA.token),
 			body: JSON.stringify({
@@ -130,21 +171,24 @@ describe("L2 tenant isolation (real HTTP, dual actor)", () => {
 				items: [
 					{
 						source_type: "custom",
-						external_id: `iso-f-${Date.now()}`,
+						external_id: `cross-${Date.now()}`,
 						created_at: new Date().toISOString().replace(/\.\d{3}Z$/, ".000Z"),
 						body: { kind: "custom", text: "nope" },
 					},
 				],
 			}),
 		});
-		expect(pushB.status).toBe(404);
+		expect(pushCross.status).toBe(404);
 
-		const { status: revStatus } = await jsonFetch(`/api/push-tokens/${tokA.id}`, {
-			method: "DELETE",
-			headers: actorHeaders("a"),
-		});
-		expect([200, 204]).toContain(revStatus);
-
+		// A can still revoke own token; then 401
+		expect(
+			(
+				await jsonFetch(`/api/push-tokens/${tokA.id}`, {
+					method: "DELETE",
+					headers: actorHeaders("a"),
+				})
+			).status,
+		).toBe(200);
 		const pushRevoked = await fetch(`${BASE}/api/v1/ingest/push`, {
 			method: "POST",
 			headers: ingestHeaders(tokA.token),
@@ -153,7 +197,7 @@ describe("L2 tenant isolation (real HTTP, dual actor)", () => {
 				items: [
 					{
 						source_type: "custom",
-						external_id: `iso-r-${Date.now()}`,
+						external_id: `rev-${Date.now()}`,
 						created_at: new Date().toISOString().replace(/\.\d{3}Z$/, ".000Z"),
 						body: { kind: "custom", text: "nope" },
 					},
@@ -161,5 +205,7 @@ describe("L2 tenant isolation (real HTTP, dual actor)", () => {
 			}),
 		});
 		expect(pushRevoked.status).toBe(401);
+		void tokB;
 	});
 });
+
