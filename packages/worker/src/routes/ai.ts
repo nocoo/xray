@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import { readResponseBounded, resolveAiBaseUrl } from "../lib/ai-endpoint.js";
 import { jsonErr, jsonOk, requireUser } from "../lib/http.js";
 import {
 	AiConfigValidationError,
@@ -69,41 +70,6 @@ export async function putAiConfigRoute(c: Context<AppEnv>) {
 const AI_TEST_TIMEOUT_MS = 12_000;
 const AI_TEST_BODY_MAX = 8_192;
 
-function resolveTestBaseUrl(
-	raw: string | null | undefined,
-): { ok: true; base: string } | { ok: false; error: string } {
-	const base = (raw?.trim() || "https://api.openai.com/v1").replace(/\/$/, "");
-	let u: URL;
-	try {
-		u = new URL(base.includes("://") ? base : `https://${base}`);
-	} catch {
-		return { ok: false, error: "invalid baseUrl" };
-	}
-	if (u.protocol !== "https:") return { ok: false, error: "baseUrl must be https" };
-	const host = u.hostname.toLowerCase();
-	if (
-		host === "localhost" ||
-		host === "127.0.0.1" ||
-		host === "0.0.0.0" ||
-		host === "::1" ||
-		host.endsWith(".local") ||
-		host.endsWith(".internal") ||
-		/^10\./.test(host) ||
-		/^192\.168\./.test(host) ||
-		/^172\.(1[6-9]|2\d|3[0-1])\./.test(host) ||
-		host.startsWith("169.254.")
-	) {
-		return { ok: false, error: "baseUrl host not allowed" };
-	}
-	return { ok: true, base: `${u.origin}${u.pathname}`.replace(/\/$/, "") };
-}
-
-async function readBoundedText(res: Response, max = AI_TEST_BODY_MAX): Promise<string> {
-	const buf = await res.arrayBuffer().catch(() => new ArrayBuffer(0));
-	const bytes = new Uint8Array(buf).slice(0, max);
-	return new TextDecoder().decode(bytes);
-}
-
 /** POST /api/ai-config/test — lightweight chat completion ping (saved config or draft body). */
 export async function testAiConfigRoute(c: Context<AppEnv>) {
 	const user = requireUser(c);
@@ -118,8 +84,17 @@ export async function testAiConfigRoute(c: Context<AppEnv>) {
 		typeof draft.provider === "string" && draft.provider.trim()
 			? draft.provider.trim()
 			: (row?.provider ?? "");
-	const model = typeof draft.model === "string" ? draft.model.trim() || null : (row?.model ?? null);
-	const baseUrlRaw = typeof draft.baseUrl === "string" ? draft.baseUrl : (row?.base_url ?? null);
+	// missing key → saved; explicit null/"" → null (do not fall back)
+	const model = Object.hasOwn(draft, "model")
+		? typeof draft.model === "string"
+			? draft.model.trim() || null
+			: null
+		: (row?.model ?? null);
+	const baseUrlRaw = Object.hasOwn(draft, "baseUrl")
+		? typeof draft.baseUrl === "string"
+			? draft.baseUrl
+			: null
+		: (row?.base_url ?? null);
 
 	let apiKey: string | null = null;
 	if (typeof draft.apiKey === "string" && draft.apiKey.trim()) {
@@ -134,14 +109,13 @@ export async function testAiConfigRoute(c: Context<AppEnv>) {
 	if (!provider) return jsonErr(c, "AI not configured", 400);
 	if (!apiKey) return jsonErr(c, "API key required (save config or pass apiKey in body)", 400);
 
-	const base = resolveTestBaseUrl(baseUrlRaw);
+	const base = resolveAiBaseUrl(baseUrlRaw);
 	if (!base.ok) return jsonOk(c, { ok: false, error: base.error });
-	const endpoint = `${base.base}/chat/completions`;
 
 	const ac = new AbortController();
 	const timer = setTimeout(() => ac.abort(), AI_TEST_TIMEOUT_MS);
 	try {
-		const res = await fetch(endpoint, {
+		const res = await fetch(base.chatCompletionsUrl, {
 			method: "POST",
 			headers: {
 				"content-type": "application/json",
@@ -158,7 +132,7 @@ export async function testAiConfigRoute(c: Context<AppEnv>) {
 			}),
 			signal: ac.signal,
 		});
-		const bodyText = await readBoundedText(res);
+		const bodyText = await readResponseBounded(res, AI_TEST_BODY_MAX);
 		if (!res.ok) {
 			return jsonOk(c, {
 				ok: false,

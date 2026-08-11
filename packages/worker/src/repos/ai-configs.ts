@@ -1,3 +1,4 @@
+import { resolveAiBaseUrl } from "../lib/ai-endpoint.js";
 import {
 	decryptSecret,
 	encryptSecret,
@@ -97,8 +98,13 @@ export async function upsertAiConfig(
 	}
 
 	const model = input.model !== undefined ? input.model?.trim() || null : (existing?.model ?? null);
-	const baseUrl =
+	let baseUrl =
 		input.baseUrl !== undefined ? input.baseUrl?.trim() || null : (existing?.base_url ?? null);
+	if (baseUrl) {
+		const ep = resolveAiBaseUrl(baseUrl);
+		if (!ep.ok) throw new AiConfigValidationError(ep.error);
+		baseUrl = ep.base;
+	}
 	const translationPrompt =
 		input.translationPrompt !== undefined
 			? input.translationPrompt?.trim() || null

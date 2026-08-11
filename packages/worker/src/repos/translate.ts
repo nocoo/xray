@@ -1,3 +1,4 @@
+import { readResponseBounded, resolveAiBaseUrl } from "../lib/ai-endpoint.js";
 import type { TranslateFn } from "../types.js";
 import type { AiConfigRow } from "./ai-configs.js";
 
@@ -25,7 +26,9 @@ export const defaultTranslateFn: TranslateFn = async ({
 	summaryPrompt,
 	signal,
 }) => {
-	const endpoint = `${baseUrl?.replace(/\/$/, "") || "https://api.openai.com/v1"}/chat/completions`;
+	const ep = resolveAiBaseUrl(baseUrl);
+	if (!ep.ok) throw new Error(ep.error);
+	const endpoint = ep.chatCompletionsUrl;
 	const system =
 		translationPrompt?.trim() ||
 		"Translate the user message to Simplified Chinese. Reply with translation only.";
@@ -45,13 +48,16 @@ export const defaultTranslateFn: TranslateFn = async ({
 		}),
 		signal,
 	});
+	const bodyText = await readResponseBounded(res, 32_768);
 	if (!res.ok) {
-		const body = await res.text().catch(() => "");
-		throw new Error(`upstream ${res.status}: ${body.slice(0, 200)}`);
+		throw new Error(`upstream ${res.status}: ${bodyText.slice(0, 200)}`);
 	}
-	const json = (await res.json()) as {
-		choices?: Array<{ message?: { content?: string } }>;
-	};
+	let json: { choices?: Array<{ message?: { content?: string } }> };
+	try {
+		json = JSON.parse(bodyText) as typeof json;
+	} catch {
+		throw new Error("upstream response is not JSON");
+	}
 	const translated = json.choices?.[0]?.message?.content?.trim();
 	if (!translated) throw new Error("empty translation");
 
@@ -74,13 +80,16 @@ export const defaultTranslateFn: TranslateFn = async ({
 			}),
 			signal,
 		});
+		const sumBody = await readResponseBounded(sumRes, 32_768);
 		if (!sumRes.ok) {
-			const body = await sumRes.text().catch(() => "");
-			throw new Error(`summary upstream ${sumRes.status}: ${body.slice(0, 200)}`);
+			throw new Error(`summary upstream ${sumRes.status}: ${sumBody.slice(0, 200)}`);
 		}
-		const sumJson = (await sumRes.json()) as {
-			choices?: Array<{ message?: { content?: string } }>;
-		};
+		let sumJson: { choices?: Array<{ message?: { content?: string } }> };
+		try {
+			sumJson = JSON.parse(sumBody) as typeof sumJson;
+		} catch {
+			throw new Error("summary response is not JSON");
+		}
 		summaryText = sumJson.choices?.[0]?.message?.content?.trim() || null;
 		if (!summaryText) throw new Error("empty summary");
 	}
