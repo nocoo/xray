@@ -26,9 +26,6 @@ import {
 	isValidXHandle,
 	mapTwitterCliEnvelope,
 	parseMembersGraph,
-	parsePushSuccessBody,
-	pushRetryDelayMs,
-	shouldStopPush,
 	twitterStatus,
 	twitterUserPosts,
 } from "../packages/shared/src/index.ts";
@@ -281,84 +278,19 @@ async function pushBatch(body: {
 	watchlist_id: number;
 	items: CanonicalItem[];
 	options?: { apply_window_hours?: number };
-}): Promise<{
-	ok: boolean;
-	accepted?: number;
-	deduped?: number;
-	rejected?: number;
-	error?: string;
-	status: number;
-	fatal?: boolean;
-	itemErrors?: unknown;
-}> {
-	const maxAttempts = 4;
-	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-		let res: Response;
-		try {
-			res = await fetch(`${ingestBase}/api/v1/ingest/push`, {
-				method: "POST",
-				headers: {
-					authorization: `Bearer ${pushToken}`,
-					"content-type": "application/json",
-					...(ingestBase.includes("127.0.0.1") || ingestBase.includes("localhost")
-						? { host: "xray-ingest.hexly.ai" }
-						: {}),
-				},
-				body: JSON.stringify(body),
-			});
-		} catch (e) {
-			const msg = e instanceof Error ? e.message : String(e);
-			const delay = pushRetryDelayMs(0, attempt);
-			if (delay != null && attempt < maxAttempts) {
-				console.warn(`  push network error, retry in ${delay}ms: ${msg}`);
-				await sleep(delay);
-				continue;
-			}
-			return { ok: false, status: 0, error: msg };
-		}
-		const text = await res.text();
-		let json: unknown;
-		try {
-			json = JSON.parse(text);
-		} catch {
-			json = null;
-		}
-		if (shouldStopPush(res.status)) {
-			return {
-				ok: false,
-				status: res.status,
-				error:
-					typeof (json as { error?: string } | null)?.error === "string"
-						? (json as { error: string }).error
-						: text.slice(0, 300),
-				fatal: true,
-			};
-		}
-		if (!res.ok) {
-			const delay = pushRetryDelayMs(res.status, attempt);
-			const errMsg =
-				typeof (json as { error?: string } | null)?.error === "string"
-					? (json as { error: string }).error
-					: text.slice(0, 300);
-			if (delay != null && attempt < maxAttempts) {
-				console.warn(`  push HTTP ${res.status}, retry in ${delay}ms`);
-				await sleep(delay);
-				continue;
-			}
-			return { ok: false, status: res.status, error: errMsg };
-		}
-		const parsed = parsePushSuccessBody(json, body.items.length);
-		if (!parsed.ok) return { ok: false, status: res.status, error: parsed.reason };
-		return {
-			ok: true,
-			status: res.status,
-			accepted: parsed.accepted,
-			deduped: parsed.deduped,
-			rejected: parsed.rejected,
-			itemErrors: parsed.errors,
-		};
-	}
-	return { ok: false, status: 0, error: "push exhausted retries" };
+}) {
+	return pushIngestBatch(
+		{
+			fetch: async (url, init) => {
+				const res = await fetch(url, init);
+				return { status: res.status, ok: res.ok, text: () => res.text() };
+			},
+			sleep,
+			ingestBase,
+			pushToken,
+		},
+		body,
+	);
 }
 
 function writeReport(report: unknown): string {
