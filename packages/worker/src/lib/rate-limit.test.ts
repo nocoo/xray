@@ -24,5 +24,20 @@ describe("checkIngestRateLimit", () => {
 			"t1",
 		);
 		expect(r.allowed).toBe(false);
+		const ok = await checkIngestRateLimit(
+			{
+				ENVIRONMENT: "production",
+				XRAY_INGEST_RL: {
+					limit: async () => ({ success: true }),
+				},
+			} as never,
+			"t1",
+		);
+		expect(ok.allowed).toBe(true);
+	});
+
+	test("missing env name allows without binding", async () => {
+		const r = await checkIngestRateLimit({} as never, "t1");
+		expect(r.allowed).toBe(true);
 	});
 });

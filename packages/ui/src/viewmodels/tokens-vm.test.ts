@@ -33,4 +33,15 @@ describe("createTokensVm", () => {
 		vm.setOnceSecret(null);
 		expect(vm.getState().onceSecret).toBeNull();
 	});
+
+	test("load and revoke errors", async () => {
+		const vm = createTokensVm({
+			fetchPushTokens: vi.fn().mockRejectedValue(new Error("tok")),
+			revokePushToken: vi.fn().mockRejectedValue(new Error("rev")),
+		});
+		await vm.load();
+		expect(vm.getState().error).toBe("tok");
+		await vm.revoke(1);
+		expect(vm.getState().error).toBe("rev");
+	});
 });

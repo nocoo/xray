@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { mintPushToken, sha256Hex, timingSafeEqual } from "./push-token-crypto.js";
+import {
+	mintPushToken,
+	parseBearerToken,
+	sha256Hex,
+	timingSafeEqual,
+} from "./push-token-crypto.js";
 
 describe("push token crypto", () => {
 	test("mints xray_pt_ format and hashes", async () => {
@@ -14,5 +19,14 @@ describe("push token crypto", () => {
 		expect(timingSafeEqual("abc", "abc")).toBe(true);
 		expect(timingSafeEqual("abc", "abd")).toBe(false);
 		expect(timingSafeEqual("ab", "abc")).toBe(false);
+	});
+
+	test("parseBearerToken", () => {
+		expect(parseBearerToken(undefined)).toBeNull();
+		expect(parseBearerToken("")).toBeNull();
+		expect(parseBearerToken("Basic x")).toBeNull();
+		expect(parseBearerToken("Bearer   ")).toBeNull();
+		expect(parseBearerToken("Bearer tok")).toBe("tok");
+		expect(parseBearerToken("bearer TOK")).toBe("TOK");
 	});
 });

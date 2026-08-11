@@ -172,5 +172,86 @@ describe("exitCodeForRefresh", () => {
 				fatalPush: false,
 			}),
 		).toBe(1);
+		expect(
+			exitCodeForRefresh({
+				handleErrors: 0,
+				pushErrors: 1,
+				totalRejected: 0,
+				handlesPlanned: 1,
+				handlesOk: 1,
+				fatalPush: false,
+			}),
+		).toBe(1);
+		expect(
+			exitCodeForRefresh({
+				handleErrors: 0,
+				pushErrors: 0,
+				totalRejected: 0,
+				handlesPlanned: 3,
+				handlesOk: 0,
+				fatalPush: false,
+			}),
+		).toBe(1);
+		expect(
+			exitCodeForRefresh({
+				handleErrors: 0,
+				pushErrors: 0,
+				totalRejected: 0,
+				handlesPlanned: 1,
+				handlesOk: 1,
+				fatalPush: true,
+			}),
+		).toBe(1);
+	});
+});
+
+describe("parseMembersGraph / assertAllowedBaseUrl / parsePush more edges", () => {
+	test("graph structure rejects", () => {
+		expect(() => parseMembersGraph(null)).toThrow(/object/);
+		expect(() => parseMembersGraph({ watchlists: [] })).toThrow(/non-empty/);
+		expect(() => parseMembersGraph({ watchlists: [null] })).toThrow(/entry/);
+		expect(() => parseMembersGraph({ watchlists: [{ id: 1, name: "", members: [] }] })).toThrow(
+			/name/,
+		);
+		expect(() => parseMembersGraph({ watchlists: [{ id: 1, name: "x", members: null }] })).toThrow(
+			/members/,
+		);
+		expect(() =>
+			parseMembersGraph({
+				watchlists: [{ id: 1, name: "x", members: [null] }],
+			}),
+		).toThrow(/member invalid/);
+		expect(() =>
+			parseMembersGraph({
+				watchlists: [{ id: 1, name: "x", members: [{ handle: "../x", sourceType: "x.com" }] }],
+			}),
+		).toThrow(/invalid handle/);
+		expect(
+			parseMembersGraph({
+				watchlists: [{ id: 1, name: "x", members: [{ handle: "@Sama", sourceType: "x.com" }] }],
+			}).watchlists[0]?.members[0]?.handle,
+		).toBe("sama");
+	});
+
+	test("base url more rejects", () => {
+		expect(() => assertAllowedBaseUrl("not a url", "ingest")).toThrow(/invalid/);
+		expect(() => assertAllowedBaseUrl("https://xray-ingest.hexly.ai?x=1", "ingest")).toThrow(
+			/query/,
+		);
+		expect(() => assertAllowedBaseUrl("ftp://127.0.0.1", "ingest")).toThrow(/loopback/);
+		expect(() => assertAllowedBaseUrl("https://evil.com", "browser")).toThrow(/allowlisted/);
+	});
+
+	test("push body edges", () => {
+		expect(parsePushSuccessBody(null, 0).ok).toBe(false);
+		expect(parsePushSuccessBody({ ok: true, accepted: 1.5, deduped: 0, rejected: 0 }, 1).ok).toBe(
+			false,
+		);
+		expect(parsePushSuccessBody({ ok: true, accepted: -1, deduped: 0, rejected: 0 }, 0).ok).toBe(
+			false,
+		);
+		expect(
+			parsePushSuccessBody({ ok: true, accepted: 1, deduped: 0, rejected: 0, errors: [] }, 1).ok,
+		).toBe(true);
 	});
 });

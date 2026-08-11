@@ -33,6 +33,40 @@ describe("chatCompletion", () => {
 			}),
 		).rejects.toThrow(/not allowed|https/i);
 	});
+
+	test("upstream errors", async () => {
+		globalThis.fetch = vi.fn(async () => new Response("nope", { status: 500 })) as never;
+		await expect(
+			chatCompletion({
+				apiKey: "sk",
+				baseUrl: "https://api.example.com/v1",
+				messages: [{ role: "user", content: "x" }],
+			}),
+		).rejects.toThrow(/upstream 500/);
+
+		globalThis.fetch = vi.fn(async () => new Response("not-json", { status: 200 })) as never;
+		await expect(
+			chatCompletion({
+				apiKey: "sk",
+				baseUrl: "https://api.example.com/v1",
+				messages: [{ role: "user", content: "x" }],
+			}),
+		).rejects.toThrow(/not JSON/);
+
+		globalThis.fetch = vi.fn(
+			async () =>
+				new Response(JSON.stringify({ choices: [{ message: { content: "  " } }] }), {
+					status: 200,
+				}),
+		) as never;
+		await expect(
+			chatCompletion({
+				apiKey: "sk",
+				baseUrl: "https://api.example.com/v1",
+				messages: [{ role: "user", content: "x" }],
+			}),
+		).rejects.toThrow(/empty model/);
+	});
 });
 
 describe("translateAndSummarize", () => {

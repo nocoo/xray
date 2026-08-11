@@ -19,9 +19,17 @@ describe("secrets-crypto", () => {
 		await expect(decryptSecret(blob, [kek], "u2:ai.api_key")).rejects.toBeTruthy();
 	});
 
-	test("parseKek requires 32 bytes", () => {
+	test("parseKek requires 32 bytes and valid version", () => {
 		expect(() => parseKek("short", 1)).toThrow();
 		expect(() => parseKek("a".repeat(16), 1)).toThrow();
+		expect(() => parseKek(undefined, 1)).toThrow(/KEK missing/);
+		expect(() => parseKek(KEK_RAW, 0)).toThrow(/version/);
+		expect(() => parseKek(KEK_RAW, 256)).toThrow(/version/);
+		// base64 32-byte key
+		const b64 = btoa("0123456789abcdef0123456789abcdef");
+		expect(parseKek(b64, 1).bytes.byteLength).toBe(32);
+		expect(() => parseKek(btoa("short"), 1)).toThrow();
+		expect(() => parseKek("!!!not-b64!!!", 1)).toThrow();
 	});
 });
 

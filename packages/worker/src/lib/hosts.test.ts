@@ -26,5 +26,13 @@ describe("classifyHost", () => {
 
 	test("normalizeHost strips port", () => {
 		expect(normalizeHost("xray.hexly.ai:443")).toBe("xray.hexly.ai");
+		expect(normalizeHost("XRAY.HEXLY.AI")).toBe("xray.hexly.ai");
+		expect(normalizeHost("")).toBe("");
+	});
+
+	test("local hosts", () => {
+		expect(classifyHost("127.0.0.1")).toBe("local");
+		expect(classifyHost("127.0.0.1:8787")).toBe("local");
+		expect(classifyHost("app.localhost")).toBe("local");
 	});
 });

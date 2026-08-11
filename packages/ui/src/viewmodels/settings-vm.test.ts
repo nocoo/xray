@@ -25,4 +25,15 @@ describe("createSettingsVm", () => {
 		expect(vm.getState().saved).toBe(true);
 		expect(vm.getState().windowHours).toBe(48);
 	});
+
+	test("load and save errors", async () => {
+		const vm = createSettingsVm({
+			fetchSettings: vi.fn().mockRejectedValue(new Error("nope")),
+			patchSettings: vi.fn().mockRejectedValue(new Error("bad")),
+		});
+		await vm.load();
+		expect(vm.getState().error).toBe("nope");
+		await vm.save();
+		expect(vm.getState().error).toBe("bad");
+	});
 });

@@ -59,4 +59,58 @@ describe("createGroupsVm", () => {
 		expect(ok).toBe(true);
 		expect(vm.getState().selectedId).toBeNull();
 	});
+
+	test("error paths: load members import copy rename remove", async () => {
+		const a = api({
+			fetchGroups: vi.fn().mockRejectedValue(new Error("gfail")),
+			fetchGroupMembers: vi.fn().mockRejectedValue(new Error("mfail")),
+			deleteGroup: vi.fn().mockRejectedValue(new Error("dfail")),
+			bulkImportGroupMembers: vi.fn().mockRejectedValue(new Error("ifail")),
+			copyGroupToWatchlist: vi.fn().mockRejectedValue(new Error("cfail")),
+			deleteGroupMember: vi.fn().mockRejectedValue(new Error("rmfail")),
+		});
+		const vm = createGroupsVm(a, 1);
+		await vm.load();
+		expect(vm.getState().error).toBe("gfail");
+		await vm.loadMembers(1);
+		expect(vm.getState().error).toBe("mfail");
+		expect(await vm.deleteGroup(group)).toBe(false);
+		expect(vm.getState().error).toBe("dfail");
+		vm.selectGroup(1);
+		vm.setImportText("@x");
+		await vm.importMembers();
+		expect(vm.getState().error).toBe("ifail");
+		vm.setCopyWlId(2);
+		await vm.copyToWatchlist();
+		expect(vm.getState().error).toBe("cfail");
+		await vm.removeMember(10);
+		expect(vm.getState().error).toBe("rmfail");
+	});
+
+	test("rename and import skip empty", async () => {
+		const a = api();
+		const vm = createGroupsVm(a, null);
+		await vm.rename(1, "New");
+		expect(a.updateGroup).toHaveBeenCalledWith(1, { name: "New" });
+		await vm.importMembers();
+		expect(a.bulkImportGroupMembers).not.toHaveBeenCalled();
+		vm.selectGroup(1);
+		vm.setImportText("   ");
+		await vm.importMembers();
+		expect(a.bulkImportGroupMembers).not.toHaveBeenCalled();
+		await vm.copyToWatchlist();
+		expect(a.copyGroupToWatchlist).not.toHaveBeenCalled();
+		await vm.removeMember(1);
+		// selected null path already
+		vm.selectGroup(null);
+		await vm.removeMember(1);
+	});
+
+	test("delete other group keeps selection", async () => {
+		const a = api();
+		const vm = createGroupsVm(a, 1);
+		await vm.load();
+		await vm.deleteGroup({ ...group, id: 99, name: "other" });
+		expect(vm.getState().selectedId).toBe(1);
+	});
 });

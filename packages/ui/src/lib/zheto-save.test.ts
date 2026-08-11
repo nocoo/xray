@@ -32,5 +32,9 @@ describe("zheto save helpers", () => {
 		spy.mockRejectedValueOnce(new Error("boom"));
 		const fail = await postZhetoSave({ url: "https://example.com" });
 		expect(fail).toEqual({ ok: false, error: "boom" });
+
+		spy.mockRejectedValueOnce("raw");
+		const fail2 = await postZhetoSave({ url: "https://example.com" });
+		expect(fail2).toEqual({ ok: false, error: "raw" });
 	});
 });

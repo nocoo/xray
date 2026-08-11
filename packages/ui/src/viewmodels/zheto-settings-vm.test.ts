@@ -28,4 +28,15 @@ describe("createZhetoSettingsVm", () => {
 		expect(vm.getState().webhookUrl).toBe("");
 		expect(vm.getState().saved).toBe(true);
 	});
+
+	test("load and save errors", async () => {
+		const vm = createZhetoSettingsVm({
+			fetchZhetoSettings: vi.fn().mockRejectedValue(new Error("zload")),
+			saveZhetoSettings: vi.fn().mockRejectedValue(new Error("zsave")),
+		});
+		await vm.load();
+		expect(vm.getState().error).toBe("zload");
+		await vm.save();
+		expect(vm.getState().error).toBe("zsave");
+	});
 });
