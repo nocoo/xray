@@ -2,6 +2,8 @@
 
 Visual/CSS: **complete retain**. Logic: MVVM SPA.
 
+**Implementation status (2026-08-11):** product surface below is **shipped** on main (API + UI + unit tests). Remaining non-product work (L3 CI depth, KEK reencrypt job, multi-provider AI SaaS, custom-source producer) lives in [07](07-implementation-plan.md) optional backlog — not open product gaps.
+
 ## 1. Navigation
 
 ```
@@ -21,12 +23,12 @@ Auth: CF Access wall on **browser host** `xray.hexly.ai` (dev: `xray.dev.hexly.a
 
 ## 2. Dashboard
 
-| Block | Data |
-|-------|------|
-| Counts | watchlists, members, items 24h |
-| Pending AI | count items on `translate_enabled` watchlists with `ai_status IN ('pending','not_requested')` (see 02 AI model) |
-| Mix breakdown | by source_type |
-| Recent ingest_logs | last N |
+| Block | Data | Status |
+|-------|------|--------|
+| Counts | watchlists, members, items 24h | **done** — `packages/worker/src/repos/dashboard.ts`, `packages/ui/src/views/dashboard-page.tsx` |
+| Pending AI | count items on `translate_enabled` watchlists with `ai_status IN ('pending','not_requested')` (see 02 AI model) | **done** — same |
+| Mix breakdown | by source_type | **done** — same |
+| Recent ingest_logs | last N | **done** — `listRecentIngestLogs` in `repos/ingest-logs.ts`; dashboard embeds `recentIngestLogs` |
 
 ## 3. Watchlists
 
@@ -37,15 +39,15 @@ APIs: `GET/POST /api/watchlists`, `GET/PATCH/DELETE /api/watchlists/:id`.
 
 ### Detail `/watchlist/:id`
 
-| Capability | Behavior |
-|------------|----------|
-| Members | source-aware (source_type + handle); tags/notes |
-| Timeline | paginated items; filter All / x.com / custom |
-| Cards | tweet-card / custom card (sanitized markdown) |
-| Translate | bounded batch ≤20; updates ai_status |
-| Push helper | watchlist id + sample curl to **ingest host** |
-| Logs | paginated ingest_logs |
-| **No** pull refresh / cron | |
+| Capability | Behavior | Status |
+|------------|----------|--------|
+| Members | source-aware (source_type + handle); tags/notes | **done** — tags on add/edit: `repos/members.ts`, `member-card.tsx`, detail page |
+| Timeline | paginated items; filter All / x.com / custom | **done** |
+| Cards | tweet-card / custom card (sanitized markdown) | **done** — custom zhe.to Save: `custom-item-card.tsx`, `lib/zheto-save.ts` |
+| Translate | bounded batch ≤20; updates ai_status | **done** — + summary fill when `summaryPrompt` set (`repos/translate.ts`) |
+| Push helper | watchlist id + sample curl to **ingest host** | **done** |
+| Logs | ingest_logs list (`limit`, newest first) | **done** — `GET /api/watchlists/:id/ingest-logs`, detail `data-testid=ingest-logs` |
+| **No** pull refresh / cron | | by design |
 
 ### Acceptance
 
@@ -58,6 +60,12 @@ APIs: `GET/POST /api/watchlists`, `GET/PATCH/DELETE /api/watchlists/:id`.
 
 CRUD + source-aware members + bulk import (x.com handles from Twitter export).  
 Add members into a watchlist (copy handles with source_type).
+
+| Capability | API / code | Status |
+|------------|------------|--------|
+| CRUD + members | `/api/groups`, `groups-page.tsx` | **done** |
+| Bulk import | `POST /api/groups/:id/members/import` body `{ text }` — parse `packages/shared/src/twitter-export.ts`; repo `bulkImportGroupMembers` | **done** |
+| Copy → watchlist | `POST /api/groups/:id/copy-to-watchlist` body `{ watchlistId, memberIds? }` — `copyGroupMembersToWatchlist` | **done** |
 
 ## 5. Integrations — zhe.to full keep (XR-11, R4-03)
 
@@ -124,10 +132,10 @@ Auth is **path token inside webhookUrl** (no extra Authorization header).
 
 **URL derivation for items**
 
-| source | url |
-|--------|-----|
-| x.com | `https://x.com/i/status/{tweet.id}` (or author/status if preferred) |
-| custom | `body.url` required to enable Save button |
+| source | url | Card Save |
+|--------|-----|-----------|
+| x.com | `https://x.com/i/status/{tweet.id}` (or author/status if preferred) | **done** — `tweet-card.tsx` |
+| custom | `body.url` required to enable Save button | **done** — `custom-item-card.tsx` + `canSaveToZheto` |
 
 ### E2E
 
@@ -136,10 +144,19 @@ Auth is **path token inside webhookUrl** (no extra Authorization header).
 3. Assert mock upstream received exact JSON `{url, note}` shape.  
 4. Assert UI reaches `saved`.
 
+Unit/route coverage: `packages/worker/src/routes/ai-zheto-dashboard.test.ts`, `packages/ui/src/lib/zheto-save.test.ts`. Full Playwright card click path remains optional L3 depth (see 07).
+
 ## 6. AI Settings (standalone)
 
-`/ai-settings`: multi-provider, masked key, prompts, test connection (gecko patterns).  
+`/ai-settings`: provider string + OpenAI-compatible `base_url`, masked key, translate/summary prompts, **test connection**.  
 Worker uses encrypted secrets for translate/summary.
+
+| Capability | Location | Status |
+|------------|----------|--------|
+| GET/PUT config | `/api/ai-config`, `repos/ai-configs.ts`, `ai-settings-page.tsx` | **done** |
+| Test connection | `POST /api/ai-config/test` → `testAiConfigRoute` | **done** |
+| Summary on translate | `summaryPrompt` → second chat call in `defaultTranslateFn` | **done** |
+| Full multi-provider SaaS (gecko-grade adapters) | — | **not MVP** (optional backlog) |
 
 ## 7. Settings + Push tokens
 

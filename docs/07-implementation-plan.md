@@ -36,15 +36,37 @@
 
 **S5 出口已满足**：AI KEK + translate batch、zhe.to save、dashboard 真聚合、Groups/Settings UI、L3 smoke 文件、版本 2.0.0。
 
+### Post-S5 产品缺口（04）— **done**
+
+| # | 能力 | 关键路径 | 状态 |
+|---|------|----------|------|
+| P1 | Twitter export parse + Groups bulk import | `packages/shared/src/twitter-export.ts`; `POST /api/groups/:id/members/import`; `groups-page.tsx` | **done** |
+| P2 | Group → watchlist member copy | `POST /api/groups/:id/copy-to-watchlist`; `repos/groups.ts` `copyGroupMembersToWatchlist` | **done** |
+| P3 | Ingest logs list + dashboard recent | `GET /api/watchlists/:id/ingest-logs`; `repos/ingest-logs.ts`; dashboard `recentIngestLogs` | **done** |
+| P4 | AI test connection + summary fill | `POST /api/ai-config/test`; `repos/translate.ts` summary path; `ai-settings-page.tsx` | **done** |
+| P5 | Custom card zhe.to Save + member tags | `custom-item-card.tsx`, `lib/zheto-save.ts`; members tags on add | **done** |
+
+### Local producer（09）— **done**
+
+| 项 | 位置 |
+|----|------|
+| `bun run refresh:watchlists` | `scripts/refresh-watchlists.ts` |
+| twitter-cli boundary | `packages/shared/src/x-timeline-source.ts`, `twitter-cli-source.ts`, `producer-*` |
+
 ### 相关 commit（实现段摘录）
 
 ```
 feat(worker): d1 full schema …
 feat(worker): watchlists groups items tokens push …
 feat(ui): wire real watchlist group token apis …
+feat(shared): twitter export member import parse
+feat: group bulk import and copy to watchlist
+feat: ingest logs list and dashboard recent
+feat: ai test connection and summary fill
+feat(ui): custom zheto save and member tags
 ```
 
-**当前停点**：S5 完成；生产 dual-host 已部署；Codex S45 主路径已签。
+**当前停点**：S5 + 产品缺口 P1–P5 + local producer 已完成；生产 dual-host 已部署。可选加深见下方「下一步」。
 
 ---
 
@@ -116,10 +138,12 @@ S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)
 | M2 | Groups CRUD | **done**（UI rename/delete/members） |
 | M3 | Push tokens | **done** |
 | M4 | Ingest push canonical | **done** |
-| M5 | AI settings / translate batch | **done** |
-| M6 | zhe.to save | **done** |
-| M7 | Dashboard real aggregates | **done** |
+| M5 | AI settings / translate batch | **done**（+ test connection + summary fill） |
+| M6 | zhe.to save | **done**（tweet + custom card） |
+| M7 | Dashboard real aggregates | **done**（+ recent ingest_logs） |
 | M8 | Playwright L3 + release 2.0.0 | **done**（`e2e/*.pw.ts` + `test:l3`；需本机 UI/worker 才绿；version 2.0.0 已对齐，无 in-repo release 脚本故未切 tag） |
+| M2+ | Groups bulk import + copy → WL | **done**（见 Post-S5 P1–P2） |
+| M1+ | WL detail ingest logs + member tags | **done**（见 Post-S5 P3/P5） |
 
 ---
 
@@ -130,10 +154,14 @@ S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)
 3. S3 后每 commit 过 pre-commit；push 过 pre-push + CI。  
 4. S5 模块附带 e2e 增量。  
 
-## 下一步
+## 下一步（可选加深 — 非产品缺口）
 
-1. 可选：本地起 UI+worker 后跑 `bun run test:l3`  
-2. 可选：生产 Access 浏览器登录 smoke + 真 push  
-3. 可选：`git push` + 项目 release 流程发 GitHub tag `2.0.0`  
-4. **Local producer**（[09](09-local-producer-twitter-cli.md)）：`bun run refresh:watchlists` — twitter-cli → cache → canonical → ingest  
+1. 本地起 UI+worker 后跑 `bun run test:l3`；可选 CI 挂 L3  
+2. 生产 Access 浏览器登录 smoke + 真 push  
+3. 项目 release 流程发 GitHub tag `2.0.0`  
+4. 加深 migrate L2 e2e（S4.7 still thin）  
+5. KEK read-repair write-back + `scripts/reencrypt-secrets.ts`  
+6. Ingest CF RL 生产验证 / 硬化  
+7. 真 multi-provider AI（gecko 级）— 非 MVP  
+8. custom / hermes 专用 producer — push 契约已有，脚本未单独做  
 

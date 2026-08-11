@@ -38,7 +38,8 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 | **S3** | 6DQ automation except E2E (pre-commit / pre-push) | **done** |
 | **S4** | D1 schema + migrate WL/groups | **done**（主路径；migrate L2 e2e still thin） |
 | **S5** | Modules one-by-one + growing Playwright E2E → 2.0.0 | **done** |
+| **Post-S5** | Product gaps (04): groups import/copy, ingest logs, AI test+summary, custom zhe.to, member tags + local producer (09) | **done** |
 
-Progress detail and commit map: [07 §进度](07-implementation-plan.md#进度2026-08-11).
+Progress detail and commit map: [07 §进度](07-implementation-plan.md#进度2026-08-11). Feature matrix status: [04](04-features.md).
 
-**Current stop**: S5 complete; prod dual-host deployed. Optional: L3 local smoke, release tag `2.0.0`, deepen ingest / migrate e2e.
+**Current stop**: S5 + product gaps + local producer complete; prod dual-host deployed. Optional: L3 CI depth, release tag `2.0.0`, KEK reencrypt, migrate e2e deepen (see [07 下一步](07-implementation-plan.md#下一步可选加深--非产品缺口)).
