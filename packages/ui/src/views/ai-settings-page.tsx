@@ -73,7 +73,13 @@ export function AiSettingsPage() {
 		setTestMsg(null);
 		setError(null);
 		try {
-			const r = await testAiConfig();
+			// Ping draft form values (not only last saved row)
+			const r = await testAiConfig({
+				provider,
+				model: model || null,
+				baseUrl: baseUrl || null,
+				apiKey: apiKey || undefined,
+			});
 			setTestMsg(
 				r.ok
 					? `OK (${r.provider ?? provider} / ${r.model ?? model})`

@@ -53,6 +53,12 @@ export type AiTestResult = {
 	model?: string | null;
 };
 
-export function testAiConfig() {
-	return apiPost<AiTestResult>("/api/ai-config/test", {});
+/** Test saved config, or pass draft fields (provider/model/baseUrl/apiKey) to ping without save. */
+export function testAiConfig(draft?: {
+	provider?: string;
+	model?: string | null;
+	baseUrl?: string | null;
+	apiKey?: string;
+}) {
+	return apiPost<AiTestResult>("/api/ai-config/test", draft ?? {});
 }
