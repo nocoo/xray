@@ -219,20 +219,29 @@ Only `sourceType === "x.com"` members are fetched.
 
 ## 6. Operator command flow
 
+### Push token storage (global, not git)
+
+| Path | Role |
+|------|------|
+| **`~/.config/xray/push.env`** | **Canonical** secret file (`chmod 600`). Contains `XRAY_PUSH_TOKEN`, default prod `XRAY_INGEST_BASE`, optional knobs. |
+| `.xray-push.env` (repo root) | Optional pointer note only — **gitignored** (`*.push-token`, `.xray-push.env`). Never put the real token in-repo. |
+
+Mint / reset (ops): UI **Settings → Push tokens**, or wrangler D1 insert of `mintPushToken()` hash for the prod user, then rewrite `~/.config/xray/push.env`.
+
 ```bash
 # 0. Preconditions
 twitter status --json          # authenticated
-export XRAY_PUSH_TOKEN=xray_pt_…   # mint once in UI → Settings → Push tokens
+set -a && source ~/.config/xray/push.env && set +a   # loads XRAY_PUSH_TOKEN (+ prod defaults)
 
 # 1. Graph (pick one)
 export XRAY_BROWSER_BASE=http://127.0.0.1:8787   # local bypass
 # or
 export XRAY_MEMBERS_FILE=./config/members.json
-# or prod:
+# or prod live graph:
 # export XRAY_BROWSER_BASE=https://xray.hexly.ai
 # export XRAY_CF_AUTHORIZATION='…'
 
-# 2. Optional knobs
+# 2. Optional knobs (push.env may already set these)
 export XRAY_INGEST_BASE=https://xray-ingest.hexly.ai
 export XRAY_WINDOW_HOURS=24
 export XRAY_TWITTER_MAX=20          # natural page; do not crank to “fill”
