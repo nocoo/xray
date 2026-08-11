@@ -58,7 +58,19 @@ export type MapFail = { ok: false; reason: string };
 export type MapResult = MapOk | MapFail;
 
 function asStr(v: unknown): string | undefined {
-	return typeof v === "string" ? v : typeof v === "number" ? String(v) : undefined;
+	return typeof v === "string" ? v : undefined;
+}
+
+/** IDs must be strings (or safe integer numbers) to avoid precision loss. */
+function asIdStr(v: unknown): string | undefined {
+	if (typeof v === "string") {
+		const s = v.trim();
+		return s || undefined;
+	}
+	if (typeof v === "number" && Number.isSafeInteger(v) && v >= 0) {
+		return String(v);
+	}
+	return undefined;
 }
 
 function asNum(v: unknown): number | undefined {
@@ -115,7 +127,7 @@ export function mapTwitterCliTweetToCanonical(raw: unknown): MapResult {
 		return { ok: false, reason: "tweet must be object" };
 	}
 	const t = raw as TwitterCliTweet;
-	const id = asStr(t.id)?.trim();
+	const id = asIdStr(t.id);
 	const text = asStr(t.text);
 	if (!id) return { ok: false, reason: "missing id" };
 	if (!text?.trim()) return { ok: false, reason: "missing text" };
@@ -125,7 +137,7 @@ export function mapTwitterCliTweetToCanonical(raw: unknown): MapResult {
 	if (!createdAt) return { ok: false, reason: "invalid created_at" };
 
 	const author = t.author && typeof t.author === "object" ? t.author : undefined;
-	const authorId = asStr(author?.id)?.trim();
+	const authorId = asIdStr(author?.id);
 	const screen = asStr(author?.screenName);
 	const username = screen ? normalizeHandle(screen) : undefined;
 	const displayName = asStr(author?.name)?.trim();
@@ -159,7 +171,7 @@ export function mapTwitterCliTweetToCanonical(raw: unknown): MapResult {
 	}
 	const qt = t.quotedTweet;
 	if (qt && typeof qt === "object") {
-		const qid = asStr(qt.id)?.trim();
+		const qid = asIdStr(qt.id);
 		if (qid) referenced.push({ type: "quoted", id: qid });
 	}
 	if (referenced.length) tweet.referenced_tweets = referenced;
