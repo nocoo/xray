@@ -52,6 +52,12 @@ function mockProductDb() {
 				bind(...binds: unknown[]) {
 					return {
 						async first<T>() {
+							if (s.includes("COUNT(*) AS c") && s.includes("FROM group_members")) {
+								const c = group_members.filter(
+									(m) => m.user_id === binds[0] && m.group_id === binds[1],
+								).length;
+								return { c } as T;
+							}
 							if (s.includes("FROM groups g WHERE g.user_id") && s.includes("g.id = ?")) {
 								const g = groups.find((x) => x.user_id === binds[0] && x.id === binds[1]);
 								if (!g) return null;
@@ -145,64 +151,81 @@ function mockProductDb() {
 							return { results: [] as T[] };
 						},
 						async run() {
-							if (s.includes("INSERT") && s.includes("group_members")) {
-								const isBulk = s.includes("OR IGNORE") && s.includes("'x.com'");
-								const handle = (isBulk ? binds[3] : binds[4]) as string;
-								const group_id = binds[1] as number;
-								const source_type = isBulk ? "x.com" : (binds[2] as string);
-								if (
-									group_members.some(
-										(m) =>
-											m.group_id === group_id &&
-											m.handle === handle &&
-											m.source_type === source_type,
-									)
-								) {
-									if (s.includes("OR IGNORE")) return { meta: { last_row_id: 0, changes: 0 } };
-									throw new Error("UNIQUE constraint failed");
+							if (
+								s.includes("INSERT") &&
+								s.includes("INTO group_members") &&
+								!s.includes("watchlist_members")
+							) {
+								if (s.includes("OR IGNORE") && s.includes("'x.com'") && s.includes("VALUES")) {
+									let changes = 0;
+									const stride = 6;
+									const n = Math.floor(binds.length / stride);
+									for (let r = 0; r < n; r++) {
+										const i = r * stride;
+										const handle = String(binds[i + 3] ?? "");
+										const group_id = Number(binds[i + 1]);
+										if (
+											group_members.some(
+												(m) =>
+													m.group_id === group_id &&
+													m.handle === handle &&
+													m.source_type === "x.com",
+											)
+										) {
+											continue;
+										}
+										const id = gmid++;
+										changes += 1;
+										group_members.push({
+											id,
+											user_id: binds[i],
+											group_id,
+											source_type: "x.com",
+											external_author_id: binds[i + 2],
+											handle,
+											display_name: binds[i + 4],
+											added_at_ms: binds[i + 5],
+										});
+									}
+									return { meta: { last_row_id: 0, changes } };
 								}
-								const id = gmid++;
-								group_members.push({
-									id,
-									user_id: binds[0],
-									group_id,
-									source_type,
-									external_author_id: isBulk ? binds[2] : binds[3],
-									handle,
-									display_name: isBulk ? binds[4] : binds[5],
-									added_at_ms: isBulk ? binds[5] : binds[6],
-								});
-								return { meta: { last_row_id: id, changes: 1 } };
 							}
 							if (s.includes("INSERT") && s.includes("watchlist_members")) {
-								const isBulk = s.includes("OR IGNORE");
-								const handle = binds[4] as string;
-								const watchlist_id = binds[1] as number;
-								const source_type = binds[2] as string;
-								if (
-									watchlist_members.some(
-										(m) =>
-											m.watchlist_id === watchlist_id &&
-											m.handle === handle &&
-											m.source_type === source_type,
-									)
-								) {
-									if (isBulk) return { meta: { last_row_id: 0, changes: 0 } };
-									throw new Error("UNIQUE constraint failed");
+								if (s.includes("SELECT")) {
+									const watchlist_id = binds[0] as number;
+									const now = binds[1] as number;
+									const userId = binds[2] as string;
+									const group_id = binds[3] as number;
+									let changes = 0;
+									for (const gm of group_members.filter(
+										(m) => m.user_id === userId && m.group_id === group_id,
+									)) {
+										if (
+											watchlist_members.some(
+												(m) =>
+													m.watchlist_id === watchlist_id &&
+													m.handle === gm.handle &&
+													m.source_type === gm.source_type,
+											)
+										) {
+											continue;
+										}
+										const id = wmid++;
+										changes += 1;
+										watchlist_members.push({
+											id,
+											user_id: userId,
+											watchlist_id,
+											source_type: gm.source_type,
+											external_author_id: gm.external_author_id,
+											handle: gm.handle,
+											display_name: gm.display_name,
+											note: null,
+											added_at_ms: now,
+										});
+									}
+									return { meta: { last_row_id: 0, changes } };
 								}
-								const id = wmid++;
-								watchlist_members.push({
-									id,
-									user_id: binds[0],
-									watchlist_id,
-									source_type,
-									external_author_id: binds[3],
-									handle,
-									display_name: binds[5],
-									note: isBulk ? null : binds[6],
-									added_at_ms: isBulk ? binds[6] : binds[7],
-								});
-								return { meta: { last_row_id: id, changes: 1 } };
 							}
 							return { meta: { last_row_id: 0, changes: 0 } };
 						},

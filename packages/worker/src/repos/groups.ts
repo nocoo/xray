@@ -224,57 +224,66 @@ export type BulkImportResult = {
 	total: number;
 };
 
-/** D1 statements per batch — stay well under invocation query budget. */
-export const GROUP_BULK_BATCH_SIZE = 40;
+/**
+ * Multi-row INSERT size: 6 binds/row → 10 rows = 60 binds (D1 ~100 bind budget).
+ * One statement per chunk keeps free-tier query budget usable for large imports.
+ */
+export const GROUP_BULK_ROWS_PER_STMT = 10;
+export const GROUP_COPY_MAX = 500;
 
-/** Idempotent bulk add of x.com members via INSERT OR IGNORE batches (no per-row SELECT). */
+type Seed = {
+	handle: string;
+	externalAuthorId?: string | null;
+	displayName?: string | null;
+};
+
+/** Idempotent bulk add via multi-row INSERT OR IGNORE (few D1 statements). */
 export async function bulkImportGroupMembers(
 	db: D1Database,
 	userId: string,
 	groupId: number,
-	seeds: Array<{
-		handle: string;
-		externalAuthorId?: string | null;
-		displayName?: string | null;
-	}>,
+	seeds: Seed[],
 ): Promise<BulkImportResult> {
 	const g = await getGroup(db, userId, groupId);
 	if (!g) throw new GroupNotFoundError();
 	let added = 0;
 	let skipped = 0;
 	const now = Date.now();
-	const prepared: D1PreparedStatement[] = [];
+	const rows: Array<{
+		handle: string;
+		externalAuthorId: string | null;
+		displayName: string | null;
+	}> = [];
 	for (const s of seeds) {
 		const handle = normalizeHandle(s.handle);
 		if (!handle) {
 			skipped += 1;
 			continue;
 		}
-		prepared.push(
-			db
-				.prepare(
-					`INSERT OR IGNORE INTO group_members
-           (user_id, group_id, source_type, external_author_id, handle, display_name, added_at_ms)
-           VALUES (?, ?, 'x.com', ?, ?, ?, ?)`,
-				)
-				.bind(
-					userId,
-					groupId,
-					s.externalAuthorId?.trim() || null,
-					handle,
-					s.displayName?.trim() || null,
-					now,
-				),
-		);
+		rows.push({
+			handle,
+			externalAuthorId: s.externalAuthorId?.trim() || null,
+			displayName: s.displayName?.trim() || null,
+		});
 	}
-	for (let i = 0; i < prepared.length; i += GROUP_BULK_BATCH_SIZE) {
-		const chunk = prepared.slice(i, i + GROUP_BULK_BATCH_SIZE);
-		const results = await db.batch(chunk);
-		for (const r of results) {
-			const ch = r.meta?.changes ?? 0;
-			if (ch > 0) added += 1;
-			else skipped += 1;
+	for (let i = 0; i < rows.length; i += GROUP_BULK_ROWS_PER_STMT) {
+		const chunk = rows.slice(i, i + GROUP_BULK_ROWS_PER_STMT);
+		const ph = chunk.map(() => "(?, ?, 'x.com', ?, ?, ?, ?)").join(", ");
+		const binds: unknown[] = [];
+		for (const r of chunk) {
+			binds.push(userId, groupId, r.externalAuthorId, r.handle, r.displayName, now);
 		}
+		const result = await db
+			.prepare(
+				`INSERT OR IGNORE INTO group_members
+         (user_id, group_id, source_type, external_author_id, handle, display_name, added_at_ms)
+         VALUES ${ph}`,
+			)
+			.bind(...binds)
+			.run();
+		const ch = result.meta?.changes ?? 0;
+		added += ch;
+		skipped += chunk.length - ch;
 	}
 	return { added, skipped, total: seeds.length };
 }
@@ -311,41 +320,71 @@ export async function copyGroupMembersToWatchlist(
 		.first<{ id: number }>();
 	if (!wl) throw new WatchlistNotFoundError();
 
-	let members = await listGroupMembers(db, userId, groupId);
-	if (opts?.memberIds !== undefined) {
-		const want = new Set(opts.memberIds);
-		members = members.filter((m) => want.has(m.id));
+	const now = Date.now();
+
+	// Full copy: single INSERT…SELECT (1 query) when no memberIds filter
+	if (opts?.memberIds === undefined) {
+		const before = await db
+			.prepare(`SELECT COUNT(*) AS c FROM group_members WHERE user_id = ? AND group_id = ?`)
+			.bind(userId, groupId)
+			.first<{ c: number }>();
+		const total = Number(before?.c ?? 0);
+		if (total > GROUP_COPY_MAX) {
+			throw new Error(`group has ${total} members; copy max is ${GROUP_COPY_MAX}`);
+		}
+		if (total === 0) return { added: 0, skipped: 0, total: 0 };
+		const result = await db
+			.prepare(
+				`INSERT OR IGNORE INTO watchlist_members
+         (user_id, watchlist_id, source_type, external_author_id, handle, display_name, note, added_at_ms)
+         SELECT user_id, ?, source_type, external_author_id, handle, display_name, NULL, ?
+         FROM group_members
+         WHERE user_id = ? AND group_id = ?`,
+			)
+			.bind(watchlistId, now, userId, groupId)
+			.run();
+		const added = result.meta?.changes ?? 0;
+		return { added, skipped: total - added, total };
 	}
+
+	let members = await listGroupMembers(db, userId, groupId);
+	const want = new Set(opts.memberIds);
+	members = members.filter((m) => want.has(m.id));
 	if (!members.length) return { added: 0, skipped: 0, total: 0 };
+	if (members.length > GROUP_COPY_MAX) {
+		throw new Error(`memberIds exceeds ${GROUP_COPY_MAX}`);
+	}
 
 	let added = 0;
 	let skipped = 0;
-	const now = Date.now();
-	const prepared: D1PreparedStatement[] = [];
-	for (const m of members) {
-		const handle = normalizeHandle(m.handle);
-		if (!handle || !isSourceType(m.sourceType)) {
-			skipped += 1;
-			continue;
+	const rows = members.filter((m) => normalizeHandle(m.handle) && isSourceType(m.sourceType));
+	skipped += members.length - rows.length;
+	for (let i = 0; i < rows.length; i += GROUP_BULK_ROWS_PER_STMT) {
+		const chunk = rows.slice(i, i + GROUP_BULK_ROWS_PER_STMT);
+		const ph = chunk.map(() => "(?, ?, ?, ?, ?, ?, NULL, ?)").join(", ");
+		const binds: unknown[] = [];
+		for (const m of chunk) {
+			binds.push(
+				userId,
+				watchlistId,
+				m.sourceType,
+				m.externalAuthorId,
+				normalizeHandle(m.handle),
+				m.displayName,
+				now,
+			);
 		}
-		prepared.push(
-			db
-				.prepare(
-					`INSERT OR IGNORE INTO watchlist_members
-           (user_id, watchlist_id, source_type, external_author_id, handle, display_name, note, added_at_ms)
-           VALUES (?, ?, ?, ?, ?, ?, NULL, ?)`,
-				)
-				.bind(userId, watchlistId, m.sourceType, m.externalAuthorId, handle, m.displayName, now),
-		);
-	}
-	for (let i = 0; i < prepared.length; i += GROUP_BULK_BATCH_SIZE) {
-		const chunk = prepared.slice(i, i + GROUP_BULK_BATCH_SIZE);
-		const results = await db.batch(chunk);
-		for (const r of results) {
-			const ch = r.meta?.changes ?? 0;
-			if (ch > 0) added += 1;
-			else skipped += 1;
-		}
+		const result = await db
+			.prepare(
+				`INSERT OR IGNORE INTO watchlist_members
+         (user_id, watchlist_id, source_type, external_author_id, handle, display_name, note, added_at_ms)
+         VALUES ${ph}`,
+			)
+			.bind(...binds)
+			.run();
+		const ch = result.meta?.changes ?? 0;
+		added += ch;
+		skipped += chunk.length - ch;
 	}
 	return { added, skipped, total: members.length };
 }

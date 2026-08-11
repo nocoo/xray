@@ -27,7 +27,14 @@ function mockDb() {
 				bind(...binds: unknown[]) {
 					return {
 						async first<T>() {
-							if (s.includes("FROM groups") && s.includes("AND g.id = ?")) {
+							// only the bulk copy total query — not getGroup's subquery COUNT
+							if (s.includes("COUNT(*) AS c") && s.includes("FROM group_members")) {
+								const c = group_members.filter(
+									(m) => m.user_id === binds[0] && m.group_id === binds[1],
+								).length;
+								return { c } as T;
+							}
+							if (s.includes("FROM groups g") && s.includes("g.id = ?")) {
 								const g = groups.find((x) => x.user_id === binds[0] && x.id === binds[1]);
 								if (!g) return null;
 								return {
@@ -89,24 +96,57 @@ function mockDb() {
 								});
 								return { meta: { last_row_id: id, changes: 1 } };
 							}
-							if (s.includes("INSERT") && s.includes("group_members")) {
-								// bulk: user, group, ext, handle, display, now  | single add: user, group, source, ext, handle, display, now
-								const isBulk = s.includes("OR IGNORE") && s.includes("'x.com'");
-								const handle = (isBulk ? binds[3] : binds[4]) as string;
+							if (
+								s.includes("INSERT") &&
+								s.includes("INTO group_members") &&
+								!s.includes("watchlist_members")
+							) {
+								const isMulti =
+									s.includes("OR IGNORE") && s.includes("'x.com'") && s.includes("VALUES");
+								if (isMulti) {
+									// binds: repeating (user, group, ext, handle, display, now) — stride 6
+									let changes = 0;
+									let lastId = 0;
+									const stride = 6;
+									const n = Math.floor(binds.length / stride);
+									for (let r = 0; r < n; r++) {
+										const i = r * stride;
+										const handle = String(binds[i + 3] ?? "");
+										const group_id = Number(binds[i + 1]);
+										if (
+											group_members.some(
+												(m) =>
+													m.group_id === group_id &&
+													m.handle === handle &&
+													m.source_type === "x.com",
+											)
+										) {
+											continue;
+										}
+										const id = gmid++;
+										lastId = id;
+										changes += 1;
+										group_members.push({
+											id,
+											user_id: binds[i],
+											group_id,
+											source_type: "x.com",
+											external_author_id: binds[i + 2],
+											handle,
+											display_name: binds[i + 4],
+											added_at_ms: binds[i + 5],
+										});
+									}
+									return { meta: { last_row_id: lastId, changes } };
+								}
+								const handle = binds[4] as string;
 								const group_id = binds[1] as number;
-								const source_type = isBulk ? "x.com" : (binds[2] as string);
-								const external_author_id = (isBulk ? binds[2] : binds[3]) as string | null;
-								const display_name = (isBulk ? binds[4] : binds[5]) as string | null;
-								const added_at_ms = (isBulk ? binds[5] : binds[6]) as number;
 								if (
 									group_members.some(
 										(m) =>
-											m.group_id === group_id &&
-											m.handle === handle &&
-											m.source_type === source_type,
+											m.group_id === group_id && m.handle === handle && m.source_type === binds[2],
 									)
 								) {
-									if (s.includes("OR IGNORE")) return { meta: { last_row_id: 0, changes: 0 } };
 									throw new Error("UNIQUE constraint failed");
 								}
 								const id = gmid++;
@@ -114,28 +154,98 @@ function mockDb() {
 									id,
 									user_id: binds[0],
 									group_id,
-									source_type,
-									external_author_id,
+									source_type: binds[2],
+									external_author_id: binds[3],
 									handle,
-									display_name,
-									added_at_ms,
+									display_name: binds[5],
+									added_at_ms: binds[6],
 								});
 								return { meta: { last_row_id: id, changes: 1 } };
 							}
 							if (s.includes("INSERT") && s.includes("watchlist_members")) {
-								const isBulk = s.includes("OR IGNORE");
+								if (s.includes("SELECT")) {
+									// INSERT…SELECT copy-all: binds watchlistId, now, userId, groupId
+									const watchlist_id = binds[0] as number;
+									const now = binds[1] as number;
+									const userId = binds[2] as string;
+									const group_id = binds[3] as number;
+									let changes = 0;
+									for (const gm of group_members.filter(
+										(m) => m.user_id === userId && m.group_id === group_id,
+									)) {
+										if (
+											watchlist_members.some(
+												(m) =>
+													m.watchlist_id === watchlist_id &&
+													m.handle === gm.handle &&
+													m.source_type === gm.source_type,
+											)
+										) {
+											continue;
+										}
+										const id = wmid++;
+										changes += 1;
+										watchlist_members.push({
+											id,
+											user_id: userId,
+											watchlist_id,
+											source_type: gm.source_type,
+											external_author_id: gm.external_author_id,
+											handle: gm.handle,
+											display_name: gm.display_name,
+											note: null,
+											added_at_ms: now,
+										});
+									}
+									return { meta: { last_row_id: 0, changes } };
+								}
+								const isMulti = s.includes("OR IGNORE") && s.includes("VALUES");
+								if (isMulti) {
+									// (user, wl, source, ext, handle, display, now) x N
+									let changes = 0;
+									const stride = 7;
+									const n = Math.floor(binds.length / stride);
+									for (let r = 0; r < n; r++) {
+										const i = r * stride;
+										const handle = String(binds[i + 4] ?? "");
+										const watchlist_id = Number(binds[i + 1]);
+										const source_type = String(binds[i + 2]);
+										if (
+											watchlist_members.some(
+												(m) =>
+													m.watchlist_id === watchlist_id &&
+													m.handle === handle &&
+													m.source_type === source_type,
+											)
+										) {
+											continue;
+										}
+										const id = wmid++;
+										changes += 1;
+										watchlist_members.push({
+											id,
+											user_id: binds[i],
+											watchlist_id,
+											source_type,
+											external_author_id: binds[i + 3],
+											handle,
+											display_name: binds[i + 5],
+											note: null,
+											added_at_ms: binds[i + 6],
+										});
+									}
+									return { meta: { last_row_id: 0, changes } };
+								}
 								const handle = binds[4] as string;
 								const watchlist_id = binds[1] as number;
-								const source_type = binds[2] as string;
 								if (
 									watchlist_members.some(
 										(m) =>
 											m.watchlist_id === watchlist_id &&
 											m.handle === handle &&
-											m.source_type === source_type,
+											m.source_type === binds[2],
 									)
 								) {
-									if (isBulk) return { meta: { last_row_id: 0, changes: 0 } };
 									throw new Error("UNIQUE constraint failed");
 								}
 								const id = wmid++;
@@ -143,12 +253,12 @@ function mockDb() {
 									id,
 									user_id: binds[0],
 									watchlist_id,
-									source_type,
+									source_type: binds[2],
 									external_author_id: binds[3],
 									handle,
 									display_name: binds[5],
-									note: isBulk ? null : binds[6],
-									added_at_ms: isBulk ? binds[6] : binds[7],
+									note: binds[6],
+									added_at_ms: binds[7],
 								});
 								return { meta: { last_row_id: id, changes: 1 } };
 							}
@@ -213,5 +323,17 @@ describe("bulkImportGroupMembers + copyGroupMembersToWatchlist", () => {
 		await addGroupMember(db, "u1", g.id, { sourceType: "x.com", handle: "x" });
 		const wl = seedWatchlist("u2");
 		await expect(copyGroupMembersToWatchlist(db, "u2", g.id, wl)).rejects.toThrow(/not found/i);
+	});
+
+	test("copy selected memberIds only", async () => {
+		const { db, seedWatchlist, watchlist_members } = mockDb();
+		const g = await createGroup(db, "u1", { name: "G" });
+		const a = await addGroupMember(db, "u1", g.id, { sourceType: "x.com", handle: "alice" });
+		await addGroupMember(db, "u1", g.id, { sourceType: "x.com", handle: "bob" });
+		const wl = seedWatchlist("u1");
+		const copy = await copyGroupMembersToWatchlist(db, "u1", g.id, wl, { memberIds: [a.id] });
+		expect(copy.added).toBe(1);
+		expect(copy.total).toBe(1);
+		expect(watchlist_members.map((m) => m.handle)).toEqual(["alice"]);
 	});
 });
