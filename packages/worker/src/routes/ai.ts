@@ -1,6 +1,12 @@
 import type { Context } from "hono";
 import { jsonErr, jsonOk, requireUser } from "../lib/http.js";
-import { AiConfigValidationError, getAiConfig, upsertAiConfig } from "../repos/ai-configs.js";
+import {
+	AiConfigValidationError,
+	decryptAiApiKey,
+	getAiConfig,
+	getAiConfigRow,
+	upsertAiConfig,
+} from "../repos/ai-configs.js";
 import type { AppEnv } from "../types.js";
 
 export async function getAiConfigRoute(c: Context<AppEnv>) {
@@ -57,5 +63,51 @@ export async function putAiConfigRoute(c: Context<AppEnv>) {
 			return jsonErr(c, "secrets KEK not configured", 500);
 		}
 		throw e;
+	}
+}
+
+/** POST /api/ai-config/test — lightweight chat completion ping */
+export async function testAiConfigRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	const row = await getAiConfigRow(c.env.DB, user.id);
+	if (!row) return jsonErr(c, "AI not configured", 400);
+	let apiKey: string;
+	try {
+		const dec = await decryptAiApiKey(row, c.env);
+		apiKey = dec.apiKey;
+	} catch {
+		return jsonErr(c, "failed to decrypt API key", 500);
+	}
+	const endpoint = `${(row.base_url || "https://api.openai.com/v1").replace(/\/$/, "")}/chat/completions`;
+	try {
+		const res = await fetch(endpoint, {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: `Bearer ${apiKey}`,
+			},
+			body: JSON.stringify({
+				model: row.model || "gpt-4o-mini",
+				messages: [
+					{ role: "system", content: "Reply with the single word: ok" },
+					{ role: "user", content: "ping" },
+				],
+				max_tokens: 8,
+				temperature: 0,
+			}),
+		});
+		const bodyText = await res.text().catch(() => "");
+		if (!res.ok) {
+			return jsonOk(c, {
+				ok: false,
+				status: res.status,
+				error: bodyText.slice(0, 300) || res.statusText,
+			});
+		}
+		return jsonOk(c, { ok: true, status: res.status, provider: row.provider, model: row.model });
+	} catch (e) {
+		const msg = e instanceof Error ? e.message : String(e);
+		return jsonOk(c, { ok: false, error: msg });
 	}
 }

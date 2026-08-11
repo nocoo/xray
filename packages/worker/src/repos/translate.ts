@@ -22,6 +22,7 @@ export const defaultTranslateFn: TranslateFn = async ({
 	model,
 	baseUrl,
 	translationPrompt,
+	summaryPrompt,
 	signal,
 }) => {
 	const endpoint = `${baseUrl?.replace(/\/$/, "") || "https://api.openai.com/v1"}/chat/completions`;
@@ -53,7 +54,35 @@ export const defaultTranslateFn: TranslateFn = async ({
 	};
 	const translated = json.choices?.[0]?.message?.content?.trim();
 	if (!translated) throw new Error("empty translation");
-	return { translatedText: translated, summaryText: null };
+
+	let summaryText: string | null = null;
+	const sumPrompt = summaryPrompt?.trim();
+	if (sumPrompt) {
+		const sumRes = await fetch(endpoint, {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: `Bearer ${apiKey}`,
+			},
+			body: JSON.stringify({
+				model: model || "gpt-4o-mini",
+				messages: [
+					{ role: "system", content: sumPrompt },
+					{ role: "user", content: text },
+				],
+				temperature: 0.2,
+			}),
+			signal,
+		});
+		if (sumRes.ok) {
+			const sumJson = (await sumRes.json()) as {
+				choices?: Array<{ message?: { content?: string } }>;
+			};
+			summaryText = sumJson.choices?.[0]?.message?.content?.trim() || null;
+		}
+	}
+
+	return { translatedText: translated, summaryText };
 };
 
 export async function resetStalePending(

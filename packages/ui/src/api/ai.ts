@@ -44,3 +44,15 @@ export function translateWatchlist(
 ) {
 	return apiPost<TranslateResult>(`/api/watchlists/${watchlistId}/translate`, body ?? {});
 }
+
+export type AiTestResult = {
+	ok: boolean;
+	status?: number;
+	error?: string;
+	provider?: string | null;
+	model?: string | null;
+};
+
+export function testAiConfig() {
+	return apiPost<AiTestResult>("/api/ai-config/test", {});
+}
