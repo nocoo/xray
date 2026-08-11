@@ -105,11 +105,9 @@ async function resolveIdentity(
 		return { ok: false, status: 403, error: "Access JWT missing email or sub" };
 	}
 
+	// CF Access is the primary gate. ALLOWED_EMAILS is optional extra filter only when set.
 	const allowed = parseAllowedEmails(env.ALLOWED_EMAILS);
-	if (allowed.size === 0) {
-		return { ok: false, status: 500, error: "ALLOWED_EMAILS is mandatory" };
-	}
-	if (!allowed.has(email.toLowerCase())) {
+	if (allowed.size > 0 && !allowed.has(email.toLowerCase())) {
 		return { ok: false, status: 403, error: "Email not allowed" };
 	}
 

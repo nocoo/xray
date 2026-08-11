@@ -172,7 +172,7 @@ describe("accessAuth JWT path", () => {
 		expect(res.status).toBe(403);
 	});
 
-	test("missing ALLOWED_EMAILS → 500", async () => {
+	test("empty ALLOWED_EMAILS trusts Access JWT email", async () => {
 		setJwtVerifierForTests(async () => ({
 			email: "ok@xray.local",
 			sub: "sub-ok",
@@ -189,7 +189,7 @@ describe("accessAuth JWT path", () => {
 				"Cf-Access-Jwt-Assertion": "h.p.s",
 			},
 		});
-		expect(res.status).toBe(500);
+		expect(res.status).toBe(200);
 	});
 
 	test("missing Access config → 500", async () => {

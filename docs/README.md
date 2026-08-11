@@ -16,7 +16,7 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 ## Locked constraints
 
 1. **Stack**: TypeScript 7, Biome, Vite SPA + Hono Worker (`../bat`), CF Workers + D1.
-2. **Auth**: **Cloudflare Access** (Google IdP) on browser host `xray.hexly.ai`; Worker `ALLOWED_EMAILS` mandatory.
+2. **Auth**: **Cloudflare Access** (Google IdP) on browser host `xray.hexly.ai`; Worker trusts Access JWT (`ALLOWED_EMAILS` optional extra filter).
 3. **Ingest host**: `xray-ingest.hexly.ai` — Access bypass; **only** `POST /api/v1/ingest/push` + Bearer (XR-01).
 4. **UI/CSS**: full visual retain.
 5. **Ingest**: **push-first**, versioned canonical body. No CF Cron auto-refresh.

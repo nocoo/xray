@@ -82,7 +82,7 @@ Local: **`xray.dev.hexly.ai` → 7007** (Caddy). UI vite + worker wrangler dev.
 3. Worker `accessAuth`:
    - verifies JWT (aud, iss, signature via Access certs)
    - extracts **`sub` (required)** + email
-   - **Worker `ALLOWED_EMAILS` is mandatory second gate** (defense in depth; fail closed if unset in prod)
+   - **Worker `ALLOWED_EMAILS` is optional** second gate (if set, filter Access emails; if empty, trust CF Access alone)
    - upserts `users` with **atomic bind order (R3-01)**:
      1. `SELECT` by `(access_iss, access_sub)` → use if found (update email/name/image if changed)
      2. else `SELECT` by email **where access_sub IS NULL** → CAS update set iss/sub (fail if race lost)
@@ -262,7 +262,7 @@ Full port of v1 behavior — contract in [04](04-features.md) §5.
 | Name | Purpose |
 |------|---------|
 | `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` | browser JWT verify |
-| `ALLOWED_EMAILS` | mandatory Worker allowlist |
+| `ALLOWED_EMAILS` | optional Worker allowlist (empty = trust Access) |
 | `XRAY_SECRETS_KEK` | 32-byte raw or base64; current KEK (version N) |
 | `XRAY_SECRETS_KEK_PREV` | optional previous KEK during rotate |
 | `XRAY_SECRETS_KEY_VERSION` | integer N written into envelope (default 1) |
