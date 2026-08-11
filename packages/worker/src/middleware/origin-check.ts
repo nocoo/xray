@@ -9,6 +9,14 @@ const PROD_ORIGIN_BY_HOST: Record<string, string> = {
 	"xray-staging.hexly.ai": "https://xray-staging.hexly.ai",
 };
 
+/** Local Caddy browser host (docs/02 XR-01). */
+const DEV_BROWSER_ORIGINS = new Set([
+	"https://xray.dev.hexly.ai",
+	"http://xray.dev.hexly.ai",
+	"http://localhost:7007",
+	"http://127.0.0.1:7007",
+]);
+
 /**
  * Browser mutation guard: require exact Origin match (S45R-06 / S45RRR-04).
  */
@@ -37,6 +45,17 @@ export async function originCheck(c: Context<AppEnv>, next: Next) {
 			if (!expected || origin !== expected) {
 				return c.json({ success: false, error: "Cross-origin mutation blocked" }, 403);
 			}
+			return next();
+		}
+
+		// Dev: allow Caddy host + localhost UI even if proxy rewrites Host.
+		if (
+			!isProd &&
+			(DEV_BROWSER_ORIGINS.has(origin) ||
+				o.hostname === "xray.dev.hexly.ai" ||
+				o.hostname === "localhost" ||
+				o.hostname === "127.0.0.1")
+		) {
 			return next();
 		}
 
