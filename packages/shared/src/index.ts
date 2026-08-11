@@ -82,6 +82,12 @@ export {
 	createTwitterCliSource,
 	TWITTER_CLI_SOURCE_ID,
 } from "./twitter-cli-source.js";
+export type { ImportMemberSeed } from "./twitter-export.js";
+export {
+	handleFromUserLink,
+	parseMemberImportText,
+	parseTwitterExportFile,
+} from "./twitter-export.js";
 export { XRAY_VERSION } from "./version.js";
 export type {
 	TimelineFetchResult,
