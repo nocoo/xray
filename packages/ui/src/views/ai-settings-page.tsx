@@ -169,7 +169,7 @@ export function AiSettingsPage() {
 						type="button"
 						size="sm"
 						variant="secondary"
-						disabled={testing || !cfg?.hasApiKey}
+						disabled={testing || (!cfg?.hasApiKey && !apiKey.trim())}
 						onClick={() => void onTest()}
 					>
 						{testing ? "Testing…" : "Test connection"}

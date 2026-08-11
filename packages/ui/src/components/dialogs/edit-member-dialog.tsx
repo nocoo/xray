@@ -33,16 +33,24 @@ export function EditMemberDialog({
 	const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [tagsError, setTagsError] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (!open || !member) return;
 		setNote(member.note ?? "");
 		setSelectedTagIds(member.tags.map((t) => t.id));
 		setError(null);
+		setTagsError(null);
 		setSaving(false);
 		void fetchTags()
-			.then(setTags)
-			.catch(() => setTags([]));
+			.then((t) => {
+				setTags(t);
+				setTagsError(null);
+			})
+			.catch((e) => {
+				setTags([]);
+				setTagsError(e instanceof Error ? e.message : String(e));
+			});
 	}, [open, member]);
 
 	const submit = async (e: React.FormEvent) => {
@@ -85,6 +93,9 @@ export function EditMemberDialog({
 					</DialogHeader>
 
 					<div className="grid gap-4">
+						{tagsError && (
+							<p className="text-sm text-destructive">Failed to load tags: {tagsError}</p>
+						)}
 						{tags.length > 0 && (
 							<div className="grid gap-2">
 								<span className="text-sm font-medium">Tags</span>

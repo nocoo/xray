@@ -41,6 +41,7 @@ export function AddMemberDialog({
 	const [error, setError] = useState<string | null>(null);
 	const [tags, setTags] = useState<Tag[]>([]);
 	const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+	const [tagsError, setTagsError] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (!open) return;
@@ -50,10 +51,17 @@ export function AddMemberDialog({
 		setError(null);
 		setSaving(false);
 		setSelectedTagIds([]);
+		setTagsError(null);
 		if (target?.kind === "watchlist") {
 			void fetchTags()
-				.then(setTags)
-				.catch(() => setTags([]));
+				.then((t) => {
+					setTags(t);
+					setTagsError(null);
+				})
+				.catch((e) => {
+					setTags([]);
+					setTagsError(e instanceof Error ? e.message : String(e));
+				});
 		} else {
 			setTags([]);
 		}
@@ -161,6 +169,9 @@ export function AddMemberDialog({
 								/>
 							</div>
 						</div>
+						{target?.kind === "watchlist" && tagsError && (
+							<p className="text-sm text-destructive">Failed to load tags: {tagsError}</p>
+						)}
 						{target?.kind === "watchlist" && tags.length > 0 && (
 							<div className="grid gap-2">
 								<span className="text-sm font-medium">Tags</span>
