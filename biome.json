@@ -81,7 +81,10 @@
 			"!**/.superset",
 			"!**/packages/**/coverage",
 			"!**/e2e",
-			"!**/playwright.config.ts"
+			"!**/playwright.config.ts",
+			"!**/test-results",
+			"!**/playwright-report",
+			"!**/blob-report"
 		]
 	}
 }

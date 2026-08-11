@@ -119,7 +119,7 @@ S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)
 | M5 | AI settings / translate batch | **done** |
 | M6 | zhe.to save | **done** |
 | M7 | Dashboard real aggregates | **done** |
-| M8 | Playwright L3 + release 2.0.0 | **done**（L3 `e2e/*.pw.ts`；version 2.0.0） |
+| M8 | Playwright L3 + release 2.0.0 | **done**（`e2e/*.pw.ts` + `test:l3`；需本机 UI/worker 才绿；version 2.0.0 已对齐，无 in-repo release 脚本故未切 tag） |
 
 ---
 
@@ -132,5 +132,7 @@ S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)
 
 ## 下一步
 
-1. 可选：生产 Access 浏览器登录 smoke + 真 push  
-2. 可选：`git push` + `bun run release` 发 GitHub release  
+1. 可选：本地起 UI+worker 后跑 `bun run test:l3`  
+2. 可选：生产 Access 浏览器登录 smoke + 真 push  
+3. 可选：`git push` + 项目 release 流程发 GitHub tag `2.0.0`  
+
