@@ -1,5 +1,5 @@
 import type { SourceType } from "@xray/shared";
-import { Eye, Plus, RefreshCw, Settings, Trash2 } from "lucide-react";
+import { Eye, Plus, RefreshCw, Settings } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
 import { translateWatchlist } from "@/api/ai";
@@ -305,17 +305,11 @@ export function WatchlistDetailPage() {
 					{filteredMembers.length > 0 ? (
 						<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
 							{filteredMembers.map((m) => (
-								<div key={m.id} className="relative">
-									<MemberCard member={memberToCard(m)} />
-									<button
-										type="button"
-										className="absolute right-2 bottom-2 rounded-md bg-background/80 p-1 text-muted-foreground hover:text-destructive"
-										title="Remove"
-										onClick={() => void onRemoveMember(m.id)}
-									>
-										<Trash2 className="h-3.5 w-3.5" />
-									</button>
-								</div>
+								<MemberCard
+									key={m.id}
+									member={memberToCard(m)}
+									onDelete={() => void onRemoveMember(m.id)}
+								/>
 							))}
 						</div>
 					) : (
