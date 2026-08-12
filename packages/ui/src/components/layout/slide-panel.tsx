@@ -10,7 +10,7 @@ export type SlidePanelProps = {
 	onClose: () => void;
 	title: string;
 	children: React.ReactNode;
-	/** Tailwind width class, default w-80 */
+	/** Tailwind width classes; default full-width up to w-80 */
 	width?: string;
 	/** Optional test id on the dialog surface */
 	"data-testid"?: string;
@@ -22,7 +22,7 @@ export function SlidePanel({
 	onClose,
 	title,
 	children,
-	width = "w-80",
+	width = "w-full max-w-80",
 	"data-testid": testId,
 }: SlidePanelProps) {
 	const panelRef = useRef<HTMLDivElement>(null);
@@ -40,6 +40,16 @@ export function SlidePanel({
 		document.addEventListener("keydown", onKey);
 		return () => document.removeEventListener("keydown", onKey);
 	}, [open, onClose]);
+
+	// Body scroll lock while open
+	useEffect(() => {
+		if (!open) return;
+		const prev = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+		return () => {
+			document.body.style.overflow = prev;
+		};
+	}, [open]);
 
 	useEffect(() => {
 		if (!open) return;
@@ -73,16 +83,16 @@ export function SlidePanel({
 		};
 	}, [open]);
 
+	// Unmount when closed so off-screen controls never enter tab order / a11y tree.
+	if (!open) return null;
+
 	return (
 		<>
 			<button
 				type="button"
 				tabIndex={-1}
 				aria-label="Close panel backdrop"
-				className={cn(
-					"fixed inset-0 z-40 bg-black/30 transition-opacity duration-200",
-					open ? "opacity-100" : "pointer-events-none opacity-0",
-				)}
+				className="fixed inset-0 z-40 bg-black/30"
 				onClick={onClose}
 			/>
 			<div
@@ -94,9 +104,8 @@ export function SlidePanel({
 				data-testid={testId}
 				className={cn(
 					"fixed top-0 right-0 z-50 flex h-full flex-col border-l border-border bg-background shadow-lg outline-none",
-					"transition-transform duration-200 ease-out",
+					"animate-in slide-in-from-right duration-200",
 					width,
-					open ? "translate-x-0" : "translate-x-full pointer-events-none",
 				)}
 			>
 				<div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
@@ -106,7 +115,7 @@ export function SlidePanel({
 					<button
 						type="button"
 						onClick={onClose}
-						className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+						className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 						aria-label="Close panel"
 					>
 						<X className="h-4 w-4" />
