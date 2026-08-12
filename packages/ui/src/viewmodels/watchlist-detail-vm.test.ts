@@ -125,6 +125,7 @@ describe("createWatchlistDetailVm", () => {
 				.mockResolvedValueOnce({ items: [{ ...item, id: 101 }], next_cursor: null }),
 			fetchWatchlistIngestLogs: vi.fn().mockResolvedValue([]),
 			deleteMember: vi.fn().mockResolvedValue({ deleted: true }),
+			updateWatchlist: vi.fn().mockResolvedValue({ ...wl, translateEnabled: false }),
 			translateWatchlist: vi.fn().mockResolvedValue({ results: [], timed_out: false }),
 		};
 		const vm = createWatchlistDetailVm(api, 3);
@@ -166,12 +167,65 @@ describe("createWatchlistDetailVm", () => {
 				fetchItems: vi.fn(),
 				fetchWatchlistIngestLogs: vi.fn(),
 				deleteMember: vi.fn(),
+				updateWatchlist: vi.fn(),
 				translateWatchlist: vi.fn(),
 			},
 			0,
 		);
 		await vm.load();
 		expect(vm.getState().error).toBe("invalid watchlist");
+	});
+
+	test("setTranslateEnabled and loadLogs", async () => {
+		const api = {
+			fetchWatchlist: vi.fn().mockResolvedValue(wl),
+			fetchMembers: vi.fn().mockResolvedValue([]),
+			fetchItems: vi.fn().mockResolvedValue({ items: [], next_cursor: null }),
+			fetchWatchlistIngestLogs: vi
+				.fn()
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([
+					{
+						id: 1,
+						watchlistId: 3,
+						attempted: 2,
+						accepted: 1,
+						deduped: 1,
+						rejected: 0,
+						errorsJson: null,
+						createdAtMs: 1,
+					},
+				])
+				.mockRejectedValueOnce(new Error("logs down")),
+			deleteMember: vi.fn(),
+			updateWatchlist: vi
+				.fn()
+				.mockResolvedValueOnce({ ...wl, translateEnabled: false })
+				.mockRejectedValueOnce(new Error("save failed")),
+			translateWatchlist: vi.fn(),
+		};
+		const vm = createWatchlistDetailVm(api, 3);
+		// no-op when wl not loaded yet
+		await vm.setTranslateEnabled(true);
+		expect(api.updateWatchlist).not.toHaveBeenCalled();
+
+		await vm.load();
+		await vm.setTranslateEnabled(false);
+		expect(api.updateWatchlist).toHaveBeenCalledWith(3, { translateEnabled: false });
+		expect(vm.getState().wl?.translateEnabled).toBe(false);
+		await vm.setTranslateEnabled(true);
+		expect(vm.getState().settingsError).toBe("save failed");
+		expect(vm.getState().wl?.translateEnabled).toBe(false);
+		// load() already consumed first mock ([]); this is second mock (1 log)
+		await vm.loadLogs();
+		expect(vm.getState().logs).toHaveLength(1);
+		await vm.loadLogs();
+		expect(vm.getState().error).toBe("logs down");
+
+		const badId = createWatchlistDetailVm(api, 0);
+		await badId.loadLogs();
+		await badId.setTranslateEnabled(true);
+		expect(api.updateWatchlist).toHaveBeenCalledTimes(2);
 	});
 
 	test("itemToTweet more author branches", () => {
@@ -461,6 +515,7 @@ describe("createWatchlistDetailVm", () => {
 			fetchItems: vi.fn().mockResolvedValue({ items: [item], next_cursor: null }),
 			fetchWatchlistIngestLogs: vi.fn().mockResolvedValue([]),
 			deleteMember: vi.fn().mockRejectedValue(new Error("rm")),
+			updateWatchlist: vi.fn().mockResolvedValue(wl),
 			translateWatchlist: vi
 				.fn()
 				.mockResolvedValueOnce({ results: [], timed_out: true })

@@ -1,4 +1,4 @@
-import { Eye, Plus, RefreshCw, Settings } from "lucide-react";
+import { Eye, Languages, Plus, RefreshCw, ScrollText, Settings } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
 import * as aiApi from "@/api/ai";
@@ -10,9 +10,11 @@ import { TweetCard } from "@/components/cards/tweet-card";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { EditMemberDialog } from "@/components/dialogs/edit-member-dialog";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
+import { SlidePanel } from "@/components/layout/slide-panel";
 import { SourceFilter } from "@/components/source-filter";
 import { Button } from "@/components/ui/button";
 import { useColumns } from "@/hooks/use-columns";
+import { cn } from "@/lib/utils";
 import { useVm } from "@/viewmodels/use-vm";
 import {
 	createWatchlistDetailVm,
@@ -29,6 +31,8 @@ export function WatchlistDetailPage() {
 	const { setBreadcrumbs } = useBreadcrumbs();
 	const { openAddMember } = useCreateDialogs();
 	const [editMember, setEditMember] = useState<Member | null>(null);
+	const [settingsOpen, setSettingsOpen] = useState(false);
+	const [activityOpen, setActivityOpen] = useState(false);
 	const columnCount = useColumns();
 
 	const vm = useMemo(
@@ -40,6 +44,7 @@ export function WatchlistDetailPage() {
 					fetchItems: watchlistsApi.fetchItems,
 					fetchWatchlistIngestLogs: watchlistsApi.fetchWatchlistIngestLogs,
 					deleteMember: watchlistsApi.deleteMember,
+					updateWatchlist: watchlistsApi.updateWatchlist,
 					translateWatchlist: aiApi.translateWatchlist,
 				},
 				watchlistId,
@@ -77,6 +82,11 @@ export function WatchlistDetailPage() {
 		);
 	};
 
+	const openActivity = () => {
+		setActivityOpen(true);
+		void vm.loadLogs();
+	};
+
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center gap-1">
@@ -108,13 +118,20 @@ export function WatchlistDetailPage() {
 				</div>
 
 				<div className="flex flex-1 justify-center">
-					<span className="text-xs text-muted-foreground">
+					<button
+						type="button"
+						onClick={openActivity}
+						className="max-w-full truncate rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+						title="Open activity / ingest logs"
+					>
 						{s.wl?.name ?? "…"}
 						{s.wl?.translateEnabled ? " · Translate on" : " · Translate off"}
-						<span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-[10px]">
-							mix · source_type
-						</span>
-					</span>
+						{s.logs[0] ? (
+							<span className="ml-2 tabular-nums opacity-80">
+								· last +{s.logs[0].accepted}/{s.logs[0].attempted}
+							</span>
+						) : null}
+					</button>
 				</div>
 
 				<div className="flex items-center gap-1.5">
@@ -139,7 +156,24 @@ export function WatchlistDetailPage() {
 						<RefreshCw className="h-4 w-4" />
 						Reload
 					</Button>
-					<Button variant="ghost" size="icon-sm" type="button" disabled title="Settings S5">
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						type="button"
+						onClick={openActivity}
+						title="Activity / ingest logs"
+						aria-label="Open activity panel"
+					>
+						<ScrollText className="h-4 w-4" />
+					</Button>
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						type="button"
+						onClick={() => setSettingsOpen(true)}
+						title="Settings"
+						aria-label="Open settings panel"
+					>
 						<Settings className="h-4 w-4" />
 					</Button>
 				</div>
@@ -199,101 +233,208 @@ export function WatchlistDetailPage() {
 							</p>
 						</div>
 					) : (
-						<div className="flex items-start gap-3">
-							{itemColumns.map((col, colIdx) => (
-								<div
-									key={col[0] ? `col-${col[0].id}` : `col-empty-${String(colIdx)}`}
-									className="flex min-w-0 flex-1 flex-col gap-3"
-								>
-									{col.map((item) =>
-										item.sourceType === "custom" ? (
-											<div key={item.id} data-source-type="custom">
-												<CustomItemCard
-													sourceType="custom"
-													title={item.title}
-													body={item.text}
-													createdAt={new Date(item.createdAtMs).toISOString()}
-													authorName={item.authorUsername}
-													url={
-														(item.payload as { body?: { url?: string } } | null)?.body?.url ?? null
-													}
-													watchlistId={watchlistId}
-													itemId={item.id}
-													initialTranslation={
-														item.translatedText
-															? {
-																	translatedText: item.translatedText,
-																	summaryText: item.summaryText,
+						/* Dedicated scrollport so CSS scroll-snap clamps between cards (v1-like feel). */
+						<div
+							data-testid="posts-scroll"
+							className={cn(
+								"max-h-[calc(100dvh-11.5rem)] overflow-y-auto overscroll-y-contain",
+								"snap-y snap-proximity scroll-smooth pr-0.5",
+							)}
+						>
+							<div className="flex items-start gap-3">
+								{itemColumns.map((col, colIdx) => (
+									<div
+										key={col[0] ? `col-${col[0].id}` : `col-empty-${String(colIdx)}`}
+										className="flex min-w-0 flex-1 flex-col gap-3"
+									>
+										{col.map((item) =>
+											item.sourceType === "custom" ? (
+												<div
+													key={item.id}
+													data-source-type="custom"
+													className="snap-start snap-always"
+												>
+													<CustomItemCard
+														sourceType="custom"
+														title={item.title}
+														body={item.text}
+														createdAt={new Date(item.createdAtMs).toISOString()}
+														authorName={item.authorUsername}
+														url={
+															(item.payload as { body?: { url?: string } } | null)?.body?.url ??
+															null
+														}
+														watchlistId={watchlistId}
+														itemId={item.id}
+														initialTranslation={
+															item.translatedText
+																? {
+																		translatedText: item.translatedText,
+																		summaryText: item.summaryText,
+																	}
+																: undefined
+														}
+														onTranslated={(result) => vm.onItemTranslated(item.id, result)}
+													/>
+												</div>
+											) : (
+												<div
+													key={item.id}
+													data-source-type="x.com"
+													className="snap-start snap-always"
+												>
+													{(() => {
+														const tweet = itemToTweet(item);
+														if (!tweet) return null;
+														return (
+															<TweetCard
+																tweet={tweet}
+																sourceType="x.com"
+																linkToDetail={false}
+																watchlistId={watchlistId}
+																itemId={item.id}
+																initialTranslation={
+																	item.translatedText
+																		? {
+																				translatedText: item.translatedText,
+																				commentText: item.summaryText,
+																			}
+																		: undefined
 																}
-															: undefined
-													}
-													onTranslated={(result) => vm.onItemTranslated(item.id, result)}
-												/>
-											</div>
-										) : (
-											<div key={item.id} data-source-type="x.com">
-												{(() => {
-													const tweet = itemToTweet(item);
-													if (!tweet) return null;
-													return (
-														<TweetCard
-															tweet={tweet}
-															sourceType="x.com"
-															linkToDetail={false}
-															watchlistId={watchlistId}
-															itemId={item.id}
-															initialTranslation={
-																item.translatedText
-																	? {
-																			translatedText: item.translatedText,
-																			commentText: item.summaryText,
-																		}
-																	: undefined
-															}
-															onTranslated={(result) => vm.onItemTranslated(item.id, result)}
-														/>
-													);
-												})()}
-											</div>
-										),
-									)}
+																onTranslated={(result) => vm.onItemTranslated(item.id, result)}
+															/>
+														);
+													})()}
+												</div>
+											),
+										)}
+									</div>
+								))}
+							</div>
+							{s.nextCursor && (
+								<div className="mt-4 flex justify-center pb-2">
+									<Button
+										variant="outline"
+										size="sm"
+										type="button"
+										disabled={s.loadingMore}
+										onClick={() => void vm.loadMore()}
+									>
+										{s.loadingMore ? "Loading…" : "Load more"}
+									</Button>
 								</div>
-							))}
-						</div>
-					)}
-					{s.nextCursor && (
-						<div className="mt-4 flex justify-center">
-							<Button
-								variant="outline"
-								size="sm"
-								type="button"
-								disabled={s.loadingMore}
-								onClick={() => void vm.loadMore()}
-							>
-								{s.loadingMore ? "Loading…" : "Load more"}
-							</Button>
+							)}
 						</div>
 					)}
 				</div>
 			)}
 
-			<div className="space-y-2 border-t border-border pt-4" data-testid="ingest-logs">
-				<h2 className="text-sm font-medium">Ingest logs</h2>
-				{s.logs.length === 0 ? (
-					<p className="text-xs text-muted-foreground">No pushes logged yet.</p>
-				) : (
-					<ul className="space-y-1 text-xs text-muted-foreground">
-						{s.logs.map((log) => (
-							<li key={log.id} className="flex flex-wrap gap-x-2 tabular-nums">
-								<span>{new Date(log.createdAtMs).toLocaleString()}</span>
-								<span>
-									+{log.accepted} / dup {log.deduped} / rej {log.rejected} (of {log.attempted})
-								</span>
-							</li>
-						))}
-					</ul>
-				)}
-			</div>
+			{/* Settings — right slide panel (legacy v1) */}
+			<SlidePanel
+				open={settingsOpen}
+				onClose={() => setSettingsOpen(false)}
+				title="Settings"
+				data-testid="settings-panel"
+			>
+				<div className="space-y-6 p-4">
+					{s.settingsError && (
+						<div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+							{s.settingsError}
+						</div>
+					)}
+					<div className="space-y-2">
+						<p className="flex items-center gap-2 text-sm font-medium">
+							<Languages className="h-4 w-4 text-muted-foreground" />
+							Auto translate
+						</p>
+						<p className="text-xs text-muted-foreground">
+							When on, new items are eligible for batch translation from the toolbar.
+						</p>
+						<button
+							type="button"
+							role="switch"
+							aria-label="Auto translate"
+							aria-checked={s.wl?.translateEnabled ?? false}
+							disabled={!s.wl || s.settingsSaving}
+							onClick={() => void vm.setTranslateEnabled(!(s.wl?.translateEnabled ?? false))}
+							className={cn(
+								"relative h-7 w-12 rounded-full transition-colors",
+								s.wl?.translateEnabled ? "bg-emerald-500" : "bg-muted",
+								(!s.wl || s.settingsSaving) && "opacity-60",
+							)}
+						>
+							<span
+								className={cn(
+									"absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform",
+									s.wl?.translateEnabled && "translate-x-5",
+								)}
+							/>
+						</button>
+					</div>
+					<div className="space-y-1 border-t border-border pt-4 text-xs text-muted-foreground">
+						<p>
+							<span className="font-medium text-foreground">Members</span> · {s.members.length}
+						</p>
+						<p>
+							<span className="font-medium text-foreground">Posts loaded</span> · {s.items.length}
+						</p>
+						<p>
+							<span className="font-medium text-foreground">Source model</span> · mix (x.com +
+							custom)
+						</p>
+					</div>
+				</div>
+			</SlidePanel>
+
+			{/* Activity / ingest logs — right slide panel (not under waterfall) */}
+			<SlidePanel
+				open={activityOpen}
+				onClose={() => setActivityOpen(false)}
+				title="Activity"
+				width="w-96"
+				data-testid="activity-panel"
+			>
+				<div className="flex h-full flex-col" data-testid="ingest-logs">
+					<div className="flex items-center justify-between border-b border-border px-4 py-2">
+						<p className="text-xs text-muted-foreground">Recent ingest pushes</p>
+						<Button
+							variant="ghost"
+							size="xs"
+							type="button"
+							onClick={() => void vm.loadLogs()}
+							title="Refresh logs"
+						>
+							<RefreshCw className="h-3.5 w-3.5" />
+							Refresh
+						</Button>
+					</div>
+					{s.logs.length === 0 ? (
+						<p className="p-4 text-xs text-muted-foreground">No pushes logged yet.</p>
+					) : (
+						<ul className="divide-y divide-border">
+							{s.logs.map((log) => (
+								<li key={log.id} className="space-y-1 px-4 py-3 text-xs">
+									<div className="flex items-center justify-between gap-2">
+										<span className="font-medium text-foreground tabular-nums">
+											+{log.accepted}
+											<span className="font-normal text-muted-foreground">
+												{" "}
+												/ dup {log.deduped} / rej {log.rejected}
+											</span>
+										</span>
+										<span className="shrink-0 text-muted-foreground tabular-nums">
+											of {log.attempted}
+										</span>
+									</div>
+									<p className="text-muted-foreground tabular-nums">
+										{new Date(log.createdAtMs).toLocaleString()}
+									</p>
+								</li>
+							))}
+						</ul>
+					)}
+				</div>
+			</SlidePanel>
 		</div>
 	);
 }

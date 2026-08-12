@@ -16,6 +16,15 @@ export type WatchlistDetailApi = {
 	) => Promise<{ items: TimelineItem[]; next_cursor: string | null }>;
 	fetchWatchlistIngestLogs: (id: number, limit?: number) => Promise<IngestLog[]>;
 	deleteMember: (watchlistId: number, memberId: number) => Promise<unknown>;
+	updateWatchlist: (
+		id: number,
+		input: Partial<{
+			name: string;
+			description: string | null;
+			icon: string;
+			translateEnabled: boolean;
+		}>,
+	) => Promise<Watchlist>;
 	translateWatchlist: (
 		watchlistId: number,
 		body?: { limit?: number; item_ids?: number[] },
@@ -34,6 +43,8 @@ export type WatchlistDetailState = {
 	loading: boolean;
 	loadingMore: boolean;
 	error: string | null;
+	settingsSaving: boolean;
+	settingsError: string | null;
 };
 
 export function memberToCard(m: Member): MockWatchlistMember {
@@ -288,6 +299,8 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 		loading: false,
 		loadingMore: false,
 		error: null,
+		settingsSaving: false,
+		settingsError: null,
 	});
 
 	const vm = {
@@ -318,7 +331,7 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 					api.fetchWatchlist(id),
 					api.fetchMembers(id),
 					api.fetchItems(id, itemOpts),
-					api.fetchWatchlistIngestLogs(id, 15),
+					api.fetchWatchlistIngestLogs(id, 30),
 				]);
 				store.setState({
 					wl: w,
@@ -330,6 +343,36 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 				});
 			} catch (e) {
 				store.setState({ error: errMsg(e), loading: false });
+			}
+		},
+		async loadLogs() {
+			const id = store.getState().watchlistId;
+			if (!Number.isInteger(id) || id <= 0) return;
+			try {
+				const logRows = await api.fetchWatchlistIngestLogs(id, 30);
+				store.setState({ logs: logRows });
+			} catch (e) {
+				store.setState({ error: errMsg(e) });
+			}
+		},
+		async setTranslateEnabled(enabled: boolean) {
+			const id = store.getState().watchlistId;
+			const prev = store.getState().wl;
+			if (!prev) return;
+			store.setState({
+				settingsSaving: true,
+				settingsError: null,
+				wl: { ...prev, translateEnabled: enabled },
+			});
+			try {
+				const w = await api.updateWatchlist(id, { translateEnabled: enabled });
+				store.setState({ wl: w, settingsSaving: false });
+			} catch (e) {
+				store.setState({
+					wl: prev,
+					settingsSaving: false,
+					settingsError: errMsg(e),
+				});
 			}
 		},
 		onItemTranslated(
