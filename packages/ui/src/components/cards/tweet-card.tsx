@@ -16,13 +16,14 @@ import {
 	Loader2,
 	MessageCircle,
 	MessageSquareQuote,
+	Play,
 	Quote,
 	Repeat2,
 	Search,
 	Trash2,
 	X,
 } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SourceChip } from "@/components/source-chip";
 import { Badge } from "@/components/ui/badge";
 import { useNow } from "@/hooks/use-now";
@@ -732,20 +733,7 @@ function MediaGrid({
 		const m = at(media, 0);
 		return (
 			<div className={`overflow-hidden ${roundedClass} bg-muted`}>
-				<video
-					src={proxyUrl(m.url)}
-					poster={m.thumbnail_url ? proxyUrl(m.thumbnail_url) : undefined}
-					controls={m.type === "VIDEO"}
-					autoPlay={m.type === "GIF"}
-					loop={m.type === "GIF"}
-					muted={m.type === "GIF"}
-					playsInline
-					preload={m.type === "VIDEO" ? "none" : undefined}
-					className={`w-full ${roundedClass}`}
-					onClick={(e) => e.stopPropagation()}
-				>
-					<track kind="captions" />
-				</video>
+				<VideoMedia media={m} className={`w-full ${roundedClass}`} />
 			</div>
 		);
 	}
@@ -772,37 +760,10 @@ function MediaGrid({
 					);
 				}
 
-				if (m.type === "GIF") {
+				if (m.type === "GIF" || m.type === "VIDEO") {
 					return (
 						<div key={m.id} className={containerClass}>
-							<video
-								src={proxyUrl(m.url)}
-								autoPlay
-								loop
-								muted
-								playsInline
-								className={scrollMediaClass}
-							>
-								<track kind="captions" />
-							</video>
-						</div>
-					);
-				}
-
-				if (m.type === "VIDEO") {
-					return (
-						<div key={m.id} className={containerClass}>
-							<video
-								src={proxyUrl(m.url)}
-								poster={m.thumbnail_url ? proxyUrl(m.thumbnail_url) : undefined}
-								controls
-								playsInline
-								preload="none"
-								className={scrollMediaClass}
-								onClick={(e) => e.stopPropagation()}
-							>
-								<track kind="captions" />
-							</video>
+							<VideoMedia media={m} className={scrollMediaClass} />
 						</div>
 					);
 				}
@@ -816,6 +777,133 @@ function MediaGrid({
 					</div>
 				);
 			})}
+		</div>
+	);
+}
+
+// =============================================================================
+// VideoMedia — X.com-like poster frame before play
+// twitter-cli drops GraphQL media_url_https (the real thumb). When we lack
+// thumbnail_url, capture the first decoded frame via canvas (same-origin proxy).
+// =============================================================================
+
+function VideoMedia({ media, className }: { media: TweetMedia; className: string }) {
+	const isGif = media.type === "GIF";
+	const src = proxyUrl(media.url);
+	const givenPoster = media.thumbnail_url ? proxyUrl(media.thumbnail_url) : undefined;
+	const videoRef = useRef<HTMLVideoElement>(null);
+	const [capturedPoster, setCapturedPoster] = useState<string | undefined>(undefined);
+	const [playing, setPlaying] = useState(isGif);
+	const poster = givenPoster ?? capturedPoster;
+
+	// Capture a still from the proxied mp4 when API/CLI gave no preview image.
+	// media.url kept so swapping the clip re-runs capture (element instance is reused).
+	// biome-ignore lint/correctness/useExhaustiveDependencies: media.url is the intentional identity key
+	useEffect(() => {
+		if (isGif || givenPoster) return;
+		const v = videoRef.current;
+		if (!v) return;
+		let cancelled = false;
+		setCapturedPoster(undefined);
+
+		const snap = () => {
+			if (cancelled || !v.videoWidth || !v.videoHeight) return;
+			try {
+				const canvas = document.createElement("canvas");
+				canvas.width = v.videoWidth;
+				canvas.height = v.videoHeight;
+				const ctx = canvas.getContext("2d");
+				if (!ctx) return;
+				ctx.drawImage(v, 0, 0);
+				const dataUrl = canvas.toDataURL("image/jpeg", 0.86);
+				if (!cancelled && dataUrl.startsWith("data:image")) {
+					setCapturedPoster(dataUrl);
+				}
+			} catch {
+				/* tainted canvas / decode race */
+			}
+		};
+
+		const onSeeked = () => {
+			snap();
+			try {
+				v.pause();
+				v.currentTime = 0;
+			} catch {
+				/* ignore */
+			}
+		};
+
+		const kick = () => {
+			if (cancelled) return;
+			v.addEventListener("seeked", onSeeked, { once: true });
+			try {
+				// Slight seek — some encodes have a black keyframe at t=0.
+				const t =
+					Number.isFinite(v.duration) && v.duration > 0 ? Math.min(0.25, v.duration * 0.05) : 0.1;
+				v.currentTime = t;
+			} catch {
+				snap();
+			}
+		};
+
+		if (v.readyState >= 2) kick();
+		else v.addEventListener("loadeddata", kick, { once: true });
+
+		return () => {
+			cancelled = true;
+			v.removeEventListener("seeked", onSeeked);
+			v.removeEventListener("loadeddata", kick);
+		};
+	}, [media.url, isGif, givenPoster]);
+
+	const onPlayClick = useCallback((e: React.MouseEvent) => {
+		e.stopPropagation();
+		e.preventDefault();
+		const v = videoRef.current;
+		if (!v) return;
+		setPlaying(true);
+		void v.play().catch(() => undefined);
+	}, []);
+
+	return (
+		<div className="relative bg-black">
+			<video
+				ref={videoRef}
+				// #t=0.001 helps some browsers paint a frame before JS capture finishes
+				src={isGif ? src : `${src}#t=0.001`}
+				poster={poster}
+				controls={isGif ? false : playing}
+				autoPlay={isGif}
+				loop={isGif}
+				muted={isGif}
+				playsInline
+				preload={isGif ? "auto" : "metadata"}
+				className={className}
+				onClick={(e) => e.stopPropagation()}
+				onPlay={() => setPlaying(true)}
+				onPause={() => {
+					if (!isGif) setPlaying(false);
+				}}
+				onEnded={() => {
+					if (!isGif) setPlaying(false);
+				}}
+			>
+				<track kind="captions" />
+			</video>
+			{/* X-style play affordance until the user starts the video */}
+			{!isGif && !playing && (
+				<button
+					type="button"
+					className="absolute inset-0 flex items-center justify-center border-0 bg-black/20 transition-colors hover:bg-black/30"
+					onClick={onPlayClick}
+					aria-label="Play video"
+				>
+					<span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/60 text-white shadow-lg ring-1 ring-white/30 backdrop-blur-sm">
+						<Play className="ml-0.5 h-7 w-7 fill-current" aria-hidden />
+					</span>
+				</button>
+			)}
 		</div>
 	);
 }
