@@ -122,7 +122,7 @@ pauseMs = min( U(120s, 300s), remainingEpochMs )
 |------|---------|
 | `.cache/twitter-cli/run-<ts>.json` | Full report |
 | `.cache/twitter-cli/debug/<handle>-<ts>.json` | Failure forensics |
-| `.cache/twitter-cli/last-success.json` | Incremental watermark |
+| `.cache/twitter-cli/last-success.json` | Incremental watermark (written only after successful push / cache-only) |
 | `.cache/twitter-cli/raw/<handle>.json` | Vendor raw |
 
 ---
