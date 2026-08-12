@@ -290,7 +290,7 @@ Handle **dedupe across lists**: one fetch; items cloned into each watchlist’s 
 | Ingest 404 watchlist | Token user ≠ WL owner or wrong id (e.g. e2e seed lists) — filter snapshot to your `user_id` |
 | Outside window | Server `outside_window` / client pre-filter |
 | Empty members | No-op success with zero pushes |
-| Overlapping cron | `epoch.lock` → **exit 3**; wait or remove lock only if stale (>2h / dead pid) |
+| Overlapping cron | `epoch.lock` flock → **exit 3**; wait for the other run. **Do not rm** the lock file (permanent path; flock auto-releases when holder exits) |
 
 **Rate limits (prod cookie/GraphQL path):** use the default **60-minute spread** (`--spread-window-min 60`, `--min-gap-ms 12000`). Do **not** prefer `--handle-delay-ms 3000` — that flag forces `--no-spread` legacy sprint and recreates 429 storms. Do not raise `--max` to “fill” a window — that only burns quota.
 

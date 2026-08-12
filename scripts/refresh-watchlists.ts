@@ -209,6 +209,10 @@ function loadLastSuccessMs(path: string): Record<string, number> {
  * OS-held exclusive lock via python3 fcntl.flock (true advisory lock; no rename CAS).
  * Helper process holds LOCK_EX until stdin EOF or parent pid dies (2s poll).
  */
+/**
+ * Keep the lock *path* forever — only unlock flock, never unlink.
+ * Unlink after unlock splits inodes: B locks old inode, A unlinks, C creates new → B||C.
+ */
 const EPOCH_FLOCK_HELPER = `
 import fcntl, json, os, select, sys, time
 path, parent = sys.argv[1], int(sys.argv[2])
@@ -242,7 +246,7 @@ while True:
     r, _, _ = select.select([sys.stdin], [], [], 2.0)
     if not r:
         continue
-    chunk = os.read(sys.stdin.fileno(), 4096)
+    os.read(sys.stdin.fileno(), 4096)
     # EOF (pipe closed) or any byte = release
     break
 try:
@@ -250,10 +254,7 @@ try:
 except OSError:
     pass
 os.close(fd)
-try:
-    os.unlink(path)
-except FileNotFoundError:
-    pass
+# Do NOT unlink path — permanent inode avoids split-brain after unlock.
 `;
 
 type EpochLockHolder = {
@@ -283,21 +284,22 @@ async function acquireEpochLock(lockPath: string): Promise<void> {
 		process.exit(3);
 	}
 
-	const reader = proc.stdout.getReader();
-	const dec = new TextDecoder();
-	let buf = "";
-	const deadline = Date.now() + 5_000;
-	try {
-		while (!buf.includes("\n") && Date.now() < deadline) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			buf += dec.decode(value, { stream: true });
+	const handshake = (async (): Promise<
+		{ ok: true } | { ok: false; errText: string; code: number }
+	> => {
+		const reader = proc.stdout.getReader();
+		const dec = new TextDecoder();
+		let buf = "";
+		try {
+			while (!buf.includes("\n")) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				buf += dec.decode(value, { stream: true });
+			}
+		} catch {
+			/* fall through */
 		}
-	} catch {
-		/* fall through */
-	}
-
-	if (!buf.startsWith("LOCKED")) {
+		if (buf.startsWith("LOCKED")) return { ok: true };
 		let errText = "";
 		try {
 			errText = await new Response(proc.stderr).text();
@@ -305,9 +307,42 @@ async function acquireEpochLock(lockPath: string): Promise<void> {
 			/* ignore */
 		}
 		const code = await proc.exited;
+		return { ok: false, errText, code };
+	})();
+
+	const timed = await Promise.race([
+		handshake.then((r) => ({ kind: "done" as const, r })),
+		new Promise<{ kind: "timeout" }>((resolve) => {
+			setTimeout(() => resolve({ kind: "timeout" }), 5_000);
+		}),
+	]);
+
+	if (timed.kind === "timeout") {
+		try {
+			proc.kill();
+		} catch {
+			/* ignore */
+		}
+		try {
+			proc.stdin?.end();
+		} catch {
+			/* ignore */
+		}
+		console.error(
+			JSON.stringify({
+				event: "epoch_lock_timeout",
+				lockPath,
+				hint: "python3 flock handshake exceeded 5s",
+			}),
+		);
+		process.exit(3);
+	}
+
+	const result = timed.r;
+	if (!result.ok) {
 		let parsed: { event?: string; hint?: string } | null = null;
 		try {
-			parsed = JSON.parse(errText.trim().split("\n").pop() || "{}") as {
+			parsed = JSON.parse(result.errText.trim().split("\n").pop() || "{}") as {
 				event?: string;
 				hint?: string;
 			};
@@ -318,9 +353,9 @@ async function acquireEpochLock(lockPath: string): Promise<void> {
 			JSON.stringify({
 				event: parsed?.event ?? "epoch_lock_busy",
 				lockPath,
-				exitCode: code,
+				exitCode: result.code,
 				hint: parsed?.hint ?? "another refresh is running or python3 flock failed",
-				stderr: errText.slice(0, 400) || undefined,
+				stderr: result.errText.slice(0, 400) || undefined,
 			}),
 		);
 		process.exit(3);

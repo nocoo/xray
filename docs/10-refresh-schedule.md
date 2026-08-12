@@ -169,8 +169,9 @@ Cron suggestion: every **60 minutes** start one full epoch; or every 60m **incre
 
 1. Helper: `python3` + `fcntl.flock(LOCK_EX|LOCK_NB)` on the lock file (true held lock — not rename/CAS).
 2. Writes `{ pid, at }` metadata for operators; contention → busy exit 3.
-3. Holder process stays alive for the whole epoch; releases on stdin EOF **or** parent pid death (2s poll) — no age-based steal of live runs.
-4. Requires `python3` on PATH (macOS/Linux).
+3. Holder stays alive for the whole epoch; releases on stdin EOF **or** parent pid death (2s poll).
+4. **Never delete** the lock file while debugging overlaps — the path is permanent; only the flock is released. Unlink-after-unlock causes inode split (two processes can both hold “a” lock).
+5. Requires `python3` on PATH (macOS/Linux). Handshake timeout 5s → exit 3.
 
 ---
 
