@@ -219,39 +219,60 @@ function acquireEpochLock(lockPath: string): void {
 		}
 	};
 	if (tryCreate()) return;
-	let inspectedPid: number | null = null;
-	let inspectedAt: number | null = null;
+
+	// Stale / corrupt recovery: rename existing lock away (atomic; only one winner), then wx-create.
+	let content = "";
 	try {
-		const raw = JSON.parse(readFileSync(lockPath, "utf8")) as { pid?: number; at?: number };
-		const pid = raw.pid;
-		inspectedPid = typeof pid === "number" ? pid : null;
-		inspectedAt = typeof raw.at === "number" ? raw.at : null;
-		if (typeof pid === "number" && pid > 0) {
-			try {
-				process.kill(pid, 0);
-				console.error(
-					JSON.stringify({
-						event: "epoch_lock_busy",
-						lockPath,
-						pid,
-						at: raw.at,
-						hint: "another refresh is running; wait or remove stale lock",
-					}),
-				);
-				process.exit(3);
-			} catch {
-				// ESRCH — stale
-			}
-		}
-		// Only remove if still the same lock we inspected (avoid unlinking a peer's new lock).
-		try {
-			const again = JSON.parse(readFileSync(lockPath, "utf8")) as { pid?: number; at?: number };
-			if (again.pid === inspectedPid && again.at === inspectedAt) unlinkSync(lockPath);
-		} catch {
-			/* gone */
-		}
+		content = readFileSync(lockPath, "utf8");
 	} catch {
-		/* corrupt — try exclusive create again without unlink race */
+		if (tryCreate()) return;
+		console.error(JSON.stringify({ event: "epoch_lock_race", lockPath }));
+		process.exit(3);
+	}
+
+	let pid: number | null = null;
+	let at: number | null = null;
+	try {
+		const raw = JSON.parse(content) as { pid?: number; at?: number };
+		pid = typeof raw.pid === "number" ? raw.pid : null;
+		at = typeof raw.at === "number" ? raw.at : null;
+	} catch {
+		// malformed lock — treat as stale
+		pid = null;
+		at = null;
+	}
+
+	if (pid != null && pid > 0) {
+		try {
+			process.kill(pid, 0);
+			console.error(
+				JSON.stringify({
+					event: "epoch_lock_busy",
+					lockPath,
+					pid,
+					at,
+					hint: "another refresh is running; wait or remove stale lock",
+				}),
+			);
+			process.exit(3);
+		} catch {
+			// ESRCH — stale
+		}
+	}
+
+	const staleName = `${lockPath}.stale.${pid ?? "bad"}.${at ?? 0}.${process.pid}`;
+	try {
+		renameSync(lockPath, staleName); // atomic; peer loses if already renamed
+	} catch {
+		// Peer took over or removed — try create once
+		if (tryCreate()) return;
+		console.error(JSON.stringify({ event: "epoch_lock_race", lockPath }));
+		process.exit(3);
+	}
+	try {
+		unlinkSync(staleName);
+	} catch {
+		/* ignore */
 	}
 	if (!tryCreate()) {
 		console.error(JSON.stringify({ event: "epoch_lock_race", lockPath }));
@@ -413,6 +434,8 @@ async function main(): Promise<void> {
 			});
 	const epochEndMs =
 		epochStartMs + (schedule?.epochMs ?? (spreadWindowMs || DEFAULT_SPREAD_WINDOW_MS));
+	/** Allow timer/event-loop slop so the last planned slot is still startable. */
+	const epochStartDeadlineMs = epochEndMs + 5_000;
 
 	console.log(
 		JSON.stringify(
@@ -690,7 +713,7 @@ async function main(): Promise<void> {
 		while (queue.length) {
 			const slot = queue[0];
 			if (!slot) break;
-			if (Date.now() > epochEndMs) {
+			if (Date.now() > epochStartDeadlineMs) {
 				// Epoch wall clock exceeded — do not start more fetches (Codex P1).
 				for (const s of queue) {
 					permanentlyFailed.add(s.handle);
@@ -713,7 +736,7 @@ async function main(): Promise<void> {
 			// Enforce minGap against actual previous start (fetch overrun can leave many past slots).
 			const earliest = lastStartMs > 0 ? lastStartMs + minGapMs : 0;
 			const targetAt = Math.max(slot.atMs, earliest, Date.now());
-			if (targetAt > epochEndMs) {
+			if (targetAt > epochStartDeadlineMs) {
 				for (const s of queue) {
 					permanentlyFailed.add(s.handle);
 					handleErrors.push({
@@ -745,8 +768,8 @@ async function main(): Promise<void> {
 				);
 				await sleep(wait);
 			}
-			// Re-check after sleep (suspend / stall can cross epochEndMs).
-			if (Date.now() > epochEndMs) {
+			// Re-check after sleep (suspend / stall can cross deadline).
+			if (Date.now() > epochStartDeadlineMs) {
 				for (const s of queue) {
 					permanentlyFailed.add(s.handle);
 					handleErrors.push({
