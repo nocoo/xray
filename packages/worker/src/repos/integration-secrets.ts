@@ -10,7 +10,12 @@ export type IntegrationSecretRow = {
 };
 
 const ZHETO = "zheto";
-const ZHETO_URL_RE = /^https:\/\/zhe\.to\/api\/webhook\//i;
+/** Current zhe.to personal link endpoint + legacy webhook path. */
+const ZHETO_UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
+const ZHETO_URL_RE = new RegExp(
+	`^https://zhe\\.to/api/(?:link/create/${ZHETO_UUID}|webhook/.+)\\/?$`,
+	"i",
+);
 
 export type ZhetoSettingsPublic = {
 	configured: boolean;
@@ -35,7 +40,9 @@ export function assertZhetoWebhookUrl(url: string, allowHosts?: string[]): void 
 		return;
 	}
 	if (!ZHETO_URL_RE.test(u)) {
-		throw new IntegrationValidationError("webhookUrl must match https://zhe.to/api/webhook/…");
+		throw new IntegrationValidationError(
+			"webhookUrl must match https://zhe.to/api/link/create/<uuid> (or legacy /api/webhook/…)",
+		);
 	}
 }
 

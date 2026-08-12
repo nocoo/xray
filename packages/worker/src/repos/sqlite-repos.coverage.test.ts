@@ -249,6 +249,9 @@ describe("sqlite repos coverage", () => {
 			integrationSecrets.assertZhetoWebhookUrl("https://evil.com/h", ["localhost"]),
 		).toThrow();
 		integrationSecrets.assertZhetoWebhookUrl("https://zhe.to/api/webhook/abc");
+		integrationSecrets.assertZhetoWebhookUrl(
+			"https://zhe.to/api/link/create/d64e9289-ae8a-417f-9d0a-0daccdc1e3ee",
+		);
 
 		await pushTokens.revokePushToken(db, "u1", tok.id);
 		expect(await pushTokens.findActiveTokenByHash(db, minted.tokenHash)).toBeNull();

@@ -75,8 +75,8 @@ Add members into a watchlist (copy handles with source_type).
 
 | Field | Storage (R5-02) |
 |-------|---------|
-| `webhookUrl` | **entire URL** encrypted in `integration_secrets.ciphertext` only; **never** put token in `meta_json`. Prod allowlist: URL must match `^https://zhe\.to/api/webhook/` ; tests inject mock adapter / override host |
-| `folder` | optional ≤50 — plain `settings` or `meta_json` non-secret |
+| `webhookUrl` | **entire URL** encrypted in `integration_secrets.ciphertext` only; **never** put token in `meta_json`. Prod allowlist: `https://zhe.to/api/link/create/<uuid>` (current) or legacy `https://zhe.to/api/webhook/…` ; tests inject mock adapter / override host |
+| `folder` | **optional** ≤50 — plain `meta_json` non-secret; omit to use zhe.to account default |
 
 UI: Integrations → zhe.to form (same labels/placeholders as v1).
 

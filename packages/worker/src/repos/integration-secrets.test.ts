@@ -68,4 +68,24 @@ describe("integration-secrets zheto", () => {
 		expect(dec?.webhookUrl).toBe("https://example.com/api/webhook/tok");
 		expect(dec?.folder).toBe("f");
 	});
+
+	test("accepts link/create uuid and legacy webhook; folder optional", async () => {
+		const link = "https://zhe.to/api/link/create/d64e9289-ae8a-417f-9d0a-0daccdc1e3ee";
+		assertZhetoWebhookUrl(link);
+		assertZhetoWebhookUrl(`${link}/`);
+		assertZhetoWebhookUrl("https://zhe.to/api/webhook/legacy-token");
+		expect(() => assertZhetoWebhookUrl("https://zhe.to/api/link/create/not-a-uuid")).toThrow(
+			/link\/create/,
+		);
+		expect(() => assertZhetoWebhookUrl("https://zhe.to/api/other/x")).toThrow(/link\/create/);
+
+		const db = memDb();
+		const env = { XRAY_SECRETS_KEK: KEK, XRAY_SECRETS_KEY_VERSION: "1" };
+		const pub = await upsertZhetoSettings(db, "u2", { webhookUrl: link, folder: "" }, env);
+		expect(pub.configured).toBe(true);
+		expect(pub.folder).toBeNull();
+		const dec = await decryptZhetoWebhookUrl(db, "u2", env);
+		expect(dec?.webhookUrl).toBe(link);
+		expect(dec?.folder).toBeNull();
+	});
 });

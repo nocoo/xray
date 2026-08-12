@@ -46,17 +46,18 @@ export function IntegrationsZhetoPage() {
 						value={webhookUrl}
 						onChange={(e) => vm.setWebhookUrl(e.target.value)}
 						placeholder={
-							settings?.configured ? "leave blank to keep" : "https://zhe.to/api/webhook/…"
+							settings?.configured ? "leave blank to keep" : "https://zhe.to/api/link/create/<uuid>"
 						}
 						autoComplete="off"
 					/>
 				</label>
 				<label className="block text-sm">
-					<span className="text-muted-foreground">Default folder</span>
+					<span className="text-muted-foreground">Default folder (optional)</span>
 					<input
 						className="mt-1 w-full rounded-md border border-border bg-secondary px-3 py-2"
 						value={folder}
 						onChange={(e) => vm.setFolder(e.target.value)}
+						placeholder="leave empty for zhe.to default"
 						maxLength={50}
 					/>
 				</label>

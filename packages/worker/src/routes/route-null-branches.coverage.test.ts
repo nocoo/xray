@@ -904,5 +904,6 @@ describe("route null/error branches", () => {
 		const { assertZhetoWebhookUrl } = await import("../repos/integration-secrets.js");
 		expect(() => assertZhetoWebhookUrl("https://evil.com/x")).toThrow();
 		assertZhetoWebhookUrl("https://zhe.to/api/webhook/abc");
+		assertZhetoWebhookUrl("https://zhe.to/api/link/create/d64e9289-ae8a-417f-9d0a-0daccdc1e3ee");
 	});
 });
