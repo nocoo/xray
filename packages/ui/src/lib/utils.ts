@@ -14,10 +14,19 @@ export function formatCount(n: number): string {
 
 export type TimeAgoStyle = "compact" | "long" | "coarse";
 
-/** Relative time for tweet cards / lists (legacy v1 parity). */
-export function formatTimeAgo(iso: string, style: TimeAgoStyle = "long"): string {
-	const diff = Date.now() - new Date(iso).getTime();
-	const mins = Math.floor(diff / 60_000);
+/**
+ * Relative time for tweet cards / lists (legacy v1 parity).
+ * Diff is always `nowMs − postTime` — pass `nowMs` from a ticking hook so the
+ * label tracks wall clock, not collection/ingest time and not a frozen render.
+ */
+export function formatTimeAgo(
+	iso: string,
+	style: TimeAgoStyle = "long",
+	nowMs: number = Date.now(),
+): string {
+	const postMs = new Date(iso).getTime();
+	const diff = Number.isFinite(postMs) ? nowMs - postMs : 0;
+	const mins = Math.floor(Math.max(0, diff) / 60_000);
 	const hours = Math.floor(mins / 60);
 	const days = Math.floor(hours / 24);
 

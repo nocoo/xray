@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { SourceChip } from "@/components/source-chip";
+import { useNow } from "@/hooks/use-now";
 import { cn, formatTimeAgo } from "@/lib/utils";
 import { canSaveToZheto, postZhetoSave, type ZhetoSaveState } from "@/lib/zheto-save";
 
@@ -45,6 +46,7 @@ export function CustomItemCard({
 	initialTranslation,
 	onTranslated,
 }: CustomItemCardProps) {
+	const nowMs = useNow();
 	const [zhetoStatus, setZhetoStatus] = useState<ZhetoSaveState>("idle");
 	const canSave = canSaveToZheto(url);
 
@@ -145,7 +147,9 @@ export function CustomItemCard({
 						{producer}
 					</span>
 				)}
-				<span className="text-xs text-muted-foreground">{formatTimeAgo(createdAt, "compact")}</span>
+				<span className="text-xs text-muted-foreground">
+					{formatTimeAgo(createdAt, "compact", nowMs)}
+				</span>
 				{authorName && <span className="text-xs text-muted-foreground">· {authorName}</span>}
 			</div>
 

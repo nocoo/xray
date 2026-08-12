@@ -25,6 +25,7 @@ import {
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { SourceChip } from "@/components/source-chip";
 import { Badge } from "@/components/ui/badge";
+import { useNow } from "@/hooks/use-now";
 import type { Tweet, TweetMedia } from "@/lib/tweet-types";
 import { cn, formatCount, formatTimeAgo } from "@/lib/utils";
 
@@ -79,6 +80,7 @@ export const TweetCard = memo(function TweetCard({
 	onTranslated,
 }: TweetCardProps) {
 	void linkToDetail;
+	const nowMs = useNow();
 	const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
 	// --- Translation state ---
@@ -271,7 +273,7 @@ export const TweetCard = memo(function TweetCard({
 								@{tweet.author.username}
 							</a>
 							<span>·</span>
-							<span className="shrink-0">{formatTimeAgo(tweet.created_at, "compact")}</span>
+							<span className="shrink-0">{formatTimeAgo(tweet.created_at, "compact", nowMs)}</span>
 						</div>
 					</div>
 				</div>
@@ -361,7 +363,7 @@ export const TweetCard = memo(function TweetCard({
 						</a>
 						<span className="text-xs text-muted-foreground">·</span>
 						<span className="text-xs text-muted-foreground shrink-0">
-							{formatTimeAgo(tweet.quoted_tweet.created_at, "compact")}
+							{formatTimeAgo(tweet.quoted_tweet.created_at, "compact", nowMs)}
 						</span>
 					</div>
 
@@ -570,8 +572,9 @@ export const TweetCard = memo(function TweetCard({
 // proxy to avoid 403 from Twitter CDN's Referer-based hotlink protection
 // =============================================================================
 
+/** Route Twitter CDN media through worker proxy (Referer hotlink protection). */
 function proxyUrl(url: string): string {
-	return url;
+	return `/api/media/proxy?url=${encodeURIComponent(url)}`;
 }
 
 // =============================================================================
@@ -832,14 +835,16 @@ function PhotoItem({
 	containerClass?: string;
 	onClick?: (url: string) => void;
 }) {
+	const src = proxyUrl(media.url);
 	const handleClick = useCallback(
 		(e: React.MouseEvent) => {
 			if (!onClick) return;
 			e.stopPropagation();
 			e.preventDefault();
-			onClick(media.url);
+			// Lightbox gets the proxied URL so large view also bypasses CDN hotlink checks.
+			onClick(src);
 		},
-		[onClick, media.url],
+		[onClick, src],
 	);
 
 	const content = (
@@ -851,13 +856,13 @@ function PhotoItem({
 					onClick={handleClick}
 					aria-label="Open image"
 				>
-					<img src={media.url} alt="" className={className} loading="lazy" />
+					<img src={src} alt="" className={className} loading="lazy" />
 					<div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20">
 						<Search className="h-6 w-6 text-white opacity-0 drop-shadow-md transition-opacity group-hover:opacity-90" />
 					</div>
 				</button>
 			) : (
-				<img src={media.url} alt="" className={className} loading="lazy" />
+				<img src={src} alt="" className={className} loading="lazy" />
 			)}
 		</div>
 	);
