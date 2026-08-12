@@ -132,6 +132,7 @@ export async function setup(): Promise<void> {
 		throw new Error("L2 isolation: _test_marker.env != 'test'. Refusing to proceed.");
 	}
 
+	let wranglerLog = "";
 	wranglerProc = spawn(
 		"bunx",
 		[
@@ -147,10 +148,27 @@ export async function setup(): Promise<void> {
 			"--persist-to",
 			".wrangler/state-l2",
 		],
-		{ cwd: WORKER_ROOT, stdio: "ignore" },
+		{ cwd: WORKER_ROOT, stdio: ["ignore", "pipe", "pipe"] },
 	);
+	wranglerProc.stdout?.on("data", (c) => {
+		wranglerLog += c.toString();
+	});
+	wranglerProc.stderr?.on("data", (c) => {
+		wranglerLog += c.toString();
+	});
+	wranglerProc.on("exit", (code) => {
+		if (code != null && code !== 0) {
+			wranglerLog += `\n[wrangler exited ${code}]\n`;
+		}
+	});
 
-	await waitForServer(`${L2_BASE}/api/live`);
+	try {
+		// wrangler 4.12x cold start on CI can exceed 60s
+		await waitForServer(`${L2_BASE}/api/live`, 120_000);
+	} catch (e) {
+		const tail = wranglerLog.slice(-4000);
+		throw new Error(`${e instanceof Error ? e.message : String(e)}\n--- wrangler log ---\n${tail}`);
+	}
 
 	process.env.XRAY_L2_BASE = L2_BASE;
 	process.env.XRAY_L2_PORT = String(L2_PORT);
