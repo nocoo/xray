@@ -191,17 +191,17 @@ function sleep(ms: number): Promise<void> {
 }
 
 function loadLastSuccessMs(path: string): Record<string, number> {
+	const out = Object.create(null) as Record<string, number>;
 	try {
-		if (!existsSync(path)) return {};
+		if (!existsSync(path)) return out;
 		const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
-		if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-		const out: Record<string, number> = {};
+		if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
 		for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
 			if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
 		}
 		return out;
 	} catch {
-		return {};
+		return out;
 	}
 }
 
@@ -462,7 +462,8 @@ async function main(): Promise<void> {
 			const { kept, dropped } = filterItemsByWindow(result.items, windowHours);
 			totalWindowDropped += dropped;
 			itemsByHandle.set(handle, kept);
-			lastSuccessMs[handle] = Date.now();
+			// Only live network fetches advance incremental watermark (not --from-cache).
+			if (!fromCache) lastSuccessMs[handle] = Date.now();
 			writeFileSync(
 				join(cacheDir, "raw", `${cacheFileBase(handle)}.canonical.json`),
 				JSON.stringify(kept, null, 2),
@@ -590,23 +591,29 @@ async function main(): Promise<void> {
 			}),
 		);
 
+		let lastStartMs = 0;
 		while (queue.length) {
 			const slot = queue[0];
 			if (!slot) break;
-			const wait = slot.atMs - Date.now();
+			// Enforce minGap against actual previous start (fetch overrun can leave many past slots).
+			const earliest = lastStartMs > 0 ? lastStartMs + minGapMs : 0;
+			const targetAt = Math.max(slot.atMs, earliest, Date.now());
+			const wait = targetAt - Date.now();
 			if (wait > 0) {
 				console.log(
 					JSON.stringify({
 						event: "schedule_wait",
 						handle: slot.handle,
 						waitMs: wait,
-						atMs: slot.atMs,
+						atMs: targetAt,
+						plannedAtMs: slot.atMs,
 					}),
 				);
 				await sleep(wait);
 			}
 			queue = queue.slice(1);
 			completed += 1;
+			lastStartMs = Date.now();
 			const status = await fetchOne(slot.handle, completed, planned);
 			if (status === "fatal") {
 				console.error(
