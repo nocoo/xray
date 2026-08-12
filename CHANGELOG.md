@@ -2,6 +2,12 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.1.3
+
+### Fixed
+- Restore worker static gitkeep for l2
+- Lengthen l2 wrangler startup and log
+
 ## v2.1.2
 
 ### Added
