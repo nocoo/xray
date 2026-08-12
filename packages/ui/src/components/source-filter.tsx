@@ -16,7 +16,11 @@ export function SourceFilter({
 }) {
 	const options: { id: SourceFilterValue; label: string }[] = [
 		{ id: "all", label: "All" },
-		...SOURCE_TYPES.map((s) => ({ id: s as SourceFilterValue, label: s })),
+		...SOURCE_TYPES.map((s) => ({
+			id: s as SourceFilterValue,
+			// Brand-facing label for x.com; keep filter value as canonical source_type.
+			label: s === "x.com" ? "X" : s,
+		})),
 	];
 
 	return (
