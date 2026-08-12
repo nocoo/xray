@@ -390,6 +390,23 @@ async function main(): Promise<void> {
 		process.exit(0);
 	}
 
+	// Incremental no-op: nothing stale — skip twitter login / push token requirements.
+	if (selected.length === 0) {
+		console.log(
+			JSON.stringify({ event: "noop", reason: "no handles selected for epoch", refreshMode }),
+		);
+		const reportPath = writeReport({
+			event: "refresh_done",
+			refreshMode,
+			selectedHandles: 0,
+			handleErrors: [],
+			pushErrors: 0,
+			summary: [],
+		});
+		console.log(`report: ${reportPath}`);
+		process.exit(0);
+	}
+
 	if (!fromCache) {
 		await source.ready();
 		console.log(`timeline source OK (${source.id})`);
@@ -705,12 +722,6 @@ async function main(): Promise<void> {
 		}
 	}
 
-	try {
-		writeFileSync(lastSuccessPath, JSON.stringify(lastSuccessMs, null, 2));
-	} catch {
-		/* ignore */
-	}
-
 	// Re-apply ingest window immediately before push — early-fetched items can age
 	// out during a ~60m epoch (Codex P2).
 	const itemsByWl = new Map<number, Map<string, CanonicalItem>>();
@@ -871,7 +882,17 @@ async function main(): Promise<void> {
 		itemsByHandle.size > 0 &&
 		totalMapped === 0 &&
 		[...itemsByHandle.values()].every((a) => a.length === 0);
-	finalize(code !== 0 || emptyMaps ? 1 : 0);
+	const exit = code !== 0 || emptyMaps ? 1 : 0;
+	// Only advance incremental watermarks after a successful push epoch (or cache-only).
+	// Otherwise a failed ingest would skip live refetch for 55m (Codex P2).
+	if (exit === 0 || cacheOnly) {
+		try {
+			writeFileSync(lastSuccessPath, JSON.stringify(lastSuccessMs, null, 2));
+		} catch {
+			/* ignore */
+		}
+	}
+	finalize(exit);
 }
 
 main().catch((e) => {
