@@ -1,5 +1,5 @@
 import { Eye, Languages, Plus, RefreshCw, ScrollText, Settings } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
 import * as aiApi from "@/api/ai";
 import type { Member } from "@/api/watchlists";
@@ -34,6 +34,8 @@ export function WatchlistDetailPage() {
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	const [activityOpen, setActivityOpen] = useState(false);
 	const columnCount = useColumns();
+	const postsScrollRef = useRef<HTMLDivElement>(null);
+	const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
 
 	const vm = useMemo(
 		() =>
@@ -65,6 +67,24 @@ export function WatchlistDetailPage() {
 		return () => setBreadcrumbs([]);
 	}, [setBreadcrumbs, s.wl?.name, watchlistId]);
 
+	// Infinite scroll — stable auto-load when the sentinel enters the posts scrollport.
+	useEffect(() => {
+		if (s.activeTab !== "posts" || !s.nextCursor) return;
+		const root = postsScrollRef.current;
+		const target = loadMoreSentinelRef.current;
+		if (!root || !target) return;
+		const io = new IntersectionObserver(
+			(entries) => {
+				if (entries.some((e) => e.isIntersecting)) {
+					void vm.loadMore();
+				}
+			},
+			{ root, rootMargin: "240px 0px", threshold: 0 },
+		);
+		io.observe(target);
+		return () => io.disconnect();
+	}, [s.activeTab, s.nextCursor, vm]);
+
 	const filteredMembers = useMemo(
 		() => filterMembers(s.members, s.sourceFilter),
 		[s.members, s.sourceFilter],
@@ -87,8 +107,17 @@ export function WatchlistDetailPage() {
 		void vm.loadLogs();
 	};
 
+	const postsFeedActive = s.activeTab === "posts" && !s.loading && s.items.length > 0;
+
 	return (
-		<div className="space-y-4">
+		<div
+			className={cn(
+				postsFeedActive
+					? // Occupy shell card height so the feed scrollport can meet the bottom edge.
+						"flex min-h-0 flex-1 flex-col gap-3 md:gap-4"
+					: "space-y-4",
+			)}
+		>
 			<div className="flex items-center gap-1">
 				<div className="flex items-center">
 					<button
@@ -220,110 +249,119 @@ export function WatchlistDetailPage() {
 				</div>
 			)}
 
-			{s.activeTab === "posts" && !s.loading && (
-				<div>
-					{s.items.length === 0 ? (
-						<div className="flex flex-col items-center gap-2 rounded-card bg-secondary p-10 text-center">
-							<Eye className="h-8 w-8 text-muted-foreground" />
-							<p className="text-sm font-medium">No items yet.</p>
-							<p className="max-w-md text-xs text-muted-foreground">
-								Mint a push token under Settings → Push tokens, then{" "}
-								<code className="rounded bg-muted px-1">POST /api/v1/ingest/push</code> on the
-								ingest host with x.com + custom items.
-							</p>
-						</div>
-					) : (
-						/* Single-column: soft snap between cards. Multi-column skips snap (interleaved stops). */
-						<div
-							data-testid="posts-scroll"
-							className={cn(
-								"max-h-[calc(100dvh-11.5rem)] overflow-y-auto scroll-smooth pr-0.5",
-								columnCount === 1 && "snap-y snap-proximity",
-							)}
-						>
-							<div className="flex items-start gap-3">
-								{itemColumns.map((col, colIdx) => (
-									<div
-										key={col[0] ? `col-${col[0].id}` : `col-empty-${String(colIdx)}`}
-										className="flex min-w-0 flex-1 flex-col gap-3"
-									>
-										{col.map((item) =>
-											item.sourceType === "custom" ? (
-												<div
-													key={item.id}
-													data-source-type="custom"
-													className={columnCount === 1 ? "snap-start" : undefined}
-												>
-													<CustomItemCard
-														sourceType="custom"
-														title={item.title}
-														body={item.text}
-														createdAt={new Date(item.createdAtMs).toISOString()}
-														authorName={item.authorUsername}
-														url={
-															(item.payload as { body?: { url?: string } } | null)?.body?.url ??
-															null
-														}
+			{s.activeTab === "posts" && !s.loading && s.items.length === 0 && (
+				<div className="flex flex-col items-center gap-2 rounded-card bg-secondary p-10 text-center">
+					<Eye className="h-8 w-8 text-muted-foreground" />
+					<p className="text-sm font-medium">No items yet.</p>
+					<p className="max-w-md text-xs text-muted-foreground">
+						Mint a push token under Settings → Push tokens, then{" "}
+						<code className="rounded bg-muted px-1">POST /api/v1/ingest/push</code> on the ingest
+						host with x.com + custom items.
+					</p>
+				</div>
+			)}
+
+			{postsFeedActive && (
+				/* Fill remaining shell height; bleed through card bottom padding so feed meets the edge. */
+				<div
+					ref={postsScrollRef}
+					data-testid="posts-scroll"
+					className={cn(
+						"min-h-0 flex-1 overflow-y-auto scroll-smooth",
+						"-mx-3 -mb-3 px-3 md:-mx-5 md:-mb-5 md:px-5",
+						columnCount === 1 && "snap-y snap-proximity",
+					)}
+				>
+					<div className="flex items-start gap-3">
+						{itemColumns.map((col, colIdx) => (
+							<div
+								key={col[0] ? `col-${col[0].id}` : `col-empty-${String(colIdx)}`}
+								className="flex min-w-0 flex-1 flex-col gap-3"
+							>
+								{col.map((item) =>
+									item.sourceType === "custom" ? (
+										<div
+											key={item.id}
+											data-source-type="custom"
+											className={columnCount === 1 ? "snap-start" : undefined}
+										>
+											<CustomItemCard
+												sourceType="custom"
+												title={item.title}
+												body={item.text}
+												createdAt={new Date(item.createdAtMs).toISOString()}
+												authorName={item.authorUsername}
+												url={
+													(item.payload as { body?: { url?: string } } | null)?.body?.url ?? null
+												}
+												watchlistId={watchlistId}
+												itemId={item.id}
+												initialTranslation={
+													item.translatedText
+														? {
+																translatedText: item.translatedText,
+																summaryText: item.summaryText,
+															}
+														: undefined
+												}
+												onTranslated={(result) => vm.onItemTranslated(item.id, result)}
+											/>
+										</div>
+									) : (
+										<div
+											key={item.id}
+											data-source-type="x.com"
+											className={columnCount === 1 ? "snap-start" : undefined}
+										>
+											{(() => {
+												const tweet = itemToTweet(item);
+												if (!tweet) return null;
+												return (
+													<TweetCard
+														tweet={tweet}
+														sourceType="x.com"
+														linkToDetail={false}
 														watchlistId={watchlistId}
 														itemId={item.id}
 														initialTranslation={
 															item.translatedText
 																? {
 																		translatedText: item.translatedText,
-																		summaryText: item.summaryText,
+																		commentText: item.summaryText,
 																	}
 																: undefined
 														}
 														onTranslated={(result) => vm.onItemTranslated(item.id, result)}
 													/>
-												</div>
-											) : (
-												<div
-													key={item.id}
-													data-source-type="x.com"
-													className={columnCount === 1 ? "snap-start" : undefined}
-												>
-													{(() => {
-														const tweet = itemToTweet(item);
-														if (!tweet) return null;
-														return (
-															<TweetCard
-																tweet={tweet}
-																sourceType="x.com"
-																linkToDetail={false}
-																watchlistId={watchlistId}
-																itemId={item.id}
-																initialTranslation={
-																	item.translatedText
-																		? {
-																				translatedText: item.translatedText,
-																				commentText: item.summaryText,
-																			}
-																		: undefined
-																}
-																onTranslated={(result) => vm.onItemTranslated(item.id, result)}
-															/>
-														);
-													})()}
-												</div>
-											),
-										)}
-									</div>
-								))}
+												);
+											})()}
+										</div>
+									),
+								)}
 							</div>
-							{s.nextCursor && (
-								<div className="mt-4 flex justify-center pb-2">
-									<Button
-										variant="outline"
-										size="sm"
-										type="button"
-										disabled={s.loadingMore}
-										onClick={() => void vm.loadMore()}
-									>
-										{s.loadingMore ? "Loading…" : "Load more"}
-									</Button>
-								</div>
-							)}
+						))}
+					</div>
+
+					{/* Sentinel for infinite load — stays off-screen until near bottom */}
+					{s.nextCursor ? (
+						<div
+							ref={loadMoreSentinelRef}
+							data-testid="load-more-sentinel"
+							className="flex h-12 items-center justify-center"
+							aria-hidden
+						>
+							{s.loadingMore ? (
+								<span className="text-xs text-muted-foreground">Loading…</span>
+							) : null}
+						</div>
+					) : (
+						/* End of feed — quiet center marker with generous whitespace */
+						<div
+							data-testid="feed-end"
+							className="flex min-h-40 flex-col items-center justify-center gap-3 py-16 text-center"
+						>
+							<div className="h-px w-10 bg-border" aria-hidden />
+							<p className="text-xs tracking-wide text-muted-foreground/80">End of feed</p>
 						</div>
 					)}
 				</div>

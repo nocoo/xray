@@ -93,7 +93,7 @@ function AppShellInner({ children }: AppShellProps) {
 	}, [drawerOpen, setMobileOpen]);
 
 	return (
-		<div className="flex min-h-screen w-full bg-background">
+		<div className="flex h-svh w-full overflow-hidden bg-background">
 			<div
 				className={resolved && mobile ? "hidden" : "hidden md:block"}
 				inert={drawerOpen || undefined}
@@ -123,7 +123,7 @@ function AppShellInner({ children }: AppShellProps) {
 			)}
 
 			<main
-				className="flex min-h-screen min-w-0 flex-1 flex-col"
+				className="flex h-svh min-h-0 min-w-0 flex-1 flex-col"
 				inert={drawerOpen ? true : undefined}
 			>
 				<header className="flex h-14 shrink-0 items-center justify-between px-4 md:px-6">
@@ -156,8 +156,9 @@ function AppShellInner({ children }: AppShellProps) {
 					</div>
 				</header>
 
-				<div className="flex-1 px-2 pb-2 md:px-3 md:pb-3">
-					<div className="h-full overflow-y-auto rounded-[16px] bg-card p-3 md:rounded-[20px] md:p-5">
+				{/* min-h-0 flex chain lets pages (e.g. watchlist feed) fill to the card bottom. */}
+				<div className="flex min-h-0 flex-1 flex-col px-2 pb-2 md:px-3 md:pb-3">
+					<div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[16px] bg-card p-3 md:rounded-[20px] md:p-5">
 						{children}
 					</div>
 				</div>
