@@ -205,6 +205,52 @@ function loadLastSuccessMs(path: string): Record<string, number> {
 	}
 }
 
+/** Locks older than this are stale even if kill(pid,0) succeeds (PID reuse). */
+const EPOCH_LOCK_MAX_AGE_MS = 2 * 60 * 60_000;
+
+function parseLockBody(content: string): { pid: number | null; at: number | null } {
+	try {
+		const raw = JSON.parse(content) as { pid?: number; at?: number };
+		return {
+			pid: typeof raw.pid === "number" ? raw.pid : null,
+			at: typeof raw.at === "number" ? raw.at : null,
+		};
+	} catch {
+		return { pid: null, at: null };
+	}
+}
+
+/** true = process exists (busy); false = gone → stale candidate. EPERM = busy. */
+function pidLooksAlive(pid: number | null): boolean {
+	if (pid == null || pid <= 0) return false;
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (e) {
+		const err = e as { code?: string };
+		// EPERM: pid exists but we cannot signal it — treat as busy, never steal.
+		if (err.code === "EPERM") return true;
+		return false; // ESRCH etc.
+	}
+}
+
+function lockIsStale(content: string, nowMs: number): boolean {
+	const { pid, at } = parseLockBody(content);
+	// Malformed JSON → stale
+	try {
+		JSON.parse(content);
+	} catch {
+		return true;
+	}
+	if (at != null && nowMs - at > EPOCH_LOCK_MAX_AGE_MS) return true;
+	if (!pidLooksAlive(pid)) return true;
+	return false;
+}
+
+/**
+ * Exclusive epoch lock via O_EXCL create. Stale takeover only renames after a
+ * byte-identical re-read so a peer's fresh lock is never stolen (Codex RS-01).
+ */
 function acquireEpochLock(lockPath: string): void {
 	mkdirSync(join(lockPath, ".."), { recursive: true });
 	const body = JSON.stringify({ pid: process.pid, at: Date.now() }, null, 2);
@@ -218,66 +264,75 @@ function acquireEpochLock(lockPath: string): void {
 			return false;
 		}
 	};
-	if (tryCreate()) return;
 
-	// Stale / corrupt recovery: rename existing lock away (atomic; only one winner), then wx-create.
-	let content = "";
-	try {
-		content = readFileSync(lockPath, "utf8");
-	} catch {
+	for (let attempt = 0; attempt < 8; attempt++) {
 		if (tryCreate()) return;
-		console.error(JSON.stringify({ event: "epoch_lock_race", lockPath }));
-		process.exit(3);
-	}
 
-	let pid: number | null = null;
-	let at: number | null = null;
-	try {
-		const raw = JSON.parse(content) as { pid?: number; at?: number };
-		pid = typeof raw.pid === "number" ? raw.pid : null;
-		at = typeof raw.at === "number" ? raw.at : null;
-	} catch {
-		// malformed lock — treat as stale
-		pid = null;
-		at = null;
-	}
-
-	if (pid != null && pid > 0) {
+		let content: string;
 		try {
-			process.kill(pid, 0);
+			content = readFileSync(lockPath, "utf8");
+		} catch {
+			// disappeared between EEXIST and read
+			continue;
+		}
+
+		if (!lockIsStale(content, Date.now())) {
+			const { pid, at } = parseLockBody(content);
 			console.error(
 				JSON.stringify({
 					event: "epoch_lock_busy",
 					lockPath,
 					pid,
 					at,
-					hint: "another refresh is running; wait or remove stale lock",
+					hint: "another refresh is running; wait or remove stale lock after 2h",
 				}),
 			);
 			process.exit(3);
-		} catch {
-			// ESRCH — stale
 		}
+
+		// Re-read: only rename if bytes still match the stale snapshot we judged.
+		let content2: string;
+		try {
+			content2 = readFileSync(lockPath, "utf8");
+		} catch {
+			continue;
+		}
+		if (content2 !== content) {
+			// Peer replaced the lock — re-evaluate from scratch
+			continue;
+		}
+		if (!lockIsStale(content2, Date.now())) {
+			const { pid, at } = parseLockBody(content2);
+			console.error(
+				JSON.stringify({
+					event: "epoch_lock_busy",
+					lockPath,
+					pid,
+					at,
+					hint: "another refresh is running; wait or remove stale lock after 2h",
+				}),
+			);
+			process.exit(3);
+		}
+
+		const { pid, at } = parseLockBody(content2);
+		const staleName = `${lockPath}.stale.${pid ?? "bad"}.${at ?? 0}.${process.pid}.${attempt}`;
+		try {
+			renameSync(lockPath, staleName);
+		} catch {
+			// Peer renamed first — loop
+			continue;
+		}
+		try {
+			unlinkSync(staleName);
+		} catch {
+			/* ignore */
+		}
+		// path free — loop to wx-create
 	}
 
-	const staleName = `${lockPath}.stale.${pid ?? "bad"}.${at ?? 0}.${process.pid}`;
-	try {
-		renameSync(lockPath, staleName); // atomic; peer loses if already renamed
-	} catch {
-		// Peer took over or removed — try create once
-		if (tryCreate()) return;
-		console.error(JSON.stringify({ event: "epoch_lock_race", lockPath }));
-		process.exit(3);
-	}
-	try {
-		unlinkSync(staleName);
-	} catch {
-		/* ignore */
-	}
-	if (!tryCreate()) {
-		console.error(JSON.stringify({ event: "epoch_lock_race", lockPath }));
-		process.exit(3);
-	}
+	console.error(JSON.stringify({ event: "epoch_lock_race", lockPath }));
+	process.exit(3);
 }
 
 function releaseEpochLock(lockPath: string): void {
@@ -809,6 +864,21 @@ async function main(): Promise<void> {
 						deferredOnce: deferredOnce.has(slot.handle),
 					}),
 				);
+				// Epoch already over: do not sleep or defer — fail this handle and drain.
+				if (pause <= 0) {
+					permanentlyFailed.add(slot.handle);
+					for (const s of queue) {
+						permanentlyFailed.add(s.handle);
+						handleErrors.push({
+							handle: s.handle,
+							error: "dropped: epoch ended before rate-limit recovery",
+							kind: "epoch_overflow",
+							durationMs: 0,
+						});
+					}
+					queue = [];
+					continue;
+				}
 				await sleep(pause);
 				// Past slots must not fire back-to-back after a multi-minute pause (Codex P1).
 				const rebased = rebaseScheduleQueue({
@@ -904,19 +974,33 @@ async function main(): Promise<void> {
 	let fatalPush = false;
 	let totalRejected = 0;
 
-	const persistWatermarks = (ok: boolean) => {
+	const persistWatermarks = (ok: boolean): "skipped" | "ok" | "error" => {
 		// Live-fetch watermarks: after successful push, or always for cache-only
 		// (cache-only is local convert only — still marks "processed this epoch").
-		if (!ok && !cacheOnly) return;
+		if (!ok && !cacheOnly) return "skipped";
 		try {
-			writeFileSync(lastSuccessPath, JSON.stringify(lastSuccessMs, null, 2));
-		} catch {
-			/* ignore */
+			atomicWriteJson(
+				lastSuccessPath,
+				lastSuccessMs,
+				{ writeFileSync, renameSync, unlinkSync },
+				process.pid,
+			);
+			return "ok";
+		} catch (e) {
+			console.error(
+				JSON.stringify({
+					event: "watermark_persist_failed",
+					path: lastSuccessPath,
+					error: e instanceof Error ? e.message : String(e),
+				}),
+			);
+			return "error";
 		}
 	};
 
 	const finalize = (code: number) => {
-		persistWatermarks(code === 0);
+		const wm = persistWatermarks(code === 0);
+		const exitCode = wm === "error" && code === 0 ? 1 : code;
 		const report = {
 			event: cacheOnly ? "cache_only_done" : "refresh_done",
 			windowHours,
@@ -927,6 +1011,7 @@ async function main(): Promise<void> {
 			minGapMs: noSpread ? undefined : minGapMs,
 			epochStartMs,
 			epochEndMs,
+			epochStartDeadlineMs: noSpread ? undefined : epochStartDeadlineMs,
 			fromCache,
 			cacheOnly,
 			selectedHandles: selected.length,
@@ -937,6 +1022,7 @@ async function main(): Promise<void> {
 			handleErrors,
 			permanentlyFailed: [...permanentlyFailed],
 			pushErrors,
+			watermarkPersist: wm,
 			summary,
 			debugDir,
 		};
@@ -970,7 +1056,7 @@ async function main(): Promise<void> {
 		console.log(JSON.stringify(report, null, 2));
 		console.log(`report: ${reportPath}`);
 		releaseEpochLock(lockPath);
-		process.exit(code);
+		process.exit(exitCode);
 	};
 
 	if (cacheOnly) {
