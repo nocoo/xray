@@ -54,10 +54,9 @@ export function assertZhetoWebhookUrl(url: string, allowHosts?: string[]): void 
 	}
 
 	const host = parsed.hostname.toLowerCase();
-	if (allowHosts?.length) {
-		if (!allowHosts.some((h) => host === h || host.endsWith(`.${h}`))) {
-			throw new IntegrationValidationError("webhookUrl host not allowlisted");
-		}
+	if (allowHosts && allowHosts.length > 0) {
+		const ok = allowHosts.some((h) => host === h || host.endsWith(`.${h}`));
+		if (!ok) throw new IntegrationValidationError("webhookUrl host not allowlisted");
 		return;
 	}
 
