@@ -153,6 +153,8 @@ bun run refresh:watchlists -- --from-cache
 
 Cron suggestion: every **60 minutes** start one full epoch; or every 60m **incremental** + nightly **full**.
 
+**Concurrency:** `.cache/twitter-cli/epoch.lock` (pid) rejects overlapping runs (exit 3) so two crons cannot double-hit GraphQL.
+
 ---
 
 ## 8. Code map

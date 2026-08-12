@@ -205,6 +205,47 @@ function loadLastSuccessMs(path: string): Record<string, number> {
 	}
 }
 
+function acquireEpochLock(lockPath: string): void {
+	mkdirSync(join(lockPath, ".."), { recursive: true });
+	if (existsSync(lockPath)) {
+		try {
+			const raw = JSON.parse(readFileSync(lockPath, "utf8")) as { pid?: number; at?: number };
+			const pid = raw.pid;
+			if (typeof pid === "number" && pid > 0) {
+				try {
+					process.kill(pid, 0);
+					// Still alive
+					console.error(
+						JSON.stringify({
+							event: "epoch_lock_busy",
+							lockPath,
+							pid,
+							at: raw.at,
+							hint: "another refresh is running; wait or remove stale lock",
+						}),
+					);
+					process.exit(3);
+				} catch {
+					// ESRCH — stale lock
+				}
+			}
+		} catch {
+			/* replace corrupt lock */
+		}
+	}
+	writeFileSync(lockPath, JSON.stringify({ pid: process.pid, at: Date.now() }, null, 2));
+}
+
+function releaseEpochLock(lockPath: string): void {
+	try {
+		if (!existsSync(lockPath)) return;
+		const raw = JSON.parse(readFileSync(lockPath, "utf8")) as { pid?: number };
+		if (raw.pid === process.pid) unlinkSync(lockPath);
+	} catch {
+		/* ignore */
+	}
+}
+
 async function loadGraph(): Promise<Graph> {
 	if (existsSync(membersFile)) {
 		return parseMembersGraph(JSON.parse(readFileSync(membersFile, "utf8")) as unknown);
@@ -407,12 +448,26 @@ async function main(): Promise<void> {
 		process.exit(0);
 	}
 
+	const lockPath = join(cacheDir, "epoch.lock");
+	acquireEpochLock(lockPath);
+	const releaseLock = () => releaseEpochLock(lockPath);
+	process.on("exit", releaseLock);
+	process.on("SIGINT", () => {
+		releaseLock();
+		process.exit(130);
+	});
+	process.on("SIGTERM", () => {
+		releaseLock();
+		process.exit(143);
+	});
+
 	if (!fromCache) {
 		await source.ready();
 		console.log(`timeline source OK (${source.id})`);
 	}
 	if (!cacheOnly && !pushToken) {
 		console.error("XRAY_PUSH_TOKEN required for push (or use --cache-only / --dry-run)");
+		releaseLock();
 		process.exit(2);
 	}
 
@@ -744,7 +799,19 @@ async function main(): Promise<void> {
 	let fatalPush = false;
 	let totalRejected = 0;
 
+	const persistWatermarks = (ok: boolean) => {
+		// Live-fetch watermarks: after successful push, or always for cache-only
+		// (cache-only is local convert only — still marks "processed this epoch").
+		if (!ok && !cacheOnly) return;
+		try {
+			writeFileSync(lastSuccessPath, JSON.stringify(lastSuccessMs, null, 2));
+		} catch {
+			/* ignore */
+		}
+	};
+
 	const finalize = (code: number) => {
+		persistWatermarks(code === 0);
 		const report = {
 			event: cacheOnly ? "cache_only_done" : "refresh_done",
 			windowHours,
@@ -797,6 +864,7 @@ async function main(): Promise<void> {
 		}
 		console.log(JSON.stringify(report, null, 2));
 		console.log(`report: ${reportPath}`);
+		releaseEpochLock(lockPath);
 		process.exit(code);
 	};
 
@@ -883,15 +951,6 @@ async function main(): Promise<void> {
 		totalMapped === 0 &&
 		[...itemsByHandle.values()].every((a) => a.length === 0);
 	const exit = code !== 0 || emptyMaps ? 1 : 0;
-	// Only advance incremental watermarks after a successful push epoch (or cache-only).
-	// Otherwise a failed ingest would skip live refetch for 55m (Codex P2).
-	if (exit === 0 || cacheOnly) {
-		try {
-			writeFileSync(lastSuccessPath, JSON.stringify(lastSuccessMs, null, 2));
-		} catch {
-			/* ignore */
-		}
-	}
 	finalize(exit);
 }
 
