@@ -233,12 +233,12 @@ export function WatchlistDetailPage() {
 							</p>
 						</div>
 					) : (
-						/* Dedicated scrollport so CSS scroll-snap clamps between cards (v1-like feel). */
+						/* Single-column: soft snap between cards. Multi-column skips snap (interleaved stops). */
 						<div
 							data-testid="posts-scroll"
 							className={cn(
-								"max-h-[calc(100dvh-11.5rem)] overflow-y-auto overscroll-y-contain",
-								"snap-y snap-proximity scroll-smooth pr-0.5",
+								"max-h-[calc(100dvh-11.5rem)] overflow-y-auto scroll-smooth pr-0.5",
+								columnCount === 1 && "snap-y snap-proximity",
 							)}
 						>
 							<div className="flex items-start gap-3">
@@ -252,7 +252,7 @@ export function WatchlistDetailPage() {
 												<div
 													key={item.id}
 													data-source-type="custom"
-													className="snap-start snap-always"
+													className={columnCount === 1 ? "snap-start" : undefined}
 												>
 													<CustomItemCard
 														sourceType="custom"
@@ -281,7 +281,7 @@ export function WatchlistDetailPage() {
 												<div
 													key={item.id}
 													data-source-type="x.com"
-													className="snap-start snap-always"
+													className={columnCount === 1 ? "snap-start" : undefined}
 												>
 													{(() => {
 														const tweet = itemToTweet(item);
@@ -391,7 +391,7 @@ export function WatchlistDetailPage() {
 				open={activityOpen}
 				onClose={() => setActivityOpen(false)}
 				title="Activity"
-				width="w-96"
+				width="w-full max-w-96"
 				data-testid="activity-panel"
 			>
 				<div className="flex h-full flex-col" data-testid="ingest-logs">
@@ -401,14 +401,22 @@ export function WatchlistDetailPage() {
 							variant="ghost"
 							size="xs"
 							type="button"
+							disabled={s.logsLoading}
 							onClick={() => void vm.loadLogs()}
 							title="Refresh logs"
 						>
-							<RefreshCw className="h-3.5 w-3.5" />
+							<RefreshCw className={cn("h-3.5 w-3.5", s.logsLoading && "animate-spin")} />
 							Refresh
 						</Button>
 					</div>
-					{s.logs.length === 0 ? (
+					{s.logsError && (
+						<div className="border-b border-red-200 bg-red-50 px-4 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+							{s.logsError}
+						</div>
+					)}
+					{s.logsLoading && s.logs.length === 0 ? (
+						<p className="p-4 text-xs text-muted-foreground">Loading logs…</p>
+					) : s.logs.length === 0 ? (
 						<p className="p-4 text-xs text-muted-foreground">No pushes logged yet.</p>
 					) : (
 						<ul className="divide-y divide-border">

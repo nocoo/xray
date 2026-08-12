@@ -219,13 +219,133 @@ describe("createWatchlistDetailVm", () => {
 		// load() already consumed first mock ([]); this is second mock (1 log)
 		await vm.loadLogs();
 		expect(vm.getState().logs).toHaveLength(1);
+		expect(vm.getState().logsError).toBeNull();
 		await vm.loadLogs();
-		expect(vm.getState().error).toBe("logs down");
+		expect(vm.getState().logsError).toBe("logs down");
+		// page-wide error must stay clear for panel-local log failures
+		expect(vm.getState().error).toBeNull();
 
 		const badId = createWatchlistDetailVm(api, 0);
 		await badId.loadLogs();
 		await badId.setTranslateEnabled(true);
 		expect(api.updateWatchlist).toHaveBeenCalledTimes(2);
+	});
+
+	test("translate failure only rolls back enabled flag after concurrent reload", async () => {
+		let resolvePatch: (v: unknown) => void = () => undefined;
+		const patchPromise = new Promise((resolve) => {
+			resolvePatch = resolve;
+		});
+		const api = {
+			fetchWatchlist: vi
+				.fn()
+				.mockResolvedValueOnce(wl)
+				.mockResolvedValueOnce({ ...wl, name: "Reloaded" }),
+			fetchMembers: vi.fn().mockResolvedValue([]),
+			fetchItems: vi.fn().mockResolvedValue({ items: [], next_cursor: null }),
+			fetchWatchlistIngestLogs: vi.fn().mockResolvedValue([]),
+			deleteMember: vi.fn(),
+			updateWatchlist: vi.fn().mockReturnValue(patchPromise),
+			translateWatchlist: vi.fn(),
+		};
+		const vm = createWatchlistDetailVm(api, 3);
+		await vm.load();
+		const pending = vm.setTranslateEnabled(false);
+		expect(vm.getState().wl?.translateEnabled).toBe(false);
+		// Concurrent reload brings fresher name while PATCH still in flight
+		await vm.load();
+		expect(vm.getState().wl?.name).toBe("Reloaded");
+		resolvePatch(Promise.reject(new Error("save failed")));
+		await pending.catch(() => undefined);
+		await vi.waitFor(() => expect(vm.getState().settingsError).toBe("save failed"));
+		expect(vm.getState().wl?.name).toBe("Reloaded");
+		expect(vm.getState().wl?.translateEnabled).toBe(true);
+	});
+
+	test("stale translate and loadLogs responses are ignored", async () => {
+		let resolveSlowLogs: (v: unknown) => void = () => undefined;
+		let rejectSlowLogs: (e: unknown) => void = () => undefined;
+		let resolveSlowPatch: (v: unknown) => void = () => undefined;
+		let rejectSlowPatch: (e: unknown) => void = () => undefined;
+		const slowLogsOk = new Promise((resolve) => {
+			resolveSlowLogs = resolve;
+		});
+		const slowLogsErr = new Promise((_, reject) => {
+			rejectSlowLogs = reject;
+		});
+		const slowPatchOk = new Promise((resolve) => {
+			resolveSlowPatch = resolve;
+		});
+		const slowPatchErr = new Promise((_, reject) => {
+			rejectSlowPatch = reject;
+		});
+		const logRow = (id: number) => ({
+			id,
+			watchlistId: 3,
+			attempted: 1,
+			accepted: 1,
+			deduped: 0,
+			rejected: 0,
+			errorsJson: null,
+			createdAtMs: id,
+		});
+		const api = {
+			fetchWatchlist: vi.fn().mockResolvedValue(wl),
+			fetchMembers: vi.fn().mockResolvedValue([]),
+			fetchItems: vi.fn().mockResolvedValue({ items: [], next_cursor: null }),
+			fetchWatchlistIngestLogs: vi
+				.fn()
+				.mockResolvedValueOnce([]) // initial load()
+				.mockReturnValueOnce(slowLogsOk)
+				.mockResolvedValueOnce([logRow(9)])
+				.mockReturnValueOnce(slowLogsErr)
+				.mockResolvedValueOnce([logRow(10)]),
+			deleteMember: vi.fn(),
+			updateWatchlist: vi
+				.fn()
+				.mockReturnValueOnce(slowPatchOk)
+				.mockResolvedValueOnce({ ...wl, translateEnabled: false })
+				.mockReturnValueOnce(slowPatchErr)
+				.mockResolvedValueOnce({ ...wl, translateEnabled: true }),
+			translateWatchlist: vi.fn(),
+		};
+		const vm = createWatchlistDetailVm(api, 3);
+		await vm.load();
+
+		// Stale success
+		const firstLogs = vm.loadLogs();
+		await vm.loadLogs();
+		expect(vm.getState().logs[0]?.id).toBe(9);
+		resolveSlowLogs([logRow(1)]);
+		await firstLogs;
+		expect(vm.getState().logs[0]?.id).toBe(9);
+
+		// Stale error
+		const staleErrLogs = vm.loadLogs();
+		await vm.loadLogs();
+		expect(vm.getState().logs[0]?.id).toBe(10);
+		rejectSlowLogs(new Error("stale logs fail"));
+		await staleErrLogs.catch(() => undefined);
+		expect(vm.getState().logsError).toBeNull();
+		expect(vm.getState().logs[0]?.id).toBe(10);
+
+		// Stale translate success
+		const firstPatch = vm.setTranslateEnabled(false);
+		await vm.setTranslateEnabled(false);
+		await vi.waitFor(() => expect(vm.getState().settingsSaving).toBe(false));
+		resolveSlowPatch({ ...wl, translateEnabled: false, name: "STALE_OK" });
+		await firstPatch;
+		expect(vm.getState().wl?.name).not.toBe("STALE_OK");
+
+		// Stale translate error must not flip flag / set error after newer success
+		const stalePatch = vm.setTranslateEnabled(false);
+		await vm.setTranslateEnabled(true);
+		await vi.waitFor(() => expect(vm.getState().wl?.translateEnabled).toBe(true));
+		const errBefore = vm.getState().settingsError;
+		rejectSlowPatch(new Error("stale patch fail"));
+		await stalePatch.catch(() => undefined);
+		expect(vm.getState().wl?.translateEnabled).toBe(true);
+		expect(vm.getState().settingsError).toBe(errBefore);
 	});
 
 	test("itemToTweet more author branches", () => {

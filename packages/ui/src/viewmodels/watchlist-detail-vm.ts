@@ -40,6 +40,8 @@ export type WatchlistDetailState = {
 	items: TimelineItem[];
 	nextCursor: string | null;
 	logs: IngestLog[];
+	logsLoading: boolean;
+	logsError: string | null;
 	loading: boolean;
 	loadingMore: boolean;
 	error: string | null;
@@ -296,12 +298,19 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 		items: [],
 		nextCursor: null,
 		logs: [],
+		logsLoading: false,
+		logsError: null,
 		loading: false,
 		loadingMore: false,
 		error: null,
 		settingsSaving: false,
 		settingsError: null,
 	});
+
+	/** Monotonic token so late translate failures only roll back their own optimistic flip. */
+	let translateMutationSeq = 0;
+	/** Monotonic token so late loadLogs responses cannot clobber fresher results. */
+	let logsLoadSeq = 0;
 
 	const vm = {
 		...store,
@@ -339,6 +348,7 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 					items: it.items,
 					nextCursor: it.next_cursor,
 					logs: logRows,
+					logsError: null,
 					loading: false,
 				});
 			} catch (e) {
@@ -348,17 +358,23 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 		async loadLogs() {
 			const id = store.getState().watchlistId;
 			if (!Number.isInteger(id) || id <= 0) return;
+			const seq = ++logsLoadSeq;
+			store.setState({ logsLoading: true, logsError: null });
 			try {
 				const logRows = await api.fetchWatchlistIngestLogs(id, 30);
-				store.setState({ logs: logRows });
+				if (seq !== logsLoadSeq) return;
+				store.setState({ logs: logRows, logsLoading: false, logsError: null });
 			} catch (e) {
-				store.setState({ error: errMsg(e) });
+				if (seq !== logsLoadSeq) return;
+				store.setState({ logsLoading: false, logsError: errMsg(e) });
 			}
 		},
 		async setTranslateEnabled(enabled: boolean) {
 			const id = store.getState().watchlistId;
 			const prev = store.getState().wl;
 			if (!prev) return;
+			const seq = ++translateMutationSeq;
+			const prevEnabled = prev.translateEnabled;
 			store.setState({
 				settingsSaving: true,
 				settingsError: null,
@@ -366,10 +382,14 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 			});
 			try {
 				const w = await api.updateWatchlist(id, { translateEnabled: enabled });
+				if (seq !== translateMutationSeq) return;
 				store.setState({ wl: w, settingsSaving: false });
 			} catch (e) {
+				if (seq !== translateMutationSeq) return;
+				const current = store.getState().wl;
 				store.setState({
-					wl: prev,
+					// Roll back only the toggled field so concurrent reloads keep fresher name/counts.
+					wl: current ? { ...current, translateEnabled: prevEnabled } : current,
 					settingsSaving: false,
 					settingsError: errMsg(e),
 				});
