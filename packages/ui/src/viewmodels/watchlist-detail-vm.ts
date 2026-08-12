@@ -336,21 +336,21 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 					sourceFilter === "all"
 						? { limit: 50 }
 						: { limit: 50, source_type: sourceFilter as SourceType };
-				const [w, m, it, logRows] = await Promise.all([
+				// Core data only — logs go through sequenced loadLogs so a logs outage
+				// cannot wipe a successful watchlist/members/items load.
+				const [w, m, it] = await Promise.all([
 					api.fetchWatchlist(id),
 					api.fetchMembers(id),
 					api.fetchItems(id, itemOpts),
-					api.fetchWatchlistIngestLogs(id, 30),
 				]);
 				store.setState({
 					wl: w,
 					members: m,
 					items: it.items,
 					nextCursor: it.next_cursor,
-					logs: logRows,
-					logsError: null,
 					loading: false,
 				});
+				void vm.loadLogs();
 			} catch (e) {
 				store.setState({ error: errMsg(e), loading: false });
 			}

@@ -410,12 +410,17 @@ export function WatchlistDetailPage() {
 						</Button>
 					</div>
 					{s.logsError && (
-						<div className="border-b border-red-200 bg-red-50 px-4 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+						<div
+							role="alert"
+							className="border-b border-red-200 bg-red-50 px-4 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+						>
 							{s.logsError}
 						</div>
 					)}
 					{s.logsLoading && s.logs.length === 0 ? (
-						<p className="p-4 text-xs text-muted-foreground">Loading logs…</p>
+						<p role="status" aria-live="polite" className="p-4 text-xs text-muted-foreground">
+							Loading logs…
+						</p>
 					) : s.logs.length === 0 ? (
 						<p className="p-4 text-xs text-muted-foreground">No pushes logged yet.</p>
 					) : (

@@ -57,21 +57,32 @@ export function SlidePanel({
 		if (!panel) return;
 
 		previouslyFocused.current = document.activeElement as HTMLElement | null;
-		const nodes = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
-			(el) => !el.hasAttribute("disabled") && el.tabIndex !== -1,
-		);
-		const first = nodes[0];
-		const last = nodes[nodes.length - 1];
-		(first ?? panel).focus();
 
+		const focusables = () =>
+			[...panel.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+				(el) =>
+					!el.hasAttribute("disabled") &&
+					el.getAttribute("aria-disabled") !== "true" &&
+					el.tabIndex !== -1,
+			);
+
+		const initial = focusables();
+		(initial[0] ?? panel).focus();
+
+		// Re-query on every Tab so controls that enable after open (e.g. Refresh)
+		// enter the trap without remounting the panel.
 		const onKeyDown = (e: KeyboardEvent) => {
-			if (e.key !== "Tab" || nodes.length === 0) return;
+			if (e.key !== "Tab") return;
+			const nodes = focusables();
+			if (nodes.length === 0) return;
+			const first = nodes[0];
+			const last = nodes[nodes.length - 1];
 			if (e.shiftKey) {
-				if (document.activeElement === first) {
+				if (document.activeElement === first || !panel.contains(document.activeElement)) {
 					e.preventDefault();
 					last?.focus();
 				}
-			} else if (document.activeElement === last) {
+			} else if (document.activeElement === last || !panel.contains(document.activeElement)) {
 				e.preventDefault();
 				first?.focus();
 			}
