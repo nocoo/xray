@@ -31,6 +31,18 @@ describe("L2 real HTTP — all API routes", () => {
 		expect(body.user.email).toContain("@");
 	});
 
+	test("GET /api/media/proxy", async () => {
+		// Route gate: hit the handler (missing url → 400). Full CDN stream is unit-tested.
+		const { status, body } = await jsonFetch<{ error?: string }>("/api/media/proxy");
+		expect(status).toBe(400);
+		expect(body.error).toMatch(/url/i);
+
+		const blocked = await jsonFetch<{ error?: string }>(
+			`/api/media/proxy?url=${encodeURIComponent("https://evil.com/x.mp4")}`,
+		);
+		expect(blocked.status).toBe(403);
+	});
+
 	test("watchlists CRUD + members + tags + items + ingest-logs + delete item", async () => {
 		const wl = await createWatchlist(`l2-wl-${Date.now()}`);
 		expect(wl.id).toBeGreaterThan(0);
