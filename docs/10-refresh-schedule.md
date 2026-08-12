@@ -135,7 +135,7 @@ pauseMs   = remaining <= 0 ? 0 : min( U(120s, 300s), remaining )
 | `.cache/twitter-cli/debug/<handle>-<ts>.json` | Failure forensics |
 | `.cache/twitter-cli/last-success.json` | Incremental watermark (atomic write after successful push / cache-only; failure → exit 1) |
 | `.cache/twitter-cli/raw/<handle>.json` | Vendor raw |
-| `.cache/twitter-cli/epoch.lock` | Singleton run lock (`{pid,at}`; wx create + content-verified stale rename) |
+| `.cache/twitter-cli/epoch.lock` | Singleton run lock (`fcntl.flock` via python3 helper; `{pid,at}` metadata) |
 
 ---
 
@@ -165,13 +165,12 @@ bun run refresh:watchlists -- --from-cache
 
 Cron suggestion: every **60 minutes** start one full epoch; or every 60m **incremental** + nightly **full**. Prefer a scheduler that **skips if previous still running** (e.g. `flock` wrapper); the in-process lock is the safety net, not a substitute for non-overlapping cron.
 
-**Concurrency:** `.cache/twitter-cli/epoch.lock` rejects overlapping runs (**exit 3**):
+**Concurrency:** `.cache/twitter-cli/epoch.lock` rejects overlapping runs (**exit 3**) via **OS advisory lock**:
 
-1. `O_EXCL` (`wx`) create with `{ pid, at }`.
-2. If exists and holder looks alive (`kill(pid,0)` success **or** `EPERM`) → busy.
-3. Stale if: malformed JSON, `ESRCH`, or `at` older than **2 hours** (PID-reuse bound).
-4. Takeover: re-read must be **byte-identical** to the stale snapshot before `rename` away, then `wx` create — never rename a peer’s fresh lock.
-5. Release unlinks only when `pid === process.pid`.
+1. Helper: `python3` + `fcntl.flock(LOCK_EX|LOCK_NB)` on the lock file (true held lock — not rename/CAS).
+2. Writes `{ pid, at }` metadata for operators; contention → busy exit 3.
+3. Holder process stays alive for the whole epoch; releases on stdin EOF **or** parent pid death (2s poll) — no age-based steal of live runs.
+4. Requires `python3` on PATH (macOS/Linux).
 
 ---
 

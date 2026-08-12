@@ -263,7 +263,7 @@ Pipeline stages:
 
 ```
 resolve graph → unique handles (^[A-Za-z0-9_]{1,15}$)
-  → twitter user-posts (once per handle; default re-fetch) → .cache/twitter-cli/raw/<handle>.json
+  → twitter user-posts (usually once per handle; 429 may defer **one** retry in-epoch) → .cache/twitter-cli/raw/<handle>.json
   → map envelope → canonical[]
   → filter by windowHours (client)
   → fan-out items to each watchlist that lists that handle
