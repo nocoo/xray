@@ -1,7 +1,7 @@
 import { Pencil, RefreshCw, Trash2, Users } from "lucide-react";
 import { memo } from "react";
+import { XVerified } from "@/components/icons/x-verified";
 import { SourceChip } from "@/components/source-chip";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { MockWatchlistMember } from "@/lib/mock-data";
 import { formatCount } from "@/lib/utils";
@@ -32,11 +32,7 @@ export const MemberCard = memo(function MemberCard({
 			<span className="truncate text-sm font-semibold leading-tight">
 				{displayName ?? handleLabel}
 			</span>
-			{p?.isVerified && (
-				<Badge variant="default" className="h-3.5 shrink-0 px-1 text-[9px]">
-					V
-				</Badge>
-			)}
+			{p?.isVerified && <XVerified className="h-3.5 w-3.5 shrink-0" />}
 		</div>
 	);
 

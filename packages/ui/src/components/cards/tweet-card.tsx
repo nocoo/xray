@@ -24,6 +24,7 @@ import {
 	X,
 } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { XVerified } from "@/components/icons/x-verified";
 import { SourceChip } from "@/components/source-chip";
 import { Badge } from "@/components/ui/badge";
 import { useNow } from "@/hooks/use-now";
@@ -272,11 +273,7 @@ export const TweetCard = memo(function TweetCard({
 							>
 								{tweet.author.name}
 							</a>
-							{tweet.author.is_verified && (
-								<Badge variant="default" className="h-4 px-1 text-[10px]">
-									V
-								</Badge>
-							)}
+							{tweet.author.is_verified && <XVerified className="h-4 w-4" />}
 						</div>
 						<div className="flex items-center gap-1.5 text-sm text-muted-foreground">
 							<a
@@ -373,11 +370,7 @@ export const TweetCard = memo(function TweetCard({
 										{tweet.quoted_tweet.author.name}
 									</span>
 								</a>
-								{tweet.quoted_tweet.author.is_verified && (
-									<Badge variant="default" className="h-3.5 px-1 text-[9px]">
-										V
-									</Badge>
-								)}
+								{tweet.quoted_tweet.author.is_verified && <XVerified className="h-3.5 w-3.5" />}
 								<a
 									href={`https://x.com/${tweet.quoted_tweet.author.username}`}
 									target="_blank"
