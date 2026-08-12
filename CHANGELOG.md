@@ -2,6 +2,65 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.1.2
+
+### Added
+- Restore media proxy for images and video
+- 60m spread schedule for watchlist refresh
+- Structured debug logs for refresh failures
+- Real-http l2 harness and route gate
+- Extract page viewmodels for mvvm
+
+### Changed
+- Flock lock and 429 retry wording
+- Align refresh lock, 429, capacity contracts
+- Note last-success written after push
+- Point agents at ~/.config/xray/push.env
+- Document global push token path
+- Harden l3 tokens settings flow
+- Lock l1 denom and 95% branch floors
+- Lift worker l1 to 95% three metrics
+- Raise ui vm and api coverage
+- Raise shared package branch coverage
+- Enforce l1 95/95/95 coverage gate
+- Assert zheto dual-tenant isolation
+- Tighten dual-tenant item and token checks
+- Complete dual-actor l2 isolation matrix
+- Expand l3 flows and align husky 6dq
+- Raise l1 coverage gate to 95%
+
+### Fixed
+- Reject zhe.to nondefault port; fresh clock
+- Parse zhe.to urls before path allowlist
+- Harden media proxy redirects and mime
+- Accept zhe.to link/create webhook urls
+- Capture video poster frame like x.com
+- Live relative time from post vs now
+- Map tweet media and prefer post created_at
+- Keep flock inode; bound lock handshake
+- Hold epoch lock with python flock
+- Content-verified lock takeover and age bound
+- Return 0 pause when epoch already ended
+- Rename-based lock takeover; epoch start slack
+- Safe stale lock unlink; recheck epoch after wait
+- Exclusive-create epoch lock (wx)
+- Atomic epoch lock and hard epoch cutoff
+- Epoch lock and cache-only watermarks
+- Watermark after push; noop empty incremental
+- Min-gap on actual starts; live-only watermark
+- Return dropped handles from schedule rebase
+- Report rebase drops and late window drops
+- Address codex p1/p2 refresh schedule issues
+- Restore default jwt verifier for tests
+- Dual-actor l2 isolation and l3 docs
+- Address codex p1 coverage ci l2 isolation
+- Skip l3 when worker unreachable
+- Translate cards without full page reload
+- Ai settings test ui and kek errors
+
+### Removed
+- Remove unused worker static keepfile
+
 ## v2.1.1
 
 ### Added
