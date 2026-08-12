@@ -27,16 +27,22 @@ export function SourceChip({
 			data-testid="source-chip"
 			data-source-type={sourceType}
 			className={cn(
-				"inline-flex items-center gap-0.5 rounded-full border font-medium tracking-wide",
-				size === "sm" ? "px-1.5 py-0 text-[10px] leading-4" : "px-2 py-0.5 text-[11px] leading-5",
-				!isX && "uppercase",
+				"inline-flex items-center justify-center rounded-full border font-medium tracking-wide",
+				// Logo-only X chip needs equal padding so the mark isn't flush to the edge.
+				isX
+					? size === "sm"
+						? "size-5 p-1"
+						: "size-6 p-1.5"
+					: size === "sm"
+						? "px-1.5 py-0 text-[10px] leading-4 uppercase"
+						: "px-2 py-0.5 text-[11px] leading-5 uppercase",
 				CHIP_STYLES[sourceType],
 				className,
 			)}
 			title={`source_type=${sourceType}`}
 		>
 			{isX ? (
-				<XLogo className={size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3"} aria-label="X" />
+				<XLogo className={size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5"} aria-label="X" />
 			) : (
 				SOURCE_TYPE_LABELS[sourceType]
 			)}
