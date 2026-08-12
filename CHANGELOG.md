@@ -2,6 +2,25 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.1.4
+
+### Added
+- Infinite scroll feed flush to bottom
+- Watchlist side panels and card scroll-snap
+- Add right-edge slide panel primitive
+
+### Fixed
+- Give x source chip more logo padding
+- Use official x blue verified badge svg
+- Unify settings and activity panel width
+- Show x source chip as logo only
+- Dynamic focus trap and decouple logs load
+- Harden logs state snap and translate race
+- Hide decorative x logo from screen readers
+- Unmount closed slide panel for a11y
+- X-style quote context and nested embed
+- Brand x.com chip with x mark and colors
+
 ## v2.1.3
 
 ### Fixed
