@@ -70,12 +70,22 @@ Auth roles (three different secrets):
 # File (required for unattended / cron)
 ~/.config/xray/push.env   # chmod 600
 
-# Minimal contents (example — do not invent tokens):
-# XRAY_PUSH_TOKEN=xray_pt_<prefix>_<secret>
-# XRAY_INGEST_BASE=https://xray-ingest.hexly.ai
-# XRAY_MEMBERS_FILE=config/members.json   # optional default graph
-# XRAY_WINDOW_HOURS=24
+# Minimal contents (example shape — do not invent tokens).
+# All of these are real assignments in a working prod file; only the token
+# value is secret. XRAY_INGEST_BASE is required for prod cron (section 5.1
+# sources this file and relies on it — do not leave it commented out).
+XRAY_PUSH_TOKEN=xray_pt_<prefix>_<secret>
+XRAY_INGEST_BASE=https://xray-ingest.hexly.ai
+XRAY_MEMBERS_FILE=config/members.json
+XRAY_WINDOW_HOURS=24
 ```
+
+| Key | Required? | Notes |
+|-----|-----------|--------|
+| `XRAY_PUSH_TOKEN` | **Yes** (for push) | Full secret once from mint |
+| `XRAY_INGEST_BASE` | **Yes for prod** | Default in script is prod URL if unset, but **set it explicitly** in `push.env` so cron/agent never guess |
+| `XRAY_MEMBERS_FILE` | Optional | Default graph path if file exists (section 3) |
+| `XRAY_WINDOW_HOURS` | Optional | Default 24 |
 
 Load into the shell (every run):
 
@@ -83,6 +93,7 @@ Load into the shell (every run):
 set -a && source ~/.config/xray/push.env && set +a
 # verify present without printing secret:
 test -n "${XRAY_PUSH_TOKEN:-}" && echo "XRAY_PUSH_TOKEN=set" || echo "XRAY_PUSH_TOKEN=MISSING"
+test -n "${XRAY_INGEST_BASE:-}" && echo "XRAY_INGEST_BASE=$XRAY_INGEST_BASE" || echo "XRAY_INGEST_BASE=MISSING"
 ```
 
 **Never** write the full token into git, skill files, chat logs, or CI artifacts. Report only `tokenPrefix` (first segment after `xray_pt_`) if needed.
@@ -235,11 +246,13 @@ test -f package.json && rg -q '"name": "xray"' package.json
 
 # 2) twitter-cli
 twitter status --json
-# expect authenticated: true
+# Pass criterion: JSON has "ok": true and data.authenticated === true
+# (see pitfall below for stderr WARNING)
 
 # 3) Secrets (prod path)
 set -a && source ~/.config/xray/push.env && set +a
 test -n "$XRAY_PUSH_TOKEN"
+test -n "$XRAY_INGEST_BASE"
 
 # 4) Target health
 # prod:
@@ -248,10 +261,54 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://xray-ingest.hexly.ai/api/live
 curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8787/api/live
 ```
 
-Optional dry-run (no twitter network beyond plan if graph is file-only; still resolves graph):
+### 4.1 twitter-cli stderr WARNING (usually ignorable)
+
+`twitter status --json` often prints on **stderr**:
+
+```text
+WARNING twitter_cli.client: Failed to init ClientTransaction: 'NoneType' object has no attribute 'group'
+```
+
+| Check | Action |
+|-------|--------|
+| stdout JSON: `"ok": true` and `data.authenticated: true` | **Ignore** the WARNING; continue preflight |
+| `"authenticated": false` / missing cookies / exit non-zero | **Fail** preflight — re-login x.com in browser or set `TWITTER_AUTH_TOKEN`+`TWITTER_CT0` |
+
+Do not treat the ClientTransaction WARNING alone as auth failure.
+
+### 4.2 Script stdout shape (not NDJSON)
+
+`bun run refresh:watchlists` writes a **mix** of:
+
+1. **Pretty-printed multi-line JSON objects** (each starts with `{` on its own line, may span many lines) — e.g. `event: "plan"`, `event: "schedule_preview"`, per-handle events, `event: "refresh_done"`.
+2. **Human lines** between them — e.g. `  @sama → WL 3 (selected)`, `report: /path/to.json`, `timeline source OK…`.
+
+It is **not** one JSON value per line (not strict NDJSON). So `jq -c` on the whole stream fails. Extract with line filters or bun:
+
+```bash
+# Dry-run: print only the plan object (first pretty JSON whose .event == "plan")
+bun run refresh:watchlists -- --dry-run 2>/dev/null | bun -e '
+const t = await Bun.stdin.text();
+const chunks = t.split(/\n(?=\{)/); // split before lines that start a new object
+for (const c of chunks) {
+  const s = c.trim();
+  if (!s.startsWith("{")) continue;
+  try {
+    const j = JSON.parse(s);
+    if (j.event === "plan") { console.log(JSON.stringify(j, null, 2)); break; }
+  } catch { /* incomplete / human noise */ }
+}
+'
+
+# Or quick greps for plan summary fields:
+bun run refresh:watchlists -- --dry-run 2>/dev/null | rg -n '"event"|"watchlists"|"uniqueHandles"|"selectedHandles"|"ingestBase"|"refreshMode"|"dryRun"'
+```
+
+Optional dry-run (graph resolve + schedule preview; no twitter fetch if not needed beyond plan):
 
 ```bash
 bun run refresh:watchlists -- --dry-run
+# Prefer 4.2 extractors — full dry-run dumps every scheduled handle under schedule_preview (long).
 ```
 
 ---
@@ -325,32 +382,48 @@ Lock path: `.cache/twitter-cli/epoch.lock` (under `XRAY_CACHE_DIR` / `--cache-di
 
 ## 7. Reporting (required agent output)
 
-After the script finishes, parse stdout/stderr:
+After the script finishes, parse stdout/stderr (see **§4.2** for stream shape):
 
-1. Find line: `report: <path>` → read that JSON file.
-2. Also capture the final JSON object with `"event":"refresh_done"` (or `cache_only_done` / dry-run `plan`).
+1. Find line: `report: <path>` → read that JSON file (full runs).
+2. Capture JSON objects by `event` (`plan`, `refresh_done`, `cache_only_done`, …).
+3. Dry-run has **no** `report:` file — use `event=plan` (+ optional human `@handle → WL` lines).
 
-### 7.1 Human report template
+### 7.1 Map script fields → report lines
+
+| Report line | Source |
+|-------------|--------|
+| **ingest** | Env `XRAY_INGEST_BASE` after source, **or** `plan.ingestBase` / `refresh_done.ingestBase` if present |
+| **graph** | Not a single JSON field. Infer: if members file path exists and was used → `members-file <abs-or-rel path>`; else if browser base set → `browser <base>`. Dry-run: `plan.watchlists` = list count; human lines `@handle → WL <id>` show assignment. Confirm path via env `XRAY_MEMBERS_FILE` / `--members-file` you passed |
+| **mode** | `plan.refreshMode` + flags: `plan.dryRun` / `fromCache` / `cacheOnly` / `noSpread` |
+| **handles selected** | `plan.selectedHandles` (or `uniqueHandles`) |
+| **handles ok / errors** | Full run: `refresh_done` / report — `handleErrors`, `permanentlyFailed`; count ok from summary or handlesPlanned semantics |
+| **mapped / windowDropped / skipped** | `refresh_done.totalMapped`, `totalWindowDropped`, `totalSkipped` (names as in report JSON) |
+| **per watchlist** | `refresh_done.summary[]` or report file `summary[]`: `watchlist_id`, `name`, `items`, `accepted`, `deduped`, `rejected` |
+| **pushErrors** | `refresh_done.pushErrors` |
+| **report file** | stdout line `report: …` |
+| **debugDir** | `refresh_done.debugDir` |
+
+### 7.2 Human report template
 
 ```markdown
 ## xray refresh report
 - **when**: <ISO time>
 - **cwd**: <repo root>
 - **target**: prod | local
-- **ingest**: <XRAY_INGEST_BASE>
-- **graph**: members-file <path> | browser <base>
-- **mode**: full | incremental | from-cache | dry-run | cache-only
+- **ingest**: <from env or plan.ingestBase>
+- **graph**: members-file <path> | browser <base>  (inferred — see §7.1; dry-run: plan.watchlists=N)
+- **mode**: full | incremental | from-cache | dry-run | cache-only  (from plan.*)
 - **exit**: <code>
-- **handles**: selected=<n> ok=<n> errors=<list>
-- **mapped / windowDropped / skipped**: <from report>
+- **handles**: selected=<plan.selectedHandles> ok=<…> errors=<handleErrors|permanentlyFailed>
+- **mapped / windowDropped / skipped**: <refresh_done totals>
 - **per watchlist**:
   - WL <id> <name>: items=… accepted=… deduped=… rejected=…
 - **pushErrors / permanentlyFailed**: …
-- **report file**: <path>
+- **report file**: <path or n/a on dry-run>
 - **debugDir**: <if present>
 ```
 
-### 7.2 Fields to highlight
+### 7.3 Fields to highlight
 
 | Field | Meaning |
 |-------|---------|
@@ -379,12 +452,14 @@ bun run refresh:watchlists -- 2>&1 | tee -a "$LOG_DIR/refresh-$(date -u +%Y%m%dT
 |---------|-----|
 | `twitter` missing | `uv tool install twitter-cli`; ensure `~/.local/bin` on PATH |
 | Cookie expired | Login x.com in browser; re-run `twitter status --json` |
+| `ClientTransaction` WARNING on `twitter status` | **Ignore** if `authenticated: true` (§4.1) |
 | `XRAY_PUSH_TOKEN required` | source `push.env` or export token |
 | Ingest 401 | Re-mint token; update `push.env` |
 | Wrong/empty posts on a named WL | Snapshot **id** mismatch — re-export graph from **that** env |
 | Mass 429 | Prod: use default spread only; wait; do not tighten delay |
 | exit 3 lock | Wait for other run; check no crashed holder still alive |
 | `config/members.json` overrides browser | Expected — file wins if path exists |
+| `jq` fails on full dry-run log | Stream is multi-line JSON + human lines, not NDJSON (§4.2) |
 
 ---
 
@@ -422,6 +497,8 @@ bun run refresh:watchlists -- 2>&1 | tee -a "$LOG_DIR/refresh-$(date -u +%Y%m%dT
 ```bash
 bun run refresh:watchlists -- --help
 bun run refresh:watchlists -- --dry-run
+# dry-run plan only (see §4.2) — avoid drowning in schedule_preview slots:
+bun run refresh:watchlists -- --dry-run 2>/dev/null | rg '"event"|"watchlists"|"uniqueHandles"|"selectedHandles"|"ingestBase"'
 bun run refresh:watchlists -- --cache-only
 bun run refresh:watchlists -- --from-cache
 bun run refresh:watchlists -- --refresh-mode incremental
