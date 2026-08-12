@@ -5,6 +5,7 @@ import {
 	DEFAULT_SPREAD_WINDOW_MS,
 	deferHandleInSchedule,
 	rateLimitPauseMs,
+	rebaseScheduleQueue,
 	selectHandlesForEpoch,
 	shuffleHandles,
 } from "./producer-schedule.js";
@@ -282,5 +283,54 @@ describe("buildRefreshSchedule edge branches", () => {
 
 	test("selectHandles trims blanks", () => {
 		expect(selectHandlesForEpoch({ allHandles: [" a ", ""], mode: "full" })).toEqual(["a"]);
+	});
+
+	test("incremental ignores prototype keys on lastSuccess map", () => {
+		const now = 1_000_000;
+		const got = selectHandlesForEpoch({
+			allHandles: ["constructor", "toString", "normal"],
+			mode: "incremental",
+			nowMs: now,
+			maxAgeMs: 100_000,
+			lastSuccessMs: {},
+		});
+		expect(got.sort()).toEqual(["constructor", "normal", "toString"]);
+	});
+
+	test("rebaseScheduleQueue enforces minGap after pause", () => {
+		const q = rebaseScheduleQueue({
+			queue: [
+				{ handle: "a", atMs: 100, index: 0 },
+				{ handle: "b", atMs: 200, index: 1 },
+				{ handle: "c", atMs: 300, index: 2 },
+			],
+			nowMs: 10_000,
+			minGapMs: 5_000,
+			epochEndMs: 100_000,
+		});
+		expect(q[0]?.atMs).toBeGreaterThanOrEqual(10_000);
+		const a = q[0];
+		const b = q[1];
+		if (a && b) expect(b.atMs - a.atMs).toBeGreaterThanOrEqual(5_000);
+	});
+
+	test("rebase drops slots past epoch end", () => {
+		const q = rebaseScheduleQueue({
+			queue: [
+				{ handle: "a", atMs: 100, index: 0 },
+				{ handle: "b", atMs: 200, index: 1 },
+			],
+			nowMs: 50_000,
+			minGapMs: 10_000,
+			epochEndMs: 55_000,
+		});
+		// a at 50k ok; b would need 60k > 55k → drop
+		expect(q.map((s) => s.handle)).toEqual(["a"]);
+	});
+
+	test("rebase empty queue", () => {
+		expect(rebaseScheduleQueue({ queue: [], nowMs: 0, minGapMs: 1000, epochEndMs: 1000 })).toEqual(
+			[],
+		);
 	});
 });

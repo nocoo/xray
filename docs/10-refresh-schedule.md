@@ -79,10 +79,12 @@ for each slot in time order:
   on rate_limited:
     pause = rateLimitPauseMs(120s..300s, capped by remaining epoch)
     sleep(pause)
-    if not yet deferred this epoch: re-insert handle later (deferHandleInSchedule)
+    rebase remaining queue to now (minGap) — avoid past slots firing back-to-back
+    if not yet deferred this epoch: re-insert handle later (deferHandleInSchedule);
+      drop soft 429 from handleErrors while deferred so recovered runs exit 0
     else: permanent fail for this epoch
   on not_installed / not_authenticated: abort remaining
-then: batch push ingest (unchanged)
+then: re-filter items by ingest window → batch push
 write run-*.json report + handle_errors_summary
 ```
 

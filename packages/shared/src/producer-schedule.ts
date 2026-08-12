@@ -222,10 +222,38 @@ export function selectHandlesForEpoch(input: {
 	if (input.mode === "full") return all;
 	const now = input.nowMs ?? Date.now();
 	const maxAge = input.maxAgeMs ?? 55 * 60_000;
-	const last = input.lastSuccessMs ?? {};
+	const last = input.lastSuccessMs ?? Object.create(null);
 	return all.filter((h) => {
+		if (!Object.hasOwn(last, h)) return true;
 		const t = last[h];
-		if (t == null) return true;
+		if (typeof t !== "number" || !Number.isFinite(t)) return true;
 		return now - t >= maxAge;
 	});
+}
+
+/**
+ * After a long 429 pause, pending slots may all sit in the past — starting them
+ * back-to-back would violate minGap. Shift the queue so the first start is
+ * >= nowMs and consecutive gaps stay >= minGapMs.
+ */
+export function rebaseScheduleQueue(input: {
+	queue: ScheduleSlot[];
+	nowMs: number;
+	minGapMs: number;
+	epochEndMs: number;
+}): ScheduleSlot[] {
+	const minGap = Math.max(0, input.minGapMs);
+	if (!input.queue.length) return [];
+	const out: ScheduleSlot[] = [];
+	let prevAt = input.nowMs - minGap;
+	for (const s of input.queue) {
+		const at = Math.max(s.atMs, prevAt + minGap, input.nowMs);
+		if (at > input.epochEndMs) {
+			// Drop slots that can no longer start inside the epoch
+			continue;
+		}
+		out.push({ handle: s.handle, atMs: Math.round(at), index: -1 });
+		prevAt = at;
+	}
+	return out.map((s, index) => ({ ...s, index }));
 }

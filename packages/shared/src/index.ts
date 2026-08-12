@@ -42,6 +42,7 @@ export {
 	DEFAULT_SPREAD_WINDOW_MS,
 	deferHandleInSchedule,
 	rateLimitPauseMs,
+	rebaseScheduleQueue,
 	selectHandlesForEpoch,
 	shuffleHandles,
 } from "./producer-schedule.js";

@@ -33,6 +33,7 @@ import {
 	parseMembersGraph,
 	pushIngestBatch,
 	rateLimitPauseMs,
+	rebaseScheduleQueue,
 	type ScheduleSlot,
 	selectHandlesForEpoch,
 	type XTimelineSource,
@@ -625,6 +626,13 @@ async function main(): Promise<void> {
 					}),
 				);
 				await sleep(pause);
+				// Past slots must not fire back-to-back after a multi-minute pause (Codex P1).
+				queue = rebaseScheduleQueue({
+					queue,
+					nowMs: Date.now(),
+					minGapMs,
+					epochEndMs,
+				});
 				if (!deferredOnce.has(slot.handle)) {
 					deferredOnce.add(slot.handle);
 					const before = queue.length;
@@ -646,11 +654,27 @@ async function main(): Promise<void> {
 						}),
 					);
 					if (!fitted) permanentlyFailed.add(slot.handle);
-					// mark last error as deferred when re-queued
-					const last = handleErrors[handleErrors.length - 1];
-					if (last && last.handle === slot.handle) last.deferred = fitted;
+					// Soft-fail while deferred: drop from handleErrors so recovered runs exit 0
+					if (fitted) {
+						for (let hi = handleErrors.length - 1; hi >= 0; hi--) {
+							const row = handleErrors[hi];
+							if (row && row.handle === slot.handle && row.kind === "rate_limited") {
+								row.deferred = true;
+								handleErrors.splice(hi, 1);
+								break;
+							}
+						}
+					}
 				} else {
 					permanentlyFailed.add(slot.handle);
+				}
+			} else if (status === "ok") {
+				// Successful retry: ensure no stale rate_limited rows remain for this handle
+				for (let hi = handleErrors.length - 1; hi >= 0; hi--) {
+					const row = handleErrors[hi];
+					if (row && row.handle === slot.handle && row.kind === "rate_limited") {
+						handleErrors.splice(hi, 1);
+					}
 				}
 			}
 		}
@@ -662,15 +686,19 @@ async function main(): Promise<void> {
 		/* ignore */
 	}
 
+	// Re-apply ingest window immediately before push — early-fetched items can age
+	// out during a ~60m epoch (Codex P2).
 	const itemsByWl = new Map<number, Map<string, CanonicalItem>>();
 	for (const [handle, items] of itemsByHandle) {
+		const { kept } = filterItemsByWindow(items, windowHours);
+		itemsByHandle.set(handle, kept);
 		for (const wlId of handleMap.get(handle) ?? []) {
 			let bag = itemsByWl.get(wlId);
 			if (!bag) {
 				bag = new Map();
 				itemsByWl.set(wlId, bag);
 			}
-			for (const it of items) if (!bag.has(it.external_id)) bag.set(it.external_id, it);
+			for (const it of kept) if (!bag.has(it.external_id)) bag.set(it.external_id, it);
 		}
 	}
 
@@ -741,7 +769,7 @@ async function main(): Promise<void> {
 				handleErrors: handleErrors.length,
 				pushErrors: 0,
 				totalRejected: 0,
-				handlesPlanned: handleMap.size,
+				handlesPlanned: selected.length,
 				handlesOk: itemsByHandle.size,
 				fatalPush: false,
 			}),
@@ -807,12 +835,13 @@ async function main(): Promise<void> {
 		handleErrors: handleErrors.length,
 		pushErrors,
 		totalRejected,
-		handlesPlanned: handleMap.size,
+		handlesPlanned: selected.length,
 		handlesOk: itemsByHandle.size,
 		fatalPush,
 	});
+	// Incremental no-op (selected empty) is success — do not treat as emptyMaps fail.
 	const emptyMaps =
-		handleMap.size > 0 &&
+		selected.length > 0 &&
 		itemsByHandle.size > 0 &&
 		totalMapped === 0 &&
 		[...itemsByHandle.values()].every((a) => a.length === 0);
