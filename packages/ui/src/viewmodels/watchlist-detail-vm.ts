@@ -2,7 +2,7 @@ import type { SourceType } from "@xray/shared";
 import type { TranslateResult } from "@/api/ai";
 import type { IngestLog, Member, TimelineItem, Watchlist } from "@/api/watchlists";
 import type { MockWatchlistMember } from "@/lib/mock-data";
-import type { Tweet } from "@/lib/tweet-types";
+import type { Tweet, TweetMedia } from "@/lib/tweet-types";
 import { createStore, errMsg } from "./store";
 
 export type SourceFilterValue = "all" | SourceType;
@@ -54,50 +54,192 @@ export function memberToCard(m: Member): MockWatchlistMember {
 	};
 }
 
+type PayloadTweet = {
+	id?: string;
+	text?: string;
+	author_id?: string;
+	created_at?: string;
+	lang?: string;
+	public_metrics?: {
+		retweet_count?: number;
+		like_count?: number;
+		reply_count?: number;
+		quote_count?: number;
+		impression_count?: number;
+		bookmark_count?: number;
+	};
+	attachments?: { media_keys?: string[] };
+	referenced_tweets?: Array<{ type?: string; id?: string }>;
+};
+
+type PayloadMedia = {
+	media_key?: string;
+	type?: string;
+	url?: string;
+	preview_image_url?: string;
+};
+
+type PayloadUser = {
+	id?: string;
+	username?: string;
+	name?: string;
+	profile_image_url?: string;
+	verified?: boolean;
+	public_metrics?: { followers_count?: number };
+};
+
+/** Prefer post `created_at` (RFC3339); never fall back to ingest/collection time here. */
+function postCreatedAtIso(item: TimelineItem, tweetCreatedAt?: string): string {
+	if (typeof tweetCreatedAt === "string" && Number.isFinite(Date.parse(tweetCreatedAt))) {
+		return new Date(tweetCreatedAt).toISOString();
+	}
+	// API column createdAtMs is the post timestamp written at ingest (not ingestedAtMs).
+	if (Number.isFinite(item.createdAtMs) && item.createdAtMs > 0) {
+		return new Date(item.createdAtMs).toISOString();
+	}
+	return new Date(0).toISOString();
+}
+
+function mapMediaType(t: string | undefined): TweetMedia["type"] | null {
+	if (t === "photo" || t === "PHOTO") return "PHOTO";
+	if (t === "video" || t === "VIDEO") return "VIDEO";
+	if (t === "animated_gif" || t === "GIF" || t === "gif") return "GIF";
+	return null;
+}
+
+function mediaFromIncludes(
+	keys: string[] | undefined,
+	includesMedia: PayloadMedia[] | undefined,
+): TweetMedia[] | undefined {
+	if (!keys?.length || !includesMedia?.length) return undefined;
+	const byKey = new Map<string, PayloadMedia>();
+	for (const m of includesMedia) {
+		if (m.media_key) byKey.set(m.media_key, m);
+	}
+	const out: TweetMedia[] = [];
+	for (const key of keys) {
+		const m = byKey.get(key);
+		if (!m) continue;
+		const type = mapMediaType(m.type);
+		const url = typeof m.url === "string" ? m.url : undefined;
+		if (!type || !url) continue;
+		const row: TweetMedia = { id: key, type, url };
+		if (typeof m.preview_image_url === "string" && m.preview_image_url) {
+			row.thumbnail_url = m.preview_image_url;
+		}
+		out.push(row);
+	}
+	return out.length ? out : undefined;
+}
+
+function metricsFromTweet(t: PayloadTweet | undefined): Tweet["metrics"] {
+	const pm = t?.public_metrics;
+	return {
+		retweet_count: pm?.retweet_count ?? 0,
+		like_count: pm?.like_count ?? 0,
+		reply_count: pm?.reply_count ?? 0,
+		quote_count: pm?.quote_count ?? 0,
+		view_count: pm?.impression_count ?? 0,
+		bookmark_count: pm?.bookmark_count ?? 0,
+	};
+}
+
+function resolveAuthor(
+	authorId: string | undefined,
+	users: PayloadUser[],
+	payloadAuthor:
+		| { id?: string; username?: string; display_name?: string; avatar_url?: string }
+		| undefined,
+	item: TimelineItem,
+): Tweet["author"] {
+	const fromIncludes = authorId ? users.find((u) => u.id === authorId) : undefined;
+	const username =
+		fromIncludes?.username || payloadAuthor?.username || item.authorUsername || "unknown";
+	const displayName = fromIncludes?.name || payloadAuthor?.display_name || username;
+	const avatar =
+		fromIncludes?.profile_image_url ||
+		payloadAuthor?.avatar_url ||
+		(username !== "unknown" ? `https://unavatar.io/x/${username}` : undefined);
+	return {
+		id: authorId || fromIncludes?.id || username,
+		username,
+		name: displayName,
+		profile_image_url: avatar,
+		followers_count: fromIncludes?.public_metrics?.followers_count,
+		is_verified: fromIncludes?.verified,
+	};
+}
+
 export function itemToTweet(item: TimelineItem): Tweet | null {
 	if (item.sourceType !== "x.com") return null;
 	const payload = item.payload as {
 		body?: {
-			tweet?: { id?: string; text?: string; author_id?: string };
-			includes?: { users?: Array<{ id?: string; username?: string; name?: string }> };
+			tweet?: PayloadTweet;
+			includes?: {
+				users?: PayloadUser[];
+				media?: PayloadMedia[];
+				tweets?: PayloadTweet[];
+			};
 		};
 		author?: { id?: string; username?: string; display_name?: string; avatar_url?: string };
 	} | null;
 	const t = payload?.body?.tweet;
 	const users = payload?.body?.includes?.users ?? [];
+	const includesMedia = payload?.body?.includes?.media ?? [];
+	const includesTweets = payload?.body?.includes?.tweets ?? [];
 	const authorId = t?.author_id || payload?.author?.id;
-	const fromIncludes = authorId ? users.find((u) => u.id === authorId) : undefined;
-	const username =
-		fromIncludes?.username || payload?.author?.username || item.authorUsername || "unknown";
-	const displayName = fromIncludes?.name || payload?.author?.display_name || username;
-	const avatar =
-		payload?.author?.avatar_url ||
-		(username !== "unknown" ? `https://unavatar.io/x/${username}` : undefined);
+	const author = resolveAuthor(authorId, users, payload?.author, item);
+	const username = author.username;
+	const id = (typeof t?.id === "string" && t.id) || item.externalId;
+	const refs = t?.referenced_tweets ?? [];
+	const is_retweet = refs.some((r) => r.type === "retweeted");
+	const is_quote = refs.some((r) => r.type === "quoted");
+	const replyRef = refs.find((r) => r.type === "replied_to");
+	const is_reply = Boolean(replyRef);
+
+	let quoted_tweet: Tweet | undefined;
+	const quotedRef = refs.find((r) => r.type === "quoted" && r.id);
+	if (quotedRef?.id) {
+		const qt = includesTweets.find((x) => x.id === quotedRef.id);
+		if (qt) {
+			const qAuthorId = qt.author_id;
+			const qAuthor = resolveAuthor(qAuthorId, users, undefined, item);
+			quoted_tweet = {
+				id: qt.id || quotedRef.id,
+				text: typeof qt.text === "string" ? qt.text : "",
+				author: qAuthor,
+				created_at: postCreatedAtIso(item, qt.created_at),
+				url:
+					qAuthor.username !== "unknown"
+						? `https://x.com/${qAuthor.username}/status/${qt.id || quotedRef.id}`
+						: `https://x.com/i/status/${qt.id || quotedRef.id}`,
+				metrics: metricsFromTweet(qt),
+				is_retweet: false,
+				is_quote: false,
+				is_reply: false,
+				media: mediaFromIncludes(qt.attachments?.media_keys, includesMedia),
+			};
+		}
+	}
+
 	return {
-		id: (typeof t?.id === "string" && t.id) || item.externalId,
+		id,
 		text: (typeof t?.text === "string" && t.text) || item.text,
-		author: {
-			id: authorId || username,
-			username,
-			name: displayName,
-			profile_image_url: avatar,
-		},
-		created_at: new Date(item.createdAtMs).toISOString(),
+		author,
+		// Relative UI time = now − post time (payload tweet.created_at / createdAtMs).
+		created_at: postCreatedAtIso(item, t?.created_at),
 		url:
 			username !== "unknown"
-				? `https://x.com/${username}/status/${item.externalId}`
-				: `https://x.com/i/status/${item.externalId}`,
-		metrics: {
-			retweet_count: 0,
-			like_count: 0,
-			reply_count: 0,
-			quote_count: 0,
-			view_count: 0,
-			bookmark_count: 0,
-		},
-		is_retweet: false,
-		is_quote: false,
-		is_reply: false,
+				? `https://x.com/${username}/status/${id}`
+				: `https://x.com/i/status/${id}`,
+		metrics: metricsFromTweet(t),
+		is_retweet,
+		is_quote,
+		is_reply,
+		lang: typeof t?.lang === "string" ? t.lang : undefined,
+		media: mediaFromIncludes(t?.attachments?.media_keys, includesMedia),
+		quoted_tweet,
+		reply_to_id: replyRef?.id,
 	};
 }
 

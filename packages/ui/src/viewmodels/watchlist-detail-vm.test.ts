@@ -196,6 +196,262 @@ describe("createWatchlistDetailVm", () => {
 		expect(t2?.id).toBe("i");
 	});
 
+	test("itemToTweet maps media metrics and prefers post created_at", () => {
+		const postIso = "2026-08-01T12:00:00.000Z";
+		const t = itemToTweet({
+			...item,
+			// deliberate wrong column — payload tweet.created_at must win
+			createdAtMs: Date.parse("2099-01-01T00:00:00.000Z"),
+			ingestedAtMs: Date.parse("2099-01-01T00:00:00.000Z"),
+			payload: {
+				author: { id: "u1", username: "alice", display_name: "Alice" },
+				body: {
+					tweet: {
+						id: "t1",
+						text: "with media",
+						author_id: "u1",
+						created_at: postIso,
+						public_metrics: {
+							like_count: 12,
+							retweet_count: 3,
+							reply_count: 1,
+							quote_count: 0,
+							impression_count: 99,
+							bookmark_count: 2,
+						},
+						attachments: { media_keys: ["m0", "m1", "m2"] },
+						referenced_tweets: [{ type: "quoted", id: "q1" }],
+					},
+					includes: {
+						users: [
+							{
+								id: "u1",
+								username: "alice",
+								name: "Alice",
+								profile_image_url: "https://pbs.twimg.com/a.jpg",
+								verified: true,
+							},
+							{ id: "u2", username: "bob", name: "Bob" },
+						],
+						media: [
+							{ media_key: "m0", type: "photo", url: "https://pbs.twimg.com/media/a.jpg" },
+							{
+								media_key: "m1",
+								type: "video",
+								url: "https://video.twimg.com/v.mp4",
+								preview_image_url: "https://pbs.twimg.com/media/v.jpg",
+							},
+							{
+								media_key: "m2",
+								type: "animated_gif",
+								url: "https://video.twimg.com/g.mp4",
+							},
+						],
+						tweets: [
+							{
+								id: "q1",
+								text: "quoted",
+								author_id: "u2",
+								created_at: "2026-07-01T00:00:00.000Z",
+								attachments: { media_keys: ["m0"] },
+							},
+						],
+					},
+				},
+			},
+		});
+		expect(t?.created_at).toBe(postIso);
+		expect(t?.metrics.like_count).toBe(12);
+		expect(t?.metrics.view_count).toBe(99);
+		expect(t?.media).toHaveLength(3);
+		expect(t?.media?.[0]?.type).toBe("PHOTO");
+		expect(t?.media?.[1]?.type).toBe("VIDEO");
+		expect(t?.media?.[1]?.thumbnail_url).toContain("v.jpg");
+		expect(t?.media?.[2]?.type).toBe("GIF");
+		expect(t?.is_quote).toBe(true);
+		expect(t?.quoted_tweet?.text).toBe("quoted");
+		expect(t?.quoted_tweet?.author.username).toBe("bob");
+		expect(t?.quoted_tweet?.media?.[0]?.type).toBe("PHOTO");
+	});
+
+	test("itemToTweet media edge cases and reply/retweet flags", () => {
+		const t = itemToTweet({
+			...item,
+			createdAtMs: 0,
+			payload: {
+				body: {
+					tweet: {
+						id: "r1",
+						text: "rt",
+						created_at: "not-a-date",
+						attachments: { media_keys: ["missing", "bad", "ok"] },
+						referenced_tweets: [
+							{ type: "retweeted", id: "orig" },
+							{ type: "replied_to", id: "parent" },
+						],
+					},
+					includes: {
+						media: [
+							{ media_key: "bad", type: "unknown", url: "https://x.com/a.jpg" },
+							{ media_key: "ok", type: "PHOTO", url: "https://pbs.twimg.com/ok.jpg" },
+							{ media_key: "nurl", type: "photo" },
+						],
+					},
+				},
+			},
+		});
+		expect(t?.is_retweet).toBe(true);
+		expect(t?.is_reply).toBe(true);
+		expect(t?.reply_to_id).toBe("parent");
+		// invalid tweet.created_at + createdAtMs<=0 → epoch 0
+		expect(t?.created_at).toBe(new Date(0).toISOString());
+		expect(t?.media).toHaveLength(1);
+		expect(t?.media?.[0]?.type).toBe("PHOTO");
+
+		const emptyMedia = itemToTweet({
+			...item,
+			payload: {
+				body: {
+					tweet: { id: "e", text: "e", attachments: { media_keys: ["x"] } },
+					includes: { media: [] },
+				},
+			},
+		});
+		expect(emptyMedia?.media).toBeUndefined();
+
+		const gifAlias = itemToTweet({
+			...item,
+			payload: {
+				body: {
+					tweet: {
+						id: "g",
+						text: "g",
+						created_at: "2026-08-01T00:00:00.000Z",
+						attachments: { media_keys: ["g0"] },
+					},
+					includes: {
+						media: [{ media_key: "g0", type: "gif", url: "https://video.twimg.com/g.mp4" }],
+					},
+				},
+			},
+		});
+		expect(gifAlias?.media?.[0]?.type).toBe("GIF");
+	});
+
+	test("itemToTweet quoted miss and video type aliases", () => {
+		const t = itemToTweet({
+			...item,
+			payload: {
+				body: {
+					tweet: {
+						id: "v1",
+						text: "v",
+						lang: "en",
+						created_at: "2026-08-01T00:00:00.000Z",
+						attachments: { media_keys: ["v0"] },
+						referenced_tweets: [{ type: "quoted", id: "nope" }],
+					},
+					includes: {
+						media: [
+							{
+								media_key: "v0",
+								type: "VIDEO",
+								url: "https://video.twimg.com/v.mp4",
+								preview_image_url: "",
+							},
+						],
+						tweets: [],
+					},
+				},
+			},
+		});
+		expect(t?.is_quote).toBe(true);
+		expect(t?.quoted_tweet).toBeUndefined();
+		expect(t?.lang).toBe("en");
+		expect(t?.media?.[0]?.type).toBe("VIDEO");
+		expect(t?.media?.[0]?.thumbnail_url).toBeUndefined();
+
+		// no media keys
+		const bare = itemToTweet({
+			...item,
+			payload: { body: { tweet: { id: "b", text: "b", created_at: "2026-08-01T00:00:00.000Z" } } },
+		});
+		expect(bare?.media).toBeUndefined();
+
+		// media entries without media_key skipped
+		const skip = itemToTweet({
+			...item,
+			payload: {
+				body: {
+					tweet: {
+						id: "s",
+						text: "s",
+						created_at: "2026-08-01T00:00:00.000Z",
+						attachments: { media_keys: ["k"] },
+					},
+					includes: { media: [{ type: "photo", url: "https://pbs.twimg.com/x.jpg" }] },
+				},
+			},
+		});
+		expect(skip?.media).toBeUndefined();
+	});
+
+	test("itemToTweet quoted author unknown and distributeColumns min height", () => {
+		const t = itemToTweet({
+			...item,
+			authorUsername: null,
+			payload: {
+				body: {
+					tweet: {
+						id: "p",
+						text: "p",
+						created_at: "2026-08-01T00:00:00.000Z",
+						referenced_tweets: [{ type: "quoted", id: "q9" }],
+					},
+					includes: {
+						// no users for quoted author → unknown username → i/status url
+						tweets: [{ id: "q9", text: undefined as unknown as string }],
+					},
+				},
+			},
+		});
+		expect(t?.quoted_tweet?.url).toContain("/i/status/q9");
+		expect(t?.quoted_tweet?.text).toBe("");
+
+		// force quoted id fallback when qt.id missing
+		const t2 = itemToTweet({
+			...item,
+			payload: {
+				body: {
+					tweet: {
+						id: "p2",
+						text: "p2",
+						created_at: "2026-08-01T00:00:00.000Z",
+						referenced_tweets: [{ type: "quoted", id: "only-ref" }],
+					},
+					includes: {
+						users: [{ id: "u9", username: "qx", name: "QX" }],
+						tweets: [{ author_id: "u9", text: "hi" }],
+					},
+				},
+			},
+		});
+		// find by id fails (tweet has no id) → no quoted body
+		expect(t2?.quoted_tweet).toBeUndefined();
+
+		const cols = distributeColumns(
+			[
+				{ ...item, id: 1, text: "a" },
+				{ ...item, id: 2, text: "b".repeat(400) },
+				{ ...item, id: 3, text: "c" },
+				{ ...item, id: 4, text: "d".repeat(200) },
+			],
+			3,
+		);
+		expect(cols).toHaveLength(3);
+		expect(cols.flat()).toHaveLength(4);
+	});
+
 	test("load/loadMore/translate/remove errors + filter reload", async () => {
 		const api = {
 			fetchWatchlist: vi.fn().mockRejectedValueOnce(new Error("L")).mockResolvedValue(wl),
