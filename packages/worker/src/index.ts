@@ -23,6 +23,7 @@ import { ingestPushRoute } from "./routes/ingest-push.js";
 import { deleteItemRoute, listItemsRoute } from "./routes/items.js";
 import { liveRoute } from "./routes/live.js";
 import { meRoute } from "./routes/me.js";
+import { mediaProxyRoute } from "./routes/media-proxy.js";
 import { getSettingsRoute, patchSettingsRoute } from "./routes/settings.js";
 import { createTokenRoute, listTokensRoute, revokeTokenRoute } from "./routes/tokens.js";
 import { translateWatchlistRoute } from "./routes/translate.js";
@@ -74,6 +75,7 @@ app.use("/api/*", originCheck);
 
 app.get("/api/live", liveRoute);
 app.get("/api/me", meRoute);
+app.get("/api/media/proxy", mediaProxyRoute);
 
 app.get("/api/watchlists", listWatchlistsRoute);
 app.post("/api/watchlists", createWatchlistRoute);
