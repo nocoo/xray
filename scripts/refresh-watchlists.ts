@@ -219,9 +219,13 @@ function acquireEpochLock(lockPath: string): void {
 		}
 	};
 	if (tryCreate()) return;
+	let inspectedPid: number | null = null;
+	let inspectedAt: number | null = null;
 	try {
 		const raw = JSON.parse(readFileSync(lockPath, "utf8")) as { pid?: number; at?: number };
 		const pid = raw.pid;
+		inspectedPid = typeof pid === "number" ? pid : null;
+		inspectedAt = typeof raw.at === "number" ? raw.at : null;
 		if (typeof pid === "number" && pid > 0) {
 			try {
 				process.kill(pid, 0);
@@ -239,13 +243,15 @@ function acquireEpochLock(lockPath: string): void {
 				// ESRCH — stale
 			}
 		}
-		unlinkSync(lockPath);
-	} catch {
+		// Only remove if still the same lock we inspected (avoid unlinking a peer's new lock).
 		try {
-			unlinkSync(lockPath);
+			const again = JSON.parse(readFileSync(lockPath, "utf8")) as { pid?: number; at?: number };
+			if (again.pid === inspectedPid && again.at === inspectedAt) unlinkSync(lockPath);
 		} catch {
-			/* ignore */
+			/* gone */
 		}
+	} catch {
+		/* corrupt — try exclusive create again without unlink race */
 	}
 	if (!tryCreate()) {
 		console.error(JSON.stringify({ event: "epoch_lock_race", lockPath }));
@@ -738,6 +744,26 @@ async function main(): Promise<void> {
 					}),
 				);
 				await sleep(wait);
+			}
+			// Re-check after sleep (suspend / stall can cross epochEndMs).
+			if (Date.now() > epochEndMs) {
+				for (const s of queue) {
+					permanentlyFailed.add(s.handle);
+					handleErrors.push({
+						handle: s.handle,
+						error: "dropped: epoch ended during schedule_wait",
+						kind: "epoch_overflow",
+						durationMs: 0,
+					});
+				}
+				console.warn(
+					JSON.stringify({
+						event: "epoch_timeout_after_wait",
+						remaining: queue.length,
+						handles: queue.map((s) => s.handle),
+					}),
+				);
+				break;
 			}
 			queue = queue.slice(1);
 			completed += 1;
