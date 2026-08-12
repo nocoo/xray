@@ -16,6 +16,8 @@ bun run refresh:watchlists --
 
 Reset token: mint via UI or wrangler D1 (`push_tokens` hash from `mintPushToken()`), rewrite `~/.config/xray/push.env`. Details: `docs/09-local-producer-twitter-cli.md`.
 
+Agent/cron orchestration (preflight, token mint, graph ids, report): `skills/xray-refresh-watchlists/SKILL.md`. Always run the script above — do not reimplement fetch/push.
+
 ## Release
 
 Version is managed in `package.json` (single source of truth). Versioning follows SemVer: X (major/breaking), Y (minor/feature), Z (patch/fix). Default bump is Z+1.
