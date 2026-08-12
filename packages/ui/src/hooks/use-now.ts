@@ -14,6 +14,8 @@ function emit() {
 
 function start() {
 	if (intervalId != null || typeof window === "undefined") return;
+	// Refresh immediately so a remount after idle does not show a frozen clock.
+	nowMs = Date.now();
 	intervalId = window.setInterval(emit, intervalMs);
 }
 

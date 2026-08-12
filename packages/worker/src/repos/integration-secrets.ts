@@ -52,6 +52,10 @@ export function assertZhetoWebhookUrl(url: string, allowHosts?: string[]): void 
 	if (parsed.search || parsed.hash) {
 		throw new IntegrationValidationError("webhookUrl must not include query or fragment");
 	}
+	// Default https port only (reject :8443 etc.)
+	if (parsed.port !== "" && parsed.port !== "443") {
+		throw new IntegrationValidationError("webhookUrl must use default https port");
+	}
 
 	const host = parsed.hostname.toLowerCase();
 	if (allowHosts && allowHosts.length > 0) {

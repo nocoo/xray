@@ -93,6 +93,9 @@ describe("integration-secrets zheto", () => {
 			/credentials/,
 		);
 		expect(() => assertZhetoWebhookUrl("not a url at all")).toThrow(/invalid/);
+		expect(() => assertZhetoWebhookUrl("https://zhe.to:8443/api/webhook/tok")).toThrow(
+			/default https port/,
+		);
 
 		const db = memDb();
 		const env = { XRAY_SECRETS_KEK: KEK, XRAY_SECRETS_KEY_VERSION: "1" };
