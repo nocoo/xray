@@ -235,25 +235,30 @@ export function selectHandlesForEpoch(input: {
  * After a long 429 pause, pending slots may all sit in the past — starting them
  * back-to-back would violate minGap. Shift the queue so the first start is
  * >= nowMs and consecutive gaps stay >= minGapMs.
+ * Handles that cannot start before epochEndMs are listed in `dropped`.
  */
 export function rebaseScheduleQueue(input: {
 	queue: ScheduleSlot[];
 	nowMs: number;
 	minGapMs: number;
 	epochEndMs: number;
-}): ScheduleSlot[] {
+}): { queue: ScheduleSlot[]; dropped: string[] } {
 	const minGap = Math.max(0, input.minGapMs);
-	if (!input.queue.length) return [];
+	if (!input.queue.length) return { queue: [], dropped: [] };
 	const out: ScheduleSlot[] = [];
+	const dropped: string[] = [];
 	let prevAt = input.nowMs - minGap;
 	for (const s of input.queue) {
 		const at = Math.max(s.atMs, prevAt + minGap, input.nowMs);
 		if (at > input.epochEndMs) {
-			// Drop slots that can no longer start inside the epoch
+			dropped.push(s.handle);
 			continue;
 		}
 		out.push({ handle: s.handle, atMs: Math.round(at), index: -1 });
 		prevAt = at;
 	}
-	return out.map((s, index) => ({ ...s, index }));
+	return {
+		queue: out.map((s, index) => ({ ...s, index })),
+		dropped,
+	};
 }

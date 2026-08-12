@@ -298,7 +298,7 @@ describe("buildRefreshSchedule edge branches", () => {
 	});
 
 	test("rebaseScheduleQueue enforces minGap after pause", () => {
-		const q = rebaseScheduleQueue({
+		const { queue: q, dropped } = rebaseScheduleQueue({
 			queue: [
 				{ handle: "a", atMs: 100, index: 0 },
 				{ handle: "b", atMs: 200, index: 1 },
@@ -308,6 +308,7 @@ describe("buildRefreshSchedule edge branches", () => {
 			minGapMs: 5_000,
 			epochEndMs: 100_000,
 		});
+		expect(dropped).toEqual([]);
 		expect(q[0]?.atMs).toBeGreaterThanOrEqual(10_000);
 		const a = q[0];
 		const b = q[1];
@@ -315,7 +316,7 @@ describe("buildRefreshSchedule edge branches", () => {
 	});
 
 	test("rebase drops slots past epoch end", () => {
-		const q = rebaseScheduleQueue({
+		const { queue: q, dropped } = rebaseScheduleQueue({
 			queue: [
 				{ handle: "a", atMs: 100, index: 0 },
 				{ handle: "b", atMs: 200, index: 1 },
@@ -326,11 +327,13 @@ describe("buildRefreshSchedule edge branches", () => {
 		});
 		// a at 50k ok; b would need 60k > 55k → drop
 		expect(q.map((s) => s.handle)).toEqual(["a"]);
+		expect(dropped).toEqual(["b"]);
 	});
 
 	test("rebase empty queue", () => {
-		expect(rebaseScheduleQueue({ queue: [], nowMs: 0, minGapMs: 1000, epochEndMs: 1000 })).toEqual(
-			[],
-		);
+		expect(rebaseScheduleQueue({ queue: [], nowMs: 0, minGapMs: 1000, epochEndMs: 1000 })).toEqual({
+			queue: [],
+			dropped: [],
+		});
 	});
 });
