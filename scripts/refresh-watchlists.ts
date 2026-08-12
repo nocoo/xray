@@ -205,144 +205,142 @@ function loadLastSuccessMs(path: string): Record<string, number> {
 	}
 }
 
-/** Locks older than this are stale even if kill(pid,0) succeeds (PID reuse). */
-const EPOCH_LOCK_MAX_AGE_MS = 2 * 60 * 60_000;
-
-function parseLockBody(content: string): { pid: number | null; at: number | null } {
-	try {
-		const raw = JSON.parse(content) as { pid?: number; at?: number };
-		return {
-			pid: typeof raw.pid === "number" ? raw.pid : null,
-			at: typeof raw.at === "number" ? raw.at : null,
-		};
-	} catch {
-		return { pid: null, at: null };
-	}
-}
-
-/** true = process exists (busy); false = gone → stale candidate. EPERM = busy. */
-function pidLooksAlive(pid: number | null): boolean {
-	if (pid == null || pid <= 0) return false;
-	try {
-		process.kill(pid, 0);
-		return true;
-	} catch (e) {
-		const err = e as { code?: string };
-		// EPERM: pid exists but we cannot signal it — treat as busy, never steal.
-		if (err.code === "EPERM") return true;
-		return false; // ESRCH etc.
-	}
-}
-
-function lockIsStale(content: string, nowMs: number): boolean {
-	const { pid, at } = parseLockBody(content);
-	// Malformed JSON → stale
-	try {
-		JSON.parse(content);
-	} catch {
-		return true;
-	}
-	if (at != null && nowMs - at > EPOCH_LOCK_MAX_AGE_MS) return true;
-	if (!pidLooksAlive(pid)) return true;
-	return false;
-}
-
 /**
- * Exclusive epoch lock via O_EXCL create. Stale takeover only renames after a
- * byte-identical re-read so a peer's fresh lock is never stolen (Codex RS-01).
+ * OS-held exclusive lock via python3 fcntl.flock (true advisory lock; no rename CAS).
+ * Helper process holds LOCK_EX until stdin EOF or parent pid dies (2s poll).
  */
-function acquireEpochLock(lockPath: string): void {
+const EPOCH_FLOCK_HELPER = `
+import fcntl, json, os, select, sys, time
+path, parent = sys.argv[1], int(sys.argv[2])
+fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
+try:
+    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+except BlockingIOError:
+    sys.stderr.write(json.dumps({"event": "epoch_lock_busy", "lockPath": path, "hint": "another refresh holds flock"}) + "\\n")
+    sys.exit(3)
+except OSError as e:
+    # errno 11 EAGAIN / 35 EWOULDBLOCK (macOS)
+    if getattr(e, "errno", None) in (11, 35):
+        sys.stderr.write(json.dumps({"event": "epoch_lock_busy", "lockPath": path, "hint": "another refresh holds flock"}) + "\\n")
+        sys.exit(3)
+    raise
+body = json.dumps({"pid": parent, "at": int(time.time() * 1000)})
+os.ftruncate(fd, 0)
+os.lseek(fd, 0, os.SEEK_SET)
+os.write(fd, body.encode())
+os.fsync(fd)
+sys.stdout.write("LOCKED\\n")
+sys.stdout.flush()
+# Hold until parent dies or parent closes/writes stdin (explicit release).
+while True:
+    try:
+        os.kill(parent, 0)
+    except ProcessLookupError:
+        break
+    except PermissionError:
+        pass
+    r, _, _ = select.select([sys.stdin], [], [], 2.0)
+    if not r:
+        continue
+    chunk = os.read(sys.stdin.fileno(), 4096)
+    # EOF (pipe closed) or any byte = release
+    break
+try:
+    fcntl.flock(fd, fcntl.LOCK_UN)
+except OSError:
+    pass
+os.close(fd)
+try:
+    os.unlink(path)
+except FileNotFoundError:
+    pass
+`;
+
+type EpochLockHolder = {
+	proc: ReturnType<typeof Bun.spawn>;
+	lockPath: string;
+};
+
+let epochLockHolder: EpochLockHolder | null = null;
+
+async function acquireEpochLock(lockPath: string): Promise<void> {
 	mkdirSync(join(lockPath, ".."), { recursive: true });
-	const body = JSON.stringify({ pid: process.pid, at: Date.now() }, null, 2);
-	const tryCreate = (): boolean => {
-		try {
-			writeFileSync(lockPath, body, { flag: "wx" });
-			return true;
-		} catch (e) {
-			const err = e as { code?: string };
-			if (err.code !== "EEXIST") throw e;
-			return false;
-		}
-	};
+	let proc: ReturnType<typeof Bun.spawn>;
+	try {
+		proc = Bun.spawn(["python3", "-c", EPOCH_FLOCK_HELPER, lockPath, String(process.pid)], {
+			stdin: "pipe",
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+	} catch (e) {
+		console.error(
+			JSON.stringify({
+				event: "epoch_lock_error",
+				error: e instanceof Error ? e.message : String(e),
+				hint: "python3 required for epoch flock",
+			}),
+		);
+		process.exit(3);
+	}
 
-	for (let attempt = 0; attempt < 8; attempt++) {
-		if (tryCreate()) return;
+	const reader = proc.stdout.getReader();
+	const dec = new TextDecoder();
+	let buf = "";
+	const deadline = Date.now() + 5_000;
+	try {
+		while (!buf.includes("\n") && Date.now() < deadline) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			buf += dec.decode(value, { stream: true });
+		}
+	} catch {
+		/* fall through */
+	}
 
-		let content: string;
+	if (!buf.startsWith("LOCKED")) {
+		let errText = "";
 		try {
-			content = readFileSync(lockPath, "utf8");
-		} catch {
-			// disappeared between EEXIST and read
-			continue;
-		}
-
-		if (!lockIsStale(content, Date.now())) {
-			const { pid, at } = parseLockBody(content);
-			console.error(
-				JSON.stringify({
-					event: "epoch_lock_busy",
-					lockPath,
-					pid,
-					at,
-					hint: "another refresh is running; wait or remove stale lock after 2h",
-				}),
-			);
-			process.exit(3);
-		}
-
-		// Re-read: only rename if bytes still match the stale snapshot we judged.
-		let content2: string;
-		try {
-			content2 = readFileSync(lockPath, "utf8");
-		} catch {
-			continue;
-		}
-		if (content2 !== content) {
-			// Peer replaced the lock — re-evaluate from scratch
-			continue;
-		}
-		if (!lockIsStale(content2, Date.now())) {
-			const { pid, at } = parseLockBody(content2);
-			console.error(
-				JSON.stringify({
-					event: "epoch_lock_busy",
-					lockPath,
-					pid,
-					at,
-					hint: "another refresh is running; wait or remove stale lock after 2h",
-				}),
-			);
-			process.exit(3);
-		}
-
-		const { pid, at } = parseLockBody(content2);
-		const staleName = `${lockPath}.stale.${pid ?? "bad"}.${at ?? 0}.${process.pid}.${attempt}`;
-		try {
-			renameSync(lockPath, staleName);
-		} catch {
-			// Peer renamed first — loop
-			continue;
-		}
-		try {
-			unlinkSync(staleName);
+			errText = await new Response(proc.stderr).text();
 		} catch {
 			/* ignore */
 		}
-		// path free — loop to wx-create
+		const code = await proc.exited;
+		let parsed: { event?: string; hint?: string } | null = null;
+		try {
+			parsed = JSON.parse(errText.trim().split("\n").pop() || "{}") as {
+				event?: string;
+				hint?: string;
+			};
+		} catch {
+			/* ignore */
+		}
+		console.error(
+			JSON.stringify({
+				event: parsed?.event ?? "epoch_lock_busy",
+				lockPath,
+				exitCode: code,
+				hint: parsed?.hint ?? "another refresh is running or python3 flock failed",
+				stderr: errText.slice(0, 400) || undefined,
+			}),
+		);
+		process.exit(3);
 	}
 
-	console.error(JSON.stringify({ event: "epoch_lock_race", lockPath }));
-	process.exit(3);
+	// Keep helper alive; do not cancel reader/process until release.
+	epochLockHolder = { proc, lockPath };
 }
 
-function releaseEpochLock(lockPath: string): void {
+function releaseEpochLock(_lockPath?: string): void {
+	const holder = epochLockHolder;
+	epochLockHolder = null;
+	if (!holder) return;
 	try {
-		if (!existsSync(lockPath)) return;
-		const raw = JSON.parse(readFileSync(lockPath, "utf8")) as { pid?: number };
-		if (raw.pid === process.pid) unlinkSync(lockPath);
+		holder.proc.stdin?.end();
 	} catch {
 		/* ignore */
 	}
+	// Best-effort: do not block shutdown on helper exit.
+	void holder.proc.exited.catch(() => undefined);
 }
 
 async function loadGraph(): Promise<Graph> {
@@ -550,7 +548,7 @@ async function main(): Promise<void> {
 	}
 
 	const lockPath = join(cacheDir, "epoch.lock");
-	acquireEpochLock(lockPath);
+	await acquireEpochLock(lockPath);
 	const releaseLock = () => releaseEpochLock(lockPath);
 	process.on("exit", releaseLock);
 	process.on("SIGINT", () => {
