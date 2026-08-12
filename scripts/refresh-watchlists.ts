@@ -4,6 +4,7 @@
  * Default adapter: twitter-cli (createTwitterCliSource). Swap adapter to replace vendor.
  *
  * Docs: docs/09-local-producer-twitter-cli.md § boundary
+ * Schedule: docs/10-refresh-schedule.md
  */
 import {
 	existsSync,
@@ -19,14 +20,21 @@ import {
 	assertAllowedBaseUrl,
 	atomicWriteJson,
 	buildIngestBatches,
+	buildRefreshSchedule,
 	type CanonicalItem,
 	cacheFileBase,
 	createTwitterCliSource,
+	DEFAULT_MIN_GAP_MS,
+	DEFAULT_SPREAD_WINDOW_MS,
+	deferHandleInSchedule,
 	exitCodeForRefresh,
 	filterItemsByWindow,
 	isValidXHandle,
 	parseMembersGraph,
 	pushIngestBatch,
+	rateLimitPauseMs,
+	type ScheduleSlot,
+	selectHandlesForEpoch,
 	type XTimelineSource,
 } from "../packages/shared/src/index.ts";
 
@@ -50,6 +58,10 @@ try {
 			"browser-base": { type: "string" },
 			"twitter-bin": { type: "string" },
 			"handle-delay-ms": { type: "string" },
+			"spread-window-min": { type: "string" },
+			"min-gap-ms": { type: "string" },
+			"no-spread": { type: "boolean", default: false },
+			"refresh-mode": { type: "string" },
 		},
 		allowPositionals: true,
 		strict: true,
@@ -80,12 +92,17 @@ Options:
   --ingest-base URL   Default https://xray-ingest.hexly.ai (allowlisted)
   --browser-base URL  Live graph (optional if members-file set)
   --twitter-bin PATH  Default TWITTER_BIN or twitter
-  --handle-delay-ms N Sleep between twitter calls (default 3000)
+  --spread-window-min N  Spread starts across N minutes (default 60). See docs/10.
+  --min-gap-ms N      Min gap between handle starts (default 12000)
+  --no-spread         Legacy fixed-delay mode (use with --handle-delay-ms)
+  --handle-delay-ms N Legacy: fixed sleep between calls (implies --no-spread if set)
+  --refresh-mode MODE full|incremental (default full; incremental uses last-success age)
 
 Env: XRAY_PUSH_TOKEN, XRAY_MEMBERS_FILE, XRAY_BROWSER_BASE, XRAY_CF_AUTHORIZATION,
      XRAY_INGEST_BASE, XRAY_WINDOW_HOURS, XRAY_TWITTER_MAX, TWITTER_BIN
 
 Notes:
+  Default: shuffle handles and spread starts over 60 minutes (docs/10-refresh-schedule.md).
   Default always re-fetches twitter. Use --from-cache offline.
   twitter-cli may page until --max; we do not add our own cursor loop.
 
@@ -101,7 +118,19 @@ const cacheOnly = Boolean(values["cache-only"]);
 const fromCache = Boolean(values["from-cache"]);
 const windowHours = clampInt(values["window-hours"] ?? env("XRAY_WINDOW_HOURS"), 24, 1, 168);
 const twitterMax = clampInt(values.max ?? env("XRAY_TWITTER_MAX"), 20, 1, 100);
+const handleDelayExplicit =
+	values["handle-delay-ms"] !== undefined && values["handle-delay-ms"] !== "";
+const noSpread = Boolean(values["no-spread"]) || handleDelayExplicit;
 const handleDelayMs = clampInt(values["handle-delay-ms"], 3000, 0, 60_000);
+const spreadWindowMin = clampInt(values["spread-window-min"], 60, 1, 24 * 60);
+const minGapMs = clampInt(values["min-gap-ms"], DEFAULT_MIN_GAP_MS, 0, 600_000);
+const refreshModeRaw = (values["refresh-mode"] ?? env("XRAY_REFRESH_MODE") ?? "full").toLowerCase();
+if (refreshModeRaw !== "full" && refreshModeRaw !== "incremental") {
+	console.error(`invalid --refresh-mode ${refreshModeRaw} (want full|incremental)`);
+	process.exit(2);
+}
+const refreshMode = refreshModeRaw as "full" | "incremental";
+const spreadWindowMs = noSpread ? 0 : spreadWindowMin * 60_000 || DEFAULT_SPREAD_WINDOW_MS;
 const ingestBase = assertAllowedBaseUrl(
 	values["ingest-base"] ?? env("XRAY_INGEST_BASE") ?? "https://xray-ingest.hexly.ai",
 	"ingest",
@@ -158,6 +187,21 @@ function clampInt(raw: string | undefined, fallback: number, min: number, max: n
 
 function sleep(ms: number): Promise<void> {
 	return new Promise((r) => setTimeout(r, ms));
+}
+
+function loadLastSuccessMs(path: string): Record<string, number> {
+	try {
+		if (!existsSync(path)) return {};
+		const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
+		if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+		const out: Record<string, number> = {};
+		for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+			if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+		}
+		return out;
+	} catch {
+		return {};
+	}
 }
 
 async function loadGraph(): Promise<Graph> {
@@ -285,6 +329,25 @@ async function main(): Promise<void> {
 	const graph = await loadGraph();
 	const handleMap = uniqueHandles(graph);
 	const wlById = new Map(graph.watchlists.map((w) => [w.id, w]));
+	const lastSuccessPath = join(cacheDir, "last-success.json");
+	const lastSuccessMs = loadLastSuccessMs(lastSuccessPath);
+	const selected = selectHandlesForEpoch({
+		allHandles: [...handleMap.keys()],
+		mode: refreshMode,
+		lastSuccessMs,
+		nowMs: Date.now(),
+	});
+	const epochStartMs = Date.now();
+	const schedule = noSpread
+		? null
+		: buildRefreshSchedule({
+				handles: selected,
+				startMs: epochStartMs,
+				epochMs: spreadWindowMs || DEFAULT_SPREAD_WINDOW_MS,
+				minGapMs,
+			});
+	const epochEndMs =
+		epochStartMs + (schedule?.epochMs ?? (spreadWindowMs || DEFAULT_SPREAD_WINDOW_MS));
 
 	console.log(
 		JSON.stringify(
@@ -293,11 +356,20 @@ async function main(): Promise<void> {
 				source: source.id,
 				watchlists: graph.watchlists.length,
 				uniqueHandles: handleMap.size,
+				selectedHandles: selected.length,
+				refreshMode,
 				windowHours,
 				twitterMax,
 				dryRun,
 				cacheOnly,
 				fromCache,
+				noSpread,
+				handleDelayMs: noSpread ? handleDelayMs : undefined,
+				spreadWindowMin: noSpread ? undefined : spreadWindowMin,
+				minGapMs: noSpread ? undefined : minGapMs,
+				idealSlotMs: schedule?.idealSlotMs,
+				epochMs: schedule?.epochMs ?? (noSpread ? undefined : spreadWindowMs),
+				epochExpanded: schedule?.epochExpanded,
 				ingestBase,
 				cacheDir,
 			},
@@ -307,7 +379,13 @@ async function main(): Promise<void> {
 	);
 
 	if (dryRun) {
-		for (const [h, wls] of handleMap) console.log(`  @${h} → WL ${wls.join(",")}`);
+		for (const [h, wls] of handleMap) {
+			const on = selected.includes(h) ? "selected" : "skip";
+			console.log(`  @${h} → WL ${wls.join(",")} (${on})`);
+		}
+		if (schedule) {
+			console.log(JSON.stringify({ event: "schedule_preview", slots: schedule.slots }, null, 2));
+		}
 		process.exit(0);
 	}
 
@@ -328,27 +406,31 @@ async function main(): Promise<void> {
 		durationMs: number;
 		debug?: unknown;
 		debugPath?: string;
+		deferred?: boolean;
 	};
 	const handleErrors: HandleErrorRow[] = [];
+	const permanentlyFailed = new Set<string>();
 	let totalMapped = 0;
 	let totalSkipped = 0;
 	let totalWindowDropped = 0;
 	const debugDir = join(cacheDir, "debug");
 	mkdirSync(debugDir, { recursive: true });
 
-	let i = 0;
-	for (const handle of handleMap.keys()) {
-		i += 1;
+	async function fetchOne(
+		handle: string,
+		i: number,
+		total: number,
+	): Promise<"ok" | "fatal" | "rate_limited" | "failed"> {
 		const t0 = Date.now();
 		try {
 			console.log(
 				JSON.stringify({
 					event: "fetch_start",
 					i,
-					total: handleMap.size,
+					total,
 					handle,
 					fromCache,
-					handleDelayMs,
+					mode: noSpread ? "fixed-delay" : "spread",
 				}),
 			);
 			const rawPath = rawPathFor(source.id, handle);
@@ -379,6 +461,7 @@ async function main(): Promise<void> {
 			const { kept, dropped } = filterItemsByWindow(result.items, windowHours);
 			totalWindowDropped += dropped;
 			itemsByHandle.set(handle, kept);
+			lastSuccessMs[handle] = Date.now();
 			writeFileSync(
 				join(cacheDir, "raw", `${cacheFileBase(handle)}.canonical.json`),
 				JSON.stringify(kept, null, 2),
@@ -394,6 +477,7 @@ async function main(): Promise<void> {
 					windowDropped: dropped,
 				}),
 			);
+			return "ok";
 		} catch (e) {
 			const durationMs = Date.now() - t0;
 			const msg = e instanceof Error ? e.message : String(e);
@@ -412,7 +496,7 @@ async function main(): Promise<void> {
 				event: "fetch_error",
 				handle,
 				i,
-				total: handleMap.size,
+				total,
 				durationMs,
 				kind: kind ?? "unknown",
 				rateLimited,
@@ -437,7 +521,6 @@ async function main(): Promise<void> {
 				debugPath,
 			});
 
-			// Full multi-line operator message + structured debug on stderr
 			console.error(`  ERROR @${handle} (${durationMs}ms) kind=${kind ?? "unknown"}`);
 			console.error(msg);
 			console.error(
@@ -456,21 +539,127 @@ async function main(): Promise<void> {
 				),
 			);
 
-			if (kind === "not_installed" || kind === "not_authenticated") {
+			if (kind === "not_installed" || kind === "not_authenticated") return "fatal";
+			if (rateLimited) return "rate_limited";
+			return "failed";
+		}
+	}
+
+	if (noSpread || fromCache) {
+		// Legacy fixed-delay path (or offline cache: no need to spread)
+		let i = 0;
+		const list = selected;
+		for (const handle of list) {
+			i += 1;
+			const status = await fetchOne(handle, i, list.length);
+			if (status === "fatal") {
 				console.error(
 					`\nAborting remaining handles — fix ${source.id} install/login, or use --from-cache.`,
 				);
 				break;
 			}
-			if (rateLimited) {
-				console.warn("  cooling 60s after rate limit…");
-				await sleep(60_000);
+			if (status === "rate_limited") {
+				const pause = rateLimitPauseMs({ nowMs: Date.now(), epochEndMs: Date.now() + 600_000 });
+				console.warn(JSON.stringify({ event: "rate_limit_pause", ms: pause, handle }));
+				await sleep(pause);
+			}
+			if (!fromCache && handleDelayMs > 0 && i < list.length) {
+				console.log(JSON.stringify({ event: "handle_delay", ms: handleDelayMs, after: handle }));
+				await sleep(handleDelayMs);
 			}
 		}
-		if (!fromCache && handleDelayMs > 0 && i < handleMap.size) {
-			console.log(JSON.stringify({ event: "handle_delay", ms: handleDelayMs, after: handle }));
-			await sleep(handleDelayMs);
+	} else {
+		// 60min (default) spread schedule
+		let queue: ScheduleSlot[] = (schedule?.slots ?? []).slice();
+		const planned = queue.length;
+		let completed = 0;
+		const deferredOnce = new Set<string>();
+
+		console.log(
+			JSON.stringify({
+				event: "schedule",
+				planned,
+				epochStartMs,
+				epochEndMs,
+				epochMs: schedule?.epochMs,
+				minGapMs,
+				idealSlotMs: schedule?.idealSlotMs,
+				firstAt: queue[0]?.atMs,
+				lastAt: queue[queue.length - 1]?.atMs,
+			}),
+		);
+
+		while (queue.length) {
+			const slot = queue[0];
+			if (!slot) break;
+			const wait = slot.atMs - Date.now();
+			if (wait > 0) {
+				console.log(
+					JSON.stringify({
+						event: "schedule_wait",
+						handle: slot.handle,
+						waitMs: wait,
+						atMs: slot.atMs,
+					}),
+				);
+				await sleep(wait);
+			}
+			queue = queue.slice(1);
+			completed += 1;
+			const status = await fetchOne(slot.handle, completed, planned);
+			if (status === "fatal") {
+				console.error(
+					`\nAborting remaining handles — fix ${source.id} install/login, or use --from-cache.`,
+				);
+				break;
+			}
+			if (status === "rate_limited") {
+				const now = Date.now();
+				const pause = rateLimitPauseMs({ nowMs: now, epochEndMs });
+				console.warn(
+					JSON.stringify({
+						event: "rate_limit_pause",
+						ms: pause,
+						handle: slot.handle,
+						deferredOnce: deferredOnce.has(slot.handle),
+					}),
+				);
+				await sleep(pause);
+				if (!deferredOnce.has(slot.handle)) {
+					deferredOnce.add(slot.handle);
+					const before = queue.length;
+					queue = deferHandleInSchedule({
+						remaining: queue,
+						handle: slot.handle,
+						notBeforeMs: Date.now() + 1_000,
+						minGapMs,
+						epochEndMs,
+					});
+					const fitted = queue.some((s) => s.handle === slot.handle);
+					console.log(
+						JSON.stringify({
+							event: "schedule_defer",
+							handle: slot.handle,
+							fitted,
+							queueBefore: before,
+							queueAfter: queue.length,
+						}),
+					);
+					if (!fitted) permanentlyFailed.add(slot.handle);
+					// mark last error as deferred when re-queued
+					const last = handleErrors[handleErrors.length - 1];
+					if (last && last.handle === slot.handle) last.deferred = fitted;
+				} else {
+					permanentlyFailed.add(slot.handle);
+				}
+			}
 		}
+	}
+
+	try {
+		writeFileSync(lastSuccessPath, JSON.stringify(lastSuccessMs, null, 2));
+	} catch {
+		/* ignore */
 	}
 
 	const itemsByWl = new Map<number, Map<string, CanonicalItem>>();
@@ -494,14 +683,22 @@ async function main(): Promise<void> {
 		const report = {
 			event: cacheOnly ? "cache_only_done" : "refresh_done",
 			windowHours,
-			handleDelayMs,
+			refreshMode,
+			noSpread,
+			handleDelayMs: noSpread ? handleDelayMs : undefined,
+			spreadWindowMin: noSpread ? undefined : spreadWindowMin,
+			minGapMs: noSpread ? undefined : minGapMs,
+			epochStartMs,
+			epochEndMs,
 			fromCache,
 			cacheOnly,
+			selectedHandles: selected.length,
 			totalMapped,
 			totalSkipped,
 			totalWindowDropped,
 			totalRejected,
 			handleErrors,
+			permanentlyFailed: [...permanentlyFailed],
 			pushErrors,
 			summary,
 			debugDir,

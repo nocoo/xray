@@ -248,13 +248,16 @@ export XRAY_TWITTER_MAX=20          # natural page; do not crank to “fill”
 export XRAY_CACHE_DIR=.cache/twitter-cli
 export TWITTER_BIN=twitter
 
-# 3. Run
+# 3. Run (pacing: docs/10-refresh-schedule.md — default 60min spread)
 bun run refresh:watchlists -- --help
-bun run refresh:watchlists -- --dry-run     # resolve graph + plan only (no twitter/no push)
+bun run refresh:watchlists -- --dry-run     # resolve graph + schedule preview
 bun run refresh:watchlists -- --cache-only  # fetch+cache+convert, no push
-bun run refresh:watchlists --               # full: always re-fetch → cache → convert → push
+bun run refresh:watchlists --               # full: 60min spread → cache → convert → push
 bun run refresh:watchlists -- --from-cache  # offline: reuse raw JSON only, convert + push
+bun run refresh:watchlists -- --refresh-mode incremental
 ```
+
+Scheduling details (epoch, min-gap, 429 defer): **[10-refresh-schedule.md](10-refresh-schedule.md)**.
 
 Pipeline stages:
 

@@ -27,6 +27,24 @@ export {
 } from "./producer-core.js";
 export type { FetchFn, PushBatchDeps, PushBatchResult } from "./producer-push.js";
 export { pushIngestBatch } from "./producer-push.js";
+export type {
+	BuildRefreshScheduleInput,
+	BuildRefreshScheduleResult,
+	ScheduleSlot,
+} from "./producer-schedule.js";
+export {
+	buildRefreshSchedule,
+	DEFAULT_429_PAUSE_MAX_MS,
+	DEFAULT_429_PAUSE_MIN_MS,
+	DEFAULT_JITTER_RATIO,
+	DEFAULT_MAX_JITTER_MS,
+	DEFAULT_MIN_GAP_MS,
+	DEFAULT_SPREAD_WINDOW_MS,
+	deferHandleInSchedule,
+	rateLimitPauseMs,
+	selectHandlesForEpoch,
+	shuffleHandles,
+} from "./producer-schedule.js";
 /** @deprecated use createTwitterCliSource */
 export type {
 	SpawnFn,
