@@ -391,7 +391,6 @@ export function WatchlistDetailPage() {
 				open={activityOpen}
 				onClose={() => setActivityOpen(false)}
 				title="Activity"
-				width="w-full max-w-96"
 				data-testid="activity-panel"
 			>
 				<div className="flex h-full flex-col" data-testid="ingest-logs">
