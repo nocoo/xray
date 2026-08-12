@@ -627,12 +627,30 @@ async function main(): Promise<void> {
 				);
 				await sleep(pause);
 				// Past slots must not fire back-to-back after a multi-minute pause (Codex P1).
-				queue = rebaseScheduleQueue({
+				const rebased = rebaseScheduleQueue({
 					queue,
 					nowMs: Date.now(),
 					minGapMs,
 					epochEndMs,
 				});
+				queue = rebased.queue;
+				for (const h of rebased.dropped) {
+					permanentlyFailed.add(h);
+					handleErrors.push({
+						handle: h,
+						error: "dropped: no room left in epoch after rate-limit pause",
+						kind: "epoch_overflow",
+						durationMs: 0,
+					});
+				}
+				if (rebased.dropped.length) {
+					console.warn(
+						JSON.stringify({
+							event: "schedule_rebase_drop",
+							dropped: rebased.dropped,
+						}),
+					);
+				}
 				if (!deferredOnce.has(slot.handle)) {
 					deferredOnce.add(slot.handle);
 					const before = queue.length;
@@ -690,7 +708,8 @@ async function main(): Promise<void> {
 	// out during a ~60m epoch (Codex P2).
 	const itemsByWl = new Map<number, Map<string, CanonicalItem>>();
 	for (const [handle, items] of itemsByHandle) {
-		const { kept } = filterItemsByWindow(items, windowHours);
+		const { kept, dropped } = filterItemsByWindow(items, windowHours);
+		totalWindowDropped += dropped;
 		itemsByHandle.set(handle, kept);
 		for (const wlId of handleMap.get(handle) ?? []) {
 			let bag = itemsByWl.get(wlId);
