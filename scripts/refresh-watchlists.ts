@@ -207,33 +207,50 @@ function loadLastSuccessMs(path: string): Record<string, number> {
 
 function acquireEpochLock(lockPath: string): void {
 	mkdirSync(join(lockPath, ".."), { recursive: true });
-	if (existsSync(lockPath)) {
+	const body = JSON.stringify({ pid: process.pid, at: Date.now() }, null, 2);
+	const tryCreate = (): boolean => {
 		try {
-			const raw = JSON.parse(readFileSync(lockPath, "utf8")) as { pid?: number; at?: number };
-			const pid = raw.pid;
-			if (typeof pid === "number" && pid > 0) {
-				try {
-					process.kill(pid, 0);
-					// Still alive
-					console.error(
-						JSON.stringify({
-							event: "epoch_lock_busy",
-							lockPath,
-							pid,
-							at: raw.at,
-							hint: "another refresh is running; wait or remove stale lock",
-						}),
-					);
-					process.exit(3);
-				} catch {
-					// ESRCH — stale lock
-				}
+			writeFileSync(lockPath, body, { flag: "wx" });
+			return true;
+		} catch (e) {
+			const err = e as { code?: string };
+			if (err.code !== "EEXIST") throw e;
+			return false;
+		}
+	};
+	if (tryCreate()) return;
+	try {
+		const raw = JSON.parse(readFileSync(lockPath, "utf8")) as { pid?: number; at?: number };
+		const pid = raw.pid;
+		if (typeof pid === "number" && pid > 0) {
+			try {
+				process.kill(pid, 0);
+				console.error(
+					JSON.stringify({
+						event: "epoch_lock_busy",
+						lockPath,
+						pid,
+						at: raw.at,
+						hint: "another refresh is running; wait or remove stale lock",
+					}),
+				);
+				process.exit(3);
+			} catch {
+				// ESRCH — stale
 			}
+		}
+		unlinkSync(lockPath);
+	} catch {
+		try {
+			unlinkSync(lockPath);
 		} catch {
-			/* replace corrupt lock */
+			/* ignore */
 		}
 	}
-	writeFileSync(lockPath, JSON.stringify({ pid: process.pid, at: Date.now() }, null, 2));
+	if (!tryCreate()) {
+		console.error(JSON.stringify({ event: "epoch_lock_race", lockPath }));
+		process.exit(3);
+	}
 }
 
 function releaseEpochLock(lockPath: string): void {
