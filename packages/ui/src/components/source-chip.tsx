@@ -36,10 +36,7 @@ export function SourceChip({
 			title={`source_type=${sourceType}`}
 		>
 			{isX ? (
-				<>
-					<XLogo className={size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3"} />
-					<span className="font-semibold normal-case tracking-normal">X</span>
-				</>
+				<XLogo className={size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3"} aria-label="X" />
 			) : (
 				SOURCE_TYPE_LABELS[sourceType]
 			)}
