@@ -10,12 +10,22 @@ export type IntegrationSecretRow = {
 };
 
 const ZHETO = "zheto";
-/** Current zhe.to personal link endpoint + legacy webhook path. */
-const ZHETO_UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
-const ZHETO_URL_RE = new RegExp(
-	`^https://zhe\\.to/api/(?:link/create/${ZHETO_UUID}|webhook/.+)\\/?$`,
-	"i",
-);
+/** Current zhe.to personal link endpoint + legacy webhook path (pathname only). */
+const ZHETO_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isZhetoProdPath(pathname: string): boolean {
+	// Normalize trailing slash only — never resolve ".." segments via URL constructor tricks.
+	const path = pathname.replace(/\/+$/, "") || "/";
+	if (path.includes("..")) return false;
+	const link = path.match(/^\/api\/link\/create\/([^/]+)$/i);
+	if (link) return ZHETO_UUID.test(link[1] ?? "");
+	const webhook = path.match(/^\/api\/webhook\/(.+)$/i);
+	if (webhook) {
+		const token = webhook[1] ?? "";
+		return token.length > 0 && !token.includes("?");
+	}
+	return false;
+}
 
 export type ZhetoSettingsPublic = {
 	configured: boolean;
@@ -26,20 +36,32 @@ export type ZhetoSettingsPublic = {
 
 export function assertZhetoWebhookUrl(url: string, allowHosts?: string[]): void {
 	const u = url.trim();
-	if (!u.startsWith("https://")) throw new IntegrationValidationError("webhookUrl must be https");
+	let parsed: URL;
+	try {
+		parsed = new URL(u);
+	} catch {
+		throw new IntegrationValidationError("webhookUrl invalid");
+	}
+	if (parsed.protocol !== "https:") {
+		throw new IntegrationValidationError("webhookUrl must be https");
+	}
+	// Reject userinfo / query / fragment so tokens cannot hide in junk.
+	if (parsed.username || parsed.password) {
+		throw new IntegrationValidationError("webhookUrl must not include credentials");
+	}
+	if (parsed.search || parsed.hash) {
+		throw new IntegrationValidationError("webhookUrl must not include query or fragment");
+	}
+
+	const host = parsed.hostname.toLowerCase();
 	if (allowHosts?.length) {
-		try {
-			const host = new URL(u).hostname.toLowerCase();
-			if (!allowHosts.some((h) => host === h || host.endsWith(`.${h}`))) {
-				throw new IntegrationValidationError("webhookUrl host not allowlisted");
-			}
-		} catch (e) {
-			if (e instanceof IntegrationValidationError) throw e;
-			throw new IntegrationValidationError("webhookUrl invalid");
+		if (!allowHosts.some((h) => host === h || host.endsWith(`.${h}`))) {
+			throw new IntegrationValidationError("webhookUrl host not allowlisted");
 		}
 		return;
 	}
-	if (!ZHETO_URL_RE.test(u)) {
+
+	if (host !== "zhe.to" || !isZhetoProdPath(parsed.pathname)) {
 		throw new IntegrationValidationError(
 			"webhookUrl must match https://zhe.to/api/link/create/<uuid> (or legacy /api/webhook/…)",
 		);

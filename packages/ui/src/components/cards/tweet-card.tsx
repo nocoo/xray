@@ -30,9 +30,8 @@ import { useNow } from "@/hooks/use-now";
 import type { Tweet, TweetMedia } from "@/lib/tweet-types";
 import { cn, formatCount, formatTimeAgo } from "@/lib/utils";
 
-// We intentionally use <img> for external Twitter profile images and media.
-// next/image requires known hostnames in next.config, which is impractical
-// for user-generated Twitter content.
+// External Twitter media/avatars use plain <img>/<video> via /api/media/proxy
+// (twimg CDN hotlink protection).
 
 // =============================================================================
 // TweetCard — reusable tweet display component
@@ -362,10 +361,14 @@ export const TweetCard = memo(function TweetCard({
 						>
 							@{tweet.quoted_tweet.author.username}
 						</a>
-						<span className="text-xs text-muted-foreground">·</span>
-						<span className="text-xs text-muted-foreground shrink-0">
-							{formatTimeAgo(tweet.quoted_tweet.created_at, "compact", nowMs)}
-						</span>
+						{tweet.quoted_tweet.created_at ? (
+							<>
+								<span className="text-xs text-muted-foreground">·</span>
+								<span className="text-xs text-muted-foreground shrink-0">
+									{formatTimeAgo(tweet.quoted_tweet.created_at, "compact", nowMs)}
+								</span>
+							</>
+						) : null}
 					</div>
 
 					{/* Quoted text */}
@@ -681,19 +684,22 @@ function MediaGrid({
 						<PhotoItem
 							key={at(media, 0).id}
 							media={at(media, 0)}
-							className="w-full h-full object-cover row-span-2"
+							className="w-full h-full object-cover"
+							containerClass="row-span-2 h-full min-h-0"
 							onClick={onPhotoClick}
 						/>
 						<PhotoItem
 							key={at(media, 1).id}
 							media={at(media, 1)}
 							className="w-full h-full object-cover"
+							containerClass="h-full min-h-0"
 							onClick={onPhotoClick}
 						/>
 						<PhotoItem
 							key={at(media, 2).id}
 							media={at(media, 2)}
 							className="w-full h-full object-cover"
+							containerClass="h-full min-h-0"
 							onClick={onPhotoClick}
 						/>
 					</div>
@@ -809,13 +815,18 @@ function VideoMedia({ media, className }: { media: TweetMedia; className: string
 		const snap = () => {
 			if (cancelled || !v.videoWidth || !v.videoHeight) return;
 			try {
+				// Downscale large sources (4K) so N cards don't keep full-res base64 posters.
+				const maxEdge = 720;
+				const scale = Math.min(1, maxEdge / Math.max(v.videoWidth, v.videoHeight));
+				const w = Math.max(1, Math.round(v.videoWidth * scale));
+				const h = Math.max(1, Math.round(v.videoHeight * scale));
 				const canvas = document.createElement("canvas");
-				canvas.width = v.videoWidth;
-				canvas.height = v.videoHeight;
+				canvas.width = w;
+				canvas.height = h;
 				const ctx = canvas.getContext("2d");
 				if (!ctx) return;
-				ctx.drawImage(v, 0, 0);
-				const dataUrl = canvas.toDataURL("image/jpeg", 0.86);
+				ctx.drawImage(v, 0, 0, w, h);
+				const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
 				if (!cancelled && dataUrl.startsWith("data:image")) {
 					setCapturedPoster(dataUrl);
 				}

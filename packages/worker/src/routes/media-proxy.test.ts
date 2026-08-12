@@ -148,5 +148,127 @@ describe("GET /api/media/proxy", () => {
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toBe("application/octet-stream");
 		expect(res.headers.get("content-length")).toBeNull();
+		expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+	});
+
+	test("rejects redirect off allowlist", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => {
+				return new Response(null, {
+					status: 302,
+					headers: { location: "https://evil.com/steal" },
+				});
+			}),
+		);
+		const res = await app().request(
+			`/api/media/proxy?url=${encodeURIComponent("https://video.twimg.com/x.mp4")}`,
+		);
+		expect(res.status).toBe(403);
+	});
+
+	test("follows same-host redirect", async () => {
+		const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+			const u = String(input);
+			if (u.includes("first")) {
+				return new Response(null, {
+					status: 302,
+					headers: { location: "https://pbs.twimg.com/media/second.jpg" },
+				});
+			}
+			return new Response(new Uint8Array([7]), {
+				status: 200,
+				headers: { "content-type": "image/jpeg" },
+			});
+		});
+		vi.stubGlobal("fetch", fetchMock);
+		const res = await app().request(
+			`/api/media/proxy?url=${encodeURIComponent("https://pbs.twimg.com/media/first.jpg")}`,
+		);
+		expect(res.status).toBe(200);
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+	});
+
+	test("rejects disallowed content-type", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(
+				async () =>
+					new Response("<html>", {
+						status: 200,
+						headers: { "content-type": "text/html" },
+					}),
+			),
+		);
+		const res = await app().request(
+			`/api/media/proxy?url=${encodeURIComponent("https://pbs.twimg.com/media/x.jpg")}`,
+		);
+		expect(res.status).toBe(403);
+	});
+
+	test("redirect without location → 502", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => new Response(null, { status: 302, headers: {} })),
+		);
+		const res = await app().request(
+			`/api/media/proxy?url=${encodeURIComponent("https://video.twimg.com/x.mp4")}`,
+		);
+		expect(res.status).toBe(502);
+	});
+
+	test("too many redirects → 502", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (input: RequestInfo | URL) => {
+				const u = String(input);
+				const n = Number(new URL(u).searchParams.get("n") || "0");
+				return new Response(null, {
+					status: 302,
+					headers: {
+						location: `https://pbs.twimg.com/media/r.jpg?n=${n + 1}`,
+					},
+				});
+			}),
+		);
+		const res = await app().request(
+			`/api/media/proxy?url=${encodeURIComponent("https://pbs.twimg.com/media/r.jpg?n=0")}`,
+		);
+		expect(res.status).toBe(502);
+	});
+
+	test("invalid redirect location → 502", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(
+				async () =>
+					new Response(null, {
+						status: 302,
+						headers: { location: "http://%" },
+					}),
+			),
+		);
+		const res = await app().request(
+			`/api/media/proxy?url=${encodeURIComponent("https://video.twimg.com/x.mp4")}`,
+		);
+		expect(res.status).toBe(502);
+	});
+
+	test("content-type with charset still allowed", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(
+				async () =>
+					new Response(new Uint8Array([1]), {
+						status: 200,
+						headers: { "content-type": "image/jpeg; charset=binary" },
+					}),
+			),
+		);
+		const res = await app().request(
+			`/api/media/proxy?url=${encodeURIComponent("https://pbs.twimg.com/media/c.jpg")}`,
+		);
+		expect(res.status).toBe(200);
 	});
 });

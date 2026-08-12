@@ -204,11 +204,16 @@ export function itemToTweet(item: TimelineItem): Tweet | null {
 		if (qt) {
 			const qAuthorId = qt.author_id;
 			const qAuthor = resolveAuthor(qAuthorId, users, undefined, item);
+			// Only use the quoted tweet's own created_at — never fabricate from parent post.
+			const qCreated =
+				typeof qt.created_at === "string" && Number.isFinite(Date.parse(qt.created_at))
+					? new Date(qt.created_at).toISOString()
+					: "";
 			quoted_tweet = {
 				id: qt.id || quotedRef.id,
 				text: typeof qt.text === "string" ? qt.text : "",
 				author: qAuthor,
-				created_at: postCreatedAtIso(item, qt.created_at),
+				created_at: qCreated,
 				url:
 					qAuthor.username !== "unknown"
 						? `https://x.com/${qAuthor.username}/status/${qt.id || quotedRef.id}`

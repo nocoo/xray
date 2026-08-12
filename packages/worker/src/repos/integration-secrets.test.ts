@@ -78,6 +78,15 @@ describe("integration-secrets zheto", () => {
 			/link\/create/,
 		);
 		expect(() => assertZhetoWebhookUrl("https://zhe.to/api/other/x")).toThrow(/link\/create/);
+		expect(() => assertZhetoWebhookUrl("https://zhe.to/api/webhook/../admin")).toThrow(
+			/link\/create/,
+		);
+		expect(() => assertZhetoWebhookUrl("https://zhe.to/api/webhook/tok?x=1")).toThrow(
+			/query or fragment/,
+		);
+		expect(() => assertZhetoWebhookUrl("https://zhe.to/api/webhook/tok#frag")).toThrow(
+			/query or fragment/,
+		);
 
 		const db = memDb();
 		const env = { XRAY_SECRETS_KEK: KEK, XRAY_SECRETS_KEY_VERSION: "1" };

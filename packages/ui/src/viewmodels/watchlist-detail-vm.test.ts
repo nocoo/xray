@@ -417,6 +417,8 @@ describe("createWatchlistDetailVm", () => {
 		});
 		expect(t?.quoted_tweet?.url).toContain("/i/status/q9");
 		expect(t?.quoted_tweet?.text).toBe("");
+		// missing quoted created_at → empty (do not fabricate parent time)
+		expect(t?.quoted_tweet?.created_at).toBe("");
 
 		// force quoted id fallback when qt.id missing
 		const t2 = itemToTweet({
