@@ -667,9 +667,48 @@ async function main(): Promise<void> {
 		while (queue.length) {
 			const slot = queue[0];
 			if (!slot) break;
+			if (Date.now() > epochEndMs) {
+				// Epoch wall clock exceeded — do not start more fetches (Codex P1).
+				for (const s of queue) {
+					permanentlyFailed.add(s.handle);
+					handleErrors.push({
+						handle: s.handle,
+						error: "dropped: epoch wall clock exceeded before start",
+						kind: "epoch_overflow",
+						durationMs: 0,
+					});
+				}
+				console.warn(
+					JSON.stringify({
+						event: "epoch_timeout",
+						remaining: queue.length,
+						handles: queue.map((s) => s.handle),
+					}),
+				);
+				break;
+			}
 			// Enforce minGap against actual previous start (fetch overrun can leave many past slots).
 			const earliest = lastStartMs > 0 ? lastStartMs + minGapMs : 0;
 			const targetAt = Math.max(slot.atMs, earliest, Date.now());
+			if (targetAt > epochEndMs) {
+				for (const s of queue) {
+					permanentlyFailed.add(s.handle);
+					handleErrors.push({
+						handle: s.handle,
+						error: "dropped: next start would exceed epoch end",
+						kind: "epoch_overflow",
+						durationMs: 0,
+					});
+				}
+				console.warn(
+					JSON.stringify({
+						event: "epoch_overflow",
+						remaining: queue.length,
+						handles: queue.map((s) => s.handle),
+					}),
+				);
+				break;
+			}
 			const wait = targetAt - Date.now();
 			if (wait > 0) {
 				console.log(
