@@ -226,8 +226,7 @@ describe("buildRefreshSchedule edge branches", () => {
 			maxMs: 300_000,
 			random: () => 0.5,
 		});
-		expect(p).toBeLessThanOrEqual(60_000);
-		expect(p).toBeGreaterThan(0);
+		expect(p).toBe(0);
 	});
 
 	test("incremental default maxAge", () => {

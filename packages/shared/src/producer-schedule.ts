@@ -41,7 +41,7 @@ export type BuildRefreshScheduleResult = {
 	epochMs: number;
 	minGapMs: number;
 	idealSlotMs: number;
-	/** True when N*minGap > epoch — epoch was expanded to fit. */
+	/** True when (N-1)*minGap > epoch — epoch was expanded to fit starts. */
 	epochExpanded: boolean;
 	/** Handles in schedule order. */
 	order: string[];
@@ -77,9 +77,9 @@ export function shuffleHandles(handles: string[], random: () => number = default
 
 /**
  * Build a start-time schedule for one refresh epoch.
- * - Spreads starts across [startMs, startMs+epochMs)
+ * - Spreads starts across [startMs, startMs+epochMs] (last start may equal end)
  * - Enforces minGap between consecutive starts
- * - If N*minGap > epochMs, expands epoch (epochExpanded=true)
+ * - If (N-1)*minGap > epochMs, expands epoch (epochExpanded=true)
  */
 export function buildRefreshSchedule(input: BuildRefreshScheduleInput): BuildRefreshScheduleResult {
 	const epochMsIn = Math.max(1, Math.floor(input.epochMs ?? DEFAULT_SPREAD_WINDOW_MS));
@@ -171,9 +171,9 @@ export function rateLimitPauseMs(input: {
 	const minMs = input.minMs ?? DEFAULT_429_PAUSE_MIN_MS;
 	const maxMs = Math.max(minMs, input.maxMs ?? DEFAULT_429_PAUSE_MAX_MS);
 	const band = minMs + random() * (maxMs - minMs);
-	const remaining = Math.max(0, input.epochEndMs - input.nowMs);
-	// Leave at least a little room; if almost no time left, still pause min(band, 60s)
-	if (remaining <= 0) return Math.min(band, 60_000);
+	const remaining = input.epochEndMs - input.nowMs;
+	// Epoch already over: no pause — caller marks handle failed and exits the loop.
+	if (remaining <= 0) return 0;
 	return Math.round(Math.min(band, remaining));
 }
 
