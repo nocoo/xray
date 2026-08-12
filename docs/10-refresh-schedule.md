@@ -25,9 +25,9 @@ Official X docs ([rate limits](https://docs.x.com/x-api/fundamentals/rate-limits
 
 ## 2. Goals
 
-1. **Finish one full graph refresh within ~60 minutes** (start times of all handles land in the epoch; last fetch duration may slightly overrun).
+1. **Finish one full graph refresh within ~60 minutes** (planned starts land in the epoch; last fetch duration may slightly overrun; **+5s start grace** for timer/event-loop slop).
 2. **Randomized, non-burst** spacing (shuffle + jitter + min gap).
-3. **429**: pause randomly, **re-queue once** later in the same epoch; if still failing → report, next epoch.
+3. **429**: pause randomly, **re-queue once** later in the same epoch; if still failing → report, next epoch. If epoch already ended when 429 is seen → **no pause**, fail remaining.
 4. **Incremental-ready**: same scheduler; only the **handle set** shrinks (`full` vs `incremental`).
 5. **Debuggable**: structured logs + `.cache/twitter-cli/debug/*.json`.
 
@@ -53,9 +53,18 @@ at[i]          = start + i*idealSlot + U(-j,+j), then sort, enforce minGap
 | Shuffle | on | (always for spread mode) |
 | Mode | `full` | `--refresh-mode full\|incremental` |
 
-**Capacity:** with minGap 12s, one epoch fits at most ~300 starts (`epoch/minGap`). Current graphs (~50 handles) are well inside.
+**Capacity:** with minGap 12s, one epoch fits at most **301** starts because layout needs `(N-1)*minGap ≤ epochMs` (first at `start`, last may sit exactly on `start+epoch`). Rough operator rule of thumb: `floor(epoch/minGap)+1`. Current graphs (~50 handles) are well inside.
 
-If `N * minGap > epoch`, the pure scheduler **expands** `epochMs` (`epochExpanded: true`) so minGap is never violated — log this; operators should raise window or lower gap.
+If `(N-1)*minGap > epoch`, the pure scheduler **expands** `epochMs` (`epochExpanded: true`) so minGap is never violated — log this; operators should raise window or lower gap.
+
+**Start cutoffs (two layers):**
+
+| Gate | Value | Used for |
+|------|-------|----------|
+| `epochEndMs` | `start + epochMs` | schedule build, 429 pause cap, rebase/defer fit |
+| `epochStartDeadlineMs` | `epochEndMs + 5_000` | hard gate before **starting** a fetch (timer slack only) |
+
+Rebase/defer stay on the stricter `epochEndMs`. A wake at 60:03 may still start; a wake past 60:05 will not.
 
 ### 3.1 Modes
 
@@ -98,11 +107,13 @@ write run-*.json report + handle_errors_summary
 ## 5. 429 policy (no reset header)
 
 ```
-pauseMs = min( U(120s, 300s), remainingEpochMs )
+remaining = epochEndMs - now
+pauseMs   = remaining <= 0 ? 0 : min( U(120s, 300s), remaining )
 ```
 
 - Do **not** only cool 60s and continue at full density.
 - At most **one defer** per handle per epoch (avoids infinite re-queue).
+- If `pauseMs === 0` (epoch already over): mark handle + remaining queue failed; **no sleep**.
 - Push path still uses existing ingest 429 backoff (`pushRetryDelayMs`) independently.
 
 ---
@@ -122,8 +133,9 @@ pauseMs = min( U(120s, 300s), remainingEpochMs )
 |------|---------|
 | `.cache/twitter-cli/run-<ts>.json` | Full report |
 | `.cache/twitter-cli/debug/<handle>-<ts>.json` | Failure forensics |
-| `.cache/twitter-cli/last-success.json` | Incremental watermark (written only after successful push / cache-only) |
+| `.cache/twitter-cli/last-success.json` | Incremental watermark (atomic write after successful push / cache-only; failure → exit 1) |
 | `.cache/twitter-cli/raw/<handle>.json` | Vendor raw |
+| `.cache/twitter-cli/epoch.lock` | Singleton run lock (`{pid,at}`; wx create + content-verified stale rename) |
 
 ---
 
@@ -151,9 +163,15 @@ bun run refresh:watchlists -- --no-spread --handle-delay-ms 3000
 bun run refresh:watchlists -- --from-cache
 ```
 
-Cron suggestion: every **60 minutes** start one full epoch; or every 60m **incremental** + nightly **full**.
+Cron suggestion: every **60 minutes** start one full epoch; or every 60m **incremental** + nightly **full**. Prefer a scheduler that **skips if previous still running** (e.g. `flock` wrapper); the in-process lock is the safety net, not a substitute for non-overlapping cron.
 
-**Concurrency:** `.cache/twitter-cli/epoch.lock` (pid) rejects overlapping runs (exit 3) so two crons cannot double-hit GraphQL.
+**Concurrency:** `.cache/twitter-cli/epoch.lock` rejects overlapping runs (**exit 3**):
+
+1. `O_EXCL` (`wx`) create with `{ pid, at }`.
+2. If exists and holder looks alive (`kill(pid,0)` success **or** `EPERM`) → busy.
+3. Stale if: malformed JSON, `ESRCH`, or `at` older than **2 hours** (PID-reuse bound).
+4. Takeover: re-read must be **byte-identical** to the stale snapshot before `rename` away, then `wx` create — never rename a peer’s fresh lock.
+5. Release unlinks only when `pid === process.pid`.
 
 ---
 

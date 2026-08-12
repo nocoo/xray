@@ -283,15 +283,16 @@ Handle **dedupe across lists**: one fetch; items cloned into each watchlist’s 
 | **`twitter` not installed / not on PATH** | Preflight (`twitter status`) fails → **exit 2** with install steps (`uv tool install twitter-cli`), `TWITTER_BIN` / `--twitter-bin`, and verify commands |
 | **Login missing or cookies expired** | Preflight sees `authenticated !== true` or 401/403/cookie errors → **exit 2** with browser re-login, `TWITTER_AUTH_TOKEN`+`TWITTER_CT0`, and `--from-cache` offline option |
 | Mid-run auth failure on a handle | Print same guidance once, **abort remaining handles** (all would fail the same way) |
-| Single handle rate-limit | Log + 60s cool-off + continue other handles (partial, exit 1). Do not dense multi-retry (twitter-cli already retried). Resume offline with `--from-cache` for successes; default re-run re-fetches all |
+| Single handle rate-limit | Default **60m spread**: pause **120–300s** (capped by remaining epoch), **rebase** queue, **defer once** later in-epoch; recovered 429 exits 0. Second failure / epoch over → partial exit 1. Do not dense multi-retry (twitter-cli already retried 3×). See [10-refresh-schedule.md](10-refresh-schedule.md). |
 | Single handle 404 / other | Log + continue (partial, exit 1) |
 | Convert skip | Counted in `skipped`; not POSTed |
 | Ingest 401 | Bad/revoked `XRAY_PUSH_TOKEN` |
 | Ingest 404 watchlist | Token user ≠ WL owner or wrong id (e.g. e2e seed lists) — filter snapshot to your `user_id` |
 | Outside window | Server `outside_window` / client pre-filter |
 | Empty members | No-op success with zero pushes |
+| Overlapping cron | `epoch.lock` → **exit 3**; wait or remove lock only if stale (>2h / dead pid) |
 
-**Rate limits**: Prefer `--handle-delay-ms 3000+` for 50+ handles. Do not raise `--max` to “fill” a window — that only burns quota.
+**Rate limits (prod cookie/GraphQL path):** use the default **60-minute spread** (`--spread-window-min 60`, `--min-gap-ms 12000`). Do **not** prefer `--handle-delay-ms 3000` — that flag forces `--no-spread` legacy sprint and recreates 429 storms. Do not raise `--max` to “fill” a window — that only burns quota.
 
 ---
 
