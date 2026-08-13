@@ -326,7 +326,7 @@ set -a && source ~/.config/xray/push.env && set +a
 bun run refresh:watchlists --
 ```
 
-Suggested schedule: at most **once per hour** (matches default epoch spread). Overlap → exit **3** (`epoch.lock` flock); **do not delete** the lock file.
+**Wall-clock duration ≈ spread window**, not “a few minutes.” Default `--spread-window-min 60` spreads unique handles across ~60 minutes (min-gap still applies). Example: ~48 handles with default pacing → plan/finish often **~50–65 min**. Schedule cron at most **once per hour** so runs do not overlap. Overlap → exit **3** (`epoch.lock` flock); **do not delete** the lock file.
 
 ### 5.2 Production incremental
 
@@ -430,13 +430,15 @@ After the script finishes, parse stdout/stderr (see **§4.2** for stream shape):
 | `summary[].accepted` | New rows written |
 | `summary[].deduped` | Already present (ok) |
 | `summary[].rejected` | Server rejected (investigate) |
+| `totalWindowDropped` | Posts older than `windowHours` (default 24h) dropped **client-side before push**. Large ratios (e.g. 706/960) are **normal** when timelines are sparse/old — not a fetch or push failure. Compare to `totalMapped` / `accepted`; only worry if mapped is near-zero while handles ok |
+| `totalMapped` / `totalSkipped` | Mapped into canonical / mapper skips |
 | `handleErrors` / `permanentlyFailed` | twitter-cli failures |
 | `pushErrors` | ingest transport/API failures |
 | `watermarkPersist` | `ok` expected on successful push path |
 
 On exit ≠ 0, include last ~40 lines of script output and the report JSON `event` block.
 
-### 7.3 Cron logging suggestion
+### 7.4 Cron logging suggestion
 
 ```bash
 LOG_DIR="${HOME}/.local/log/xray"
