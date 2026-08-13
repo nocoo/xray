@@ -2,6 +2,16 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.1.5
+
+### Added
+- Show quote embeds and rt attribution
+
+### Changed
+- Clarify refresh skill from agent dry-run
+- Point claude.md at refresh skill
+- Add xray-refresh-watchlists agent skill
+
 ## v2.1.4
 
 ### Added
