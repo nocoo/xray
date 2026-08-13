@@ -62,7 +62,48 @@ describe("mapTwitterCliTweetToCanonical", () => {
 			// http avatar upgraded
 			expect(quoted.author?.avatar_url?.startsWith("https://")).toBe(true);
 			expect(quoted.author?.username).toBe("alice");
+			// quoted body embedded for UI quote card
+			expect(quoted.body.includes?.tweets).toEqual([
+				{ id: "888", text: "original", author_id: "u:bob" },
+			]);
+			expect(quoted.body.includes?.users?.some((u) => u.username === "bob")).toBe(true);
 		}
+	});
+
+	test("embeds quote body and stores retweet attribution in meta", () => {
+		const qt = mapTwitterCliTweetToCanonical({
+			id: "q1",
+			text: "my quote",
+			createdAtISO: "2026-08-10T12:00:00.000Z",
+			author: { id: "1", name: "Alice", screenName: "alice" },
+			quotedTweet: {
+				id: "orig",
+				text: "hello quoted",
+				author: { id: "2", screenName: "Bob", name: "Bob", profileImageUrl: "https://cdn/x.jpg" },
+			},
+		});
+		expect(qt.ok).toBe(true);
+		if (!qt.ok || qt.value.source_type !== "x.com") return;
+		expect(qt.value.body.includes?.tweets?.[0]).toMatchObject({
+			id: "orig",
+			text: "hello quoted",
+			author_id: "2",
+		});
+		expect(qt.value.body.includes?.users?.find((u) => u.id === "2")?.username).toBe("bob");
+
+		const rt = mapTwitterCliTweetToCanonical({
+			id: "rt1",
+			text: "original post body",
+			createdAtISO: "2026-08-10T12:00:00.000Z",
+			isRetweet: true,
+			retweetedBy: "WLMember",
+			author: { id: "9", name: "Orig", screenName: "orig_user" },
+		});
+		expect(rt.ok).toBe(true);
+		if (!rt.ok) return;
+		expect(rt.value.meta?.is_retweet).toBe(true);
+		expect(rt.value.meta?.retweeted_by).toBe("wlmember");
+		expect(rt.value.author?.username).toBe("orig_user");
 	});
 
 	test("skips empty text without throwing", () => {

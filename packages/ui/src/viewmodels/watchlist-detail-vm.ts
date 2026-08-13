@@ -195,6 +195,7 @@ export function itemToTweet(item: TimelineItem): Tweet | null {
 			};
 		};
 		author?: { id?: string; username?: string; display_name?: string; avatar_url?: string };
+		meta?: { is_retweet?: unknown; retweeted_by?: unknown };
 	} | null;
 	const t = payload?.body?.tweet;
 	const users = payload?.body?.includes?.users ?? [];
@@ -205,7 +206,14 @@ export function itemToTweet(item: TimelineItem): Tweet | null {
 	const username = author.username;
 	const id = (typeof t?.id === "string" && t.id) || item.externalId;
 	const refs = t?.referenced_tweets ?? [];
-	const is_retweet = refs.some((r) => r.type === "retweeted");
+	const metaRtBy =
+		typeof payload?.meta?.retweeted_by === "string" && payload.meta.retweeted_by.trim()
+			? payload.meta.retweeted_by.trim().replace(/^@/, "").toLowerCase()
+			: undefined;
+	const is_retweet =
+		refs.some((r) => r.type === "retweeted") ||
+		payload?.meta?.is_retweet === true ||
+		Boolean(metaRtBy);
 	const is_quote = refs.some((r) => r.type === "quoted");
 	const replyRef = refs.find((r) => r.type === "replied_to");
 	const is_reply = Boolean(replyRef);
@@ -215,8 +223,11 @@ export function itemToTweet(item: TimelineItem): Tweet | null {
 	if (quotedRef?.id) {
 		const qt = includesTweets.find((x) => x.id === quotedRef.id);
 		if (qt) {
-			const qAuthorId = qt.author_id;
-			const qAuthor = resolveAuthor(qAuthorId, users, undefined, item);
+			// Isolate from parent item author so missing quote user stays "unknown".
+			const qAuthor = resolveAuthor(qt.author_id, users, undefined, {
+				...item,
+				authorUsername: null,
+			});
 			// Only use the quoted tweet's own created_at — never fabricate from parent post.
 			const qCreated =
 				typeof qt.created_at === "string" && Number.isFinite(Date.parse(qt.created_at))
@@ -254,6 +265,7 @@ export function itemToTweet(item: TimelineItem): Tweet | null {
 		is_retweet,
 		is_quote,
 		is_reply,
+		retweeted_by: metaRtBy,
 		lang: typeof t?.lang === "string" ? t.lang : undefined,
 		media: mediaFromIncludes(t?.attachments?.media_keys, includesMedia),
 		quoted_tweet,

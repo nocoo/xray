@@ -177,13 +177,52 @@ export function mapTwitterCliTweetToCanonical(raw: unknown): MapResult {
 	if (public_metrics) tweet.public_metrics = public_metrics;
 
 	const referenced: NonNullable<XTweet["referenced_tweets"]> = [];
-	if (asBool(t.isRetweet)) {
-		// twitter-cli does not always expose original RT id; skip incomplete retweeted ref
-	}
+	// twitter-cli unwraps RT to the original tweet; original RT id is often absent.
+	// Attribution lives in meta.retweeted_by (WL member handle), not referenced_tweets.
+	const isRetweet = asBool(t.isRetweet) === true;
+	const retweetedByRaw = asStr(t.retweetedBy)?.trim();
+	const retweetedBy = retweetedByRaw ? normalizeHandle(retweetedByRaw) : undefined;
+
+	const includesUsers: XUser[] = [];
+	const includesTweets: XTweet[] = [];
+	const userIds = new Set<string>();
+
+	const pushUser = (u: XUser) => {
+		if (userIds.has(u.id)) return;
+		userIds.add(u.id);
+		includesUsers.push(u);
+	};
+
 	const qt = t.quotedTweet;
 	if (qt && typeof qt === "object") {
 		const qid = asIdStr(qt.id);
-		if (qid) referenced.push({ type: "quoted", id: qid });
+		if (qid) {
+			referenced.push({ type: "quoted", id: qid });
+			// parseXTweet requires non-empty text — only embed when we have body.
+			const qText = asStr(qt.text)?.trim();
+			if (qText) {
+				const qAuthorRaw = qt.author && typeof qt.author === "object" ? qt.author : undefined;
+				const qScreen = asStr(qAuthorRaw?.screenName);
+				const qUsername = qScreen ? normalizeHandle(qScreen) : undefined;
+				const qDisplay = asStr(qAuthorRaw?.name)?.trim();
+				const qAuthorId = asIdStr(qAuthorRaw?.id) || (qUsername ? `u:${qUsername}` : undefined);
+				const qTweet: XTweet = { id: qid, text: qText };
+				if (qAuthorId) qTweet.author_id = qAuthorId;
+				includesTweets.push(qTweet);
+				if (qAuthorId && qUsername) {
+					const qu: XUser = {
+						id: qAuthorId,
+						name: qDisplay || qUsername,
+						username: qUsername,
+					};
+					const qAvatar = httpsUrl(asStr(qAuthorRaw?.profileImageUrl));
+					if (qAvatar) qu.profile_image_url = qAvatar;
+					const qVerified = asBool(qAuthorRaw?.verified);
+					if (qVerified !== undefined) qu.verified = qVerified;
+					pushUser(qu);
+				}
+			}
+		}
 	}
 	if (referenced.length) tweet.referenced_tweets = referenced;
 
@@ -209,7 +248,6 @@ export function mapTwitterCliTweetToCanonical(raw: unknown): MapResult {
 	}
 	if (mediaKeys.length) tweet.attachments = { media_keys: mediaKeys };
 
-	const includes: NonNullable<CanonicalXItem["body"]["includes"]> = {};
 	if (authorId && username && displayName) {
 		const user: XUser = {
 			id: authorId,
@@ -219,19 +257,29 @@ export function mapTwitterCliTweetToCanonical(raw: unknown): MapResult {
 		const verified = asBool(author?.verified);
 		if (verified !== undefined) user.verified = verified;
 		if (avatar) user.profile_image_url = avatar;
-		includes.users = [user];
+		pushUser(user);
 	}
+
+	const includes: NonNullable<CanonicalXItem["body"]["includes"]> = {};
+	if (includesUsers.length) includes.users = includesUsers;
 	if (includesMedia.length) includes.media = includesMedia;
+	if (includesTweets.length) includes.tweets = includesTweets;
+
+	const meta: Record<string, unknown> = { producer: "twitter-cli" };
+	if (isRetweet || retweetedBy) {
+		meta.is_retweet = true;
+		if (retweetedBy) meta.retweeted_by = retweetedBy;
+	}
 
 	const item: CanonicalXItem = {
 		source_type: "x.com",
 		external_id: id,
 		created_at: createdAt,
-		meta: { producer: "twitter-cli" },
+		meta,
 		body: {
 			kind: "x.post",
 			tweet,
-			...(includes.users || includes.media ? { includes } : {}),
+			...(includes.users || includes.media || includes.tweets ? { includes } : {}),
 		},
 	};
 

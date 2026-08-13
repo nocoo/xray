@@ -448,6 +448,134 @@ describe("createWatchlistDetailVm", () => {
 		expect(t?.quoted_tweet?.media?.[0]?.type).toBe("PHOTO");
 	});
 
+	test("itemToTweet reads retweeted_by from meta when no retweeted ref", () => {
+		const t = itemToTweet({
+			...item,
+			payload: {
+				meta: { producer: "twitter-cli", is_retweet: true, retweeted_by: "wl_member" },
+				author: { id: "o1", username: "orig", display_name: "Orig" },
+				body: {
+					tweet: {
+						id: "orig1",
+						text: "original body",
+						author_id: "o1",
+						created_at: "2026-08-01T00:00:00.000Z",
+					},
+					includes: {
+						users: [{ id: "o1", username: "orig", name: "Orig" }],
+					},
+				},
+			},
+		});
+		expect(t?.is_retweet).toBe(true);
+		expect(t?.retweeted_by).toBe("wl_member");
+		expect(t?.author.username).toBe("orig");
+
+		// @-prefix stripped; is_retweet inferred from retweeted_by alone
+		const t2 = itemToTweet({
+			...item,
+			payload: {
+				meta: { retweeted_by: "@Alice" },
+				body: {
+					tweet: { id: "x", text: "t", created_at: "2026-08-01T00:00:00.000Z" },
+				},
+			},
+		});
+		expect(t2?.is_retweet).toBe(true);
+		expect(t2?.retweeted_by).toBe("alice");
+
+		// blank retweeted_by ignored; is_retweet flag alone still works
+		const t3 = itemToTweet({
+			...item,
+			payload: {
+				meta: { is_retweet: true, retweeted_by: "   " },
+				body: {
+					tweet: { id: "y", text: "t", created_at: "2026-08-01T00:00:00.000Z" },
+				},
+			},
+		});
+		expect(t3?.is_retweet).toBe(true);
+		expect(t3?.retweeted_by).toBeUndefined();
+	});
+
+	test("itemToTweet quoted author from includes with avatar fallbacks", () => {
+		const withAvatar = itemToTweet({
+			...item,
+			payload: {
+				body: {
+					tweet: {
+						id: "p",
+						text: "quote",
+						created_at: "2026-08-01T00:00:00.000Z",
+						referenced_tweets: [{ type: "quoted", id: "q1" }],
+					},
+					includes: {
+						users: [
+							{
+								id: "u2",
+								username: "bob",
+								name: "Bob",
+								profile_image_url: "https://pbs/b.jpg",
+								verified: true,
+								public_metrics: { followers_count: 9 },
+							},
+						],
+						tweets: [{ id: "q1", text: "orig", author_id: "u2" }],
+					},
+				},
+			},
+		});
+		expect(withAvatar?.quoted_tweet?.author).toMatchObject({
+			username: "bob",
+			name: "Bob",
+			profile_image_url: "https://pbs/b.jpg",
+			is_verified: true,
+			followers_count: 9,
+		});
+
+		// no profile_image_url → unavatar; sparse user fields
+		const sparse = itemToTweet({
+			...item,
+			payload: {
+				body: {
+					tweet: {
+						id: "p2",
+						text: "q",
+						created_at: "2026-08-01T00:00:00.000Z",
+						referenced_tweets: [{ type: "quoted", id: "q2" }],
+					},
+					includes: {
+						users: [{ id: "u3", username: "c" }],
+						tweets: [{ id: "q2", text: "t", author_id: "u3" }],
+					},
+				},
+			},
+		});
+		expect(sparse?.quoted_tweet?.author.username).toBe("c");
+		expect(sparse?.quoted_tweet?.author.name).toBe("c");
+		expect(sparse?.quoted_tweet?.author.profile_image_url).toContain("unavatar.io/x/c");
+
+		// author_id present but user missing from includes
+		const miss = itemToTweet({
+			...item,
+			payload: {
+				body: {
+					tweet: {
+						id: "p3",
+						text: "q",
+						created_at: "2026-08-01T00:00:00.000Z",
+						referenced_tweets: [{ type: "quoted", id: "q3" }],
+					},
+					includes: {
+						tweets: [{ id: "q3", text: "t", author_id: "ghost" }],
+					},
+				},
+			},
+		});
+		expect(miss?.quoted_tweet?.author.username).toBe("unknown");
+		expect(miss?.quoted_tweet?.author.id).toBe("ghost");
+	});
+
 	test("itemToTweet media edge cases and reply/retweet flags", () => {
 		const t = itemToTweet({
 			...item,

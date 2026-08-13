@@ -219,7 +219,21 @@ export const TweetCard = memo(function TweetCard({
 					{tweet.is_retweet && (
 						<>
 							<Repeat2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden />
-							<span>Reposted</span>
+							{tweet.retweeted_by ? (
+								<span>
+									<a
+										href={`https://x.com/${tweet.retweeted_by}`}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="hover:underline"
+									>
+										@{tweet.retweeted_by}
+									</a>{" "}
+									reposted
+								</span>
+							) : (
+								<span>Reposted</span>
+							)}
 						</>
 					)}
 					{tweet.is_reply && (

@@ -41,6 +41,8 @@ export type Tweet = {
 	is_retweet: boolean;
 	is_quote: boolean;
 	is_reply: boolean;
+	/** WL member handle who retweeted (no @). Present when is_retweet. */
+	retweeted_by?: string;
 	lang?: string;
 	media?: TweetMedia[];
 	entities?: TweetEntities;
