@@ -14,7 +14,7 @@ Local, script-first producer that refreshes **x.com** members on all watchlists 
 | P2 | **Raw cache independent** — twitter-cli JSON stays on disk under `.cache/twitter-cli/`; never sent raw to X-Ray. |
 | P3 | **Convert at push** — mapper turns each tweet into `source_type=x.com` / `body.kind=x.post`; only `parseCanonicalItem`-valid items are POSTed. |
 | P4 | **Script-primary** — `bun run refresh:watchlists` is the stable entry; agents only orchestrate the same script. |
-| P5 | **Dual auth** — twitter-cli cookies (read X) ≠ X-Ray push token (write ingest) ≠ browser session (list WLs). |
+| P5 | **Two credentials** — twitter-cli cookies (read X) ≠ X-Ray push token (ingest **auth**: graph read + push write). Browser Access is not required to refresh. |
 | P6 | **Minimal vendor boundary** — orchestrator only sees `XTimelineSource`; twitter-cli JSON/CLI never leak into Worker or generic producer code. |
 
 ---
@@ -182,22 +182,32 @@ Authorization: Bearer xray_pt_…
 
 ## 5. Listing watchlists / members (graph path)
 
-Push token **cannot** call browser CRUD. Graph resolution needs one of:
+Default: same Bearer token and same ingest base as push (BD-10, XR-29).
+
+```http
+GET /api/v1/ingest/graph
+Authorization: Bearer xray_pt_…
+```
 
 | Mode | How |
 |------|-----|
-| **A. Browser API** | `GET /api/watchlists` + `GET /api/watchlists/:id/members` on browser/worker base with Access or dev bypass |
-| **B. Snapshot file** | `XRAY_MEMBERS_FILE=path.json` written once (export or hand-maintained) |
+| **A. Token graph (default)** | `GET {XRAY_INGEST_BASE}/api/v1/ingest/graph` with `XRAY_PUSH_TOKEN` |
+| **B. Snapshot override** | `--members-file` / `XRAY_MEMBERS_FILE` if the file **exists** (debug / air-gap). Ids must belong to that ingest D1. |
 
-### Browser API auth
+**Removed** (do not document or implement as fallback): `XRAY_BROWSER_BASE` + `XRAY_CF_AUTHORIZATION` against browser CRUD.
 
-| Env | Use |
-|-----|-----|
-| Local worker | `XRAY_BROWSER_BASE=http://127.0.0.1:8787` + `AUTH_DEV_BYPASS` (default wrangler development). Script sends `Host: localhost` + `Origin: http://localhost:7007`. |
-| Prod | `XRAY_BROWSER_BASE=https://xray.hexly.ai` + `XRAY_CF_AUTHORIZATION=<CF_Authorization cookie value>` (Access JWT cookie after browser login). |
-| Snapshot | Skip browser entirely. |
+### Env → ingest base
 
-Snapshot schema:
+| Mode | `XRAY_INGEST_BASE` (or `--ingest-base` / `--env`) |
+|------|---------------------------------------------------|
+| Prod | `https://xray-ingest.hexly.ai` |
+| Dev / local | `http://127.0.0.1:8787` (wrangler `--env development`) |
+
+Script may accept `--env prod|dev` as sugar for the row above. Graph and push **must** share that base so ids cannot cross environments.
+
+Producer may cache the last graph at `.cache/xray/graph.json` (optional). Default run **refetches**. Stale cache must not be the only source unless `--from-cache` / explicit file.
+
+Snapshot schema (same as graph JSON, wrapped for `parseMembersGraph`):
 
 ```json
 {
@@ -233,16 +243,11 @@ Mint / reset (ops): UI **Settings → Push tokens**, or wrangler D1 insert of `m
 twitter status --json          # authenticated
 set -a && source ~/.config/xray/push.env && set +a   # loads XRAY_PUSH_TOKEN (+ prod defaults)
 
-# 1. Graph (pick one)
-export XRAY_BROWSER_BASE=http://127.0.0.1:8787   # local bypass
-# or
-export XRAY_MEMBERS_FILE=./config/members.json
-# or prod live graph:
-# export XRAY_BROWSER_BASE=https://xray.hexly.ai
-# export XRAY_CF_AUTHORIZATION='…'
+# 1. Target (graph + push share this base)
+export XRAY_INGEST_BASE=https://xray-ingest.hexly.ai   # prod
+# export XRAY_INGEST_BASE=http://127.0.0.1:8787        # local/dev
 
 # 2. Optional knobs (push.env may already set these)
-export XRAY_INGEST_BASE=https://xray-ingest.hexly.ai
 export XRAY_WINDOW_HOURS=24
 export XRAY_TWITTER_MAX=20          # natural page; do not crank to “fill”
 export XRAY_CACHE_DIR=.cache/twitter-cli
@@ -309,7 +314,7 @@ Handle **dedupe across lists**: one fetch; items cloned into each watchlist’s 
 | `packages/shared/src/fixtures/twitter-cli-user-posts.json` | mapper fixtures |
 | `scripts/refresh-watchlists.ts` | orchestrator (one vendor import line) |
 | `.cache/twitter-cli/` | gitignored opaque raw + run logs |
-| `config/members.json` | optional snapshot (gitignored via `config/`) |
+| `config/members.json` | optional snapshot override only (gitignored via `config/`) |
 
 ---
 

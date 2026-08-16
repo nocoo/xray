@@ -52,13 +52,14 @@ resolve graph (members file OR browser API)
   → JSON plan + per-handle events + final refresh_done + report path
 ```
 
-Auth roles (three different secrets):
+Auth roles (two secrets):
 
 | Secret | Purpose |
 |--------|---------|
 | **twitter-cli cookies / env** | Read X (GraphQL via CLI) |
-| **`XRAY_PUSH_TOKEN`** | Write ingest only (`Authorization: Bearer …`) |
-| **Browser session / CF Access / dev bypass** | List watchlists + members (graph). Push token **cannot** do this. |
+| **`XRAY_PUSH_TOKEN`** | Ingest **auth**: `GET /api/v1/ingest/graph` + `POST /api/v1/ingest/push` |
+
+Do **not** use `XRAY_CF_AUTHORIZATION` or browser CRUD to list members.
 
 ---
 
@@ -76,15 +77,14 @@ Auth roles (three different secrets):
 # sources this file and relies on it — do not leave it commented out).
 XRAY_PUSH_TOKEN=xray_pt_<prefix>_<secret>
 XRAY_INGEST_BASE=https://xray-ingest.hexly.ai
-XRAY_MEMBERS_FILE=config/members.json
 XRAY_WINDOW_HOURS=24
 ```
 
 | Key | Required? | Notes |
 |-----|-----------|--------|
-| `XRAY_PUSH_TOKEN` | **Yes** (for push) | Full secret once from mint |
-| `XRAY_INGEST_BASE` | **Yes for prod** | Default in script is prod URL if unset, but **set it explicitly** in `push.env` so cron/agent never guess |
-| `XRAY_MEMBERS_FILE` | Optional | Default graph path if file exists (section 3) |
+| `XRAY_PUSH_TOKEN` | **Yes** | Graph read + push write (same token) |
+| `XRAY_INGEST_BASE` | **Yes** | Prod `https://xray-ingest.hexly.ai` or local `http://127.0.0.1:8787`. Graph and push share this. |
+| `XRAY_MEMBERS_FILE` | Optional | Override only if the file exists; default is token graph |
 | `XRAY_WINDOW_HOURS` | Optional | Default 24 |
 
 Load into the shell (every run):
@@ -110,7 +110,6 @@ test -n "${XRAY_INGEST_BASE:-}" && echo "XRAY_INGEST_BASE=$XRAY_INGEST_BASE" || 
    # X-Ray prod push token — DO NOT COMMIT
    XRAY_PUSH_TOKEN=xray_pt_REPLACE_ME
    XRAY_INGEST_BASE=https://xray-ingest.hexly.ai
-   XRAY_MEMBERS_FILE=config/members.json
    XRAY_WINDOW_HOURS=24
    EOF
    chmod 600 ~/.config/xray/push.env
@@ -155,13 +154,13 @@ export XRAY_INGEST_BASE='http://127.0.0.1:8787'
 
 ## 3. Graph source (which watchlists / which ids)
 
-Script resolution order (see `scripts/refresh-watchlists.ts`):
+Script resolution order (target after XR-29):
 
-1. If **members file path exists on disk** → use file (**browser base ignored**).
-2. Else if `XRAY_BROWSER_BASE` / `--browser-base` set → live `GET /api/watchlists` + members.
-3. Else → error.
+1. If **`--members-file` / `XRAY_MEMBERS_FILE` exists on disk** → use file (override).
+2. Else `GET {XRAY_INGEST_BASE}/api/v1/ingest/graph` with `XRAY_PUSH_TOKEN`.
+3. Else → error (missing token or graph 401/403).
 
-Default file path: `XRAY_MEMBERS_FILE` or `config/members.json`.
+Do not call browser `/api/watchlists` or require `XRAY_CF_AUTHORIZATION`.
 
 ### 3.1 Snapshot schema
 
@@ -212,27 +211,17 @@ console.log(path, JSON.stringify(out.watchlists.map((w) => ({ id: w.id, name: w.
 # WL_NAME='活跃用户' OUT=/tmp/xray-active-local.json bun -e '…'
 ```
 
-### 3.3 Live graph from browser API
-
-**Local:**
+### 3.3 Live graph from ingest token (default)
 
 ```bash
-export XRAY_BROWSER_BASE=http://127.0.0.1:8787
-# Ensure config/members.json is NOT used: either remove/rename it for the run,
-# or pass an explicit missing path is wrong — file wins if it exists.
-# Prefer: write a dedicated snapshot and --members-file (ids guaranteed).
+export XRAY_PUSH_TOKEN='…'
+# prod:
+export XRAY_INGEST_BASE=https://xray-ingest.hexly.ai
+# local:
+# export XRAY_INGEST_BASE=http://127.0.0.1:8787
 ```
 
-**Prod:**
-
-```bash
-export XRAY_BROWSER_BASE=https://xray.hexly.ai
-export XRAY_CF_AUTHORIZATION='<CF_Authorization cookie value after Access login>'
-# Cookie value only, not the full "CF_Authorization=…" header line unless script expects raw value
-# (script sets cookie: CF_Authorization=${cf})
-```
-
-If `config/members.json` exists and is pointed at by `push.env`, **prod cron will use those ids**. Keep that file in sync with **prod** D1 ids, or override with `--members-file` / unset `XRAY_MEMBERS_FILE` and use browser base.
+If `config/members.json` exists and `XRAY_MEMBERS_FILE` points at it, **that file wins** and must use ids from the **same** ingest D1. Prefer leaving the file unset so token graph is always live.
 
 ---
 
@@ -393,7 +382,7 @@ After the script finishes, parse stdout/stderr (see **§4.2** for stream shape):
 | Report line | Source |
 |-------------|--------|
 | **ingest** | Env `XRAY_INGEST_BASE` after source, **or** `plan.ingestBase` / `refresh_done.ingestBase` if present |
-| **graph** | Not a single JSON field. Infer: if members file path exists and was used → `members-file <abs-or-rel path>`; else if browser base set → `browser <base>`. Dry-run: `plan.watchlists` = list count; human lines `@handle → WL <id>` show assignment. Confirm path via env `XRAY_MEMBERS_FILE` / `--members-file` you passed |
+| **graph** | Token `GET {ingest}/api/v1/ingest/graph`, or `members-file <path>` if override used. Dry-run: `plan.watchlists` = list count |
 | **mode** | `plan.refreshMode` + flags: `plan.dryRun` / `fromCache` / `cacheOnly` / `noSpread` |
 | **handles selected** | `plan.selectedHandles` (or `uniqueHandles`) |
 | **handles ok / errors** | Full run: `refresh_done` / report — `handleErrors`, `permanentlyFailed`; count ok from summary or handlesPlanned semantics |
@@ -411,7 +400,7 @@ After the script finishes, parse stdout/stderr (see **§4.2** for stream shape):
 - **cwd**: <repo root>
 - **target**: prod | local
 - **ingest**: <from env or plan.ingestBase>
-- **graph**: members-file <path> | browser <base>  (inferred — see §7.1; dry-run: plan.watchlists=N)
+- **graph**: ingest-graph <base> | members-file <path>
 - **mode**: full | incremental | from-cache | dry-run | cache-only  (from plan.*)
 - **exit**: <code>
 - **handles**: selected=<plan.selectedHandles> ok=<…> errors=<handleErrors|permanentlyFailed>
@@ -460,7 +449,7 @@ bun run refresh:watchlists -- 2>&1 | tee -a "$LOG_DIR/refresh-$(date -u +%Y%m%dT
 | Wrong/empty posts on a named WL | Snapshot **id** mismatch — re-export graph from **that** env |
 | Mass 429 | Prod: use default spread only; wait; do not tighten delay |
 | exit 3 lock | Wait for other run; check no crashed holder still alive |
-| `config/members.json` overrides browser | Expected — file wins if path exists |
+| `config/members.json` overrides token graph | Expected if `XRAY_MEMBERS_FILE` points at an existing file |
 | `jq` fails on full dry-run log | Stream is multi-line JSON + human lines, not NDJSON (§4.2) |
 
 ---
@@ -506,11 +495,11 @@ bun run refresh:watchlists -- --from-cache
 bun run refresh:watchlists -- --refresh-mode incremental
 bun run refresh:watchlists -- --members-file /path/to.json
 bun run refresh:watchlists -- --ingest-base http://127.0.0.1:8787
-bun run refresh:watchlists -- --browser-base http://127.0.0.1:8787
+bun run refresh:watchlists -- --ingest-base http://127.0.0.1:8787
 bun run refresh:watchlists -- --window-hours 24 --max 20
 bun run refresh:watchlists -- --spread-window-min 60 --min-gap-ms 12000
 # local sprint only:
 bun run refresh:watchlists -- --no-spread --handle-delay-ms 2500
 ```
 
-Env keys: `XRAY_PUSH_TOKEN`, `XRAY_INGEST_BASE`, `XRAY_MEMBERS_FILE`, `XRAY_BROWSER_BASE`, `XRAY_CF_AUTHORIZATION`, `XRAY_WINDOW_HOURS`, `XRAY_TWITTER_MAX`, `XRAY_CACHE_DIR`, `XRAY_REFRESH_MODE`, `TWITTER_BIN`.
+Env keys: `XRAY_PUSH_TOKEN`, `XRAY_INGEST_BASE`, `XRAY_MEMBERS_FILE` (optional override), `XRAY_WINDOW_HOURS`, `XRAY_TWITTER_MAX`, `XRAY_CACHE_DIR`, `XRAY_REFRESH_MODE`, `TWITTER_BIN`.
