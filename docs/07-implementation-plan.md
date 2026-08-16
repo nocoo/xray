@@ -79,8 +79,8 @@ feat: ai test connection and summary fill
 feat(ui): custom zheto save and member tags
 ```
 
-**当前停点**：S5 + 产品缺口 P1–P5 + local producer 已完成。  
-**2026-08-16 文档已锁 XR-29 / BD-10**（token = ingest 认证，读图+写 push）。实现尚未落地 — 见下方「S6」。
+**当前停点**：S5 + 产品缺口 P1–P5 + local producer + **S6** 已完成。  
+**2026-08-16**：XR-29 / BD-10 已落地（token = ingest 认证，读图+写 push）。发版 **2.1.6**。
 
 ---
 
@@ -168,17 +168,17 @@ S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)
 3. S3 后每 commit 过 pre-commit；push 过 pre-push + CI。  
 4. S5 模块附带 e2e 增量。  
 
-## S6 — Ingest graph + token read/write（文档已锁，待实现）
+## S6 — Ingest graph + token read/write（**done**，2.1.6）
 
 | # | 内容 | 状态 |
 |---|------|------|
-| S6.1 | `isIngestAllowedPath` 放行 `GET /api/v1/ingest/graph` | pending |
-| S6.2 | 抽出 `pushTokenAuth`；graph 要 `ingest:read`，push 要 `ingest:push`；**graph 也走 ingest RL（key=token_id）**，429 可测 | pending |
-| S6.3 | mint 默认 scopes `["ingest:read","ingest:push"]`；旧仅 push 的 token **不**隐式获读，须重 mint | pending |
-| S6.4 | `GET /api/v1/ingest/graph` 返回 owner 的 WL + x.com members（`parseMembersGraph` 形）；**空租户 200 `{watchlists:[]}`**；parser 必须接受空数组 | pending |
-| S6.5 | **每次** `refresh:watchlists` 开始（含 `--dry-run` / `--cache-only` / `--from-cache`）先用同一 token+ingest base **live GET graph**。401/403/429/网络/坏 JSON **fail closed**，不得回退 snapshot/cache。live 成功后，**仅命令行显式 `--members-file` 且文件存在**才覆盖。删除默认 `config/members.json`、`XRAY_MEMBERS_FILE`、`XRAY_BROWSER_BASE`、`XRAY_CF_AUTHORIZATION`。`--env prod\|dev` 可选，`--env dev` 必须打 `127.0.0.1:8787` 且 Host 走 ingest/local 允许路径 | pending |
-| S6.6 | L1+L2：graph 200/401/403/429；host 矩阵；租户只见自己的图；`gate:routes` 含新路径。负矩阵：push-only→graph 403 且 push 仍可用；read-only→graph 200 且 push 403；revoked/坏 token→401；ingest Bearer 不能打 token CRUD/Groups/AI/settings/SPA；browser host 不接受 Bearer agent 路由 | pending |
-| S6.7 | **脚本级测试**（shipped `refresh-watchlists` / 其抽取出的 graph-load）：所有运行模式都先 live 拉图；显式 `--members-file` 覆盖顺序；文件不存在不覆盖；live 失败不回退；graph 与 push 用同一解析后的 token/base | pending |
+| S6.1 | `isIngestAllowedPath` 放行 `GET /api/v1/ingest/graph` | **done** |
+| S6.2 | 抽出 `pushTokenAuth`；graph 要 `ingest:read`，push 要 `ingest:push`；**graph 也走 ingest RL（key=token_id）**，429 可测 | **done** |
+| S6.3 | mint 默认 scopes `["ingest:read","ingest:push"]`；旧仅 push 的 token **不**隐式获读，须重 mint | **done** |
+| S6.4 | `GET /api/v1/ingest/graph` 返回 owner 的 WL + x.com members（`parseMembersGraph` 形）；**空租户 200 `{watchlists:[]}`**；parser 必须接受空数组 | **done** |
+| S6.5 | **每次** `refresh:watchlists` 开始（含 `--dry-run` / `--cache-only` / `--from-cache`）先用同一 token+ingest base **live GET graph**。401/403/429/网络/坏 JSON **fail closed**，不得回退 snapshot/cache。live 成功后，**仅命令行显式 `--members-file` 且文件存在**才覆盖。删除默认 `config/members.json`、`XRAY_MEMBERS_FILE`、`XRAY_BROWSER_BASE`、`XRAY_CF_AUTHORIZATION`。`--env prod\|dev` 可选，`--env dev` 必须打 `127.0.0.1:8787` 且 Host 走 ingest/local 允许路径 | **done** |
+| S6.6 | L1+L2：graph 200/401/403/429；host 矩阵；租户只见自己的图；`gate:routes` 含新路径。负矩阵：push-only→graph 403 且 push 仍可用；read-only→graph 200 且 push 403；revoked/坏 token→401；ingest Bearer 不能打 token CRUD/Groups/AI/settings/SPA；browser host 不接受 Bearer agent 路由 | **done** |
+| S6.7 | **脚本级测试**（shipped `refresh-watchlists` / 其抽取出的 graph-load）：所有运行模式都先 live 拉图；显式 `--members-file` 覆盖顺序；文件不存在不覆盖；live 失败不回退；graph 与 push 用同一解析后的 token/base | **done** |
 
 **出口**：同一 `XRAY_PUSH_TOKEN` + `XRAY_INGEST_BASE` 可在 prod 或 local 跑 `bun run refresh:watchlists --`，无需 `members.json` / Access cookie。每次启动都 live 拉图。
 
