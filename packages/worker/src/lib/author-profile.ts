@@ -1,6 +1,6 @@
 import { sha256Hex } from "./push-token-crypto.js";
 
-export const AUTHOR_PROFILE_URL = "https://firefly.dev.hexly.ai/api/authors/profile";
+export const AUTHOR_PROFILE_URL = "https://lizheng.blog/api/authors/profile";
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
 export type AuthorProfile = { name: string | null; avatar: string | null };

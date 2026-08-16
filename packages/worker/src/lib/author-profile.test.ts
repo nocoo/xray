@@ -67,10 +67,12 @@ describe("fetchAuthorProfile", () => {
 		expect(first).toEqual({ name: "Zheng Li", avatar: "https://cdn.example/a.jpg" });
 		expect(second).toEqual(first);
 		expect(seen).toHaveLength(1);
+		expect(seen[0]).toContain("https://lizheng.blog/api/authors/profile?hash=");
 		expect(seen[0]).toContain(
 			"hash=7ba563171c26fb9b82e9f7750840c0455602eb35025192027230bcb40aae1217",
 		);
 		expect(seen[0]).not.toContain("architie");
+		expect(seen[0]).not.toContain("firefly.dev.hexly.ai");
 	});
 
 	test("429, network, and bad json fail closed", async () => {
