@@ -84,8 +84,8 @@ export function parseMembersGraph(raw: unknown): MembersGraph {
 		throw new Error("graph must be object");
 	}
 	const watchlists = (raw as { watchlists?: unknown }).watchlists;
-	if (!Array.isArray(watchlists) || watchlists.length === 0) {
-		throw new Error("graph.watchlists must be non-empty array");
+	if (!Array.isArray(watchlists)) {
+		throw new Error("graph.watchlists must be an array");
 	}
 	const out: MembersGraph["watchlists"] = [];
 	for (const w of watchlists) {

@@ -102,6 +102,10 @@ describe("scrubEnvForTwitter", () => {
 });
 
 describe("parseMembersGraph", () => {
+	test("accepts empty watchlists as no-op graph", () => {
+		expect(parseMembersGraph({ watchlists: [] })).toEqual({ watchlists: [] });
+	});
+
 	test("accepts valid snapshot", () => {
 		const g = parseMembersGraph({
 			watchlists: [
@@ -208,7 +212,7 @@ describe("exitCodeForRefresh", () => {
 describe("parseMembersGraph / assertAllowedBaseUrl / parsePush more edges", () => {
 	test("graph structure rejects", () => {
 		expect(() => parseMembersGraph(null)).toThrow(/object/);
-		expect(() => parseMembersGraph({ watchlists: [] })).toThrow(/non-empty/);
+		expect(parseMembersGraph({ watchlists: [] })).toEqual({ watchlists: [] });
 		expect(() => parseMembersGraph({ watchlists: [null] })).toThrow(/entry/);
 		expect(() => parseMembersGraph({ watchlists: [{ id: 1, name: "", members: [] }] })).toThrow(
 			/name/,
