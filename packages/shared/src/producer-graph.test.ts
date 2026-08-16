@@ -156,10 +156,10 @@ describe("applyExplicitMembersFile", () => {
 		);
 	});
 
-	test("missing file fails closed", () => {
-		expect(() =>
+	test("missing file keeps live", () => {
+		expect(
 			applyExplicitMembersFile(live, "/tmp/nope.json", { exists: () => false, read: () => "" }),
-		).toThrow(/not found/);
+		).toBe(live);
 	});
 
 	test("existing file overrides after live", () => {

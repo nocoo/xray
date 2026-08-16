@@ -58,10 +58,7 @@ export function applyExplicitMembersFile(
 	filePath: string | undefined,
 	io: { exists: (path: string) => boolean; read: (path: string) => string },
 ): MembersGraph {
-	if (!filePath) return live;
-	if (!io.exists(filePath)) {
-		throw new Error(`--members-file not found: ${filePath}`);
-	}
+	if (!filePath || !io.exists(filePath)) return live;
 	return parseMembersGraph(JSON.parse(io.read(filePath)) as unknown);
 }
 
