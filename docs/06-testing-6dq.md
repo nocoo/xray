@@ -24,7 +24,10 @@ For each business resource (watchlist, group, item, token, log, ai config, zheto
 |---------|------------------|--------|
 | Access user A | GET/PATCH/DELETE | 404 |
 | Push token A | push to B’s watchlist_id | 404 |
-| Token A revoked | push | 401 |
+| Push token A | GET `/api/v1/ingest/graph` | 200 with **A’s** lists only (never B) |
+| Token A revoked | graph or push | 401 |
+| Token missing `ingest:read` | GET graph | 403 |
+| Token missing `ingest:push` | POST push | 403 |
 
 
 ### L1 coverage denominator (locked)
@@ -67,6 +70,7 @@ packages/worker/src/test (Vitest; hand-written SQL-shaped stubs — not auto-app
   me.http.test.ts
   watchlists.http.test.ts
   ingest.http.test.ts
+  ingest-graph.http.test.ts    # GET /api/v1/ingest/graph (XR-29)
   host-routing.http.test.ts    # R3-04 matrix (see 02)
   tenant-isolation.http.test.ts
   push-tokens.http.test.ts
