@@ -4,6 +4,7 @@ import {
 	fetchIngestGraph,
 	ingestAgentHeaders,
 	ingestBaseForEnv,
+	loadRefreshGraph,
 	resolveIngestBase,
 } from "./producer-graph.js";
 
@@ -171,5 +172,65 @@ describe("applyExplicitMembersFile", () => {
 				}),
 		});
 		expect(next.watchlists[0]?.id).toBe(9);
+	});
+});
+
+describe("loadRefreshGraph", () => {
+	const liveJson = JSON.stringify({
+		watchlists: [{ id: 1, name: "live", members: [{ handle: "a", sourceType: "x.com" }] }],
+	});
+
+	test("always live-fetches then optional file override", async () => {
+		let calls = 0;
+		const live = await loadRefreshGraph({
+			fetch: async () => {
+				calls += 1;
+				return { status: 200, ok: true, text: async () => liveJson };
+			},
+			ingestBase: "https://xray-ingest.hexly.ai",
+			pushToken: "tok",
+			io: { exists: () => false, read: () => "" },
+		});
+		expect(calls).toBe(1);
+		expect(live.watchlists[0]?.id).toBe(1);
+
+		const overridden = await loadRefreshGraph({
+			fetch: async () => {
+				calls += 1;
+				return { status: 200, ok: true, text: async () => liveJson };
+			},
+			ingestBase: "https://xray-ingest.hexly.ai",
+			pushToken: "tok",
+			membersFile: "/x.json",
+			io: {
+				exists: () => true,
+				read: () =>
+					JSON.stringify({
+						watchlists: [{ id: 9, name: "file", members: [] }],
+					}),
+			},
+		});
+		expect(calls).toBe(2);
+		expect(overridden.watchlists[0]?.id).toBe(9);
+	});
+
+	test("live failure does not read members file", async () => {
+		let read = false;
+		await expect(
+			loadRefreshGraph({
+				fetch: async () => ({ status: 403, ok: false, text: async () => "{}" }),
+				ingestBase: "https://xray-ingest.hexly.ai",
+				pushToken: "tok",
+				membersFile: "/x.json",
+				io: {
+					exists: () => true,
+					read: () => {
+						read = true;
+						return "{}";
+					},
+				},
+			}),
+		).rejects.toThrow(/403/);
+		expect(read).toBe(false);
 	});
 });

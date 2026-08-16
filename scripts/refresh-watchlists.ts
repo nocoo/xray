@@ -17,7 +17,6 @@ import {
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
-	applyExplicitMembersFile,
 	assertAllowedBaseUrl,
 	atomicWriteJson,
 	buildIngestBatches,
@@ -29,9 +28,9 @@ import {
 	DEFAULT_SPREAD_WINDOW_MS,
 	deferHandleInSchedule,
 	exitCodeForRefresh,
-	fetchIngestGraph,
 	filterItemsByWindow,
 	isValidXHandle,
+	loadRefreshGraph,
 	type parseMembersGraph,
 	pushIngestBatch,
 	rateLimitPauseMs,
@@ -387,20 +386,18 @@ function releaseEpochLock(_lockPath?: string): void {
 }
 
 async function loadGraph(): Promise<Graph> {
-	if (!pushToken) {
-		throw new Error("XRAY_PUSH_TOKEN required to fetch ingest graph");
-	}
-	const live = await fetchIngestGraph({
+	return loadRefreshGraph({
 		fetch: async (url, init) => {
 			const res = await fetch(url, init);
 			return { status: res.status, ok: res.ok, text: () => res.text() };
 		},
 		ingestBase,
 		pushToken,
-	});
-	return applyExplicitMembersFile(live, membersFile, {
-		exists: existsSync,
-		read: (p) => readFileSync(p, "utf8"),
+		membersFile,
+		io: {
+			exists: existsSync,
+			read: (p) => readFileSync(p, "utf8"),
+		},
 	});
 }
 

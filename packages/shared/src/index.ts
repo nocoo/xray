@@ -31,6 +31,7 @@ export {
 	fetchIngestGraph,
 	ingestAgentHeaders,
 	ingestBaseForEnv,
+	loadRefreshGraph,
 	resolveIngestBase,
 } from "./producer-graph.js";
 export type { FetchFn, PushBatchDeps, PushBatchResult } from "./producer-push.js";

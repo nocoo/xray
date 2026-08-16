@@ -29,12 +29,24 @@ describe("scripts/refresh-watchlists.ts entry wiring", () => {
 	});
 
 	test("live ingest graph at start; no browser/cookie graph path", () => {
-		expect(src).toMatch(/\bfetchIngestGraph\b/);
-		expect(src).toMatch(/\bapplyExplicitMembersFile\b/);
+		expect(src).toMatch(/\bloadRefreshGraph\b/);
 		expect(src).toMatch(/\bresolveIngestBase\b/);
 		expect(src).not.toMatch(/XRAY_BROWSER_BASE/);
 		expect(src).not.toMatch(/XRAY_CF_AUTHORIZATION/);
 		expect(src).not.toMatch(/XRAY_MEMBERS_FILE/);
 		expect(src).not.toMatch(/config\/members\.json/);
+	});
+
+	test("all run modes call loadGraph before dry-run/cache branches", () => {
+		const main = src.slice(src.indexOf("async function main"));
+		const loadAt = main.indexOf("await loadGraph()");
+		const dryAt = main.indexOf("if (dryRun)");
+		const fromCacheAt = main.indexOf("if (fromCache)");
+		const cacheOnlyAt = main.indexOf("if (cacheOnly)");
+		expect(loadAt).toBeGreaterThan(-1);
+		expect(loadAt).toBeLessThan(dryAt);
+		expect(loadAt).toBeLessThan(fromCacheAt);
+		expect(loadAt).toBeLessThan(cacheOnlyAt);
+		expect(src).toMatch(/ingestBase,\s*\n\s*pushToken/);
 	});
 });

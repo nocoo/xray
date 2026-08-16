@@ -62,6 +62,16 @@ export function applyExplicitMembersFile(
 	return parseMembersGraph(JSON.parse(io.read(filePath)) as unknown);
 }
 
+export async function loadRefreshGraph(
+	deps: FetchIngestGraphDeps & {
+		membersFile?: string;
+		io: { exists: (path: string) => boolean; read: (path: string) => string };
+	},
+): Promise<MembersGraph> {
+	const live = await fetchIngestGraph(deps);
+	return applyExplicitMembersFile(live, deps.membersFile, deps.io);
+}
+
 export type ResolveIngestBaseInput = {
 	cliBase?: string;
 	cliEnv?: string;
