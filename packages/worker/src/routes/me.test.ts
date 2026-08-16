@@ -40,4 +40,42 @@ describe("meRoute", () => {
 			image: null,
 		});
 	});
+
+	test("overlays firefly name and avatar when lookup hits", async () => {
+		const app = new Hono<AppEnv>();
+		app.use("/api/me", async (c, next) => {
+			// @ts-expect-error test env
+			c.env = {
+				ENVIRONMENT: "test",
+				AUTHOR_PROFILE_FETCH: async () => ({
+					status: 200,
+					json: async () => ({
+						name: "Zheng Li",
+						avatar: "https://cdn.example/avatar-80.jpg",
+					}),
+				}),
+			};
+			c.set("authUser", {
+				id: "u1",
+				email: "architie@gmail.com",
+				name: null,
+				image: null,
+				accessIss: "iss",
+				accessSub: "sub",
+			});
+			return next();
+		});
+		app.get("/api/me", meRoute);
+		const res = await app.request("/api/me");
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({
+			authenticated: true,
+			user: {
+				id: "u1",
+				email: "architie@gmail.com",
+				name: "Zheng Li",
+				image: "https://cdn.example/avatar-80.jpg",
+			},
+		});
+	});
 });

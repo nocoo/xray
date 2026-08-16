@@ -1,3 +1,5 @@
+import type { AuthorProfileFetch } from "./lib/author-profile.js";
+
 /** Minimal CF Rate Limit binding shape. */
 export type RateLimit = {
 	limit: (opts: { key: string }) => Promise<{ success: boolean }>;
@@ -38,6 +40,7 @@ export type Bindings = {
 	/** Test injectables */
 	TRANSLATE_FN?: TranslateFn;
 	ZHETO_UPSTREAM?: ZhetoUpstream;
+	AUTHOR_PROFILE_FETCH?: AuthorProfileFetch;
 };
 
 export type AuthUser = {
