@@ -28,9 +28,9 @@ xray/
 | Hostname | CF Access | Traffic |
 |----------|-----------|---------|
 | **`xray.hexly.ai`** (prod browser) | **Required** (Google IdP) | SPA + browser `/api/*` |
-| **`xray-ingest.hexly.ai`** (prod agents) | **Bypass** | **Only** push + live |
+| **`xray-ingest.hexly.ai`** (prod agents) | **Bypass** | Bearer agent: graph read + push write + live |
 | **`xray-staging.hexly.ai`** (pre-cutover smoke) | **Same Access app/AUD as prod browser** (R6-01) | SPA + browser APIs |
-| **`xray-ingest-staging.hexly.ai`** | **Bypass** (same as prod ingest) | push + live only |
+| **`xray-ingest-staging.hexly.ai`** | **Bypass** (same as prod ingest) | graph + push + live |
 | **`xray.dev.hexly.ai`** (local Caddy) | `AUTH_DEV_BYPASS` | local |
 | Local wrangler | `AUTH_DEV_BYPASS` | L2/L3 |
 
@@ -43,17 +43,19 @@ Browser ──HTTPS──► CF Access (Google) ──► xray.hexly.ai ──�
 
 Agent  ──HTTPS + Bearer──► xray-ingest.hexly.ai ──► same Worker
                               (no Access edge)
-                              └─ POST /api/v1/ingest/push only
-                                 (Worker still runs pushTokenAuth;
-                                  reject other paths with 404)
+                              ├─ GET  /api/live
+                              ├─ GET  /api/v1/ingest/graph   (ingest:read)
+                              └─ POST /api/v1/ingest/push    (ingest:push)
+                                 (pushTokenAuth → user_id;
+                                  reject all other paths with 404)
 ```
 
 **Locked rules**
 
-1. Agents **must not** call `xray.hexly.ai` for push (Access would block Bearer-only clients).
-2. Ingest host **must not** serve the SPA dashboard; path allowlist in Worker: push + live only.
-3. Token **mint/list/revoke** only on browser host under Access — never on ingest host.
-4. Production smoke: (a) browser login on `xray.hexly.ai`; (b) `curl -H "Authorization: Bearer …" https://xray-ingest.hexly.ai/api/v1/ingest/push` succeeds; (c) same curl to `xray.hexly.ai` fails at Access or is not the documented path.
+1. Agents **must not** call `xray.hexly.ai` (Access would block Bearer-only clients). Graph and push both stay on the **ingest** host (or local wrangler).
+2. Ingest host **must not** serve the SPA dashboard. Worker allowlist: live + graph + push only.
+3. Token **mint/list/revoke** only on browser host under Access — never on ingest host. Bearer **cannot** mint/revoke.
+4. Production smoke: (a) browser login on `xray.hexly.ai`; (b) Bearer `GET /api/v1/ingest/graph` and `POST /api/v1/ingest/push` on `xray-ingest.hexly.ai` succeed; (c) same Bearer calls to `xray.hexly.ai` fail at Access or 404.
 5. `workers.dev` preview: document separately; default off for prod data.
 
 `wrangler.toml`: assets SPA + `run_worker_first = ["/api/*"]` + D1 (`xray-db`) + test DB name `xray-db-test`.
@@ -101,11 +103,17 @@ Local: **`xray.dev.hexly.ai` → 7007** (Caddy). UI vite + worker wrangler dev.
 | Email change | same `sub` updates email; never second user for same sub |
 | Conflict | migration dry-run; `--map` file |
 
-### Push agents — `xray-ingest.hexly.ai` (XR-01)
+### Push agents — `xray-ingest.hexly.ai` (XR-01, XR-29)
 
-- **Only** `POST /api/v1/ingest/push` with `Authorization: Bearer <push_token>`.
-- Worker `pushTokenAuth`: hash lookup → `user_id`; scopes must include `ingest:push`.
-- **Not** Access JWT.
+Push token is **agent authentication**, not a write-only capability.
+
+- `Authorization: Bearer <push_token>` → hash lookup → `user_id` (tenant).
+- **Not** Access JWT. Not a browser session.
+- Ingest allowlist (same token, both directions):
+  - `GET /api/v1/ingest/graph` — requires scope `ingest:read`. Returns that user's watchlists + `x.com` members (shape = producer `parseMembersGraph`).
+  - `POST /api/v1/ingest/push` — requires scope `ingest:push`.
+- Mint default scopes: `["ingest:read","ingest:push"]`. Missing scope → 403. Tokens minted with only `ingest:push` do **not** gain read; remint.
+- Token does **not** unlock browser CRUD, Groups, AI, settings, zhe.to, or token admin.
 
 ### Token CRUD — browser host only
 
@@ -159,17 +167,19 @@ middleware: accessAuth | pushTokenAuth | originCheck
 | Host | Path | Expect |
 |------|------|--------|
 | ingest / ingest-staging | POST /api/v1/ingest/push + Bearer | 200/4xx business |
+| ingest / ingest-staging | GET /api/v1/ingest/graph + Bearer | 200 + owner graph; 401/403 otherwise |
 | ingest / ingest-staging | GET /api/live | 200 |
 | ingest / ingest-staging | GET /api/me or SPA / | **404** |
-| browser / staging-browser | POST push Bearer-only | **401** |
-| browser / staging-browser | POST push Access+Bearer | **404** (push not on browser host) |
+| ingest / ingest-staging | GET /api/watchlists (browser CRUD) | **404** |
+| browser / staging-browser | POST push or GET graph Bearer-only | **401** / **404** (agent routes not on browser host) |
 | unknown Host | any | 404 |
 
 ## 6. Ingest model (push-first, no auto refresh)
 
 ```
-Agent → xray-ingest.hexly.ai
-  POST /api/v1/ingest/push + Bearer
+Agent → xray-ingest.hexly.ai  (Bearer = user_id)
+  GET  /api/v1/ingest/graph     → tenant watchlists + x.com members
+  POST /api/v1/ingest/push
        → pushTokenAuth
        → validate + limits (XR-08)
        → normalize → CanonicalItem (discriminated)
