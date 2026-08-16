@@ -2,6 +2,14 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.1.7
+
+### Added
+- Fill me profile from firefly
+
+### Changed
+- Mark s6 ingest graph done
+
 ## v2.1.6
 
 ### Added
