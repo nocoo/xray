@@ -1,7 +1,8 @@
 # 08 — Decisions Log
 
 原 Open Questions 已于 **2026-08-10** 关闭。  
-**2026-08-10 Codex design review**：P0–P3 已并入 02–07（见下表）。
+**2026-08-10 Codex design review**：P0–P3 已并入 02–07（见下表）。  
+**2026-08-16**：XR-01 修正 — ingest Bearer 从「只写 push」改为 **agent 认证（读图 + 写 push）**。见 XR-29、BD-10。
 
 ## Product decisions (D1–D10)
 
@@ -22,7 +23,7 @@
 
 | ID | Level | Resolution summary |
 |----|-------|-------------------|
-| XR-01 | P0 | Dual host: `xray.hexly.ai` Access；`xray-ingest.hexly.ai` bypass push only |
+| XR-01 | P0 | Dual host: browser Access；ingest Access-bypass。**2026-08-16**：ingest Bearer = agent 认证，allowlist = `GET /api/live` + `GET /api/v1/ingest/graph` + `POST /api/v1/ingest/push`（不再是 push-only） |
 | XR-02 | P1 | users UNIQUE(access_iss, access_sub)；email 展示/迁移 |
 | XR-03 | P1 | S2 即 users migration；禁止临时 DB 分叉 |
 | XR-04 | P1 | Discriminated CanonicalItem + 完整 XTweet 子集 |
@@ -46,7 +47,8 @@
 | XR-22 | P2 | ALLOWED_EMAILS mandatory；Origin on mutations |
 | XR-23 | P2 | M8 cutover/rollback checklist |
 | XR-24 | P2 | observability minimum |
-| XR-25 | P3 | token CRUD vs push auth wording split |
+| XR-25 | P3 | token CRUD (Access / browser) vs agent auth (Bearer / ingest) wording split |
+| XR-29 | P0 | Push token 证明 `user_id`；ingest allowlist 上 **读+写**。Mint/list/revoke 仍仅 Access。默认 scopes `["ingest:read","ingest:push"]`；缺 scope → 403。旧仅 `ingest:push` 的 token **不**隐式获读权，须重 mint |
 | XR-26 | P3 | prod host xray.hexly.ai only in success criteria |
 | XR-27 | P3 | items naming not posts |
 | XR-28 | P3 | DELETE /api/push-tokens/:id；rg excludes |
@@ -109,6 +111,7 @@ Codex 审查中曾质疑、用户确认 **维持现状、不改为「更重」�
 | **BD-7** | Staging Access | browser staging **与 prod 共用同一 Access app / `CF_ACCESS_AUD`** | 独立 staging Access app + `CF_ACCESS_AUD_STAGING` | 配置更简单；hosts：`xray-staging` / `xray-ingest-staging`。见 02 §1、R6-01 |
 | **BD-8** | Push 去重 | 同 key **insert-ignore**；不覆盖 payload/AI（XR-16） | `mode=replace` 覆盖更新 | MVP 幂等安全；「修正推送」以后另议。见 03 §5 |
 | **BD-9** | 租户列形状 | 子表保留冗余 `user_id` + 父 FK；**repo invariant + L2 测** | D1 composite FK / 去掉冗余 user_id | D1/迁移更简单；靠查询始终带 `user_id` 与测试矩阵。见 02 §5、03、R3-12 |
+| **BD-10** | Producer 图源 | **`GET /api/v1/ingest/graph` + Bearer**（与 push 同一 ingest base / 同一 token） | 手维护 `members.json` 为必选；或 `XRAY_CF_AUTHORIZATION` 调浏览器 CRUD | 执行机只带 token 即可切 dev/prod 刷新。Snapshot 仅为可选覆盖。见 02、03、09 |
 
 ### Non-goals reminder (by design)
 
