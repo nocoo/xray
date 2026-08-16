@@ -79,7 +79,8 @@ feat: ai test connection and summary fill
 feat(ui): custom zheto save and member tags
 ```
 
-**当前停点**：S5 + 产品缺口 P1–P5 + local producer 已完成；生产 dual-host 已部署。可选加深见下方「下一步」。
+**当前停点**：S5 + 产品缺口 P1–P5 + local producer 已完成。  
+**2026-08-16 文档已锁 XR-29 / BD-10**（token = ingest 认证，读图+写 push）。实现尚未落地 — 见下方「S6」。
 
 ---
 
@@ -166,6 +167,21 @@ S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)
 2. 不 `git add -A`。  
 3. S3 后每 commit 过 pre-commit；push 过 pre-push + CI。  
 4. S5 模块附带 e2e 增量。  
+
+## S6 — Ingest graph + token read/write（文档已锁，待实现）
+
+| # | 内容 | 状态 |
+|---|------|------|
+| S6.1 | `isIngestAllowedPath` 放行 `GET /api/v1/ingest/graph` | pending |
+| S6.2 | `pushTokenAuth` 抽共用；graph 要 `ingest:read`，push 要 `ingest:push` | pending |
+| S6.3 | mint 默认 scopes `["ingest:read","ingest:push"]`；旧仅 push 的 token **不**隐式获读，须重 mint | pending |
+| S6.4 | `GET /api/v1/ingest/graph` 返回 owner 的 WL + x.com members（`parseMembersGraph` 形） | pending |
+| S6.5 | `refresh:watchlists`：默认 token 拉图；删 `XRAY_BROWSER_BASE` / `XRAY_CF_AUTHORIZATION`；`--env prod\|dev` 可选 | pending |
+| S6.6 | L1 + L2：graph 200/401/403；host 矩阵；租户只见自己的图；`gate:routes` 含新路径 | pending |
+
+**出口**：同一 `XRAY_PUSH_TOKEN` + `XRAY_INGEST_BASE` 可在 prod 或 local 跑 `bun run refresh:watchlists --`，无需 `members.json` / Access cookie。
+
+---
 
 ## 下一步（可选加深 — 非产品缺口）
 
