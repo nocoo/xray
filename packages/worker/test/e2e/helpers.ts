@@ -104,11 +104,11 @@ export async function createGroup(name: string) {
 	return dataOf<{ id: number; name: string }>(body);
 }
 
-export async function mintToken(label: string) {
+export async function mintToken(label: string, scopes?: string[]) {
 	const { status, body } = await jsonFetch("/api/push-tokens", {
 		method: "POST",
-		body: JSON.stringify({ label }),
+		body: JSON.stringify(scopes ? { label, scopes } : { label }),
 	});
 	expect([200, 201]).toContain(status);
-	return dataOf<{ id: number; token: string; label: string }>(body);
+	return dataOf<{ id: number; token: string; label: string; scopes: string[] }>(body);
 }

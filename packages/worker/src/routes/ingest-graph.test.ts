@@ -123,6 +123,25 @@ describe("ingestGraphRoute", () => {
 		expect(res.status).toBe(403);
 	});
 
+	test("429 when x-test-force-rl in test env", async () => {
+		const minted = await mintPushToken();
+		const hash = await sha256Hex(minted.plaintext);
+		const app = await appWith(
+			makeGraphDb({
+				tokenHash: hash,
+				prefix: minted.tokenPrefix,
+				scopes: ["ingest:read"],
+			}),
+		);
+		const res = await app.request("/api/v1/ingest/graph", {
+			headers: {
+				authorization: `Bearer ${minted.plaintext}`,
+				"x-test-force-rl": "1",
+			},
+		});
+		expect(res.status).toBe(429);
+	});
+
 	test("429 when rate limited", async () => {
 		const minted = await mintPushToken();
 		const hash = await sha256Hex(minted.plaintext);

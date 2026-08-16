@@ -224,6 +224,19 @@ describe("sqlite-backed full app coverage", () => {
 		);
 		expect([200, 201]).toContain(tokRes.status);
 		const tok = (tokRes.body as { data: { id: number; token: string } }).data;
+		const scopedTok = await json(
+			app.request(
+				"/api/push-tokens",
+				{
+					method: "POST",
+					headers: hdr(),
+					body: JSON.stringify({ label: "read-only", scopes: ["ingest:read"] }),
+				},
+				env,
+			),
+		);
+		expect([200, 201]).toContain(scopedTok.status);
+		expect((scopedTok.body as { data: { scopes: string[] } }).data.scopes).toEqual(["ingest:read"]);
 		expect((await app.request("/api/push-tokens", { headers: hdr() }, env)).status).toBe(200);
 
 		const push = await app.request(
