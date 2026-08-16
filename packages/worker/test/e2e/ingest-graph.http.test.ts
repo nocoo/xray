@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { BASE, createWatchlist, dataOf, ingestHeaders, jsonFetch, mintToken } from "./helpers.js";
+import { createWatchlist, ingestHeaders, jsonFetch, mintToken, rawHttp } from "./helpers.js";
 
 describe("GET /api/v1/ingest/graph", () => {
 	test("401 without bearer; 404 on browser host; 200 owner graph on ingest", async () => {
@@ -14,12 +14,12 @@ describe("GET /api/v1/ingest/graph", () => {
 		});
 		const tok = await mintToken(`graph-${wl.id}`);
 
-		const noAuth = await fetch(`${BASE}/api/v1/ingest/graph`, {
+		const noAuth = await rawHttp("/api/v1/ingest/graph", {
 			headers: { host: "xray-ingest.hexly.ai", accept: "application/json" },
 		});
 		expect(noAuth.status).toBe(401);
 
-		const browser = await fetch(`${BASE}/api/v1/ingest/graph`, {
+		const browser = await rawHttp("/api/v1/ingest/graph", {
 			headers: {
 				host: "xray.hexly.ai",
 				authorization: `Bearer ${tok.token}`,
@@ -28,16 +28,16 @@ describe("GET /api/v1/ingest/graph", () => {
 		});
 		expect(browser.status).toBe(404);
 
-		const crudOnIngest = await fetch(`${BASE}/api/watchlists`, {
+		const crudOnIngest = await rawHttp("/api/watchlists", {
 			headers: ingestHeaders(tok.token),
 		});
 		expect(crudOnIngest.status).toBe(404);
 
-		const res = await fetch(`${BASE}/api/v1/ingest/graph`, {
+		const res = await rawHttp("/api/v1/ingest/graph", {
 			headers: ingestHeaders(tok.token),
 		});
 		expect(res.status).toBe(200);
-		const body = (await res.json()) as {
+		const body = JSON.parse(res.text) as {
 			watchlists: Array<{ id: number; name: string; members: Array<{ handle: string }> }>;
 		};
 		const mine = body.watchlists.find((w) => w.id === wl.id);

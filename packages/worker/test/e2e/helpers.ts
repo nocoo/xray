@@ -1,6 +1,41 @@
+import http from "node:http";
 import { expect } from "vitest";
 
 export const BASE = process.env.XRAY_L2_BASE || "http://127.0.0.1:18787";
+
+/** undici fetch forbids Host; use this to exercise dual-host routing. */
+export function rawHttp(
+	path: string,
+	init: { method?: string; headers?: Record<string, string>; body?: string } = {},
+): Promise<{ status: number; text: string }> {
+	const url = new URL(`${BASE}${path}`);
+	return new Promise((resolve, reject) => {
+		const req = http.request(
+			{
+				hostname: url.hostname,
+				port: url.port,
+				path: `${url.pathname}${url.search}`,
+				method: init.method ?? "GET",
+				headers: init.headers,
+			},
+			(res) => {
+				const chunks: Buffer[] = [];
+				res.on("data", (c) => {
+					chunks.push(c as Buffer);
+				});
+				res.on("end", () => {
+					resolve({
+						status: res.statusCode ?? 0,
+						text: Buffer.concat(chunks).toString("utf8"),
+					});
+				});
+			},
+		);
+		req.on("error", reject);
+		if (init.body) req.write(init.body);
+		req.end();
+	});
+}
 
 export function browserHeaders(extra?: Record<string, string>): Record<string, string> {
 	return {
