@@ -2,6 +2,39 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.1.6
+
+### Added
+- Live-fetch watchlist graph at start
+- Add ingest graph bearer route
+- Accept empty ingest members graph
+
+### Changed
+- Expand ingest graph l2 matrix
+- Prove live graph before mode branches
+- Send host header in graph l2
+- Require live graph on every start
+- Sync token model across index
+- Plan ingest graph implementation
+- Require l2 for ingest graph
+- Producer fetches graph via token
+- Add ingest graph api surface
+- Specify ingest token read-write
+- Lock token as ingest agent auth
+- Document v2 local env fields
+- Bump hono to 4.13.2
+- Bump wrangler to 4.123.0
+- Bump @cloudflare/workers-types to 5.20260814.1
+- Bump @cloudflare/workers-types to 5.20260813.1
+- Bump wrangler to 4.122.0
+- Tighten refresh skill from second dry-run
+
+### Fixed
+- Keep live graph if members file missing
+- Let --env override ingest base env
+- Enforce nanoid ^3.3.18 for GHSA-2v37-7h3g-55p8
+- Bump nanoid override to ^3.3.18
+
 ## v2.1.5
 
 ### Added
