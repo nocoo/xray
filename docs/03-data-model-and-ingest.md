@@ -389,7 +389,7 @@ Returns the token owner's watchlists and **x.com** members only (producer graph)
 ```
 
 - `id` is the D1 primary key for **this** environment (local ≠ prod).
-- 401 bad/revoked token; 403 missing `ingest:read`; 200 with `{ "watchlists": [] }` if the user has no lists.
+- 401 bad/revoked token; 403 missing `ingest:read`; 200 with `{ "watchlists": [] }` if the user has no lists. `parseMembersGraph` **must accept** that empty array (refresh no-op, not an error).
 - Counts against the ingest rate-limit binding (key = `token_id`, R3-03).
 
 ### `POST /api/v1/ingest/push` (ingest host only)

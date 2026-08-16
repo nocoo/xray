@@ -191,10 +191,10 @@ Authorization: Bearer xray_pt_…
 
 | Mode | How |
 |------|-----|
-| **A. Token graph (default)** | `GET {XRAY_INGEST_BASE}/api/v1/ingest/graph` with `XRAY_PUSH_TOKEN` |
-| **B. Snapshot override** | `--members-file` / `XRAY_MEMBERS_FILE` if the file **exists** (debug / air-gap). Ids must belong to that ingest D1. |
+| **A. Live token graph (always first)** | Every start — including `--dry-run`, `--cache-only`, `--from-cache` — `GET {ingest}/api/v1/ingest/graph` with the same token+base as push. 401/403/429/network/bad JSON **fail closed**. No snapshot/cache fallback. |
+| **B. Snapshot override (after live)** | **Only** CLI `--members-file PATH` when that file exists. Ids must belong to that ingest D1. Not `XRAY_MEMBERS_FILE`, not default `config/members.json`. |
 
-**Removed** (do not document or implement as fallback): `XRAY_BROWSER_BASE` + `XRAY_CF_AUTHORIZATION` against browser CRUD.
+**Removed**: `XRAY_BROWSER_BASE`, `XRAY_CF_AUTHORIZATION`, default `config/members.json`, env `XRAY_MEMBERS_FILE` as graph sources.
 
 ### Env → ingest base
 
@@ -205,7 +205,7 @@ Authorization: Bearer xray_pt_…
 
 Script may accept `--env prod|dev` as sugar for the row above. Graph and push **must** share that base so ids cannot cross environments.
 
-Producer may cache the last graph at `.cache/xray/graph.json` (optional). Default run **refetches**. Stale cache must not be the only source unless `--from-cache` / explicit file.
+`--from-cache` still **live-fetches the graph** first; it only skips twitter-cli raw refetch. Empty `{watchlists:[]}` is a successful no-op (parser must accept empty arrays).
 
 Snapshot schema (same as graph JSON, wrapped for `parseMembersGraph`):
 
