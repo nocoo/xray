@@ -125,8 +125,8 @@ describe("nullish / edge repo branches", () => {
 			run: () => ({ changes: 0 }),
 		});
 		const list = await pushTokens.listPushTokens(db, "u1");
-		expect(list[0]?.scopes).toEqual(["ingest:push"]);
-		expect(list[1]?.scopes).toEqual(["ingest:push"]);
+		expect(list[0]?.scopes).toEqual(["ingest:read", "ingest:push"]);
+		expect(list[1]?.scopes).toEqual(["ingest:read", "ingest:push"]);
 		expect(list[2]?.scopes).toEqual(["a", "1"]);
 		expect(await pushTokens.revokePushToken(db, "u1", 1)).toBe(false);
 

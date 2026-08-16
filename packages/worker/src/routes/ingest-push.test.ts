@@ -4,7 +4,7 @@ import { mintPushToken, sha256Hex } from "../lib/push-token-crypto.js";
 import type { AppEnv } from "../types.js";
 import { ingestPushRoute } from "./ingest-push.js";
 
-function makeIngestDb(tokenHash: string, prefix: string) {
+function makeIngestDb(tokenHash: string, prefix: string, scopes = ["ingest:push"]) {
 	const members = [
 		{
 			id: 1,
@@ -30,7 +30,7 @@ function makeIngestDb(tokenHash: string, prefix: string) {
 							token_prefix: prefix,
 							token_hash: tokenHash,
 							label: "t",
-							scopes: JSON.stringify(["ingest:push"]),
+							scopes: JSON.stringify(scopes),
 							created_at_ms: Date.now(),
 							last_used_at_ms: null,
 							revoked_at_ms: null,
@@ -73,6 +73,26 @@ function makeIngestDb(tokenHash: string, prefix: string) {
 }
 
 describe("ingestPushRoute", () => {
+	test("403 when token lacks ingest:push", async () => {
+		const minted = await mintPushToken();
+		const hash = await sha256Hex(minted.plaintext);
+		const app = new Hono<AppEnv>();
+		app.use("*", async (c, next) => {
+			// @ts-expect-error test
+			c.env = {
+				DB: makeIngestDb(hash, minted.tokenPrefix, ["ingest:read"]),
+				ENVIRONMENT: "test",
+			};
+			return next();
+		});
+		app.post("/api/v1/ingest/push", ingestPushRoute);
+		const res = await app.request("/api/v1/ingest/push", {
+			method: "POST",
+			headers: { authorization: `Bearer ${minted.plaintext}` },
+		});
+		expect(res.status).toBe(403);
+	});
+
 	test("rejects missing token and oversized content-length", async () => {
 		const app = new Hono<AppEnv>();
 		app.use("*", async (c, next) => {

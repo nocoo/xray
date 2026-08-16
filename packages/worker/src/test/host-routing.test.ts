@@ -14,6 +14,7 @@ describe("host routing matrix (R3-04)", () => {
 
 	test("ingest allowlist paths", () => {
 		expect(isIngestAllowedPath("GET", "/api/live")).toBe(true);
+		expect(isIngestAllowedPath("GET", "/api/v1/ingest/graph")).toBe(true);
 		expect(isIngestAllowedPath("GET", "/api/me")).toBe(false);
 		expect(isIngestAllowedPath("GET", "/")).toBe(false);
 	});
@@ -41,6 +42,7 @@ describe("host routing matrix (R3-04)", () => {
 		app.use("/api/*", accessAuth);
 		app.get("/api/me", (c) => c.json({ ok: true }));
 		app.get("/api/live", (c) => c.json({ ok: true }));
+		app.get("/api/v1/ingest/graph", (c) => c.json({ watchlists: [] }));
 		app.post("/api/v1/ingest/push", (c) => c.json({ ok: true }));
 
 		expect(
@@ -62,6 +64,20 @@ describe("host routing matrix (R3-04)", () => {
 			(
 				await app.request("/api/v1/ingest/push", {
 					method: "POST",
+					headers: { host: "xray-ingest.hexly.ai" },
+				})
+			).status,
+		).toBe(200);
+		expect(
+			(
+				await app.request("/api/v1/ingest/graph", {
+					headers: { host: "xray.hexly.ai" },
+				})
+			).status,
+		).toBe(404);
+		expect(
+			(
+				await app.request("/api/v1/ingest/graph", {
 					headers: { host: "xray-ingest.hexly.ai" },
 				})
 			).status,

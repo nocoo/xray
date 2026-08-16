@@ -228,5 +228,26 @@ describe("L2 tenant isolation (real HTTP, dual actor)", () => {
 		expect(pushRevoked.status).toBe(401);
 		void tokB;
 	});
+
+	test("graph lists only token owner watchlists", async () => {
+		const wlA = await createWatchlistAs("a", `graph-a-${Date.now()}`);
+		const wlB = await createWatchlistAs("b", `graph-b-${Date.now()}`);
+		const tokA = await mintTokenAs("a", `graph-tok-a-${Date.now()}`);
+		const tokB = await mintTokenAs("b", `graph-tok-b-${Date.now()}`);
+		const resA = await fetch(`${BASE}/api/v1/ingest/graph`, {
+			headers: ingestHeaders(tokA.token),
+		});
+		expect(resA.status).toBe(200);
+		const bodyA = (await resA.json()) as { watchlists: Array<{ id: number }> };
+		expect(bodyA.watchlists.some((w) => w.id === wlA.id)).toBe(true);
+		expect(bodyA.watchlists.some((w) => w.id === wlB.id)).toBe(false);
+		const resB = await fetch(`${BASE}/api/v1/ingest/graph`, {
+			headers: ingestHeaders(tokB.token),
+		});
+		expect(resB.status).toBe(200);
+		const bodyB = (await resB.json()) as { watchlists: Array<{ id: number }> };
+		expect(bodyB.watchlists.some((w) => w.id === wlB.id)).toBe(true);
+		expect(bodyB.watchlists.some((w) => w.id === wlA.id)).toBe(false);
+	});
 });
 

@@ -163,12 +163,11 @@ export async function accessAuth(c: Context<AppEnv>, next: Next) {
 		return c.json({ error: "Unknown host" }, 404);
 	}
 
-	// Push is ingest-host only (S45-03): browser/local never serve this path
-	if (path === "/api/v1/ingest/push") {
+	// Agent routes: ingest host or local wrangler (Host spoof / 127.0.0.1). Never browser.
+	if (path === "/api/v1/ingest/push" || path === "/api/v1/ingest/graph") {
 		if (kind !== "ingest" && kind !== "local") {
 			return c.json({ error: "Not found" }, 404);
 		}
-		// Bearer verified in route; live not applicable
 		return next();
 	}
 

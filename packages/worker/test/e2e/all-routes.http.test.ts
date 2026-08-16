@@ -117,6 +117,14 @@ describe("L2 real HTTP — all API routes", () => {
 		}
 
 		const tok = await mintToken(`l2-${wl.id}`);
+		{
+			const res = await fetch(`${BASE}/api/v1/ingest/graph`, {
+				headers: ingestHeaders(tok.token),
+			});
+			expect(res.status).toBe(200);
+			const graph = (await res.json()) as { watchlists: Array<{ id: number }> };
+			expect(graph.watchlists.some((w) => w.id === wl.id)).toBe(true);
+		}
 		const externalId = `l2-item-${Date.now()}`;
 		{
 			const res = await fetch(`${BASE}/api/v1/ingest/push`, {

@@ -18,6 +18,7 @@ import {
 	listGroupsRoute,
 	patchGroupRoute,
 } from "./routes/groups.js";
+import { ingestGraphRoute } from "./routes/ingest-graph.js";
 import { listWatchlistIngestLogsRoute } from "./routes/ingest-logs.js";
 import { ingestPushRoute } from "./routes/ingest-push.js";
 import { deleteItemRoute, listItemsRoute } from "./routes/items.js";
@@ -122,6 +123,7 @@ app.get("/api/push-tokens", listTokensRoute);
 app.post("/api/push-tokens", createTokenRoute);
 app.delete("/api/push-tokens/:id", revokeTokenRoute);
 
+app.get("/api/v1/ingest/graph", ingestGraphRoute);
 app.post("/api/v1/ingest/push", ingestPushRoute);
 
 // Browser/local SPA via ASSETS binding

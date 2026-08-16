@@ -9,13 +9,11 @@ import {
 	type SourceType,
 } from "@xray/shared";
 import type { Context } from "hono";
-import { parseBearerToken, sha256Hex, timingSafeEqual } from "../lib/push-token-crypto.js";
-import { checkIngestRateLimit } from "../lib/rate-limit.js";
+import { requirePushToken, touchPushToken } from "../lib/push-token-auth.js";
 import { insertItemIgnore } from "../repos/items.js";
-import { findActiveTokenByHash, touchPushToken } from "../repos/push-tokens.js";
 import { getWindowHours } from "../repos/settings.js";
 import { getWatchlist } from "../repos/watchlists.js";
-import type { AppEnv, AuthUser } from "../types.js";
+import type { AppEnv } from "../types.js";
 
 const MAX_BODY_BYTES = 1_048_576;
 const MAX_ITEMS = 50;
@@ -29,41 +27,9 @@ export async function ingestPushRoute(c: Context<AppEnv>) {
 		return c.json({ ok: false, error: "payload too large" }, 413);
 	}
 
-	const token = parseBearerToken(c.req.header("authorization"));
-	if (!token) return c.json({ ok: false, error: "Missing Bearer token" }, 401);
-
-	const hash = await sha256Hex(token);
-	const row = await findActiveTokenByHash(c.env.DB, hash);
-	if (!row || !timingSafeEqual(row.token_hash, hash)) {
-		return c.json({ ok: false, error: "Invalid token" }, 401);
-	}
-	c.set("authUser", {
-		id: row.user_id,
-		email: "",
-		name: null,
-		image: null,
-		accessIss: null,
-		accessSub: null,
-	} satisfies AuthUser);
-
-	let scopes: string[] = [];
-	try {
-		const parsed = JSON.parse(row.scopes) as unknown;
-		if (!Array.isArray(parsed)) {
-			return c.json({ ok: false, error: "Invalid token scopes" }, 403);
-		}
-		scopes = parsed.map(String);
-	} catch {
-		return c.json({ ok: false, error: "Invalid token scopes" }, 403);
-	}
-	if (!scopes.includes("ingest:push")) {
-		return c.json({ ok: false, error: "Missing ingest:push scope" }, 403);
-	}
-
-	const rl = await checkIngestRateLimit(c.env, `token:${row.id}`);
-	if (!rl.allowed) {
-		return c.json({ ok: false, error: rl.reason || "Rate limited" }, 429);
-	}
+	const auth = await requirePushToken(c, "ingest:push");
+	if (auth instanceof Response) return auth;
+	const row = { id: auth.tokenId, user_id: auth.user.id };
 
 	const reader = c.req.raw.body?.getReader();
 	if (!reader) return c.json({ ok: false, error: "empty body" }, 400);

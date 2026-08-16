@@ -19,6 +19,7 @@ describe("classifyHost", () => {
 
 	test("ingest path allowlist", () => {
 		expect(isIngestAllowedPath("GET", "/api/live")).toBe(true);
+		expect(isIngestAllowedPath("GET", "/api/v1/ingest/graph")).toBe(true);
 		expect(isIngestAllowedPath("POST", "/api/v1/ingest/push")).toBe(true);
 		expect(isIngestAllowedPath("GET", "/api/me")).toBe(false);
 		expect(isIngestAllowedPath("GET", "/")).toBe(false);

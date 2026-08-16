@@ -29,6 +29,7 @@ export function classifyHost(hostHeader: string): HostKind {
 /** Paths allowed on ingest hosts (push lands in S5). */
 export function isIngestAllowedPath(method: string, path: string): boolean {
 	if (method === "GET" && path === "/api/live") return true;
+	if (method === "GET" && path === "/api/v1/ingest/graph") return true;
 	if (method === "POST" && path === "/api/v1/ingest/push") return true;
 	return false;
 }

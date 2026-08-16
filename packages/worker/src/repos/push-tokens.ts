@@ -20,8 +20,10 @@ export type PushTokenDto = {
 	revokedAtMs: number | null;
 };
 
+export const DEFAULT_INGEST_SCOPES = ["ingest:read", "ingest:push"] as const;
+
 function toDto(row: PushTokenRow): PushTokenDto {
-	let scopes: string[] = ["ingest:push"];
+	let scopes: string[] = [...DEFAULT_INGEST_SCOPES];
 	try {
 		const parsed = JSON.parse(row.scopes) as unknown;
 		if (Array.isArray(parsed)) scopes = parsed.map(String);
@@ -55,23 +57,24 @@ export async function createPushToken(
 	label: string,
 	tokenPrefix: string,
 	tokenHash: string,
+	scopes: string[] = [...DEFAULT_INGEST_SCOPES],
 ): Promise<PushTokenDto> {
 	const now = Date.now();
-	const scopes = JSON.stringify(["ingest:push"]);
+	const scopesJson = JSON.stringify(scopes);
 	const result = await db
 		.prepare(
 			`INSERT INTO push_tokens
        (user_id, token_prefix, token_hash, label, scopes, created_at_ms)
        VALUES (?, ?, ?, ?, ?, ?)`,
 		)
-		.bind(userId, tokenPrefix, tokenHash, label.trim(), scopes, now)
+		.bind(userId, tokenPrefix, tokenHash, label.trim(), scopesJson, now)
 		.run();
 	const id = Number(result.meta.last_row_id);
 	return {
 		id,
 		label: label.trim(),
 		tokenPrefix,
-		scopes: ["ingest:push"],
+		scopes,
 		createdAtMs: now,
 		lastUsedAtMs: null,
 		revokedAtMs: null,

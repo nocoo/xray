@@ -42,7 +42,9 @@ export async function observability(c: Context<AppEnv>, next: Next) {
 				duration_ms: durationMs,
 				user_hash: user?.id ? shortHash(user.id) : undefined,
 				error_code: errorCode,
-				ingest: path.startsWith("/api/v1/ingest/") ? { route: "push" } : undefined,
+				ingest: path.startsWith("/api/v1/ingest/")
+					? { route: path.includes("/graph") ? "graph" : "push" }
+					: undefined,
 			}),
 		);
 	}
