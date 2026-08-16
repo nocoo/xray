@@ -41,7 +41,7 @@ bun run scripts/migrate-v1-to-d1.ts \
 
 1. Create prod D1 `xray-db`; apply all migrations.  
 2. Deploy Worker: bindings D1, `XRAY_INGEST_RL`, secrets (`CF_ACCESS_*`, `ALLOWED_EMAILS`, `XRAY_SECRETS_KEK`, `XRAY_SECRETS_KEK_PREV` empty, `XRAY_SECRETS_KEY_VERSION`).  
-3. Access: browser host required; ingest host bypass.  
+3. Access: browser host required; ingest host bypass (Bearer graph + push).  
 4. Add **staging hostnames** to Worker allowlist: `xray-staging.hexly.ai` (Access), `xray-ingest-staging.hexly.ai` (bypass) — for smoke only.  
 5. **Full CI green including L3** on the release commit (**before** freeze/DNS).  
 6. `wrangler d1 export` → store **pre-migrate D1 backup** artifact.

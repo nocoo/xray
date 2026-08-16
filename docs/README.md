@@ -19,7 +19,7 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 
 1. **Stack**: TypeScript 7, Biome, Vite SPA + Hono Worker (`../bat`), CF Workers + D1.
 2. **Auth**: **Cloudflare Access** (Google IdP) on browser host `xray.hexly.ai`; Worker trusts Access JWT (`ALLOWED_EMAILS` optional extra filter).
-3. **Ingest host**: `xray-ingest.hexly.ai` — Access bypass; **only** `POST /api/v1/ingest/push` + Bearer (XR-01).
+3. **Ingest host**: `xray-ingest.hexly.ai` — Access bypass; Bearer agent auth for `GET /api/v1/ingest/graph` + `POST /api/v1/ingest/push` (XR-01 / XR-29).
 4. **UI/CSS**: full visual retain.
 5. **Ingest**: **push-first**, versioned canonical body. No CF Cron auto-refresh.
 6. **Sources**: typed (`x.com` | `custom`); mix timeline; source-aware members.
@@ -28,7 +28,7 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 9. **Migrate**: WL/groups/members/tags only; **no** posts.
 10. **Secrets**: versioned AES-256-GCM (KEK); AI keys never plaintext at rest.
 11. **MVVM + TDD + 6DQ**; work on **`main`** (hard gate = **pre-push**; CI = post-push + release).
-12. **By design (BD-1…BD-9)**: see [08](08-open-questions.md) — e.g. no posts migrate, no auto AI/refresh, insert-ignore dedupe, shared staging AUD, best-effort rate limit.
+12. **By design (BD-1…BD-10)**: see [08](08-open-questions.md) — e.g. no posts migrate, no auto AI/refresh, insert-ignore dedupe, shared staging AUD, best-effort rate limit, token graph on ingest.
 
 ## Execution phases (see [07](07-implementation-plan.md))
 
@@ -43,4 +43,4 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 
 Progress detail and commit map: [07 §进度](07-implementation-plan.md#进度2026-08-11). Feature matrix status: [04](04-features.md).
 
-**Current stop**: S5 + product gaps + local producer complete; prod dual-host deployed. Optional: L3 CI depth, release tag `2.0.0`, KEK reencrypt, migrate e2e deepen (see [07 下一步](07-implementation-plan.md#下一步可选加深--非产品缺口)).
+**Current stop**: docs locked XR-29 / BD-10 (token = ingest read+write). Implementation is [07 S6](07-implementation-plan.md). Optional backlog remains under 07 下一步.

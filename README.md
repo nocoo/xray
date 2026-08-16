@@ -68,4 +68,4 @@ UI proxies `/api/*` to `127.0.0.1:8787`. Session gate calls `GET /api/me`.
 |------|------|
 | `xray.dev.hexly.ai` → :7007 | local UI (Caddy) |
 | `xray.hexly.ai` | prod browser + Access |
-| `xray-ingest.hexly.ai` | prod push only (no SPA APIs) |
+| `xray-ingest.hexly.ai` | prod agent host: graph + push (no SPA) |

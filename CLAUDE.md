@@ -4,7 +4,7 @@ README.md
 
 | Path | Contents |
 |------|----------|
-| **`~/.config/xray/push.env`** | Prod push token + ingest defaults. `chmod 600`. Load: `set -a && source ~/.config/xray/push.env && set +a` |
+| **`~/.config/xray/push.env`** | Prod token + ingest base. Token is ingest **auth** (graph + push). `chmod 600`. Load: `set -a && source ~/.config/xray/push.env && set +a` |
 | `.xray-push.env` (repo, gitignored) | Optional pointer only — never the real token |
 
 Prod refresh:

@@ -98,7 +98,7 @@
 
 ## By design (user-confirmed 2026-08-10)
 
-Codex 审查中曾质疑、用户确认 **维持现状、不改为「更重」方案** 的产品/运维取舍。实现与后续 review **不得当作缺口重开**，除非显式变更决策。
+Codex 审查中曾质疑、用户确认 **维持现状、不改为「更重」方案** 的产品/运维取舍（BD-1…BD-9）。BD-10（2026-08-16）是显式变更：token 图源取代必选 snapshot / Access cookie。实现与后续 review **不得当作缺口重开**，除非再显式变更。
 
 | ID | Topic | Locked choice | Rejected alternative | Rationale / where specified |
 |----|-------|---------------|----------------------|-----------------------------|

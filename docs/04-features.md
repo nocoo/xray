@@ -169,8 +169,10 @@ Profile (email from Access); `ingest.windowHours` (**1–168**, default 24) via 
 | Action | Auth | Behavior |
 |--------|------|----------|
 | List | Access | label, `token_prefix`, created, last_used — never full secret |
-| Create | Access + Origin check | full `xray_pt_…` plaintext **once**; store prefix + SHA-256 hash |
+| Create | Access + Origin check | full `xray_pt_…` plaintext **once**; store prefix + SHA-256 hash; default scopes `ingest:read` + `ingest:push` |
 | Revoke | Access | `DELETE /api/push-tokens/:id` |
+
+Token is ingest **auth** (XR-29): same secret for `GET /api/v1/ingest/graph` and `POST /api/v1/ingest/push`. It does not call browser CRUD.
 
 ## 8. UI porting
 

@@ -27,7 +27,7 @@ Rewrite = **clean cut**. Design/CSS stay; engine, auth, deploy, and ingest model
 | D9 | **不要自动刷新**（无 CF Cron 扫 member interval；无平台主动 pull 调度） |
 | D10 | 引入 **source 类型字段**；watchlist 管理 **同类或 mix** 信息流 |
 
-### By design 补充（用户确认 2026-08-10，详见 [08](08-open-questions.md) BD-1…BD-9）
+### By design 补充（详见 [08](08-open-questions.md) BD-1…BD-10）
 
 | ID | 一句话 |
 |----|--------|
@@ -40,6 +40,7 @@ Rewrite = **clean cut**. Design/CSS stay; engine, auth, deploy, and ingest model
 | BD-7 | staging 与 prod 共用 Access AUD |
 | BD-8 | push 去重 insert-ignore |
 | BD-9 | 冗余 user_id + 测试保证租户，不做 composite FK |
+| BD-10 | Producer 图源 = ingest `GET /api/v1/ingest/graph` + Bearer；members.json 仅可选覆盖 |
 
 ## 4. Scope — keep
 
@@ -77,7 +78,7 @@ Rewrite = **clean cut**. Design/CSS stay; engine, auth, deploy, and ingest model
 
 1. **Prod browser** `https://xray.hexly.ai`：CF Access Google 登录后进 Dashboard。  
    **Dev** `https://xray.dev.hexly.ai`：Worker `AUTH_DEV_BYPASS`（仅 development/test）。
-2. **Prod ingest** `https://xray-ingest.hexly.ai`：Bearer push 可达；browser host 不做 agent push。
+2. **Prod ingest** `https://xray-ingest.hexly.ai`：Bearer 可读图 + 可 push；browser host 不做 agent 流量。
 3. 迁移后 sidebar 出现原 watchlists/groups（无 posts）。
 4. Push token → `POST /api/v1/ingest/push` 写入 x.com + custom → 同一 watchlist mix 时间线。
 5. AI Settings 可配；有界手动翻译+总结；密钥 AES-256-GCM 加密。
