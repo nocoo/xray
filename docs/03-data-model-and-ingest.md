@@ -176,7 +176,7 @@ CREATE TABLE push_tokens (
   -- SHA-256 hex of full token (high-entropy); constant-time compare on lookup
   token_hash TEXT NOT NULL UNIQUE,
   label TEXT NOT NULL,
-  scopes TEXT NOT NULL,              -- JSON array, default ["ingest:push"]
+  scopes TEXT NOT NULL,              -- JSON array, default ["ingest:read","ingest:push"]
   created_at_ms INTEGER NOT NULL,
   last_used_at_ms INTEGER,
   revoked_at_ms INTEGER
@@ -366,11 +366,35 @@ CREATE TABLE integration_secrets (
 );
 ```
 
-## 5. Push API (versioned)
+## 5. Agent API (versioned, ingest host)
+
+Bearer push token authenticates the agent as `user_id` (XR-29). Same token, both directions.
+
+### `GET /api/v1/ingest/graph` (ingest host only)
+
+**Auth**: Bearer; scope `ingest:read`.
+
+Returns the token owner's watchlists and **x.com** members only (producer graph). Custom members omitted. Empty `members` arrays are kept so the list still appears.
+
+```json
+{
+  "watchlists": [
+    {
+      "id": 1,
+      "name": "AI",
+      "members": [{ "handle": "sama", "sourceType": "x.com" }]
+    }
+  ]
+}
+```
+
+- `id` is the D1 primary key for **this** environment (local ≠ prod).
+- 401 bad/revoked token; 403 missing `ingest:read`; 200 with `{ "watchlists": [] }` if the user has no lists.
+- Counts against the ingest rate-limit binding (key = `token_id`, R3-03).
 
 ### `POST /api/v1/ingest/push` (ingest host only)
 
-**Auth**: Bearer push token.
+**Auth**: Bearer; scope `ingest:push`.
 
 **MVP accepts canonical items only** (XR-19). No raw/tweapi blobs.
 
@@ -453,7 +477,8 @@ pushTokenAuth → size/rate limits → parse API v1 canonical envelope (R4-06)
 
 | Method | Path | Host | Auth |
 |--------|------|------|------|
-| POST | `/api/v1/ingest/push` | **ingest** | Bearer |
+| GET | `/api/v1/ingest/graph` | **ingest** | Bearer `ingest:read` |
+| POST | `/api/v1/ingest/push` | **ingest** | Bearer `ingest:push` |
 | GET | `/api/watchlists/:id/items` | browser | Access |
 | POST | `/api/watchlists/:id/translate` | browser | Access |
 | GET/POST | `/api/push-tokens` | browser | Access |
