@@ -25,12 +25,13 @@ export {
 	filterItemsByWindow,
 	INGEST_MAX_ITEMS,
 } from "./producer-core.js";
-export type { FetchIngestGraphDeps } from "./producer-graph.js";
+export type { FetchIngestGraphDeps, ResolveIngestBaseInput } from "./producer-graph.js";
 export {
 	applyExplicitMembersFile,
 	fetchIngestGraph,
 	ingestAgentHeaders,
 	ingestBaseForEnv,
+	resolveIngestBase,
 } from "./producer-graph.js";
 export type { FetchFn, PushBatchDeps, PushBatchResult } from "./producer-push.js";
 export { pushIngestBatch } from "./producer-push.js";

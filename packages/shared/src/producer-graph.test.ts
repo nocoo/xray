@@ -4,10 +4,43 @@ import {
 	fetchIngestGraph,
 	ingestAgentHeaders,
 	ingestBaseForEnv,
+	resolveIngestBase,
 } from "./producer-graph.js";
 
+describe("resolveIngestBase", () => {
+	test("cli --env wins over XRAY_INGEST_BASE", () => {
+		expect(
+			resolveIngestBase({
+				cliEnv: "dev",
+				envBase: "https://xray-ingest.hexly.ai",
+			}),
+		).toBe("http://127.0.0.1:8787");
+		expect(
+			resolveIngestBase({
+				cliEnv: "prod",
+				envBase: "http://127.0.0.1:8787",
+			}),
+		).toBe("https://xray-ingest.hexly.ai");
+	});
+
+	test("--ingest-base wins over --env", () => {
+		expect(
+			resolveIngestBase({
+				cliBase: "https://xray-ingest.hexly.ai",
+				cliEnv: "dev",
+			}),
+		).toBe("https://xray-ingest.hexly.ai");
+	});
+
+	test("env var used when no --env flag", () => {
+		expect(resolveIngestBase({ envBase: "http://127.0.0.1:8787" })).toBe("http://127.0.0.1:8787");
+		expect(resolveIngestBase({ envMode: "dev" })).toBe("http://127.0.0.1:8787");
+		expect(resolveIngestBase({})).toBe("https://xray-ingest.hexly.ai");
+	});
+});
+
 describe("ingestBaseForEnv", () => {
-	test("dev vs prod vs explicit", () => {
+	test("dev vs prod vs explicit cli base", () => {
 		expect(ingestBaseForEnv("dev", undefined)).toBe("http://127.0.0.1:8787");
 		expect(ingestBaseForEnv("prod", undefined)).toBe("https://xray-ingest.hexly.ai");
 		expect(ingestBaseForEnv("dev", "https://xray-ingest.hexly.ai")).toBe(

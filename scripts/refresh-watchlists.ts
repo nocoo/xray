@@ -31,12 +31,12 @@ import {
 	exitCodeForRefresh,
 	fetchIngestGraph,
 	filterItemsByWindow,
-	ingestBaseForEnv,
 	isValidXHandle,
 	type parseMembersGraph,
 	pushIngestBatch,
 	rateLimitPauseMs,
 	rebaseScheduleQueue,
+	resolveIngestBase,
 	type ScheduleSlot,
 	selectHandlesForEpoch,
 	type XTimelineSource,
@@ -140,7 +140,12 @@ if (envMode !== "prod" && envMode !== "dev") {
 	process.exit(2);
 }
 const ingestBase = assertAllowedBaseUrl(
-	ingestBaseForEnv(envMode, values["ingest-base"] ?? env("XRAY_INGEST_BASE")),
+	resolveIngestBase({
+		cliBase: values["ingest-base"],
+		cliEnv: values.env,
+		envBase: env("XRAY_INGEST_BASE"),
+		envMode: env("XRAY_ENV"),
+	}),
 	"ingest",
 );
 const twitterBin = values["twitter-bin"] ?? env("TWITTER_BIN") ?? "twitter";

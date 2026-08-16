@@ -31,6 +31,7 @@ describe("scripts/refresh-watchlists.ts entry wiring", () => {
 	test("live ingest graph at start; no browser/cookie graph path", () => {
 		expect(src).toMatch(/\bfetchIngestGraph\b/);
 		expect(src).toMatch(/\bapplyExplicitMembersFile\b/);
+		expect(src).toMatch(/\bresolveIngestBase\b/);
 		expect(src).not.toMatch(/XRAY_BROWSER_BASE/);
 		expect(src).not.toMatch(/XRAY_CF_AUTHORIZATION/);
 		expect(src).not.toMatch(/XRAY_MEMBERS_FILE/);

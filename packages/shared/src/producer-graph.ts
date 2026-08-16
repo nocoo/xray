@@ -65,8 +65,24 @@ export function applyExplicitMembersFile(
 	return parseMembersGraph(JSON.parse(io.read(filePath)) as unknown);
 }
 
-export function ingestBaseForEnv(mode: string | undefined, explicit: string | undefined): string {
-	if (explicit) return explicit;
-	if (mode === "dev") return "http://127.0.0.1:8787";
+export type ResolveIngestBaseInput = {
+	cliBase?: string;
+	cliEnv?: string;
+	envBase?: string;
+	envMode?: string;
+};
+
+/** --ingest-base > --env > XRAY_INGEST_BASE > XRAY_ENV > prod default */
+export function resolveIngestBase(input: ResolveIngestBaseInput): string {
+	if (input.cliBase?.trim()) return input.cliBase.trim();
+	const cliEnv = (input.cliEnv ?? "").toLowerCase();
+	if (cliEnv === "dev") return "http://127.0.0.1:8787";
+	if (cliEnv === "prod") return "https://xray-ingest.hexly.ai";
+	if (input.envBase?.trim()) return input.envBase.trim();
+	if ((input.envMode ?? "").toLowerCase() === "dev") return "http://127.0.0.1:8787";
 	return "https://xray-ingest.hexly.ai";
+}
+
+export function ingestBaseForEnv(mode: string | undefined, explicit: string | undefined): string {
+	return resolveIngestBase({ cliEnv: mode, cliBase: explicit });
 }
