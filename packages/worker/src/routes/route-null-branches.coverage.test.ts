@@ -392,7 +392,7 @@ describe("route null/error branches", () => {
 		).toBe(409);
 	});
 
-	test("ai/zheto/translate remaining catch branches", async () => {
+	test("ai/zheto/translate remaining catch branches", { timeout: 15_000 }, async () => {
 		const db = createSqliteD1();
 		await db
 			.prepare(

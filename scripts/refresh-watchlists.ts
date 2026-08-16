@@ -17,6 +17,7 @@ import {
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
+	applyExplicitMembersFile,
 	assertAllowedBaseUrl,
 	atomicWriteJson,
 	buildIngestBatches,
@@ -28,9 +29,11 @@ import {
 	DEFAULT_SPREAD_WINDOW_MS,
 	deferHandleInSchedule,
 	exitCodeForRefresh,
+	fetchIngestGraph,
 	filterItemsByWindow,
+	ingestBaseForEnv,
 	isValidXHandle,
-	parseMembersGraph,
+	type parseMembersGraph,
 	pushIngestBatch,
 	rateLimitPauseMs,
 	rebaseScheduleQueue,
@@ -56,7 +59,7 @@ try {
 			max: { type: "string" },
 			"cache-dir": { type: "string" },
 			"ingest-base": { type: "string" },
-			"browser-base": { type: "string" },
+			env: { type: "string" },
 			"twitter-bin": { type: "string" },
 			"handle-delay-ms": { type: "string" },
 			"spread-window-min": { type: "string" },
@@ -86,12 +89,12 @@ Options:
   --dry-run           Resolve graph + plan only (no twitter, no push)
   --cache-only        Fetch + cache + convert; no push
   --from-cache        Reuse .cache raw JSON only (no twitter network)
-  --members-file PATH Snapshot JSON (default: XRAY_MEMBERS_FILE or config/members.json)
+  --members-file PATH After live graph, override if this file exists
   --window-hours N    Ingest window 1..168 (default: XRAY_WINDOW_HOURS or 24)
   --max N             twitter user-posts --max (default: 20; CLI may page up to N)
   --cache-dir PATH    Raw cache root (default: XRAY_CACHE_DIR or .cache/twitter-cli)
-  --ingest-base URL   Default https://xray-ingest.hexly.ai (allowlisted)
-  --browser-base URL  Live graph (optional if members-file set)
+  --ingest-base URL   Override ingest host (graph + push)
+  --env prod|dev      Sugar for ingest base (dev → 127.0.0.1:8787)
   --twitter-bin PATH  Default TWITTER_BIN or twitter
   --spread-window-min N  Spread starts across N minutes (default 60). See docs/10.
   --min-gap-ms N      Min gap between handle starts (default 12000)
@@ -99,8 +102,7 @@ Options:
   --handle-delay-ms N Legacy: fixed sleep between calls (implies --no-spread if set)
   --refresh-mode MODE full|incremental (default full; incremental uses last-success age)
 
-Env: XRAY_PUSH_TOKEN, XRAY_MEMBERS_FILE, XRAY_BROWSER_BASE, XRAY_CF_AUTHORIZATION,
-     XRAY_INGEST_BASE, XRAY_WINDOW_HOURS, XRAY_TWITTER_MAX, TWITTER_BIN
+Env: XRAY_PUSH_TOKEN, XRAY_INGEST_BASE, XRAY_ENV, XRAY_WINDOW_HOURS, XRAY_TWITTER_MAX, TWITTER_BIN
 
 Notes:
   Default: shuffle handles and spread starts over 60 minutes (docs/10-refresh-schedule.md).
@@ -132,17 +134,18 @@ if (refreshModeRaw !== "full" && refreshModeRaw !== "incremental") {
 }
 const refreshMode = refreshModeRaw as "full" | "incremental";
 const spreadWindowMs = noSpread ? 0 : spreadWindowMin * 60_000 || DEFAULT_SPREAD_WINDOW_MS;
+const envMode = (values.env ?? env("XRAY_ENV") ?? "prod").toLowerCase();
+if (envMode !== "prod" && envMode !== "dev") {
+	console.error(`invalid --env ${envMode} (want prod|dev)`);
+	process.exit(2);
+}
 const ingestBase = assertAllowedBaseUrl(
-	values["ingest-base"] ?? env("XRAY_INGEST_BASE") ?? "https://xray-ingest.hexly.ai",
+	ingestBaseForEnv(envMode, values["ingest-base"] ?? env("XRAY_INGEST_BASE")),
 	"ingest",
 );
-const browserBaseRaw = values["browser-base"] ?? env("XRAY_BROWSER_BASE") ?? "";
-const browserBase = browserBaseRaw
-	? assertAllowedBaseUrl(browserBaseRaw.replace(/\/$/, ""), "browser")
-	: "";
 const twitterBin = values["twitter-bin"] ?? env("TWITTER_BIN") ?? "twitter";
 const pushToken = env("XRAY_PUSH_TOKEN") ?? "";
-const membersFile = values["members-file"] ?? env("XRAY_MEMBERS_FILE") ?? "config/members.json";
+const membersFile = values["members-file"];
 // Default cache root uses adapter id; override with XRAY_CACHE_DIR.
 const cacheDir = resolve(values["cache-dir"] ?? env("XRAY_CACHE_DIR") ?? ".cache/twitter-cli");
 
@@ -379,63 +382,21 @@ function releaseEpochLock(_lockPath?: string): void {
 }
 
 async function loadGraph(): Promise<Graph> {
-	if (existsSync(membersFile)) {
-		return parseMembersGraph(JSON.parse(readFileSync(membersFile, "utf8")) as unknown);
+	if (!pushToken) {
+		throw new Error("XRAY_PUSH_TOKEN required to fetch ingest graph");
 	}
-	if (!browserBase) {
-		throw new Error(
-			"No graph source: set --members-file / XRAY_MEMBERS_FILE or XRAY_BROWSER_BASE (see docs/09)",
-		);
-	}
-	return fetchGraphFromBrowser(browserBase);
-}
-
-function browserHeaders(): HeadersInit {
-	const h: Record<string, string> = {
-		accept: "application/json",
-		"content-type": "application/json",
-	};
-	const cf = env("XRAY_CF_AUTHORIZATION");
-	if (cf) h.cookie = `CF_Authorization=${cf}`;
-	if (browserBase.includes("127.0.0.1") || browserBase.includes("localhost")) {
-		h.host = "localhost";
-		h.origin = "http://localhost:7007";
-	}
-	return h;
-}
-
-async function fetchGraphFromBrowser(base: string): Promise<Graph> {
-	const headers = browserHeaders();
-	const wlRes = await fetch(`${base}/api/watchlists`, { headers });
-	if (!wlRes.ok) throw new Error(`GET /api/watchlists → ${wlRes.status}`);
-	const wlBody = (await wlRes.json()) as { data?: Array<{ id: number; name: string }> };
-	const lists = wlBody.data ?? [];
-	const watchlists: Graph["watchlists"] = [];
-	for (const wl of lists) {
-		const mRes = await fetch(`${base}/api/watchlists/${wl.id}/members`, { headers });
-		if (!mRes.ok) throw new Error(`GET members ${wl.id} → ${mRes.status}`);
-		const mBody = (await mRes.json()) as {
-			data?: Array<{ handle: string; sourceType: string }>;
-		};
-		const xMembers = (mBody.data ?? []).filter((m) => m.sourceType === "x.com");
-		if (xMembers.length === 0) {
-			watchlists.push({ id: wl.id, name: wl.name, members: [] });
-			continue;
-		}
-		const parsed = parseMembersGraph({
-			watchlists: [
-				{
-					id: wl.id,
-					name: wl.name,
-					members: xMembers.map((m) => ({ handle: m.handle, sourceType: "x.com" as const })),
-				},
-			],
-		});
-		const one = parsed.watchlists[0];
-		if (!one) throw new Error(`parse failed for wl ${wl.id}`);
-		watchlists.push(one);
-	}
-	return parseMembersGraph({ watchlists });
+	const live = await fetchIngestGraph({
+		fetch: async (url, init) => {
+			const res = await fetch(url, init);
+			return { status: res.status, ok: res.ok, text: () => res.text() };
+		},
+		ingestBase,
+		pushToken,
+	});
+	return applyExplicitMembersFile(live, membersFile, {
+		exists: existsSync,
+		read: (p) => readFileSync(p, "utf8"),
+	});
 }
 
 function uniqueHandles(graph: Graph): Map<string, number[]> {

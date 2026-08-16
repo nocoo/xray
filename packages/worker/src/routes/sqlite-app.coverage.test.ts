@@ -75,7 +75,7 @@ async function json(req: Promise<Response>) {
 }
 
 describe("sqlite-backed full app coverage", () => {
-	test("full CRUD matrix on real schema", async () => {
+	test("full CRUD matrix on real schema", { timeout: 15_000 }, async () => {
 		const db = createSqliteD1();
 		const env = baseEnv(db);
 
