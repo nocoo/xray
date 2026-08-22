@@ -14,7 +14,7 @@
 	"dependencies": {
 		"@xray/shared": "workspace:*",
 		"hono": "4.13.3",
-		"jose": "^6.2.9"
+		"jose": "^6.2.10"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "5.20260822.1",
