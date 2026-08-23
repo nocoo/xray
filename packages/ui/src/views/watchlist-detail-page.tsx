@@ -11,13 +11,13 @@ import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { EditMemberDialog } from "@/components/dialogs/edit-member-dialog";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { SlidePanel } from "@/components/layout/slide-panel";
+import { PostsColumnsPages, postsColumnsItemClass } from "@/components/posts-columns-pages";
 import { SourceFilter } from "@/components/source-filter";
 import { Button } from "@/components/ui/button";
 import { useColumns } from "@/hooks/use-columns";
 import { cn } from "@/lib/utils";
 import { useVm } from "@/viewmodels/use-vm";
 import {
-	chunkFeedPages,
 	createWatchlistDetailVm,
 	filterMembers,
 	itemToTweet,
@@ -90,7 +90,6 @@ export function WatchlistDetailPage() {
 		[s.members, s.sourceFilter],
 	);
 	const counts = useMemo(() => sourceCounts(s.items), [s.items]);
-	const itemPages = useMemo(() => chunkFeedPages(s.items), [s.items]);
 
 	const onAddMember = () => {
 		openAddMember(
@@ -269,60 +268,28 @@ export function WatchlistDetailPage() {
 						columnCount === 1 && "snap-y snap-proximity",
 					)}
 				>
-					{itemPages.map((page) => (
-						<div
-							key={page[0]?.id ?? "empty"}
-							data-testid="posts-columns-page"
-							className="gap-x-3 [column-fill:balance]"
-							style={{ columnCount }}
-						>
-							{page.map((item) => {
-								const shell = cn(
-									"mb-3 inline-block w-full break-inside-avoid align-top",
-									columnCount === 1 && "snap-start",
-								);
-								if (item.sourceType === "custom") {
-									return (
-										<div key={item.id} data-source-type="custom" className={shell}>
-											<CustomItemCard
-												sourceType="custom"
-												title={item.title}
-												body={item.text}
-												createdAt={new Date(item.createdAtMs).toISOString()}
-												authorName={item.authorUsername}
-												url={
-													(item.payload as { body?: { url?: string } } | null)?.body?.url ?? null
-												}
-												watchlistId={watchlistId}
-												itemId={item.id}
-												initialTranslation={
-													item.translatedText
-														? {
-																translatedText: item.translatedText,
-																summaryText: item.summaryText,
-															}
-														: undefined
-												}
-												onTranslated={(result) => vm.onItemTranslated(item.id, result)}
-											/>
-										</div>
-									);
-								}
-								const tweet = itemToTweet(item);
-								if (!tweet) return null;
+					<PostsColumnsPages
+						items={s.items}
+						columnCount={columnCount}
+						renderItem={(item) => {
+							const shell = postsColumnsItemClass(columnCount === 1 ? "snap-start" : undefined);
+							if (item.sourceType === "custom") {
 								return (
-									<div key={item.id} data-source-type="x.com" className={shell}>
-										<TweetCard
-											tweet={tweet}
-											sourceType="x.com"
-											linkToDetail={false}
+									<div key={item.id} data-source-type="custom" className={shell}>
+										<CustomItemCard
+											sourceType="custom"
+											title={item.title}
+											body={item.text}
+											createdAt={new Date(item.createdAtMs).toISOString()}
+											authorName={item.authorUsername}
+											url={(item.payload as { body?: { url?: string } } | null)?.body?.url ?? null}
 											watchlistId={watchlistId}
 											itemId={item.id}
 											initialTranslation={
 												item.translatedText
 													? {
 															translatedText: item.translatedText,
-															commentText: item.summaryText,
+															summaryText: item.summaryText,
 														}
 													: undefined
 											}
@@ -330,9 +297,31 @@ export function WatchlistDetailPage() {
 										/>
 									</div>
 								);
-							})}
-						</div>
-					))}
+							}
+							const tweet = itemToTweet(item);
+							if (!tweet) return null;
+							return (
+								<div key={item.id} data-source-type="x.com" className={shell}>
+									<TweetCard
+										tweet={tweet}
+										sourceType="x.com"
+										linkToDetail={false}
+										watchlistId={watchlistId}
+										itemId={item.id}
+										initialTranslation={
+											item.translatedText
+												? {
+														translatedText: item.translatedText,
+														commentText: item.summaryText,
+													}
+												: undefined
+										}
+										onTranslated={(result) => vm.onItemTranslated(item.id, result)}
+									/>
+								</div>
+							);
+						}}
+					/>
 
 					{/* Sentinel for infinite load — stays off-screen until near bottom */}
 					{s.nextCursor ? (

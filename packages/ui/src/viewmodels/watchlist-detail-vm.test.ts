@@ -1,10 +1,8 @@
 import { describe, expect, test, vi } from "vitest";
 import type { Member, TimelineItem, Watchlist } from "@/api/watchlists";
 import {
-	chunkFeedPages,
 	createWatchlistDetailVm,
 	filterMembers,
-	ITEMS_PAGE_LIMIT,
 	itemToTweet,
 	memberToCard,
 	sourceCounts,
@@ -105,20 +103,6 @@ describe("watchlist-detail pure helpers", () => {
 			"x.com": 1,
 			custom: 1,
 		});
-	});
-
-	test("chunkFeedPages isolates appended pages so older membership cannot rebalance", () => {
-		expect(chunkFeedPages([])).toEqual([]);
-		expect(chunkFeedPages([1, 2, 3], 2)).toEqual([[1, 2], [3]]);
-		const first = Array.from({ length: ITEMS_PAGE_LIMIT }, (_, i) => i + 1);
-		const second = Array.from({ length: ITEMS_PAGE_LIMIT }, (_, i) => i + 1 + ITEMS_PAGE_LIMIT);
-		const before = chunkFeedPages(first);
-		const after = chunkFeedPages([...first, ...second]);
-		expect(before).toHaveLength(1);
-		expect(after).toHaveLength(2);
-		expect(after[0]).toEqual(before[0]);
-		expect(after[1]).toEqual(second);
-		expect(chunkFeedPages([1, 2, 3], 0)).toEqual([[1, 2, 3]]);
 	});
 });
 

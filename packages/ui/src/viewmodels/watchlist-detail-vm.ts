@@ -1,6 +1,7 @@
 import type { SourceType } from "@xray/shared";
 import type { TranslateResult } from "@/api/ai";
 import type { IngestLog, Member, TimelineItem, Watchlist } from "@/api/watchlists";
+import { ITEMS_PAGE_LIMIT } from "@/lib/feed-columns";
 import type { MockWatchlistMember } from "@/lib/mock-data";
 import type { Tweet, TweetMedia } from "@/lib/tweet-types";
 import { createStore, errMsg } from "./store";
@@ -283,18 +284,6 @@ export function sourceCounts(items: TimelineItem[]) {
 	const x = items.filter((p) => p.sourceType === "x.com").length;
 	const custom = items.filter((p) => p.sourceType === "custom").length;
 	return { all, "x.com": x, custom } as const;
-}
-
-/** Fetch + CSS-columns page size. Each page is its own column box so loadMore cannot rebalance older cards. */
-export const ITEMS_PAGE_LIMIT = 50;
-
-export function chunkFeedPages<T>(items: T[], pageSize = ITEMS_PAGE_LIMIT): T[][] {
-	if (pageSize <= 0) return items.length ? [items] : [];
-	const pages: T[][] = [];
-	for (let i = 0; i < items.length; i += pageSize) {
-		pages.push(items.slice(i, i + pageSize));
-	}
-	return pages;
 }
 
 export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: number) {
