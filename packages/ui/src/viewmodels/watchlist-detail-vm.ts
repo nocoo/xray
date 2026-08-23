@@ -285,21 +285,6 @@ export function sourceCounts(items: TimelineItem[]) {
 	return { all, "x.com": x, custom } as const;
 }
 
-export function distributeColumns(items: TimelineItem[], columnCount: number): TimelineItem[][] {
-	const cols: TimelineItem[][] = Array.from({ length: columnCount }, () => []);
-	const heights = new Array<number>(columnCount).fill(0);
-	for (const item of items) {
-		const h = 80 + Math.ceil(item.text.length / 60) * 20;
-		let minIdx = 0;
-		for (let c = 1; c < columnCount; c++) {
-			if ((heights[c] ?? 0) < (heights[minIdx] ?? 0)) minIdx = c;
-		}
-		cols[minIdx]?.push(item);
-		heights[minIdx] = (heights[minIdx] ?? 0) + h;
-	}
-	return cols;
-}
-
 export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: number) {
 	const store = createStore<WatchlistDetailState>({
 		watchlistId,

@@ -2,7 +2,6 @@ import { describe, expect, test, vi } from "vitest";
 import type { Member, TimelineItem, Watchlist } from "@/api/watchlists";
 import {
 	createWatchlistDetailVm,
-	distributeColumns,
 	filterMembers,
 	itemToTweet,
 	memberToCard,
@@ -104,10 +103,6 @@ describe("watchlist-detail pure helpers", () => {
 			"x.com": 1,
 			custom: 1,
 		});
-		const cols = distributeColumns([item, { ...item, id: 2, text: "x".repeat(200) }], 2);
-		expect(cols).toHaveLength(2);
-		expect(cols.flat()).toHaveLength(2);
-		expect(distributeColumns([], 1)).toEqual([[]]);
 	});
 });
 
@@ -698,7 +693,7 @@ describe("createWatchlistDetailVm", () => {
 		expect(skip?.media).toBeUndefined();
 	});
 
-	test("itemToTweet quoted author unknown and distributeColumns min height", () => {
+	test("itemToTweet quoted author unknown and missing quoted id", () => {
 		const t = itemToTweet({
 			...item,
 			authorUsername: null,
@@ -742,18 +737,6 @@ describe("createWatchlistDetailVm", () => {
 		});
 		// find by id fails (tweet has no id) → no quoted body
 		expect(t2?.quoted_tweet).toBeUndefined();
-
-		const cols = distributeColumns(
-			[
-				{ ...item, id: 1, text: "a" },
-				{ ...item, id: 2, text: "b".repeat(400) },
-				{ ...item, id: 3, text: "c" },
-				{ ...item, id: 4, text: "d".repeat(200) },
-			],
-			3,
-		);
-		expect(cols).toHaveLength(3);
-		expect(cols.flat()).toHaveLength(4);
 	});
 
 	test("load/loadMore/translate/remove errors + filter reload", async () => {
