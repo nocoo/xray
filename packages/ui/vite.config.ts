@@ -31,7 +31,7 @@ export default defineConfig({
 		},
 		proxy: {
 			"/api": {
-				target: "http://127.0.0.1:8787",
+				target: "http://127.0.0.1:37007",
 				// Keep browser Host (xray.dev.hexly.ai) so worker host/origin checks match Caddy.
 				changeOrigin: false,
 			},

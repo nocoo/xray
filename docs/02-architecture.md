@@ -135,7 +135,7 @@ Do **not** use alternate names (`E2E_SKIP_AUTH`); single switch only.
 | Mode | Port | Persist |
 |------|------|---------|
 | UI dev | 7007 (or vite 5173 proxied via Caddy 7007) | — |
-| Worker local | 8787 behind Caddy → public 7007 | `.wrangler/state` |
+| Worker local | 37007 behind Caddy → public 7007 | `.wrangler/state` |
 | L2 | worker 18787 | `.wrangler/state-l2` |
 | L3 | worker 28787 | `.wrangler/state-l3` |
 

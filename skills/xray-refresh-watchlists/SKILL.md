@@ -33,7 +33,7 @@ Canonical docs (read if behavior is unclear):
 | **Secrets file** | `~/.config/xray/push.env` (`chmod 600`, **never commit**) |
 | **Prod ingest host** | `https://xray-ingest.hexly.ai` |
 | **Prod browser host** | `https://xray.hexly.ai` |
-| **Local worker default** | `http://127.0.0.1:8787` (`wrangler dev --env development --port 8787`) |
+| **Local worker default** | `http://127.0.0.1:37007` (`wrangler dev --env development --port 37007`) |
 
 If cwd is wrong, `cd` to repo root first. All commands below assume repo root.
 
@@ -83,7 +83,7 @@ XRAY_WINDOW_HOURS=24
 | Key | Required? | Notes |
 |-----|-----------|--------|
 | `XRAY_PUSH_TOKEN` | **Yes** | Graph read + push write (same token) |
-| `XRAY_INGEST_BASE` | **Yes** | Prod `https://xray-ingest.hexly.ai` or local `http://127.0.0.1:8787`. Graph and push share this. |
+| `XRAY_INGEST_BASE` | **Yes** | Prod `https://xray-ingest.hexly.ai` or local `http://127.0.0.1:37007`. Graph and push share this. |
 | `XRAY_MEMBERS_FILE` | Optional | Override only if the file exists; default is token graph |
 | `XRAY_WINDOW_HOURS` | Optional | Default 24 |
 
@@ -120,26 +120,26 @@ API equivalent (when already authenticated as that user in browser/devtools is a
 
 ### 2.3 Mint a **local dev** token
 
-Local worker must be up (`bun run dev:worker` or equivalent on **8787**). Dev env uses `AUTH_DEV_BYPASS`.
+Local worker must be up (`bun run dev:worker` or equivalent on **37007**). Dev env uses `AUTH_DEV_BYPASS`.
 
 ```bash
 # List existing (prefixes only)
 curl -sS -H 'Host: localhost' -H 'Origin: http://localhost:7007' \
-  http://127.0.0.1:8787/api/push-tokens
+  http://127.0.0.1:37007/api/push-tokens
 
 # Mint (full token in response.data.token — once)
 curl -sS -X POST \
   -H 'Host: localhost' -H 'Origin: http://localhost:7007' \
   -H 'Content-Type: application/json' \
   -d '{"label":"local-refresh"}' \
-  http://127.0.0.1:8787/api/push-tokens
+  http://127.0.0.1:37007/api/push-tokens
 ```
 
 Export for this shell only (do not overwrite prod `push.env` unless intentional):
 
 ```bash
 export XRAY_PUSH_TOKEN='xray_pt_…from_response…'
-export XRAY_INGEST_BASE='http://127.0.0.1:8787'
+export XRAY_INGEST_BASE='http://127.0.0.1:37007'
 ```
 
 ### 2.4 Token failure symptoms
@@ -187,7 +187,7 @@ Do not call browser `/api/watchlists` or require `XRAY_CF_AUTHORIZATION`.
 ```bash
 # Example: only 「活跃用户」 for local D1
 bun -e '
-const base = "http://127.0.0.1:8787";
+const base = "http://127.0.0.1:37007";
 const h = { host: "localhost", origin: "http://localhost:7007", accept: "application/json" };
 const nameFilter = process.env.WL_NAME ?? ""; // empty = all non-empty x.com lists
 const wls = (await (await fetch(base + "/api/watchlists", { headers: h })).json()).data ?? [];
@@ -218,7 +218,7 @@ export XRAY_PUSH_TOKEN='…'
 # prod:
 export XRAY_INGEST_BASE=https://xray-ingest.hexly.ai
 # local:
-# export XRAY_INGEST_BASE=http://127.0.0.1:8787
+# export XRAY_INGEST_BASE=http://127.0.0.1:37007
 ```
 
 If `config/members.json` exists and `XRAY_MEMBERS_FILE` points at it, **that file wins** and must use ids from the **same** ingest D1. Prefer leaving the file unset so token graph is always live.
@@ -247,7 +247,7 @@ test -n "$XRAY_INGEST_BASE"
 # prod:
 curl -sS -o /dev/null -w "%{http_code}\n" https://xray-ingest.hexly.ai/api/live
 # local:
-curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8787/api/live
+curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:37007/api/live
 ```
 
 ### 4.1 twitter-cli stderr WARNING (usually ignorable)
@@ -329,11 +329,11 @@ bun run refresh:watchlists -- --refresh-mode incremental
 ```bash
 cd /ABSOLUTE/PATH/TO/xray
 export XRAY_PUSH_TOKEN='…local mint…'
-export XRAY_INGEST_BASE='http://127.0.0.1:8787'
+export XRAY_INGEST_BASE='http://127.0.0.1:37007'
 # Snapshot with LOCAL ids (section 3.2)
 bun run refresh:watchlists -- \
   --members-file /tmp/xray-members-local.json \
-  --ingest-base http://127.0.0.1:8787 \
+  --ingest-base http://127.0.0.1:37007 \
   --no-spread \
   --handle-delay-ms 2500 \
   --window-hours 48 \
@@ -473,7 +473,7 @@ bun run refresh:watchlists -- 2>&1 | tee -a "$LOG_DIR/refresh-$(date -u +%Y%m%dT
 [ ] cwd = xray repo root
 [ ] twitter status OK
 [ ] secrets loaded (push.env or explicit export)
-[ ] ingest base matches intent (prod https://xray-ingest.hexly.ai | local http://127.0.0.1:8787)
+[ ] ingest base matches intent (prod https://xray-ingest.hexly.ai | local http://127.0.0.1:37007)
 [ ] graph ids match that ingest DB
 [ ] pacing: prod default spread | local may --no-spread
 [ ] ran: bun run refresh:watchlists -- <flags>
@@ -494,8 +494,8 @@ bun run refresh:watchlists -- --cache-only
 bun run refresh:watchlists -- --from-cache
 bun run refresh:watchlists -- --refresh-mode incremental
 bun run refresh:watchlists -- --members-file /path/to.json
-bun run refresh:watchlists -- --ingest-base http://127.0.0.1:8787
-bun run refresh:watchlists -- --ingest-base http://127.0.0.1:8787
+bun run refresh:watchlists -- --ingest-base http://127.0.0.1:37007
+bun run refresh:watchlists -- --ingest-base http://127.0.0.1:37007
 bun run refresh:watchlists -- --window-hours 24 --max 20
 bun run refresh:watchlists -- --spread-window-min 60 --min-gap-ms 12000
 # local sprint only:

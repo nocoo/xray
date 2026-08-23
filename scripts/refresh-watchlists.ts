@@ -93,7 +93,7 @@ Options:
   --max N             twitter user-posts --max (default: 20; CLI may page up to N)
   --cache-dir PATH    Raw cache root (default: XRAY_CACHE_DIR or .cache/twitter-cli)
   --ingest-base URL   Override ingest host (graph + push)
-  --env prod|dev      Sugar for ingest base (dev → 127.0.0.1:8787)
+  --env prod|dev      Sugar for ingest base (dev → 127.0.0.1:37007)
   --twitter-bin PATH  Default TWITTER_BIN or twitter
   --spread-window-min N  Spread starts across N minutes (default 60). See docs/10.
   --min-gap-ms N      Min gap between handle starts (default 12000)

@@ -9,7 +9,7 @@ export function env(name: string): string | undefined {
 
 export const BROWSER =
 	env("PLAYWRIGHT_BROWSER_URL") || env("PLAYWRIGHT_BASE_URL") || "http://127.0.0.1:7007";
-export const WORKER = env("PLAYWRIGHT_WORKER_URL") || "http://127.0.0.1:8787";
+export const WORKER = env("PLAYWRIGHT_WORKER_URL") || "http://127.0.0.1:37007";
 export const INGEST = env("PLAYWRIGHT_INGEST_URL") || WORKER;
 
 export const browserApiHeaders = {

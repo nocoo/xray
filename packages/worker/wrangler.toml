@@ -2,6 +2,11 @@ name = "xray"
 main = "src/index.ts"
 compatibility_date = "2026-08-08"
 
+# Sidecar worker: main UI 7007 + 30000. Do not use wrangler default 8787.
+[dev]
+port = 37007
+ip = "127.0.0.1"
+
 [assets]
 directory = "./static"
 binding = "ASSETS"

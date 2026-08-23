@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 /**
  * Dual-host smoke (docs/06 / plan M8).
- * Defaults: browser UI http://127.0.0.1:7007, worker http://127.0.0.1:8787 with AUTH_DEV_BYPASS.
+ * Defaults: browser UI http://127.0.0.1:7007, worker http://127.0.0.1:37007 with AUTH_DEV_BYPASS.
  * Override with PLAYWRIGHT_BROWSER_URL / PLAYWRIGHT_WORKER_URL / PLAYWRIGHT_INGEST_URL.
  */
 function env(name: string): string | undefined {
@@ -11,7 +11,7 @@ function env(name: string): string | undefined {
 	return p?.env?.[name];
 }
 const BROWSER = env("PLAYWRIGHT_BROWSER_URL") || env("PLAYWRIGHT_BASE_URL") || "http://127.0.0.1:7007";
-const WORKER = env("PLAYWRIGHT_WORKER_URL") || "http://127.0.0.1:8787";
+const WORKER = env("PLAYWRIGHT_WORKER_URL") || "http://127.0.0.1:37007";
 const INGEST = env("PLAYWRIGHT_INGEST_URL") || WORKER;
 
 test.describe("dual-host smoke", () => {

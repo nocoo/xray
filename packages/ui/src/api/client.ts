@@ -17,7 +17,7 @@ async function parseError(res: Response): Promise<string> {
 		/* ignore */
 	}
 	if (res.status === 502 || res.status === 503 || res.status === 504) {
-		msg = `Worker unreachable (${res.status}). Start with bun run dev (UI :7007 + worker :8787)`;
+		msg = `Worker unreachable (${res.status}). Start with bun run dev (UI :7007 + worker :37007)`;
 	}
 	return msg;
 }
@@ -38,7 +38,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 		const detail = e instanceof Error ? e.message : String(e);
 		throw new ApiError(
 			0,
-			`Cannot reach API (${detail}). Is the worker running on :8787? Try bun run dev`,
+			`Cannot reach API (${detail}). Is the worker running on :37007? Try bun run dev`,
 		);
 	}
 	if (!res.ok) throw new ApiError(res.status, await parseError(res));

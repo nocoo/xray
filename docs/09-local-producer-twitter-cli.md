@@ -201,7 +201,7 @@ Authorization: Bearer xray_pt_…
 | Mode | `XRAY_INGEST_BASE` (or `--ingest-base` / `--env`) |
 |------|---------------------------------------------------|
 | Prod | `https://xray-ingest.hexly.ai` |
-| Dev / local | `http://127.0.0.1:8787` (wrangler `--env development`) |
+| Dev / local | `http://127.0.0.1:37007` (wrangler `--env development`) |
 
 Script may accept `--env prod|dev` as sugar for the row above. Graph and push **must** share that base so ids cannot cross environments.
 
@@ -245,7 +245,7 @@ set -a && source ~/.config/xray/push.env && set +a   # loads XRAY_PUSH_TOKEN (+ 
 
 # 1. Target (graph + push share this base)
 export XRAY_INGEST_BASE=https://xray-ingest.hexly.ai   # prod
-# export XRAY_INGEST_BASE=http://127.0.0.1:8787        # local/dev
+# export XRAY_INGEST_BASE=http://127.0.0.1:37007        # local/dev
 
 # 2. Optional knobs (push.env may already set these)
 export XRAY_WINDOW_HOURS=24

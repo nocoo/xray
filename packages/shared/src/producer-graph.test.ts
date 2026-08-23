@@ -15,11 +15,11 @@ describe("resolveIngestBase", () => {
 				cliEnv: "dev",
 				envBase: "https://xray-ingest.hexly.ai",
 			}),
-		).toBe("http://127.0.0.1:8787");
+		).toBe("http://127.0.0.1:37007");
 		expect(
 			resolveIngestBase({
 				cliEnv: "prod",
-				envBase: "http://127.0.0.1:8787",
+				envBase: "http://127.0.0.1:37007",
 			}),
 		).toBe("https://xray-ingest.hexly.ai");
 	});
@@ -34,15 +34,15 @@ describe("resolveIngestBase", () => {
 	});
 
 	test("env var used when no --env flag", () => {
-		expect(resolveIngestBase({ envBase: "http://127.0.0.1:8787" })).toBe("http://127.0.0.1:8787");
-		expect(resolveIngestBase({ envMode: "dev" })).toBe("http://127.0.0.1:8787");
+		expect(resolveIngestBase({ envBase: "http://127.0.0.1:37007" })).toBe("http://127.0.0.1:37007");
+		expect(resolveIngestBase({ envMode: "dev" })).toBe("http://127.0.0.1:37007");
 		expect(resolveIngestBase({})).toBe("https://xray-ingest.hexly.ai");
 	});
 });
 
 describe("ingestBaseForEnv", () => {
 	test("dev vs prod vs explicit cli base", () => {
-		expect(ingestBaseForEnv("dev", undefined)).toBe("http://127.0.0.1:8787");
+		expect(ingestBaseForEnv("dev", undefined)).toBe("http://127.0.0.1:37007");
 		expect(ingestBaseForEnv("prod", undefined)).toBe("https://xray-ingest.hexly.ai");
 		expect(ingestBaseForEnv("dev", "https://xray-ingest.hexly.ai")).toBe(
 			"https://xray-ingest.hexly.ai",
@@ -52,7 +52,7 @@ describe("ingestBaseForEnv", () => {
 
 describe("ingestAgentHeaders", () => {
 	test("spoils ingest host only for loopback", () => {
-		expect(ingestAgentHeaders("http://127.0.0.1:8787", "tok").host).toBe("xray-ingest.hexly.ai");
+		expect(ingestAgentHeaders("http://127.0.0.1:37007", "tok").host).toBe("xray-ingest.hexly.ai");
 		expect(ingestAgentHeaders("https://xray-ingest.hexly.ai", "tok").host).toBeUndefined();
 	});
 });

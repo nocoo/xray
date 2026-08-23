@@ -10,14 +10,14 @@ Twitter/X content monitoring — **v2 rewrite** (CF Workers + D1 + Vite).
 ```bash
 bun install
 bun run db:migrate:local   # apply D1 migrations to local state
-bun run dev                # migrate + shared build + UI :7007 + worker :8787
+bun run dev                # migrate + shared build + UI :7007 + worker :37007
 # or
-bun run dev:ui       # Vite SPA (proxies /api → 8787)
+bun run dev:ui       # Vite SPA (proxies /api → 37007)
 bun run dev:worker   # wrangler dev --env development
 ```
 
 - UI: http://localhost:7007 or https://xray.dev.hexly.ai (Caddy → 7007)
-- Worker live: http://127.0.0.1:8787/api/live
+- Worker live: http://127.0.0.1:37007/api/live
 
 ## Build / deploy
 
@@ -60,7 +60,7 @@ Worker `wrangler dev --env development` sets:
 - `AUTH_DEV_BYPASS=true`
 - `ALLOWED_EMAILS=dev@xray.local`
 
-UI proxies `/api/*` to `127.0.0.1:8787`. Session gate calls `GET /api/me`.
+UI proxies `/api/*` to `127.0.0.1:37007`. Session gate calls `GET /api/me`.
 
 ## Hosts
 
