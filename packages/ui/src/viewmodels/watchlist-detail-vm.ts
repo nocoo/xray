@@ -285,6 +285,18 @@ export function sourceCounts(items: TimelineItem[]) {
 	return { all, "x.com": x, custom } as const;
 }
 
+/** Fetch + CSS-columns page size. Each page is its own column box so loadMore cannot rebalance older cards. */
+export const ITEMS_PAGE_LIMIT = 50;
+
+export function chunkFeedPages<T>(items: T[], pageSize = ITEMS_PAGE_LIMIT): T[][] {
+	if (pageSize <= 0) return items.length ? [items] : [];
+	const pages: T[][] = [];
+	for (let i = 0; i < items.length; i += pageSize) {
+		pages.push(items.slice(i, i + pageSize));
+	}
+	return pages;
+}
+
 export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: number) {
 	const store = createStore<WatchlistDetailState>({
 		watchlistId,
@@ -331,8 +343,8 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 				const { sourceFilter } = store.getState();
 				const itemOpts =
 					sourceFilter === "all"
-						? { limit: 50 }
-						: { limit: 50, source_type: sourceFilter as SourceType };
+						? { limit: ITEMS_PAGE_LIMIT }
+						: { limit: ITEMS_PAGE_LIMIT, source_type: sourceFilter as SourceType };
 				// Core data only — logs go through sequenced loadLogs so a logs outage
 				// cannot wipe a successful watchlist/members/items load.
 				const [w, m, it] = await Promise.all([
@@ -416,9 +428,9 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 			try {
 				const itemOpts =
 					sourceFilter === "all"
-						? { limit: 50, cursor: nextCursor }
+						? { limit: ITEMS_PAGE_LIMIT, cursor: nextCursor }
 						: {
-								limit: 50,
+								limit: ITEMS_PAGE_LIMIT,
 								cursor: nextCursor,
 								source_type: sourceFilter as SourceType,
 							};

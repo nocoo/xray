@@ -17,6 +17,7 @@ import { useColumns } from "@/hooks/use-columns";
 import { cn } from "@/lib/utils";
 import { useVm } from "@/viewmodels/use-vm";
 import {
+	chunkFeedPages,
 	createWatchlistDetailVm,
 	filterMembers,
 	itemToTweet,
@@ -89,6 +90,7 @@ export function WatchlistDetailPage() {
 		[s.members, s.sourceFilter],
 	);
 	const counts = useMemo(() => sourceCounts(s.items), [s.items]);
+	const itemPages = useMemo(() => chunkFeedPages(s.items), [s.items]);
 
 	const onAddMember = () => {
 		openAddMember(
@@ -267,29 +269,60 @@ export function WatchlistDetailPage() {
 						columnCount === 1 && "snap-y snap-proximity",
 					)}
 				>
-					<div className="gap-x-3 [column-fill:balance]" style={{ columnCount }}>
-						{s.items.map((item) => {
-							const shell = cn(
-								"mb-3 inline-block w-full break-inside-avoid align-top",
-								columnCount === 1 && "snap-start",
-							);
-							if (item.sourceType === "custom") {
+					{itemPages.map((page) => (
+						<div
+							key={page[0]?.id ?? "empty"}
+							data-testid="posts-columns-page"
+							className="gap-x-3 [column-fill:balance]"
+							style={{ columnCount }}
+						>
+							{page.map((item) => {
+								const shell = cn(
+									"mb-3 inline-block w-full break-inside-avoid align-top",
+									columnCount === 1 && "snap-start",
+								);
+								if (item.sourceType === "custom") {
+									return (
+										<div key={item.id} data-source-type="custom" className={shell}>
+											<CustomItemCard
+												sourceType="custom"
+												title={item.title}
+												body={item.text}
+												createdAt={new Date(item.createdAtMs).toISOString()}
+												authorName={item.authorUsername}
+												url={
+													(item.payload as { body?: { url?: string } } | null)?.body?.url ?? null
+												}
+												watchlistId={watchlistId}
+												itemId={item.id}
+												initialTranslation={
+													item.translatedText
+														? {
+																translatedText: item.translatedText,
+																summaryText: item.summaryText,
+															}
+														: undefined
+												}
+												onTranslated={(result) => vm.onItemTranslated(item.id, result)}
+											/>
+										</div>
+									);
+								}
+								const tweet = itemToTweet(item);
+								if (!tweet) return null;
 								return (
-									<div key={item.id} data-source-type="custom" className={shell}>
-										<CustomItemCard
-											sourceType="custom"
-											title={item.title}
-											body={item.text}
-											createdAt={new Date(item.createdAtMs).toISOString()}
-											authorName={item.authorUsername}
-											url={(item.payload as { body?: { url?: string } } | null)?.body?.url ?? null}
+									<div key={item.id} data-source-type="x.com" className={shell}>
+										<TweetCard
+											tweet={tweet}
+											sourceType="x.com"
+											linkToDetail={false}
 											watchlistId={watchlistId}
 											itemId={item.id}
 											initialTranslation={
 												item.translatedText
 													? {
 															translatedText: item.translatedText,
-															summaryText: item.summaryText,
+															commentText: item.summaryText,
 														}
 													: undefined
 											}
@@ -297,31 +330,9 @@ export function WatchlistDetailPage() {
 										/>
 									</div>
 								);
-							}
-							const tweet = itemToTweet(item);
-							if (!tweet) return null;
-							return (
-								<div key={item.id} data-source-type="x.com" className={shell}>
-									<TweetCard
-										tweet={tweet}
-										sourceType="x.com"
-										linkToDetail={false}
-										watchlistId={watchlistId}
-										itemId={item.id}
-										initialTranslation={
-											item.translatedText
-												? {
-														translatedText: item.translatedText,
-														commentText: item.summaryText,
-													}
-												: undefined
-										}
-										onTranslated={(result) => vm.onItemTranslated(item.id, result)}
-									/>
-								</div>
-							);
-						})}
-					</div>
+							})}
+						</div>
+					))}
 
 					{/* Sentinel for infinite load — stays off-screen until near bottom */}
 					{s.nextCursor ? (
