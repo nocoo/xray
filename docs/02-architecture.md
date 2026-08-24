@@ -288,7 +288,8 @@ Direct pushes to `main` are allowed (D8). **CI cannot block a direct `git push` 
 |------|------|--------|
 | pre-commit L1+G1+gitleaks | every local commit | commit |
 | **pre-push L2+G2** | every `git push` to main | **push** (primary gate) |
-| CI GHA L1/L2/G1/G2 | after push / on PR | status check; release blocked if red |
+| CI GHA L1/L2/G1/G2 | after push / on PR | status check; gates CD |
+| Release CD | tag `v*.*.*` or CI green on main | `wrangler deploy --env production` |
 | L3 Playwright | CI after S5; **release/M8 blocked** if red | release |
 
 Rules:

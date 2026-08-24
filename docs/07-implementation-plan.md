@@ -188,7 +188,7 @@ S1 ✓ → S2 ✓ → S3 ✓ → S4 ✓ → S5(主路径✓ / L3+AI 加深)
 
 1. 本地起 UI+worker 后跑 `bun run test:l3`；可选 CI 挂 L3  
 2. 生产 Access 浏览器登录 smoke + 真 push  
-3. `bun run release`（`scripts/release.ts`）发 GitHub tag + release；Worker `bun run deploy`  
+3. `bun run release` 发 GitHub tag + release；`.github/workflows/release.yml` 在 tag / CI 绿后自动 `wrangler deploy --env production`（ingest `/api/live` 对版本）
 
 4. 加深 migrate L2 e2e（S4.7 still thin）  
 5. KEK read-repair write-back + `scripts/reencrypt-secrets.ts`  

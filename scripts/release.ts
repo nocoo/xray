@@ -440,7 +440,7 @@ async function main(): Promise<void> {
 	}
 
 	console.info(`\n✅ Released v${newVersion}`);
-	console.info("   Next: wait for CI, then bun run deploy (Worker CD if not automatic).");
+	console.info("   Next: wait for GitHub Actions «Release» (tag + CI-gated main deploy).");
 }
 
 main().catch((err: unknown) => {
