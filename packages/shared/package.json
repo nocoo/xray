@@ -1,6 +1,6 @@
 {
 	"name": "@xray/shared",
-	"version": "2.1.8",
+	"version": "2.1.9",
 	"private": true,
 	"type": "module",
 	"main": "./dist/index.js",

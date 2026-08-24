@@ -2,6 +2,38 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.1.9
+
+### Changed
+- Bind columns pages to production path
+- Cover css columns page stability
+- Use css columns for posts feed
+- Pin local worker to port 37007
+- Bump workers-types to 5.20260823.1
+- Bump jose 6.2.9 → 6.2.10 (#435)
+- Bump @biomejs/biome 2.5.9 → 2.5.10
+- Bump workers-types to 5.20260822.1
+- Bump workers-types to 5.20260821.1
+- Bump wrangler 4.124.0 → 4.125.0
+- Bump workers-types to 5.20260820.1
+- Bump happy-dom 20.11.2 to 20.11.6
+- Bump lucide-react 1.32.0 to 1.33.0
+- Bump coverage-v8 to 4.1.11 (#421)
+- Bump vitest 4.1.10 to 4.1.11 (#420)
+- Bump hono 4.13.2 to 4.13.3 (#419)
+- Bump workers-types to 5.20260819.1 (#418)
+- Bump lucide-react 1.30.0 → 1.32.0 (#416)
+- Bump wrangler 4.123.0 → 4.124.0 (#415)
+- Bump turbo 2.10.10 → 2.10.11
+- Bump @biomejs/biome 2.5.8 → 2.5.9
+- Bump @cloudflare/workers-types 5.20260817.1 → 5.20260818.1
+- Bump jose 6.2.8 → 6.2.9
+- Bump turbo 2.10.9 → 2.10.10
+- Bump @cloudflare/workers-types to 5.20260817.1
+
+### Fixed
+- Isolate css column pages on loadmore
+
 ## v2.1.8
 
 ### Fixed
