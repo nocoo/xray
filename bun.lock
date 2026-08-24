@@ -16,7 +16,7 @@
     },
     "packages/shared": {
       "name": "@xray/shared",
-      "version": "2.1.9",
+      "version": "2.2.0",
       "devDependencies": {
         "@vitest/coverage-v8": "4.1.11",
         "typescript": "^7.0.2",
@@ -25,7 +25,7 @@
     },
     "packages/ui": {
       "name": "@xray/ui",
-      "version": "2.1.9",
+      "version": "2.2.0",
       "dependencies": {
         "@radix-ui/react-collapsible": "1.1.20",
         "@xray/shared": "workspace:*",
@@ -55,7 +55,7 @@
     },
     "packages/worker": {
       "name": "@xray/worker",
-      "version": "2.1.9",
+      "version": "2.2.0",
       "dependencies": {
         "@xray/shared": "workspace:*",
         "hono": "4.13.3",

@@ -2,6 +2,16 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.2.0
+
+### Added
+- Add dashboard ingest and item trends
+- Add recharts for dashboard charts
+- Add worker release cd workflow
+
+### Changed
+- Restyle dashboard with charts and table
+
 ## v2.1.9
 
 ### Changed
