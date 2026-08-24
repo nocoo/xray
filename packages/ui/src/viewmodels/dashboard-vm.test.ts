@@ -8,6 +8,8 @@ const data = {
 	items24h: 4,
 	pendingAi: 5,
 	bySourceType: [{ sourceType: "x.com", count: 4 }],
+	itemsTrend: [{ date: "2026-08-23", count: 4 }],
+	ingestTrend: [{ date: "2026-08-23", accepted: 2, deduped: 1, rejected: 0 }],
 	recentIngestLogs: [],
 };
 

@@ -9,6 +9,15 @@ export type IngestLog = {
 	rejected: number;
 	errorsJson: string | null;
 	createdAtMs: number;
+	watchlistName?: string | null;
+};
+
+export type ItemDayPoint = { date: string; count: number };
+export type IngestDayPoint = {
+	date: string;
+	accepted: number;
+	deduped: number;
+	rejected: number;
 };
 
 export type DashboardAggregates = {
@@ -18,6 +27,8 @@ export type DashboardAggregates = {
 	items24h: number;
 	pendingAi: number;
 	bySourceType: { sourceType: string; count: number }[];
+	itemsTrend: ItemDayPoint[];
+	ingestTrend: IngestDayPoint[];
 	recentIngestLogs: IngestLog[];
 };
 

@@ -61,6 +61,10 @@ describe("nullish / edge repo branches", () => {
 		expect(d.items24h).toBe(0);
 		expect(d.pendingAi).toBe(0);
 		expect(d.bySourceType).toEqual([]);
+		expect(d.itemsTrend).toHaveLength(14);
+		expect(d.ingestTrend).toHaveLength(14);
+		expect(d.itemsTrend.every((p) => p.count === 0)).toBe(true);
+		expect(d.recentIngestLogs).toEqual([]);
 	});
 
 	test("ingest logs clampLimit and null results", async () => {

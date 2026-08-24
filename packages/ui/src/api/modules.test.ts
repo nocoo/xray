@@ -78,6 +78,8 @@ describe("api modules hit real client", () => {
 			items24h: 0,
 			pendingAi: 0,
 			bySourceType: [],
+			itemsTrend: [],
+			ingestTrend: [],
 			recentIngestLogs: [],
 		});
 		await dashboard.fetchDashboard();
