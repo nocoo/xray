@@ -16,7 +16,7 @@
     },
     "packages/shared": {
       "name": "@xray/shared",
-      "version": "2.2.0",
+      "version": "2.2.2",
       "devDependencies": {
         "@vitest/coverage-v8": "4.1.11",
         "typescript": "^7.0.2",
@@ -25,7 +25,7 @@
     },
     "packages/ui": {
       "name": "@xray/ui",
-      "version": "2.2.0",
+      "version": "2.2.2",
       "dependencies": {
         "@radix-ui/react-collapsible": "1.1.20",
         "@xray/shared": "workspace:*",
@@ -55,10 +55,10 @@
     },
     "packages/worker": {
       "name": "@xray/worker",
-      "version": "2.2.0",
+      "version": "2.2.2",
       "dependencies": {
         "@xray/shared": "workspace:*",
-        "hono": "4.13.3",
+        "hono": "4.13.4",
         "jose": "^6.2.10",
       },
       "devDependencies": {
@@ -676,7 +676,7 @@
 
     "has-flag": ["has-flag@4.0.0", "", {}, "sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ=="],
 
-    "hono": ["hono@4.13.3", "", {}, "sha512-r8AO2mYHoLxSHkgafNeC/BXyb2vWRxD3jem4Ts+ptav8oTG5FIRifAjuJEmZI4bSvvc2ns0GxmIYiZnHqN3mMw=="],
+    "hono": ["hono@4.13.4", "", {}, "sha512-AGEwKIyRMHRv1t8Wjwa3LHxQ61X5CqrdFT+4BRNTpqS5aJNnpl5WLjADb7vFlJzI/8uK7T5QLVApCMQKNa3LgQ=="],
 
     "html-escaper": ["html-escaper@2.0.2", "", {}, "sha512-H2iMtd0I4Mt5eYiapRdIDjp+XzelXQ0tFE4JS7YFwFevXXMmOp9myNrUvCg0D6ws8iqkRPBfKHgbwig1SmlLfg=="],
 
