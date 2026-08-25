@@ -1,26 +1,33 @@
 import { describe, expect, test } from "vitest";
-import { chunkFeedPages, feedColumnsPageStyle, ITEMS_PAGE_LIMIT } from "./feed-columns";
+import { distributeColumns } from "./feed-columns";
 
-describe("feed-columns", () => {
-	test("chunkFeedPages isolates appended pages so older membership cannot rebalance", () => {
-		expect(chunkFeedPages([])).toEqual([]);
-		expect(chunkFeedPages([1, 2, 3], 2)).toEqual([[1, 2], [3]]);
-		const first = Array.from({ length: ITEMS_PAGE_LIMIT }, (_, i) => i + 1);
-		const second = Array.from({ length: ITEMS_PAGE_LIMIT }, (_, i) => i + 1 + ITEMS_PAGE_LIMIT);
-		const before = chunkFeedPages(first);
-		const after = chunkFeedPages([...first, ...second]);
-		expect(before).toHaveLength(1);
-		expect(after).toHaveLength(2);
-		expect(after[0]).toEqual(before[0]);
-		expect(after[1]).toEqual(second);
-		expect(chunkFeedPages([1, 2, 3], 0)).toEqual([[1, 2, 3]]);
+describe("distributeColumns", () => {
+	test("appended items keep the previous prefix assignment", () => {
+		const h = (n: number) => (n % 2 === 0 ? 200 : 80);
+		const first = [1, 2, 3, 4, 5];
+		const before = distributeColumns(first, 3, h);
+		const after = distributeColumns([...first, 6, 7], 3, h);
+		expect(after).toHaveLength(3);
+		expect(after.map((col) => col.filter((id) => id <= 5))).toEqual(before);
+		expect(after.flat().sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7]);
 	});
 
-	test("feedColumnsPageStyle is a balanced multi-column box", () => {
-		expect(feedColumnsPageStyle(3)).toEqual({
-			columnCount: 3,
-			columnFill: "balance",
-			columnGap: "0.75rem",
-		});
+	test("taller cards go into the current shortest column", () => {
+		const cols = distributeColumns(
+			[
+				{ id: 1, h: 40 },
+				{ id: 2, h: 40 },
+				{ id: 3, h: 400 },
+			],
+			2,
+			(item) => item.h,
+		);
+		expect(cols[0]?.map((i) => i.id)).toEqual([1, 3]);
+		expect(cols[1]?.map((i) => i.id)).toEqual([2]);
+	});
+
+	test("invalid column count falls back to one column", () => {
+		expect(distributeColumns([1, 2], 0, () => 10)).toEqual([[1, 2]]);
+		expect(distributeColumns([1], Number.NaN, () => -5)).toEqual([[1]]);
 	});
 });

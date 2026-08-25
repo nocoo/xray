@@ -286,6 +286,19 @@ export function sourceCounts(items: TimelineItem[]) {
 	return { all, "x.com": x, custom } as const;
 }
 
+export function estimateItemHeight(item: TimelineItem): number {
+	let h = 80 + Math.ceil((item.text?.length ?? 0) / 60) * 20;
+	if (item.title) h += 28;
+	if (item.sourceType !== "x.com") return h;
+	const tweet = itemToTweet(item);
+	if (tweet?.media?.length) {
+		const n = tweet.media.length;
+		h += n >= 2 && n <= 4 ? 240 : 280;
+	}
+	if (tweet?.quoted_tweet) h += 120;
+	return h;
+}
+
 export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: number) {
 	const store = createStore<WatchlistDetailState>({
 		watchlistId,

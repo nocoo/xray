@@ -1,6 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, test } from "vitest";
-import { ITEMS_PAGE_LIMIT } from "@/lib/feed-columns";
 import { PostsColumnsPages } from "./posts-columns-pages";
 
 afterEach(() => {
@@ -8,34 +7,40 @@ afterEach(() => {
 });
 
 describe("PostsColumnsPages", () => {
-	test("appending a full page keeps first-page ids in the first column box", () => {
-		const first = Array.from({ length: ITEMS_PAGE_LIMIT }, (_, i) => ({ id: i + 1 }));
-		const second = Array.from({ length: ITEMS_PAGE_LIMIT }, (_, i) => ({
-			id: i + 1 + ITEMS_PAGE_LIMIT,
-		}));
+	test("keeps earlier cards in the same column after append", () => {
+		const first = [1, 2, 3, 4, 5].map((id) => ({ id, h: id === 2 ? 300 : 80 }));
+		const extra = { id: 6, h: 80 };
 		const renderItem = (item: { id: number }) => (
-			<div key={item.id} data-testid={`item-${item.id}`}>
-				{item.id}
-			</div>
+			<div data-testid={`item-${item.id}`}>{item.id}</div>
 		);
+		const estimateHeight = (item: { id: number; h: number }) => item.h;
 
 		const { rerender } = render(
-			<PostsColumnsPages items={first} columnCount={3} renderItem={renderItem} />,
+			<PostsColumnsPages
+				items={first}
+				columnCount={3}
+				estimateHeight={estimateHeight}
+				renderItem={renderItem}
+			/>,
 		);
-		expect(screen.getAllByTestId("posts-columns-page")).toHaveLength(1);
-		expect(screen.getByTestId("item-1")).toBeTruthy();
-		expect(screen.getByTestId(`item-${ITEMS_PAGE_LIMIT}`)).toBeTruthy();
+		expect(screen.getAllByTestId("posts-masonry-col")).toHaveLength(3);
+		const colOf = (id: number) => {
+			const el = screen.getByTestId(`item-${id}`);
+			return el.closest("[data-testid=posts-masonry-col]");
+		};
+		const home = colOf(1);
+		expect(home).toBeTruthy();
 
 		rerender(
-			<PostsColumnsPages items={[...first, ...second]} columnCount={3} renderItem={renderItem} />,
+			<PostsColumnsPages
+				items={[...first, extra]}
+				columnCount={3}
+				estimateHeight={estimateHeight}
+				renderItem={renderItem}
+			/>,
 		);
-		const pages = screen.getAllByTestId("posts-columns-page");
-		expect(pages).toHaveLength(2);
-		expect(pages[0]?.querySelector(`[data-testid="item-1"]`)).toBeTruthy();
-		expect(pages[0]?.querySelector(`[data-testid="item-${ITEMS_PAGE_LIMIT}"]`)).toBeTruthy();
-		expect(pages[0]?.querySelector(`[data-testid="item-${ITEMS_PAGE_LIMIT + 1}"]`)).toBeNull();
-		expect(pages[1]?.querySelector(`[data-testid="item-${ITEMS_PAGE_LIMIT + 1}"]`)).toBeTruthy();
-		expect(pages[0]?.style.columnCount).toBe("3");
-		expect(pages[0]?.style.columnFill).toBe("balance");
+		expect(colOf(1)).toBe(home);
+		expect(screen.getByTestId("item-6")).toBeTruthy();
+		expect(screen.getByTestId("posts-masonry")).toBeTruthy();
 	});
 });

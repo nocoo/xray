@@ -11,7 +11,7 @@ import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { EditMemberDialog } from "@/components/dialogs/edit-member-dialog";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { SlidePanel } from "@/components/layout/slide-panel";
-import { PostsColumnsPages, postsColumnsItemClass } from "@/components/posts-columns-pages";
+import { PostsColumnsPages } from "@/components/posts-columns-pages";
 import { SourceFilter } from "@/components/source-filter";
 import { Button } from "@/components/ui/button";
 import { useColumns } from "@/hooks/use-columns";
@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { useVm } from "@/viewmodels/use-vm";
 import {
 	createWatchlistDetailVm,
+	estimateItemHeight,
 	filterMembers,
 	itemToTweet,
 	memberToCard,
@@ -271,11 +272,12 @@ export function WatchlistDetailPage() {
 					<PostsColumnsPages
 						items={s.items}
 						columnCount={columnCount}
+						estimateHeight={estimateItemHeight}
 						renderItem={(item) => {
-							const shell = postsColumnsItemClass(columnCount === 1 ? "snap-start" : undefined);
+							const snap = columnCount === 1 ? "snap-start" : undefined;
 							if (item.sourceType === "custom") {
 								return (
-									<div key={item.id} data-source-type="custom" className={shell}>
+									<div key={item.id} data-source-type="custom" className={snap}>
 										<CustomItemCard
 											sourceType="custom"
 											title={item.title}
@@ -301,7 +303,7 @@ export function WatchlistDetailPage() {
 							const tweet = itemToTweet(item);
 							if (!tweet) return null;
 							return (
-								<div key={item.id} data-source-type="x.com" className={shell}>
+								<div key={item.id} data-source-type="x.com" className={snap}>
 									<TweetCard
 										tweet={tweet}
 										sourceType="x.com"

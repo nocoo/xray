@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from "vitest";
 import type { Member, TimelineItem, Watchlist } from "@/api/watchlists";
 import {
 	createWatchlistDetailVm,
+	estimateItemHeight,
 	filterMembers,
 	itemToTweet,
 	memberToCard,
@@ -103,6 +104,33 @@ describe("watchlist-detail pure helpers", () => {
 			"x.com": 1,
 			custom: 1,
 		});
+		const withPhoto = (keys: string[]) =>
+			estimateItemHeight({
+				...item,
+				payload: {
+					body: {
+						tweet: {
+							id: "t1",
+							text: "hello world",
+							attachments: { media_keys: keys },
+							referenced_tweets: [{ type: "quoted", id: "q1" }],
+						},
+						includes: {
+							media: keys.map((k) => ({
+								media_key: k,
+								type: "photo",
+								url: `https://pbs.twimg.com/${k}.jpg`,
+							})),
+							tweets: [{ id: "q1", text: "quoted" }],
+						},
+					},
+				},
+			});
+		expect(estimateItemHeight({ ...item, sourceType: "custom", title: "T" })).toBeGreaterThan(
+			estimateItemHeight({ ...item, sourceType: "custom", title: null }),
+		);
+		expect(withPhoto(["m1"])).toBeGreaterThan(estimateItemHeight(item));
+		expect(withPhoto(["m1", "m2"])).toBeLessThan(withPhoto(["m1"]));
 	});
 });
 
