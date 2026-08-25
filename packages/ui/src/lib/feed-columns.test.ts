@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { distributeColumns } from "./feed-columns";
+import {
+	applyMeasuredHeights,
+	distributeColumns,
+	pruneMeasuredHeights,
+	resolveItemHeight,
+} from "./feed-columns";
 
 describe("distributeColumns", () => {
 	test("appended items keep the previous prefix assignment", () => {
@@ -29,5 +34,44 @@ describe("distributeColumns", () => {
 	test("invalid column count falls back to one column", () => {
 		expect(distributeColumns([1, 2], 0, () => 10)).toEqual([[1, 2]]);
 		expect(distributeColumns([1], Number.NaN, () => -5)).toEqual([[1]]);
+	});
+});
+
+describe("measured heights", () => {
+	test("resolveItemHeight prefers measured values", () => {
+		const item = { id: 9 };
+		expect(resolveItemHeight(item, () => 80, {})).toBe(80);
+		expect(resolveItemHeight(item, () => 80, { 9: 240 })).toBe(240);
+	});
+
+	test("applyMeasuredHeights ignores no-ops and non-positive", () => {
+		expect(
+			applyMeasuredHeights({ 1: 10 }, [
+				[1, 10.4],
+				[2, 0],
+			]),
+		).toBeNull();
+		expect(
+			applyMeasuredHeights({ 1: 10 }, [
+				[1, 40],
+				[2, 12],
+			]),
+		).toEqual({ 1: 40, 2: 12 });
+	});
+
+	test("measured heights rebalance later cards onto the shorter column", () => {
+		const items = [{ id: 1 }, { id: 2 }, { id: 3 }];
+		const est = () => 100;
+		const before = distributeColumns(items, 2, (it) => resolveItemHeight(it, est, {}));
+		expect(before[0]?.map((i) => i.id)).toEqual([1, 3]);
+		const after = distributeColumns(items, 2, (it) => resolveItemHeight(it, est, { 1: 400 }));
+		expect(after[0]?.map((i) => i.id)).toEqual([1]);
+		expect(after[1]?.map((i) => i.id)).toEqual([2, 3]);
+	});
+
+	test("pruneMeasuredHeights drops ids that left the feed", () => {
+		const prev = { 1: 10, 2: 20 };
+		expect(pruneMeasuredHeights(prev, new Set([1, 2]))).toBe(prev);
+		expect(pruneMeasuredHeights(prev, new Set([2]))).toEqual({ 2: 20 });
 	});
 });
