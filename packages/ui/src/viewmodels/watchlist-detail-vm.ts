@@ -1,6 +1,7 @@
 import type { SourceType } from "@xray/shared";
 import type { TranslateResult } from "@/api/ai";
 import type { IngestLog, Member, TimelineItem, Watchlist } from "@/api/watchlists";
+import { POST_TEXT_CLAMP_LINES } from "@/lib/expandable-text";
 import { ITEMS_PAGE_LIMIT } from "@/lib/feed-columns";
 import type { MockWatchlistMember } from "@/lib/mock-data";
 import type { Tweet, TweetMedia } from "@/lib/tweet-types";
@@ -287,7 +288,8 @@ export function sourceCounts(items: TimelineItem[]) {
 }
 
 export function estimateItemHeight(item: TimelineItem): number {
-	let h = 80 + Math.ceil((item.text?.length ?? 0) / 60) * 20;
+	const textLines = Math.min(POST_TEXT_CLAMP_LINES, Math.ceil((item.text?.length ?? 0) / 60));
+	let h = 80 + textLines * 20;
 	if (item.title) h += 28;
 	if (item.sourceType !== "x.com") return h;
 	const tweet = itemToTweet(item);

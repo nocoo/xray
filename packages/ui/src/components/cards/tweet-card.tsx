@@ -24,10 +24,12 @@ import {
 	X,
 } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ExpandableText } from "@/components/expandable-text";
 import { XVerified } from "@/components/icons/x-verified";
 import { SourceChip } from "@/components/source-chip";
 import { Badge } from "@/components/ui/badge";
 import { useNow } from "@/hooks/use-now";
+import { POST_TEXT_CLAMP_LINES, QUOTED_TEXT_CLAMP_LINES } from "@/lib/expandable-text";
 import type { Tweet, TweetMedia } from "@/lib/tweet-types";
 import { cn, formatCount, formatTimeAgo } from "@/lib/utils";
 
@@ -306,10 +308,13 @@ export const TweetCard = memo(function TweetCard({
 				</div>
 			</div>
 
-			{/* Tweet text */}
-			<p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap">
+			<ExpandableText
+				key={displayTweet.text}
+				lines={POST_TEXT_CLAMP_LINES}
+				className="mt-3 text-sm leading-relaxed whitespace-pre-wrap"
+			>
 				{linkifyText(displayTweet.text)}
-			</p>
+			</ExpandableText>
 
 			{/* Media preview */}
 			{tweet.media && tweet.media.length > 0 && (
@@ -404,9 +409,13 @@ export const TweetCard = memo(function TweetCard({
 								) : null}
 							</div>
 
-							<p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-foreground/90">
+							<ExpandableText
+								key={displayTweet.quoted_tweet?.text ?? tweet.quoted_tweet.text}
+								lines={QUOTED_TEXT_CLAMP_LINES}
+								className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-foreground/90"
+							>
 								{linkifyText(displayTweet.quoted_tweet?.text ?? tweet.quoted_tweet.text)}
-							</p>
+							</ExpandableText>
 
 							{tweet.quoted_tweet.media && tweet.quoted_tweet.media.length > 0 && (
 								<div className="mt-2">

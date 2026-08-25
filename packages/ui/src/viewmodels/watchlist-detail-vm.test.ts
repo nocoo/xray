@@ -131,6 +131,9 @@ describe("watchlist-detail pure helpers", () => {
 		);
 		expect(withPhoto(["m1"])).toBeGreaterThan(estimateItemHeight(item));
 		expect(withPhoto(["m1", "m2"])).toBeLessThan(withPhoto(["m1"]));
+		const long = estimateItemHeight({ ...item, text: "x".repeat(4000) });
+		const longer = estimateItemHeight({ ...item, text: "x".repeat(8000) });
+		expect(long).toBe(longer);
 	});
 });
 

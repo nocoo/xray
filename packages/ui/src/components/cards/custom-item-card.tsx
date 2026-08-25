@@ -8,8 +8,10 @@ import {
 	MessageSquareQuote,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { ExpandableText } from "@/components/expandable-text";
 import { SourceChip } from "@/components/source-chip";
 import { useNow } from "@/hooks/use-now";
+import { POST_TEXT_CLAMP_LINES } from "@/lib/expandable-text";
 import { cn, formatTimeAgo } from "@/lib/utils";
 import { canSaveToZheto, postZhetoSave, type ZhetoSaveState } from "@/lib/zheto-save";
 
@@ -154,9 +156,13 @@ export function CustomItemCard({
 			</div>
 
 			{title && <h3 className="pr-14 text-sm font-semibold">{title}</h3>}
-			<p className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap text-foreground/90">
+			<ExpandableText
+				key={displayBody}
+				lines={POST_TEXT_CLAMP_LINES}
+				className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap text-foreground/90"
+			>
 				{displayBody}
-			</p>
+			</ExpandableText>
 
 			{showInsight && (
 				<div className="mt-3 rounded-md bg-gradient-to-r from-violet-50/80 via-fuchsia-50/50 to-amber-50/40 px-3 py-2 dark:from-violet-950/30 dark:via-fuchsia-950/20 dark:to-amber-950/10">
