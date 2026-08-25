@@ -2,6 +2,15 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.2.1
+
+### Fixed
+- Rebalance masonry after media settles
+- Restore continuous masonry for posts
+
+### Changed
+- Bump lucide-react 1.33.0 → 1.34.0
+
 ## v2.2.0
 
 ### Added
