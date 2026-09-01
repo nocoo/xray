@@ -30,7 +30,7 @@
 		"test:ai": "bun run --filter @xray/worker test src/routes/ai-zheto-dashboard.test.ts src/lib/secrets-crypto.test.ts"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.5.10",
+		"@biomejs/biome": "2.5.11",
 		"@playwright/test": "1.62.1",
 		"@vitest/coverage-v8": "4.1.11",
 		"husky": "^9.1.0",
