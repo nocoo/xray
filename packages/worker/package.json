@@ -13,14 +13,14 @@
 	},
 	"dependencies": {
 		"@xray/shared": "workspace:*",
-		"hono": "4.13.4",
+		"hono": "4.13.5",
 		"jose": "^6.2.10"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "5.20260823.1",
+		"@cloudflare/workers-types": "5.20260831.1",
 		"@vitest/coverage-v8": "4.1.11",
 		"typescript": "^7.0.2",
 		"vitest": "4.1.11",
-		"wrangler": "4.125.0"
+		"wrangler": "4.127.1"
 	}
 }
