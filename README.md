@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/brand/icon-rounded.png" alt="Xray" width="128" height="128" />
+</p>
+
 # X-Ray
 
 Twitter/X content monitoring — **v2 rewrite** (CF Workers + D1 + Vite).

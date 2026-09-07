@@ -1,0 +1,46 @@
+{
+	"study": "xray/2026-09-07-01",
+	"finishing": "01",
+	"method": "retained-original",
+	"generationCalls": 0,
+	"nativeDimensions": [2048, 2048],
+	"sourceRevisionBefore": "beb41e07f44a3532afd80e80df5df7f24b9fb92d",
+	"previous": {
+		"kind": "original",
+		"original": "/logos/originals/xray.png",
+		"sourcePath": "packages/worker/static/logo.png",
+		"sourceUrl": "https://github.com/nocoo/xray/blob/c6653da2d564576c9fe85346477d2830ebeabdc0/packages/worker/static/logo.png",
+		"modified": false,
+		"width": 2048,
+		"height": 2048,
+		"bytes": 3318716,
+		"sha256": "912d89234012d2bd1ef3623aeff8824efc274fdb77d8317200784bb1f02cd023",
+		"thumbnail": "/logos/display/xray-160.webp",
+		"display": "/logos/display/xray-1024.webp"
+	},
+	"masters": {
+		"logo.png": {
+			"sha256": "912d89234012d2bd1ef3623aeff8824efc274fdb77d8317200784bb1f02cd023",
+			"width": 2048,
+			"height": 2048
+		},
+		"assets/brand/icon.png": {
+			"sha256": "cdc6aa43110cc2ea7ead1520416b26a3153176e3a3ad6afe9185a576f7fbcd69",
+			"width": 2048,
+			"height": 2048
+		},
+		"assets/brand/icon-rounded.png": {
+			"sha256": "cfc96baa2fbd99fab5af9aca03e09de14beaf52920ff028d9b7a6ee0b579adce",
+			"width": 2048,
+			"height": 2048
+		}
+	},
+	"roundedClearancePx": 124.61,
+	"acceptance": {
+		"decisionSource": "owner-retained original",
+		"ownerReviewedExactBytes": true,
+		"scope": "Named ten-project batch"
+	},
+	"review": "https://hexly.ai/logos/xray",
+	"archive": "https://github.com/nocoo/hexly.ai/tree/main/artwork/logo-family/xray/2026-09-07-01"
+}
