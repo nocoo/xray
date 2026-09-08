@@ -134,40 +134,44 @@ export function CustomItemCard({
 
 	const showInsight = lang === "zh" && !!summaryText;
 
+	const hasActions = url || onRemove || canSave || watchlistId != null;
+
 	return (
 		<LayerCard
 			data-testid="custom-item-card"
 			data-source-type={sourceType}
 			outlined
-			className="relative border-dashed border-violet-500/35"
+			className="relative animate-fade-up"
 		>
-			<div className="absolute top-2.5 right-2.5 flex items-center gap-1">
-				<SourceChip sourceType={sourceType} />
-			</div>
+			<LayerCard.Body className="relative">
+				<div className="absolute top-0 right-0 flex items-center gap-1">
+					<SourceChip sourceType={sourceType} />
+				</div>
 
-			<div className="mb-2 flex flex-wrap items-center gap-2 pr-16">
-				{producer && (
-					<span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-						{producer}
+				<div className="mb-2 flex flex-wrap items-center gap-2 pr-16">
+					{producer && (
+						<span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+							{producer}
+						</span>
+					)}
+					<span className="text-xs text-muted-foreground">
+						{formatTimeAgo(createdAt, "compact", nowMs)}
 					</span>
-				)}
-				<span className="text-xs text-muted-foreground">
-					{formatTimeAgo(createdAt, "compact", nowMs)}
-				</span>
-				{authorName && <span className="text-xs text-muted-foreground">· {authorName}</span>}
-			</div>
+					{authorName && <span className="text-xs text-muted-foreground">· {authorName}</span>}
+				</div>
 
-			{title && <h3 className="pr-14 text-sm font-semibold">{title}</h3>}
-			<ExpandableText
-				key={displayBody}
-				lines={POST_TEXT_CLAMP_LINES}
-				className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap text-foreground/90"
-			>
-				{displayBody}
-			</ExpandableText>
+				{title && <h3 className="pr-14 text-sm font-semibold">{title}</h3>}
+				<ExpandableText
+					key={displayBody}
+					lines={POST_TEXT_CLAMP_LINES}
+					className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap text-foreground/90"
+				>
+					{displayBody}
+				</ExpandableText>
+			</LayerCard.Body>
 
 			{showInsight && (
-				<div className="mt-3 rounded-md bg-gradient-to-r from-violet-50/80 via-fuchsia-50/50 to-amber-50/40 px-3 py-2 dark:from-violet-950/30 dark:via-fuchsia-950/20 dark:to-amber-950/10">
+				<LayerCard.Well className="bg-gradient-to-r from-violet-50/80 via-fuchsia-50/50 to-amber-50/40 px-4 py-2.5 dark:from-violet-950/30 dark:via-fuchsia-950/20 dark:to-amber-950/10">
 					<div className="flex gap-2">
 						<MessageSquareQuote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500 dark:text-violet-400" />
 						<div className="min-w-0 flex-1">
@@ -177,15 +181,17 @@ export function CustomItemCard({
 							<p className="mt-0.5 text-sm leading-relaxed text-foreground/80">{summaryText}</p>
 						</div>
 					</div>
-				</div>
+				</LayerCard.Well>
 			)}
 
 			{translateError && !hasTranslation && (
-				<p className="mt-2 text-xs break-all text-red-600 dark:text-red-400">{translateError}</p>
+				<div className="border-t border-basalt-destructive/30 bg-basalt-danger-tint px-4 py-2">
+					<p className="break-all text-xs text-basalt-danger">{translateError}</p>
+				</div>
 			)}
 
-			{(url || onRemove || canSave || watchlistId != null) && (
-				<div className="mt-3 flex items-center gap-1 border-t border-border/60 pt-2">
+			{hasActions && (
+				<LayerCard.Footer className="justify-start gap-1 py-2">
 					{url && (
 						<a
 							href={url}
@@ -267,7 +273,7 @@ export function CustomItemCard({
 							Remove
 						</button>
 					)}
-				</div>
+				</LayerCard.Footer>
 			)}
 		</LayerCard>
 	);

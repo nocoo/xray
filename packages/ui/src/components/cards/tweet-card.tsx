@@ -199,16 +199,10 @@ export const TweetCard = memo(function TweetCard({
 		}
 	}, [zhetoStatus, tweet.url, tweet.author.username, tweet.text]);
 
-	const card = (
-		<LayerCard
-			className={cn(
-				"relative transition-colors hover:bg-basalt-accent/40",
-				showActionBar && "rounded-b-none",
-				className,
-			)}
-		>
+	const body = (
+		<LayerCard.Body className="relative">
 			{/* source_type chip — top-right (v2 mix timeline) */}
-			<div className="absolute top-2.5 right-2.5 flex items-center gap-1">
+			<div className="absolute top-0 right-0 flex items-center gap-1">
 				<SourceChip sourceType={sourceType} />
 			</div>
 
@@ -468,11 +462,11 @@ export const TweetCard = memo(function TweetCard({
 					value={tweet.metrics.bookmark_count}
 				/>
 			</div>
-		</LayerCard>
+		</LayerCard.Body>
 	);
 
 	const actionBar = showActionBar ? (
-		<div className="flex items-center gap-1 rounded-b-card border border-t-0 border-basalt-border bg-basalt-secondary px-2 py-1.5">
+		<LayerCard.Footer className="justify-start gap-1 py-2">
 			{/* Open on X */}
 			<a
 				href={tweet.url}
@@ -578,13 +572,13 @@ export const TweetCard = memo(function TweetCard({
 					Remove
 				</button>
 			)}
-		</div>
+		</LayerCard.Footer>
 	) : null;
 
 	// AI Insight — shown when viewing translated text and commentText exists
 	const showComment = lang === "zh" && !!commentText;
 	const aiInsight = showComment ? (
-		<div className="relative border border-t-0 border-border bg-gradient-to-r from-violet-50/80 via-fuchsia-50/50 to-amber-50/40 dark:from-violet-950/30 dark:via-fuchsia-950/20 dark:to-amber-950/10 px-3 py-2.5">
+		<LayerCard.Well className="relative bg-gradient-to-r from-violet-50/80 via-fuchsia-50/50 to-amber-50/40 px-4 py-2.5 dark:from-violet-950/30 dark:via-fuchsia-950/20 dark:to-amber-950/10">
 			<div className="flex gap-2">
 				<MessageSquareQuote className="h-3.5 w-3.5 mt-0.5 shrink-0 text-violet-500 dark:text-violet-400" />
 				<div className="flex-1 min-w-0">
@@ -594,25 +588,27 @@ export const TweetCard = memo(function TweetCard({
 					<p className="mt-0.5 text-sm text-foreground/80 leading-relaxed">{commentText}</p>
 				</div>
 			</div>
-		</div>
+		</LayerCard.Well>
 	) : null;
 
 	const errorBanner =
 		translateError && !hasTranslation ? (
-			<div className="border border-t-0 border-red-200 bg-red-50/80 px-3 py-2 dark:border-red-900/50 dark:bg-red-950/20">
-				<p className="text-xs text-red-700 dark:text-red-300 break-all">{translateError}</p>
+			<div className="border-t border-basalt-destructive/30 bg-basalt-danger-tint px-4 py-2">
+				<p className="break-all text-xs text-basalt-danger">{translateError}</p>
 			</div>
 		) : null;
 
 	return (
-		<div>
-			{card}
-			{renderBeforeActionBar}
-			{errorBanner}
-			{aiInsight}
-			{actionBar}
+		<>
+			<LayerCard outlined className={cn("relative animate-fade-up", className)}>
+				{body}
+				{renderBeforeActionBar}
+				{errorBanner}
+				{aiInsight}
+				{actionBar}
+			</LayerCard>
 			<ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
-		</div>
+		</>
 	);
 });
 
