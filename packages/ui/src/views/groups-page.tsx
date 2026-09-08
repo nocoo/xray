@@ -87,8 +87,8 @@ export function GroupsPage() {
 			if (ok) {
 				if (s.selectedId === deleteTarget.id) selectGroup(null);
 				notifyListsChanged();
-				setDeleteTarget(null);
 			}
+			setDeleteTarget(null);
 		} finally {
 			setDeleteBusy(false);
 		}
