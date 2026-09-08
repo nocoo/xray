@@ -13,10 +13,14 @@ test.describe("L3 groups flow", () => {
 		expect(create.ok()).toBeTruthy();
 
 		await page.goto(`${BROWSER}/groups`);
-		await expect(page.getByRole("heading", { name: /Groups/i })).toBeVisible({
+		await expect(
+			page.locator("[data-basalt-surface-root]").getByRole("heading", { name: /Groups/i }),
+		).toBeVisible({
 			timeout: 15_000,
 		});
-		await expect(page.getByRole("button", { name: new RegExp(name) })).toBeVisible({
+		await expect(
+			page.locator("[data-basalt-surface-root]").getByRole("button", { name: new RegExp(name) }),
+		).toBeVisible({
 			timeout: 15_000,
 		});
 	});

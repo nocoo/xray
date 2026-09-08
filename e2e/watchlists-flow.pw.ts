@@ -7,7 +7,9 @@ test.describe("L3 watchlists flow", () => {
 
 		const name = `pw-wl-ui-${Date.now()}`;
 		await page.goto(`${BROWSER}/watchlist`);
-		await expect(page.getByRole("heading", { name: /Watchlists/i })).toBeVisible({
+		await expect(
+			page.locator("[data-basalt-surface-root]").getByRole("heading", { name: /Watchlists/i }),
+		).toBeVisible({
 			timeout: 15_000,
 		});
 

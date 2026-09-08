@@ -31,7 +31,9 @@ test.describe("dual-host smoke", () => {
 
 		await page.goto(BROWSER + "/");
 		// SessionGate may load /api/me via vite proxy
-		await expect(page.getByRole("heading", { name: /Dashboard/i })).toBeVisible({
+		await expect(
+			page.locator("[data-basalt-surface-root]").getByRole("heading", { name: /Dashboard/i }),
+		).toBeVisible({
 			timeout: 15_000,
 		});
 	});

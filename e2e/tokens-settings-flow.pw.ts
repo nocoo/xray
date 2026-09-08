@@ -6,7 +6,9 @@ test.describe("L3 tokens + settings + AI + zheto shells", () => {
 		await requireWorker(request);
 
 		await page.goto(`${BROWSER}/settings`);
-		await expect(page.getByRole("heading", { name: /Settings/i })).toBeVisible({
+		await expect(
+			page.locator("[data-basalt-surface-root]").getByRole("heading", { name: /Settings/i }),
+		).toBeVisible({
 			timeout: 15_000,
 		});
 		await expect(page.getByText(/Ingest window hours/i)).toBeVisible();
@@ -18,7 +20,9 @@ test.describe("L3 tokens + settings + AI + zheto shells", () => {
 		expect(tok.ok()).toBeTruthy();
 
 		await page.goto(`${BROWSER}/settings/tokens`);
-		await expect(page.getByRole("heading", { name: /Push tokens/i })).toBeVisible({
+		await expect(
+			page.locator("[data-basalt-surface-root]").getByRole("heading", { name: /Push tokens/i }),
+		).toBeVisible({
 			timeout: 15_000,
 		});
 	});
@@ -27,13 +31,17 @@ test.describe("L3 tokens + settings + AI + zheto shells", () => {
 		await requireWorker(request);
 
 		await page.goto(`${BROWSER}/ai-settings`);
-		await expect(page.getByRole("heading", { name: /AI Settings/i })).toBeVisible({
+		await expect(
+			page.locator("[data-basalt-surface-root]").getByRole("heading", { name: /AI Settings/i }),
+		).toBeVisible({
 			timeout: 15_000,
 		});
 		await expect(page.getByText(/Provider/i).first()).toBeVisible();
 
 		await page.goto(`${BROWSER}/integrations/zheto`);
-		await expect(page.getByRole("heading", { name: /zhe/i })).toBeVisible({
+		await expect(
+			page.locator("[data-basalt-surface-root]").getByRole("heading", { name: /zhe/i }),
+		).toBeVisible({
 			timeout: 15_000,
 		});
 		await expect(page.getByText(/Webhook URL/i).first()).toBeVisible();
@@ -45,7 +53,9 @@ test.describe("L3 tokens + settings + AI + zheto shells", () => {
 		await requireWorker(request);
 
 		await page.goto(`${BROWSER}/`);
-		await expect(page.getByRole("heading", { name: /Dashboard/i })).toBeVisible({
+		await expect(
+			page.locator("[data-basalt-surface-root]").getByRole("heading", { name: /Dashboard/i }),
+		).toBeVisible({
 			timeout: 15_000,
 		});
 		await expect(page.getByText(/Watchlists/i).first()).toBeVisible();

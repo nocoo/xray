@@ -21,7 +21,7 @@ export function SourceFilter({
 }) {
 	return (
 		<SegmentControl
-			legend="Filter by source_type"
+			legend="Source"
 			value={value}
 			onValueChange={(next) => onChange(next as SourceFilterValue)}
 			allOption={{ value: "all", label: labelFor("all", counts?.all) }}
