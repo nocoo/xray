@@ -28,7 +28,7 @@ describe("SessionGate", () => {
 				<div>secured</div>
 			</SessionGate>,
 		);
-		expect(screen.getByText(/Loading session/i)).toBeTruthy();
+		expect(screen.getByRole("status", { name: /Loading session/i })).toBeTruthy();
 		await waitFor(() => {
 			expect(screen.getByText("secured")).toBeTruthy();
 		});

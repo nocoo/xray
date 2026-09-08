@@ -1,5 +1,8 @@
-export const withAlpha = (token: string, alpha: number) => `hsl(var(--${token}) / ${alpha})`;
+export const withAlpha = (token: string, alpha: number) => `hsl(var(--basalt-${token}) / ${alpha})`;
 
-export const CHART_COLORS = Array.from({ length: 10 }, (_, i) => `hsl(var(--chart-${i + 1}))`);
+export const CHART_COLORS = Array.from(
+	{ length: 10 },
+	(_, i) => `hsl(var(--basalt-chart-${i + 1}))`,
+);
 
-export const chartAxis = "hsl(var(--chart-axis))";
+export const chartAxis = "hsl(var(--basalt-chart-axis))";

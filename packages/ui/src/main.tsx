@@ -8,11 +8,17 @@ if (!root) {
 	throw new Error("Root element not found");
 }
 
-// Apply stored theme before paint
-const stored = localStorage.getItem("theme");
+let stored: string | null = null;
+try {
+	stored = window.localStorage.getItem("theme");
+} catch {
+	// Continue with the system theme when browser storage is denied.
+}
 const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-const dark = stored === "dark" || ((stored === "system" || !stored) && prefersDark);
-document.documentElement.classList.toggle("dark", dark);
+const isDark = stored === "dark" || (stored !== "light" && prefersDark);
+document.documentElement.classList.toggle("dark", isDark);
+document.documentElement.classList.toggle("light", !isDark);
+document.documentElement.dataset.mode = isDark ? "dark" : "light";
 
 createRoot(root).render(
 	<StrictMode>

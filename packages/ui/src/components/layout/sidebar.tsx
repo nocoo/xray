@@ -1,19 +1,31 @@
-import { ChevronUp, PanelLeft, Plus } from "lucide-react";
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Sidebar as BasaltSidebar,
+	Button,
+	SidebarFooter,
+	SidebarGroup,
+	SidebarHeader,
+	SidebarIconItem,
+	SidebarItem,
+	SidebarNav,
+	SidebarUser,
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@nocoo/basalt";
+import { PanelLeft, Plus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Link, useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { fetchGroups, type Group } from "@/api/groups";
 import { fetchWatchlists, type Watchlist } from "@/api/watchlists";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuthUser } from "@/hooks/me-context";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/version";
 import { resolveIcon } from "@/lib/watchlist-icons";
-import { getV2NavGroups, isActivePath, type UiNavGroup, type UiNavItem } from "./nav-config";
-import { useSidebar } from "./sidebar-context";
-import { SIDEBAR_GEOMETRY as G } from "./sidebar-geometry";
+import { getV2NavGroups, isActivePath, type UiNavItem } from "./nav-config";
 
 function useSidebarUser() {
 	const user = useAuthUser();
@@ -37,7 +49,7 @@ function useSidebarWatchlists(listVersion: number) {
 		void listVersion;
 		void refresh();
 	}, [refresh, listVersion]);
-	return { watchlists, refresh };
+	return { watchlists };
 }
 
 function useSidebarGroups(listVersion: number) {
@@ -54,68 +66,27 @@ function useSidebarGroups(listVersion: number) {
 		void listVersion;
 		void refresh();
 	}, [refresh, listVersion]);
-	return { groups, refresh };
+	return { groups };
 }
 
-function ExpandedNavLink({ item, pathname }: { item: UiNavItem; pathname: string }) {
-	const active = isActivePath(pathname, item.href);
-	return (
-		<Link
-			to={item.href}
-			data-nav-label={item.label}
-			aria-current={active ? "page" : undefined}
-			className={cn(
-				"flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-normal transition-colors",
-				active
-					? "bg-accent text-foreground"
-					: "text-muted-foreground hover:bg-accent hover:text-foreground",
-			)}
-		>
-			<item.icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
-			<span className="flex-1 text-left">{item.label}</span>
-		</Link>
-	);
+function XrayMark() {
+	return <img src="/logo-24.png" alt="X-Ray" width={24} height={24} className="shrink-0" />;
 }
 
-function CollapsedNavLink({ item, pathname }: { item: UiNavItem; pathname: string }) {
-	const active = isActivePath(pathname, item.href);
-	return (
-		<Tooltip>
-			<TooltipTrigger asChild>
-				<Link
-					to={item.href}
-					data-nav-label={item.label}
-					aria-label={item.label}
-					aria-current={active ? "page" : undefined}
-					className={cn(
-						"relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-						active
-							? "bg-accent text-foreground"
-							: "text-muted-foreground hover:bg-accent hover:text-foreground",
-					)}
-				>
-					<item.icon className="h-4 w-4" strokeWidth={1.5} />
-				</Link>
-			</TooltipTrigger>
-			<TooltipContent side="right" sideOffset={8}>
-				{item.label}
-			</TooltipContent>
-		</Tooltip>
-	);
-}
-
-function DynamicEntityLink({
+function EntityNavItem({
 	href,
 	name,
 	icon,
 	pathname,
 	search = "",
+	onNavigate,
 }: {
 	href: string;
 	name: string;
 	icon: string;
 	pathname: string;
 	search?: string;
+	onNavigate: (href: string) => void;
 }) {
 	const Icon = resolveIcon(icon);
 	const active = href.includes("?")
@@ -123,16 +94,11 @@ function DynamicEntityLink({
 			(pathname === href.split("?")[0] && search.includes(href.split("?")[1] ?? ""))
 		: isActivePath(pathname, href);
 	return (
-		<Link
-			to={href}
+		<SidebarItem
+			active={active}
 			data-nav-label={name}
-			aria-current={active ? "page" : undefined}
-			className={cn(
-				"flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-normal transition-colors",
-				active
-					? "bg-accent text-foreground"
-					: "text-muted-foreground hover:bg-accent hover:text-foreground",
-			)}
+			onClick={() => onNavigate(href)}
+			className="py-2"
 		>
 			<div
 				className={cn(
@@ -143,330 +109,184 @@ function DynamicEntityLink({
 				<Icon className="h-3 w-3 text-white" strokeWidth={2} />
 			</div>
 			<span className="flex-1 truncate text-left">{name}</span>
-		</Link>
+		</SidebarItem>
 	);
 }
 
-function WatchlistNavSection({
-	watchlists,
-	pathname,
-	defaultOpen,
-	onNew,
-}: {
-	watchlists: Pick<Watchlist, "id" | "name" | "icon">[];
-	pathname: string;
-	defaultOpen: boolean;
-	onNew: () => void;
-}) {
-	const [open, setOpen] = useState(defaultOpen);
+function NewEntityItem({ label, onClick }: { label: string; onClick: () => void }) {
 	return (
-		<Collapsible open={open} onOpenChange={setOpen}>
-			<div className={cn("mt-2", G.groupBandPadClass)}>
-				<CollapsibleTrigger asChild>
-					<button
-						type="button"
-						aria-expanded={open}
-						className="flex w-full items-center justify-between py-2.5"
-					>
-						<span className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
-							Watchlists
-						</span>
-						<ChevronUp
-							className={cn(
-								"h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
-								!open && "rotate-180",
-							)}
-							strokeWidth={1.5}
-							aria-hidden="true"
-						/>
-					</button>
-				</CollapsibleTrigger>
+		<SidebarItem onClick={onClick} className="py-2 text-basalt-muted-foreground/60">
+			<div className="flex h-5 w-5 items-center justify-center rounded border border-dashed border-basalt-muted-foreground/30">
+				<Plus className="h-3 w-3" strokeWidth={2} />
 			</div>
-			<CollapsibleContent>
-				<div className={cn("flex flex-col gap-0.5 pb-1", G.navItemsPadClass)}>
-					{watchlists.map((wl) => (
-						<DynamicEntityLink
-							key={wl.id}
-							href={`/watchlist/${wl.id}`}
-							name={wl.name}
-							icon={wl.icon}
-							pathname={pathname}
-						/>
-					))}
-					<button
-						type="button"
-						onClick={onNew}
-						className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-normal text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
-					>
-						<div className="flex h-5 w-5 items-center justify-center rounded border border-dashed border-muted-foreground/30">
-							<Plus className="h-3 w-3" strokeWidth={2} />
-						</div>
-						<span className="flex-1 text-left">New watchlist</span>
-					</button>
-				</div>
-			</CollapsibleContent>
-		</Collapsible>
+			<span className="flex-1 text-left">{label}</span>
+		</SidebarItem>
 	);
 }
 
-function GroupsNavSection({
-	groups,
-	pathname,
-	search,
-	defaultOpen,
-	onNew,
-}: {
-	groups: Pick<Group, "id" | "name" | "icon">[];
-	pathname: string;
-	search: string;
-	defaultOpen: boolean;
-	onNew: () => void;
-}) {
-	const [open, setOpen] = useState(defaultOpen);
-	return (
-		<Collapsible open={open} onOpenChange={setOpen}>
-			<div className={cn("mt-2", G.groupBandPadClass)}>
-				<CollapsibleTrigger asChild>
-					<button
-						type="button"
-						aria-expanded={open}
-						className="flex w-full items-center justify-between py-2.5"
-					>
-						<span className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
-							Groups
-						</span>
-						<ChevronUp
-							className={cn(
-								"h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
-								!open && "rotate-180",
-							)}
-							strokeWidth={1.5}
-							aria-hidden="true"
-						/>
-					</button>
-				</CollapsibleTrigger>
-			</div>
-			<CollapsibleContent>
-				<div className={cn("flex flex-col gap-0.5 pb-1", G.navItemsPadClass)}>
-					{groups.map((g) => (
-						<DynamicEntityLink
-							key={g.id}
-							href={`/groups?id=${g.id}`}
-							name={g.name}
-							icon={g.icon}
-							pathname={pathname}
-							search={search}
-						/>
-					))}
-					<button
-						type="button"
-						onClick={onNew}
-						className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-normal text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
-					>
-						<div className="flex h-5 w-5 items-center justify-center rounded border border-dashed border-muted-foreground/30">
-							<Plus className="h-3 w-3" strokeWidth={2} />
-						</div>
-						<span className="flex-1 text-left">New group</span>
-					</button>
-				</div>
-			</CollapsibleContent>
-		</Collapsible>
-	);
-}
-
-function NavGroupSection({ group, pathname }: { group: UiNavGroup; pathname: string }) {
-	const [open, setOpen] = useState(group.defaultOpen);
-	const panelId = `nav-group-${group.label.replaceAll(/\s+/g, "-").toLowerCase()}`;
-
-	return (
-		<Collapsible open={open} onOpenChange={setOpen}>
-			<div className={cn("mt-2", G.groupBandPadClass)}>
-				<CollapsibleTrigger asChild>
-					<button
-						type="button"
-						aria-expanded={open}
-						aria-controls={panelId}
-						className="flex w-full items-center justify-between py-2.5"
-					>
-						<span className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
-							{group.label}
-						</span>
-						<ChevronUp
-							className={cn(
-								"h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
-								!open && "rotate-180",
-							)}
-							strokeWidth={1.5}
-							aria-hidden="true"
-						/>
-					</button>
-				</CollapsibleTrigger>
-			</div>
-			<CollapsibleContent id={panelId}>
-				<div className={cn("flex flex-col gap-0.5 pb-1", G.navItemsPadClass)}>
-					{group.items.map((item) => (
-						<ExpandedNavLink key={item.href} item={item} pathname={pathname} />
-					))}
-				</div>
-			</CollapsibleContent>
-		</Collapsible>
-	);
-}
-
-export function Sidebar({ mobile = false }: { mobile?: boolean }) {
+export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
 	const { pathname, search } = useLocation();
-	const { collapsed, toggle, setMobileOpen } = useSidebar();
+	const navigate = useNavigate();
 	const user = useSidebarUser();
 	const { openCreateWatchlist, openCreateGroup, listVersion } = useCreateDialogs();
 	const { watchlists } = useSidebarWatchlists(listVersion);
 	const { groups: entityGroups } = useSidebarGroups(listVersion);
 	const navGroups = getV2NavGroups();
 	const flatItems = navGroups.flatMap((g) => g.items);
-	const showCollapsed = !mobile && collapsed;
 
-	return (
-		<TooltipProvider delayDuration={0}>
-			<aside
-				aria-label={mobile ? "Main navigation drawer" : "Main navigation"}
+	const go = (href: string) => {
+		navigate(href);
+	};
+
+	const avatar = (
+		<Avatar className="h-9 w-9 shrink-0">
+			{user.image ? <AvatarImage src={user.image} alt={user.name} /> : null}
+			<AvatarFallback className={cn("text-xs text-white", getAvatarColor(user.name))}>
+				{user.initial}
+			</AvatarFallback>
+		</Avatar>
+	);
+
+	if (collapsed) {
+		return (
+			<BasaltSidebar
+				collapsed
+				aria-label="Main navigation"
 				data-testid="app-sidebar"
-				data-collapsed={showCollapsed ? "true" : "false"}
-				className={cn(
-					"sticky top-0 flex h-screen shrink-0 flex-col overflow-hidden bg-background transition-[width] duration-300 ease-in-out",
-					showCollapsed ? G.collapsedWidthClass : G.expandedWidthClass,
-				)}
+				data-collapsed="true"
 			>
-				{showCollapsed ? (
-					<div className={cn("flex h-screen flex-col items-center", G.collapsedWidthClass)}>
-						<div className={cn("flex h-14 w-full items-center justify-start", G.headerPadClass)}>
-							<img
-								src="/logo-24.png"
-								alt="X-Ray"
-								width={G.logoSizePx}
-								height={G.logoSizePx}
-								className="shrink-0"
-							/>
-						</div>
-
-						<Tooltip>
+				<SidebarHeader className="justify-start px-0 pl-6">
+					<XrayMark />
+				</SidebarHeader>
+				<Button
+					variant="ghost"
+					size="icon"
+					className="mb-1 h-10 w-10 self-center"
+					onClick={onToggle}
+					aria-label="Expand sidebar"
+				>
+					<PanelLeft aria-hidden="true" strokeWidth={1.5} />
+				</Button>
+				<SidebarNav className="w-full items-center gap-1 pt-1">
+					{flatItems.map((item: UiNavItem) => (
+						<Tooltip key={item.href} delayDuration={0}>
 							<TooltipTrigger asChild>
-								<button
-									type="button"
-									onClick={toggle}
-									aria-label="Expand sidebar"
-									aria-expanded={false}
-									className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+								<SidebarIconItem
+									active={isActivePath(pathname, item.href)}
+									aria-label={item.label}
+									data-nav-label={item.label}
+									className="self-center"
+									onClick={() => go(item.href)}
 								>
-									<PanelLeft className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
-								</button>
+									<item.icon className="h-4 w-4" strokeWidth={1.5} />
+								</SidebarIconItem>
 							</TooltipTrigger>
 							<TooltipContent side="right" sideOffset={8}>
-								Expand sidebar
+								{item.label}
 							</TooltipContent>
 						</Tooltip>
+					))}
+				</SidebarNav>
+				<SidebarFooter className="flex w-full justify-center px-0">
+					<Tooltip delayDuration={0}>
+						<TooltipTrigger asChild>
+							<span className="inline-flex">{avatar}</span>
+						</TooltipTrigger>
+						<TooltipContent side="right" sideOffset={8}>
+							{user.name}
+						</TooltipContent>
+					</Tooltip>
+				</SidebarFooter>
+			</BasaltSidebar>
+		);
+	}
 
-						<nav className="flex flex-1 flex-col items-center gap-1 overflow-y-auto pt-1">
-							{flatItems.map((item) => (
-								<CollapsedNavLink key={item.href} item={item} pathname={pathname} />
-							))}
-						</nav>
-
-						<div className="flex w-full justify-center py-3">
-							<Avatar className="h-9 w-9 shrink-0">
-								{user.image ? <AvatarImage src={user.image} alt={user.name} /> : null}
-								<AvatarFallback className={cn("text-xs text-white", getAvatarColor(user.name))}>
-									{user.initial}
-								</AvatarFallback>
-							</Avatar>
-						</div>
+	return (
+		<BasaltSidebar
+			collapsed={false}
+			aria-label="Main navigation"
+			data-testid="app-sidebar"
+			data-collapsed="false"
+		>
+			<SidebarHeader>
+				<div className="flex w-full items-center justify-between">
+					<div className="flex min-w-0 items-center gap-3 pl-3">
+						<XrayMark />
+						<span className="truncate font-mono text-lg font-bold tracking-tighter text-basalt-foreground">
+							X-Ray
+						</span>
+						<span className="shrink-0 rounded-md bg-basalt-secondary px-1.5 py-0.5 text-[10px] leading-none font-medium text-basalt-muted-foreground">
+							v{APP_VERSION}
+						</span>
 					</div>
-				) : (
-					<div className={cn("flex h-screen flex-col", G.expandedWidthClass)}>
-						<div className={cn("flex h-14 items-center", G.headerPadClass)}>
-							<div className="flex w-full items-center justify-between gap-2">
-								<div className="flex min-w-0 items-center gap-3">
-									<img
-										src="/logo-24.png"
-										alt="X-Ray"
-										width={G.logoSizePx}
-										height={G.logoSizePx}
-										className="shrink-0"
+					<Button
+						variant="ghost"
+						size="icon"
+						className="h-7 w-7 shrink-0"
+						onClick={onToggle}
+						aria-label="Collapse sidebar"
+					>
+						<PanelLeft aria-hidden="true" strokeWidth={1.5} />
+					</Button>
+				</div>
+			</SidebarHeader>
+			<SidebarNav className="pt-1" data-testid="sidebar-nav">
+				{navGroups.map((group) => {
+					if (group.dynamic === "watchlists") {
+						return (
+							<SidebarGroup key={group.label} label={group.label} defaultOpen={group.defaultOpen}>
+								{watchlists.map((wl) => (
+									<EntityNavItem
+										key={wl.id}
+										href={`/watchlist/${wl.id}`}
+										name={wl.name}
+										icon={wl.icon}
+										pathname={pathname}
+										onNavigate={go}
 									/>
-									<span className="font-mono text-lg font-bold tracking-tighter">X-Ray</span>
-									<span className="rounded-md bg-secondary px-1.5 py-0 text-[10px] font-normal leading-5 text-muted-foreground">
-										v{APP_VERSION}
-									</span>
-								</div>
-								{!mobile && (
-									<button
-										type="button"
-										onClick={toggle}
-										aria-label="Collapse sidebar"
-										aria-expanded={true}
-										className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
-									>
-										<PanelLeft className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
-									</button>
-								)}
-							</div>
-						</div>
-
-						<nav className="flex-1 overflow-y-auto pt-1" data-testid="sidebar-nav">
-							<div className="flex flex-col">
-								{navGroups.map((group) => {
-									if (group.dynamic === "watchlists") {
-										return (
-											<WatchlistNavSection
-												key={group.label}
-												watchlists={watchlists}
-												pathname={pathname}
-												defaultOpen={group.defaultOpen}
-												onNew={openCreateWatchlist}
-											/>
-										);
-									}
-									if (group.dynamic === "groups") {
-										return (
-											<GroupsNavSection
-												key={group.label}
-												groups={entityGroups}
-												pathname={pathname}
-												search={search}
-												defaultOpen={group.defaultOpen}
-												onNew={openCreateGroup}
-											/>
-										);
-									}
-									return <NavGroupSection key={group.label} group={group} pathname={pathname} />;
-								})}
-							</div>
-						</nav>
-
-						<div className={G.footerPadClass}>
-							<div className="flex items-center gap-3">
-								<Avatar className="h-9 w-9 shrink-0">
-									{user.image ? <AvatarImage src={user.image} alt={user.name} /> : null}
-									<AvatarFallback className={cn("text-xs text-white", getAvatarColor(user.name))}>
-										{user.initial}
-									</AvatarFallback>
-								</Avatar>
-								<div className="min-w-0 flex-1">
-									<p className="truncate text-sm font-medium text-foreground">{user.name}</p>
-									<p className="truncate text-xs text-muted-foreground">{user.email}</p>
-								</div>
-							</div>
-							{mobile && (
-								<button
-									type="button"
-									onClick={() => setMobileOpen(false)}
-									className="mt-2 w-full rounded-lg px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent"
+								))}
+								<NewEntityItem label="New watchlist" onClick={openCreateWatchlist} />
+							</SidebarGroup>
+						);
+					}
+					if (group.dynamic === "groups") {
+						return (
+							<SidebarGroup key={group.label} label={group.label} defaultOpen={group.defaultOpen}>
+								{entityGroups.map((g) => (
+									<EntityNavItem
+										key={g.id}
+										href={`/groups?id=${g.id}`}
+										name={g.name}
+										icon={g.icon}
+										pathname={pathname}
+										search={search}
+										onNavigate={go}
+									/>
+								))}
+								<NewEntityItem label="New group" onClick={openCreateGroup} />
+							</SidebarGroup>
+						);
+					}
+					return (
+						<SidebarGroup key={group.label} label={group.label} defaultOpen={group.defaultOpen}>
+							{group.items.map((item) => (
+								<SidebarItem
+									key={item.href}
+									active={isActivePath(pathname, item.href)}
+									data-nav-label={item.label}
+									onClick={() => go(item.href)}
 								>
-									Close menu
-								</button>
-							)}
-						</div>
-					</div>
-				)}
-			</aside>
-		</TooltipProvider>
+									<item.icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+									<span className="flex-1 truncate text-left">{item.label}</span>
+								</SidebarItem>
+							))}
+						</SidebarGroup>
+					);
+				})}
+			</SidebarNav>
+			<SidebarFooter>
+				<SidebarUser name={user.name} email={user.email} avatar={avatar} />
+			</SidebarFooter>
+		</BasaltSidebar>
 	);
 }

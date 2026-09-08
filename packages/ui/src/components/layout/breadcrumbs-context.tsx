@@ -1,5 +1,9 @@
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
-import type { BreadcrumbItem } from "./breadcrumbs";
+
+export interface BreadcrumbItem {
+	label: string;
+	href?: string;
+}
 
 interface BreadcrumbsContextValue {
 	breadcrumbs: BreadcrumbItem[];

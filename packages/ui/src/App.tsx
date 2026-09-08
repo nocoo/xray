@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router";
+import { AppProviders } from "@/components/app-providers";
 import { CreateDialogsProvider } from "@/components/dialogs/create-dialogs-context";
 import { AppShell } from "@/components/layout";
 import { SessionGate } from "@/components/session-gate";
@@ -25,20 +26,22 @@ function ShellLayout() {
 
 export function App() {
 	return (
-		<BrowserRouter>
-			<Routes>
-				<Route element={<ShellLayout />}>
-					<Route path="/" element={<DashboardPage />} />
-					<Route path="/watchlist" element={<WatchlistsPage />} />
-					<Route path="/watchlist/:id" element={<WatchlistDetailPage />} />
-					<Route path="/groups" element={<GroupsPage />} />
-					<Route path="/integrations/zheto" element={<IntegrationsZhetoPage />} />
-					<Route path="/ai-settings" element={<AiSettingsPage />} />
-					<Route path="/settings" element={<SettingsPage />} />
-					<Route path="/settings/tokens" element={<TokensPage />} />
-				</Route>
-				<Route path="*" element={<Navigate to="/" replace />} />
-			</Routes>
-		</BrowserRouter>
+		<AppProviders>
+			<BrowserRouter>
+				<Routes>
+					<Route element={<ShellLayout />}>
+						<Route path="/" element={<DashboardPage />} />
+						<Route path="/watchlist" element={<WatchlistsPage />} />
+						<Route path="/watchlist/:id" element={<WatchlistDetailPage />} />
+						<Route path="/groups" element={<GroupsPage />} />
+						<Route path="/integrations/zheto" element={<IntegrationsZhetoPage />} />
+						<Route path="/ai-settings" element={<AiSettingsPage />} />
+						<Route path="/settings" element={<SettingsPage />} />
+						<Route path="/settings/tokens" element={<TokensPage />} />
+					</Route>
+					<Route path="*" element={<Navigate to="/" replace />} />
+				</Routes>
+			</BrowserRouter>
+		</AppProviders>
 	);
 }
