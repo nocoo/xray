@@ -5,9 +5,9 @@ import { ThemeProvider } from "@nocoo/basalt/providers/theme";
 import type { ComponentProps, ReactNode } from "react";
 import { Link } from "react-router";
 
-/** Indigo-blue — Xray monitoring accent, locked as the default primary. */
+/** Deep rose — Xray accent, locked as the default primary. */
 const XRAY_ACCENT = {
-	primary: { light: "230 75% 55%", dark: "230 60% 50%" },
+	primary: { light: "338 72% 38%", dark: "338 62% 58%" },
 };
 
 function AppLink({
