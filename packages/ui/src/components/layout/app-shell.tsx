@@ -10,6 +10,7 @@ import { Menu } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { useLocation } from "react-router";
 import { Github } from "@/components/icons/github";
+import { useRestoreDialogFocus } from "@/hooks/restore-dialog-focus";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BreadcrumbsProvider, useBreadcrumbs } from "./breadcrumbs-context";
 import { PageAsideProvider, usePageAsideHost } from "./page-aside";
@@ -34,16 +35,21 @@ function AppShellInner({ children }: AppShellProps) {
 	const isMobile = useIsMobile();
 	const [collapsed, setCollapsed] = useState(false);
 	const [mobileOpen, setMobileOpen] = useState(false);
-	const { pathname } = useLocation();
+	const { pathname, search } = useLocation();
 	const { breadcrumbs } = useBreadcrumbs();
 	const { theme } = useTheme();
 	const chrome = headerChrome(pathname, breadcrumbs);
 	const { setSlot, open: asideOpen } = usePageAsideHost();
+	const restoreNavFocus = useRestoreDialogFocus(mobileOpen);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: close drawer on route change
+	// biome-ignore lint/correctness/useExhaustiveDependencies: close drawer on route or search change
 	useEffect(() => {
 		setMobileOpen(false);
-	}, [pathname]);
+	}, [pathname, search]);
+
+	useEffect(() => {
+		if (!isMobile) setMobileOpen(false);
+	}, [isMobile]);
 
 	useEffect(() => {
 		document.body.style.overflow = mobileOpen ? "hidden" : "";
@@ -62,6 +68,7 @@ function AppShellInner({ children }: AppShellProps) {
 					<SheetContent
 						side="left"
 						className="w-[260px] max-w-[260px] border-0 bg-basalt-background p-0"
+						onCloseAutoFocus={restoreNavFocus}
 					>
 						<SheetTitle className="sr-only">Navigation</SheetTitle>
 						<Sidebar collapsed={false} onToggle={() => setMobileOpen(false)} />
