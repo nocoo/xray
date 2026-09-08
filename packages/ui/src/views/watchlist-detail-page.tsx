@@ -15,6 +15,7 @@ import { TweetCard } from "@/components/cards/tweet-card";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { EditMemberDialog } from "@/components/dialogs/edit-member-dialog";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
+import { PageAside } from "@/components/layout/page-aside";
 import { PostsColumnsPages } from "@/components/posts-columns-pages";
 import { SourceFilter } from "@/components/source-filter";
 import { useColumns } from "@/hooks/use-columns";
@@ -125,11 +126,127 @@ export function WatchlistDetailPage() {
 	const title = s.wl?.name ?? "Watchlist";
 	const panelTitle = panel === "activity" ? "Activity" : "Settings";
 
+	const dock = (
+		<Dock
+			open={panel != null}
+			mode={isMobile ? "overlay" : "push"}
+			width="20rem"
+			onDismiss={closePanel}
+			aria-label={panelTitle}
+			className={isMobile ? "h-full" : "h-full rounded-[16px] md:rounded-basalt-island"}
+		>
+			<div className="flex shrink-0 items-center justify-between border-b border-basalt-border px-4 py-3">
+				<p className="text-sm font-semibold">{panelTitle}</p>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon"
+					className="h-8 w-8"
+					onClick={closePanel}
+					aria-label="Close panel"
+				>
+					<X className="h-4 w-4" />
+				</Button>
+			</div>
+			{panel === "settings" ? (
+				<DockBody>
+					<div className="space-y-6" data-testid="settings-panel">
+						{s.settingsError && <Banner variant="error" size="sm" description={s.settingsError} />}
+						<div className="space-y-2">
+							<p className="flex items-center gap-2 text-sm font-medium">
+								<Languages className="h-4 w-4 text-basalt-muted-foreground" />
+								Auto translate
+							</p>
+							<p className="text-xs text-basalt-muted-foreground">
+								When on, untranslated posts are translated when you open this watchlist.
+							</p>
+							<Switch
+								aria-label="Auto translate"
+								checked={s.wl?.translateEnabled ?? false}
+								disabled={!s.wl || s.settingsSaving}
+								onCheckedChange={(next) => void vm.setTranslateEnabled(next === true)}
+							/>
+						</div>
+						<div className="space-y-1 border-t border-basalt-border pt-4 text-xs text-basalt-muted-foreground">
+							<p>
+								<span className="font-medium text-basalt-foreground">Members</span> ·{" "}
+								{s.members.length}
+							</p>
+							<p>
+								<span className="font-medium text-basalt-foreground">Posts loaded</span> ·{" "}
+								{s.items.length}
+							</p>
+							<p>
+								<span className="font-medium text-basalt-foreground">Source model</span> · mix
+								(x.com + custom)
+							</p>
+						</div>
+					</div>
+				</DockBody>
+			) : panel === "activity" ? (
+				<div className="flex min-h-0 flex-1 flex-col" data-testid="activity-panel">
+					<div className="flex items-center justify-between border-b border-basalt-border px-4 py-2">
+						<p className="text-xs text-basalt-muted-foreground">Recent ingest pushes</p>
+						<Button
+							variant="ghost"
+							size="sm"
+							type="button"
+							disabled={s.logsLoading}
+							onClick={() => void vm.loadLogs()}
+							title="Refresh logs"
+						>
+							<RefreshCw className={cn("h-3.5 w-3.5", s.logsLoading && "animate-spin")} />
+							Refresh
+						</Button>
+					</div>
+					<DockBody className="gap-0 p-0">
+						<div data-testid="ingest-logs">
+							{s.logsError && <Banner variant="error" size="sm" description={s.logsError} />}
+							{s.logsLoading && s.logs.length === 0 ? (
+								<p
+									role="status"
+									aria-live="polite"
+									className="p-4 text-xs text-basalt-muted-foreground"
+								>
+									Loading logs…
+								</p>
+							) : s.logs.length === 0 ? (
+								<p className="p-4 text-xs text-basalt-muted-foreground">No pushes logged yet.</p>
+							) : (
+								<ul className="divide-y divide-basalt-border">
+									{s.logs.map((log) => (
+										<li key={log.id} className="space-y-1 px-4 py-3 text-xs">
+											<div className="flex items-center justify-between gap-2">
+												<span className="font-medium text-basalt-foreground tabular-nums">
+													+{log.accepted}
+													<span className="font-normal text-basalt-muted-foreground">
+														{" "}
+														/ dup {log.deduped} / rej {log.rejected}
+													</span>
+												</span>
+												<span className="shrink-0 text-basalt-muted-foreground tabular-nums">
+													of {log.attempted}
+												</span>
+											</div>
+											<p className="text-basalt-muted-foreground tabular-nums">
+												{new Date(log.createdAtMs).toLocaleString()}
+											</p>
+										</li>
+									))}
+								</ul>
+							)}
+						</div>
+					</DockBody>
+				</div>
+			) : null}
+		</Dock>
+	);
+
 	return (
-		<div className="relative flex min-h-0 flex-1">
+		<>
 			<div
 				className={cn(
-					"min-w-0 flex-1",
+					"relative min-h-0 flex-1",
 					postsFeedActive ? "flex min-h-0 flex-col gap-3 md:gap-4" : "space-y-4",
 				)}
 			>
@@ -333,123 +450,9 @@ export function WatchlistDetailPage() {
 						)}
 					</div>
 				)}
+				{isMobile ? dock : null}
 			</div>
-
-			<Dock
-				open={panel != null}
-				mode={isMobile ? "overlay" : "push"}
-				width="20rem"
-				onDismiss={closePanel}
-				aria-label={panelTitle}
-				className="h-full"
-			>
-				<div className="flex shrink-0 items-center justify-between border-b border-basalt-border px-4 py-3">
-					<p className="text-sm font-semibold">{panelTitle}</p>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon"
-						className="h-8 w-8"
-						onClick={closePanel}
-						aria-label="Close panel"
-					>
-						<X className="h-4 w-4" />
-					</Button>
-				</div>
-				{panel === "settings" ? (
-					<DockBody>
-						<div className="space-y-6" data-testid="settings-panel">
-							{s.settingsError && (
-								<Banner variant="error" size="sm" description={s.settingsError} />
-							)}
-							<div className="space-y-2">
-								<p className="flex items-center gap-2 text-sm font-medium">
-									<Languages className="h-4 w-4 text-basalt-muted-foreground" />
-									Auto translate
-								</p>
-								<p className="text-xs text-basalt-muted-foreground">
-									When on, untranslated posts are translated when you open this watchlist.
-								</p>
-								<Switch
-									aria-label="Auto translate"
-									checked={s.wl?.translateEnabled ?? false}
-									disabled={!s.wl || s.settingsSaving}
-									onCheckedChange={(next) => void vm.setTranslateEnabled(next === true)}
-								/>
-							</div>
-							<div className="space-y-1 border-t border-basalt-border pt-4 text-xs text-basalt-muted-foreground">
-								<p>
-									<span className="font-medium text-basalt-foreground">Members</span> ·{" "}
-									{s.members.length}
-								</p>
-								<p>
-									<span className="font-medium text-basalt-foreground">Posts loaded</span> ·{" "}
-									{s.items.length}
-								</p>
-								<p>
-									<span className="font-medium text-basalt-foreground">Source model</span> · mix
-									(x.com + custom)
-								</p>
-							</div>
-						</div>
-					</DockBody>
-				) : panel === "activity" ? (
-					<div className="flex min-h-0 flex-1 flex-col" data-testid="activity-panel">
-						<div className="flex items-center justify-between border-b border-basalt-border px-4 py-2">
-							<p className="text-xs text-basalt-muted-foreground">Recent ingest pushes</p>
-							<Button
-								variant="ghost"
-								size="sm"
-								type="button"
-								disabled={s.logsLoading}
-								onClick={() => void vm.loadLogs()}
-								title="Refresh logs"
-							>
-								<RefreshCw className={cn("h-3.5 w-3.5", s.logsLoading && "animate-spin")} />
-								Refresh
-							</Button>
-						</div>
-						<DockBody className="gap-0 p-0">
-							<div data-testid="ingest-logs">
-								{s.logsError && <Banner variant="error" size="sm" description={s.logsError} />}
-								{s.logsLoading && s.logs.length === 0 ? (
-									<p
-										role="status"
-										aria-live="polite"
-										className="p-4 text-xs text-basalt-muted-foreground"
-									>
-										Loading logs…
-									</p>
-								) : s.logs.length === 0 ? (
-									<p className="p-4 text-xs text-basalt-muted-foreground">No pushes logged yet.</p>
-								) : (
-									<ul className="divide-y divide-basalt-border">
-										{s.logs.map((log) => (
-											<li key={log.id} className="space-y-1 px-4 py-3 text-xs">
-												<div className="flex items-center justify-between gap-2">
-													<span className="font-medium text-basalt-foreground tabular-nums">
-														+{log.accepted}
-														<span className="font-normal text-basalt-muted-foreground">
-															{" "}
-															/ dup {log.deduped} / rej {log.rejected}
-														</span>
-													</span>
-													<span className="shrink-0 text-basalt-muted-foreground tabular-nums">
-														of {log.attempted}
-													</span>
-												</div>
-												<p className="text-basalt-muted-foreground tabular-nums">
-													{new Date(log.createdAtMs).toLocaleString()}
-												</p>
-											</li>
-										))}
-									</ul>
-								)}
-							</div>
-						</DockBody>
-					</div>
-				) : null}
-			</Dock>
-		</div>
+			{!isMobile ? <PageAside open={panel != null}>{dock}</PageAside> : null}
+		</>
 	);
 }

@@ -12,6 +12,7 @@ import { useLocation } from "react-router";
 import { Github } from "@/components/icons/github";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BreadcrumbsProvider, useBreadcrumbs } from "./breadcrumbs-context";
+import { PageAsideProvider, usePageAsideHost } from "./page-aside";
 import { Sidebar } from "./sidebar";
 
 interface AppShellProps {
@@ -37,6 +38,7 @@ function AppShellInner({ children }: AppShellProps) {
 	const { breadcrumbs } = useBreadcrumbs();
 	const { theme } = useTheme();
 	const chrome = headerChrome(pathname, breadcrumbs);
+	const { setSlot, open: asideOpen } = usePageAsideHost();
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: close drawer on route change
 	useEffect(() => {
@@ -99,8 +101,20 @@ function AppShellInner({ children }: AppShellProps) {
 						</>
 					}
 				/>
-				<div className="flex min-h-0 flex-1 flex-col px-2 pb-2 md:px-3 md:pb-3">
-					<ContentIsland className="flex flex-col">{children}</ContentIsland>
+				<div
+					className={
+						asideOpen
+							? "flex min-h-0 flex-1 gap-2 px-2 pb-2 md:gap-3 md:px-3 md:pb-3"
+							: "flex min-h-0 flex-1 px-2 pb-2 md:px-3 md:pb-3"
+					}
+				>
+					<ContentIsland className="flex min-w-0 flex-1 flex-col">{children}</ContentIsland>
+					<div
+						ref={(el) => {
+							setSlot(el);
+						}}
+						className="flex h-full min-h-0 shrink-0"
+					/>
 				</div>
 			</AppMain>
 		</BasaltAppShell>
@@ -110,7 +124,9 @@ function AppShellInner({ children }: AppShellProps) {
 export function AppShell({ children }: AppShellProps) {
 	return (
 		<BreadcrumbsProvider>
-			<AppShellInner>{children}</AppShellInner>
+			<PageAsideProvider>
+				<AppShellInner>{children}</AppShellInner>
+			</PageAsideProvider>
 		</BreadcrumbsProvider>
 	);
 }
