@@ -7,7 +7,6 @@ import {
 	SidebarFooter,
 	SidebarGroup,
 	SidebarHeader,
-	SidebarIconItem,
 	SidebarItem,
 	SidebarNav,
 	SidebarUser,
@@ -17,7 +16,7 @@ import {
 } from "@nocoo/basalt";
 import { PanelLeft, Plus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation } from "react-router";
 import { fetchGroups, type Group } from "@/api/groups";
 import { fetchWatchlists, type Watchlist } from "@/api/watchlists";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
@@ -73,20 +72,38 @@ function XrayMark() {
 	return <img src="/logo-24.png" alt="X-Ray" width={24} height={24} className="shrink-0" />;
 }
 
+function navItemClass(active: boolean, className?: string) {
+	return cn(
+		"flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-normal transition-colors",
+		active
+			? "bg-basalt-accent text-basalt-foreground"
+			: "text-basalt-muted-foreground hover:bg-basalt-accent hover:text-basalt-foreground",
+		className,
+	);
+}
+
+function navIconClass(active: boolean, className?: string) {
+	return cn(
+		"relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
+		active
+			? "bg-basalt-accent text-basalt-foreground"
+			: "text-basalt-muted-foreground hover:bg-basalt-accent hover:text-basalt-foreground",
+		className,
+	);
+}
+
 function EntityNavItem({
 	href,
 	name,
 	icon,
 	pathname,
 	search = "",
-	onNavigate,
 }: {
 	href: string;
 	name: string;
 	icon: string;
 	pathname: string;
 	search?: string;
-	onNavigate: (href: string) => void;
 }) {
 	const Icon = resolveIcon(icon);
 	const active = href.includes("?")
@@ -94,11 +111,11 @@ function EntityNavItem({
 			(pathname === href.split("?")[0] && search.includes(href.split("?")[1] ?? ""))
 		: isActivePath(pathname, href);
 	return (
-		<SidebarItem
-			active={active}
+		<Link
+			to={href}
+			aria-current={active ? "page" : undefined}
 			data-nav-label={name}
-			onClick={() => onNavigate(href)}
-			className="py-2"
+			className={navItemClass(active, "py-2")}
 		>
 			<div
 				className={cn(
@@ -109,7 +126,7 @@ function EntityNavItem({
 				<Icon className="h-3 w-3 text-white" strokeWidth={2} />
 			</div>
 			<span className="flex-1 truncate text-left">{name}</span>
-		</SidebarItem>
+		</Link>
 	);
 }
 
@@ -126,17 +143,12 @@ function NewEntityItem({ label, onClick }: { label: string; onClick: () => void 
 
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
 	const { pathname, search } = useLocation();
-	const navigate = useNavigate();
 	const user = useSidebarUser();
 	const { openCreateWatchlist, openCreateGroup, listVersion } = useCreateDialogs();
 	const { watchlists } = useSidebarWatchlists(listVersion);
 	const { groups: entityGroups } = useSidebarGroups(listVersion);
 	const navGroups = getV2NavGroups();
 	const flatItems = navGroups.flatMap((g) => g.items);
-
-	const go = (href: string) => {
-		navigate(href);
-	};
 
 	const avatar = (
 		<Avatar className="h-9 w-9 shrink-0">
@@ -171,15 +183,15 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 					{flatItems.map((item: UiNavItem) => (
 						<Tooltip key={item.href} delayDuration={0}>
 							<TooltipTrigger asChild>
-								<SidebarIconItem
-									active={isActivePath(pathname, item.href)}
+								<Link
+									to={item.href}
 									aria-label={item.label}
+									aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
 									data-nav-label={item.label}
-									className="self-center"
-									onClick={() => go(item.href)}
+									className={navIconClass(isActivePath(pathname, item.href), "self-center")}
 								>
 									<item.icon className="h-4 w-4" strokeWidth={1.5} />
-								</SidebarIconItem>
+								</Link>
 							</TooltipTrigger>
 							<TooltipContent side="right" sideOffset={8}>
 								{item.label}
@@ -242,7 +254,6 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 										name={wl.name}
 										icon={wl.icon}
 										pathname={pathname}
-										onNavigate={go}
 									/>
 								))}
 								<NewEntityItem label="New watchlist" onClick={openCreateWatchlist} />
@@ -260,7 +271,6 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 										icon={g.icon}
 										pathname={pathname}
 										search={search}
-										onNavigate={go}
 									/>
 								))}
 								<NewEntityItem label="New group" onClick={openCreateGroup} />
@@ -270,15 +280,16 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 					return (
 						<SidebarGroup key={group.label} label={group.label} defaultOpen={group.defaultOpen}>
 							{group.items.map((item) => (
-								<SidebarItem
+								<Link
 									key={item.href}
-									active={isActivePath(pathname, item.href)}
+									to={item.href}
+									aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
 									data-nav-label={item.label}
-									onClick={() => go(item.href)}
+									className={navItemClass(isActivePath(pathname, item.href))}
 								>
 									<item.icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
 									<span className="flex-1 truncate text-left">{item.label}</span>
-								</SidebarItem>
+								</Link>
 							))}
 						</SidebarGroup>
 					);
