@@ -11,6 +11,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
+		"@nocoo/basalt": "2.1.2",
 		"@radix-ui/react-collapsible": "1.1.20",
 		"@xray/shared": "workspace:*",
 		"class-variance-authority": "^0.7.1",
