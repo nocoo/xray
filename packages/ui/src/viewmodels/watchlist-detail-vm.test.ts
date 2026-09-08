@@ -807,4 +807,72 @@ describe("createWatchlistDetailVm", () => {
 		await vm.loadMore();
 		expect(vm.getState().error).toBe("more");
 	});
+
+	test("load auto-translates when enabled and items are untranslated", async () => {
+		const untranslated = { ...item, aiStatus: "not_requested" };
+		const api = {
+			fetchWatchlist: vi.fn().mockResolvedValue(wl),
+			fetchMembers: vi.fn().mockResolvedValue([]),
+			fetchItems: vi.fn().mockResolvedValue({ items: [untranslated], next_cursor: null }),
+			fetchWatchlistIngestLogs: vi.fn().mockResolvedValue([]),
+			deleteMember: vi.fn(),
+			updateWatchlist: vi.fn(),
+			translateWatchlist: vi.fn().mockResolvedValue({ results: [], timed_out: false }),
+		};
+		const vm = createWatchlistDetailVm(api, 3);
+		await vm.load();
+		await vi.waitFor(() => expect(api.translateWatchlist).toHaveBeenCalledWith(3, { limit: 20 }));
+	});
+
+	test("load does not auto-translate when disabled or already translated", async () => {
+		const untranslated = { ...item, aiStatus: "not_requested" };
+		const succeeded = { ...item, aiStatus: "succeeded", translatedText: "你好" };
+		const disabledApi = {
+			fetchWatchlist: vi.fn().mockResolvedValue({ ...wl, translateEnabled: false }),
+			fetchMembers: vi.fn().mockResolvedValue([]),
+			fetchItems: vi.fn().mockResolvedValue({ items: [untranslated], next_cursor: null }),
+			fetchWatchlistIngestLogs: vi.fn().mockResolvedValue([]),
+			deleteMember: vi.fn(),
+			updateWatchlist: vi.fn(),
+			translateWatchlist: vi.fn(),
+		};
+		await createWatchlistDetailVm(disabledApi, 3).load();
+		expect(disabledApi.translateWatchlist).not.toHaveBeenCalled();
+
+		const doneApi = {
+			...disabledApi,
+			fetchWatchlist: vi.fn().mockResolvedValue(wl),
+			fetchItems: vi.fn().mockResolvedValue({ items: [succeeded], next_cursor: null }),
+			translateWatchlist: vi.fn(),
+		};
+		await createWatchlistDetailVm(doneApi, 3).load();
+		expect(doneApi.translateWatchlist).not.toHaveBeenCalled();
+
+		const silentApi = {
+			...disabledApi,
+			fetchWatchlist: vi.fn().mockResolvedValue(wl),
+			fetchItems: vi.fn().mockResolvedValue({ items: [untranslated], next_cursor: null }),
+			translateWatchlist: vi.fn(),
+		};
+		await createWatchlistDetailVm(silentApi, 3).load({ silent: true });
+		expect(silentApi.translateWatchlist).not.toHaveBeenCalled();
+	});
+
+	test("turning auto-translate on starts a batch", async () => {
+		const untranslated = { ...item, aiStatus: "not_requested" };
+		const api = {
+			fetchWatchlist: vi.fn().mockResolvedValue({ ...wl, translateEnabled: false }),
+			fetchMembers: vi.fn().mockResolvedValue([]),
+			fetchItems: vi.fn().mockResolvedValue({ items: [untranslated], next_cursor: null }),
+			fetchWatchlistIngestLogs: vi.fn().mockResolvedValue([]),
+			deleteMember: vi.fn(),
+			updateWatchlist: vi.fn().mockResolvedValue(wl),
+			translateWatchlist: vi.fn().mockResolvedValue({ results: [], timed_out: false }),
+		};
+		const vm = createWatchlistDetailVm(api, 3);
+		await vm.load();
+		expect(api.translateWatchlist).not.toHaveBeenCalled();
+		await vm.setTranslateEnabled(true);
+		await vi.waitFor(() => expect(api.translateWatchlist).toHaveBeenCalledWith(3, { limit: 20 }));
+	});
 });

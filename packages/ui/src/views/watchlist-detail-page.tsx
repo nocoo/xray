@@ -368,7 +368,7 @@ export function WatchlistDetailPage() {
 									Auto translate
 								</p>
 								<p className="text-xs text-basalt-muted-foreground">
-									When on, new items are eligible for batch translation from the toolbar.
+									When on, untranslated posts are translated when you open this watchlist.
 								</p>
 								<Switch
 									aria-label="Auto translate"

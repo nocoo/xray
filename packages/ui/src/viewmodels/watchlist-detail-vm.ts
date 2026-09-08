@@ -9,6 +9,10 @@ import { createStore, errMsg } from "./store";
 
 export type SourceFilterValue = "all" | SourceType;
 
+function itemNeedsTranslate(item: TimelineItem): boolean {
+	return item.aiStatus === "not_requested" || item.aiStatus === "failed";
+}
+
 export type WatchlistDetailApi = {
 	fetchWatchlist: (id: number) => Promise<Watchlist>;
 	fetchMembers: (id: number) => Promise<Member[]>;
@@ -364,6 +368,9 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 					loading: false,
 				});
 				void vm.loadLogs();
+				if (!opts?.silent && w.translateEnabled && it.items.some(itemNeedsTranslate)) {
+					void vm.translate();
+				}
 			} catch (e) {
 				store.setState({ error: errMsg(e), loading: false });
 			}
@@ -397,6 +404,9 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 				const w = await api.updateWatchlist(id, { translateEnabled: enabled });
 				if (seq !== translateMutationSeq) return;
 				store.setState({ wl: w, settingsSaving: false });
+				if (enabled && store.getState().items.some(itemNeedsTranslate)) {
+					void vm.translate();
+				}
 			} catch (e) {
 				if (seq !== translateMutationSeq) return;
 				const current = store.getState().wl;
