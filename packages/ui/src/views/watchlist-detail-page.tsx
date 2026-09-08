@@ -1,4 +1,4 @@
-import { Button, LayerCard, Switch, Tabs, TabsList, TabsTrigger } from "@nocoo/basalt";
+import { Button, LayerCard, Switch, Tabs, TabsContent, TabsList, TabsTrigger } from "@nocoo/basalt";
 import { Banner } from "@nocoo/basalt/components/banner";
 import { Dock, DockBody } from "@nocoo/basalt/components/dock";
 import { Empty } from "@nocoo/basalt/components/empty";
@@ -39,7 +39,9 @@ export function WatchlistDetailPage() {
 	const [editMember, setEditMember] = useState<Member | null>(null);
 	const [panel, setPanel] = useState<"settings" | "activity" | null>(null);
 	const isMobile = useIsMobile();
-	const columnCount = useColumns();
+	const [wideEnoughForPush, setWideEnoughForPush] = useState(false);
+	const [feedEl, setFeedEl] = useState<HTMLDivElement | null>(null);
+	const columnCount = useColumns(feedEl);
 	const postsScrollRef = useRef<HTMLDivElement>(null);
 	const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
 
@@ -122,18 +124,27 @@ export function WatchlistDetailPage() {
 		return () => window.removeEventListener("keydown", onKey);
 	}, [panel]);
 
+	useEffect(() => {
+		const mql = window.matchMedia("(min-width: 1280px)");
+		const apply = () => setWideEnoughForPush(mql.matches);
+		apply();
+		mql.addEventListener("change", apply);
+		return () => mql.removeEventListener("change", apply);
+	}, []);
+
 	const postsFeedActive = s.activeTab === "posts" && !s.loading && s.items.length > 0;
 	const title = s.wl?.name ?? "Watchlist";
 	const panelTitle = panel === "activity" ? "Activity" : "Settings";
+	const usePushDock = !isMobile && wideEnoughForPush;
 
 	const dock = (
 		<Dock
 			open={panel != null}
-			mode={isMobile ? "overlay" : "push"}
+			mode={usePushDock ? "push" : "overlay"}
 			width="20rem"
 			onDismiss={closePanel}
 			aria-label={panelTitle}
-			className={isMobile ? "h-full" : "h-full rounded-[16px] md:rounded-basalt-island"}
+			className={usePushDock ? "h-full rounded-[16px] md:rounded-basalt-island" : "h-full"}
 		>
 			<div className="flex shrink-0 items-center justify-between border-b border-basalt-border px-4 py-3">
 				<p className="text-sm font-semibold">{panelTitle}</p>
@@ -310,149 +321,166 @@ export function WatchlistDetailPage() {
 						/>
 					}
 				/>
-				<Tabs value={s.activeTab} onValueChange={(v) => vm.setActiveTab(v as "members" | "posts")}>
+				{s.loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
+				{s.error && <Banner variant="error" size="sm" description={s.error} />}
+
+				<Tabs
+					value={s.activeTab}
+					onValueChange={(v) => vm.setActiveTab(v as "members" | "posts")}
+					className={postsFeedActive ? "flex min-h-0 flex-1 flex-col" : undefined}
+				>
 					<TabsList>
 						<TabsTrigger value="members">Members ({s.members.length})</TabsTrigger>
 						<TabsTrigger value="posts">Posts ({s.items.length})</TabsTrigger>
 					</TabsList>
-				</Tabs>
 
-				{s.loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
-				{s.error && <Banner variant="error" size="sm" description={s.error} />}
-
-				{s.activeTab === "members" && !s.loading && (
-					<div>
-						{filteredMembers.length > 0 ? (
-							<div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-								{filteredMembers.map((m) => (
-									<MemberCard
-										key={m.id}
-										member={memberToCard(m)}
-										onEdit={() => setEditMember(m)}
-										onDelete={() => void vm.removeMember(m.id)}
-									/>
-								))}
+					<TabsContent value="members">
+						{!s.loading && (
+							<div>
+								{filteredMembers.length > 0 ? (
+									<div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+										{filteredMembers.map((m) => (
+											<MemberCard
+												key={m.id}
+												member={memberToCard(m)}
+												onEdit={() => setEditMember(m)}
+												onDelete={() => void vm.removeMember(m.id)}
+											/>
+										))}
+									</div>
+								) : (
+									<LayerCard>
+										<Empty title="No members yet." description="Add an x.com or custom handle." />
+									</LayerCard>
+								)}
+								<EditMemberDialog
+									open={editMember != null}
+									onOpenChange={(o) => {
+										if (!o) setEditMember(null);
+									}}
+									watchlistId={watchlistId}
+									member={editMember}
+									onSaved={() => void vm.load()}
+								/>
 							</div>
-						) : (
+						)}
+					</TabsContent>
+
+					<TabsContent
+						value="posts"
+						className={postsFeedActive ? "flex min-h-0 flex-1 flex-col" : undefined}
+					>
+						{!s.loading && s.items.length === 0 && (
 							<LayerCard>
-								<Empty title="No members yet." description="Add an x.com or custom handle." />
+								<Empty
+									icon={<Eye className="h-8 w-8 text-basalt-muted-foreground" />}
+									title="No items yet."
+									description="Mint a push token under Settings → Push tokens, then POST /api/v1/ingest/push on the ingest host with x.com + custom items."
+								/>
 							</LayerCard>
 						)}
-						<EditMemberDialog
-							open={editMember != null}
-							onOpenChange={(o) => {
-								if (!o) setEditMember(null);
-							}}
-							watchlistId={watchlistId}
-							member={editMember}
-							onSaved={() => void vm.load()}
-						/>
-					</div>
-				)}
 
-				{s.activeTab === "posts" && !s.loading && s.items.length === 0 && (
-					<LayerCard>
-						<Empty
-							icon={<Eye className="h-8 w-8 text-basalt-muted-foreground" />}
-							title="No items yet."
-							description="Mint a push token under Settings → Push tokens, then POST /api/v1/ingest/push on the ingest host with x.com + custom items."
-						/>
-					</LayerCard>
-				)}
-
-				{postsFeedActive && (
-					<div
-						ref={postsScrollRef}
-						data-testid="posts-scroll"
-						className={cn(
-							"min-h-0 flex-1 overflow-y-auto scroll-smooth",
-							"-mx-3 -mb-3 px-3 md:-mx-5 md:-mb-5 md:px-5",
-							columnCount === 1 && "snap-y snap-proximity",
-						)}
-					>
-						<PostsColumnsPages
-							items={s.items}
-							columnCount={columnCount}
-							estimateHeight={estimateItemHeight}
-							renderItem={(item) => {
-								const snap = columnCount === 1 ? "snap-start" : undefined;
-								if (item.sourceType === "custom") {
-									return (
-										<div key={item.id} data-source-type="custom" className={snap}>
-											<CustomItemCard
-												sourceType="custom"
-												title={item.title}
-												body={item.text}
-												createdAt={new Date(item.createdAtMs).toISOString()}
-												authorName={item.authorUsername}
-												url={
-													(item.payload as { body?: { url?: string } } | null)?.body?.url ?? null
-												}
-												watchlistId={watchlistId}
-												itemId={item.id}
-												initialTranslation={
-													item.translatedText
-														? {
-																translatedText: item.translatedText,
-																summaryText: item.summaryText,
-															}
-														: undefined
-												}
-												onTranslated={(result) => vm.onItemTranslated(item.id, result)}
-											/>
-										</div>
-									);
-								}
-								const tweet = itemToTweet(item);
-								if (!tweet) return null;
-								return (
-									<div key={item.id} data-source-type="x.com" className={snap}>
-										<TweetCard
-											tweet={tweet}
-											sourceType="x.com"
-											linkToDetail={false}
-											watchlistId={watchlistId}
-											itemId={item.id}
-											initialTranslation={
-												item.translatedText
-													? {
-															translatedText: item.translatedText,
-															commentText: item.summaryText,
+						{postsFeedActive && (
+							<div
+								ref={(el) => {
+									postsScrollRef.current = el;
+									setFeedEl(el);
+								}}
+								data-testid="posts-scroll"
+								className={cn(
+									"min-h-0 flex-1 overflow-y-auto scroll-smooth",
+									"-mx-3 -mb-3 px-3 md:-mx-5 md:-mb-5 md:px-5",
+									columnCount === 1 && "snap-y snap-proximity",
+								)}
+							>
+								<PostsColumnsPages
+									items={s.items}
+									columnCount={columnCount}
+									estimateHeight={estimateItemHeight}
+									renderItem={(item) => {
+										const snap = columnCount === 1 ? "snap-start" : undefined;
+										if (item.sourceType === "custom") {
+											return (
+												<div key={item.id} data-source-type="custom" className={snap}>
+													<CustomItemCard
+														sourceType="custom"
+														title={item.title}
+														body={item.text}
+														createdAt={new Date(item.createdAtMs).toISOString()}
+														authorName={item.authorUsername}
+														url={
+															(item.payload as { body?: { url?: string } } | null)?.body?.url ??
+															null
 														}
-													: undefined
-											}
-											onTranslated={(result) => vm.onItemTranslated(item.id, result)}
-										/>
-									</div>
-								);
-							}}
-						/>
+														watchlistId={watchlistId}
+														itemId={item.id}
+														initialTranslation={
+															item.translatedText
+																? {
+																		translatedText: item.translatedText,
+																		summaryText: item.summaryText,
+																	}
+																: undefined
+														}
+														onTranslated={(result) => vm.onItemTranslated(item.id, result)}
+													/>
+												</div>
+											);
+										}
+										const tweet = itemToTweet(item);
+										if (!tweet) return null;
+										return (
+											<div key={item.id} data-source-type="x.com" className={snap}>
+												<TweetCard
+													tweet={tweet}
+													sourceType="x.com"
+													linkToDetail={false}
+													watchlistId={watchlistId}
+													itemId={item.id}
+													initialTranslation={
+														item.translatedText
+															? {
+																	translatedText: item.translatedText,
+																	commentText: item.summaryText,
+																}
+															: undefined
+													}
+													onTranslated={(result) => vm.onItemTranslated(item.id, result)}
+												/>
+											</div>
+										);
+									}}
+								/>
 
-						{s.nextCursor ? (
-							<div
-								ref={loadMoreSentinelRef}
-								data-testid="load-more-sentinel"
-								className="flex h-12 items-center justify-center"
-								aria-hidden
-							>
-								{s.loadingMore ? (
-									<span className="text-xs text-basalt-muted-foreground">Loading…</span>
-								) : null}
-							</div>
-						) : (
-							<div
-								data-testid="feed-end"
-								className="flex min-h-40 flex-col items-center justify-center gap-3 py-16 text-center"
-							>
-								<div className="h-px w-10 bg-basalt-border" aria-hidden />
-								<p className="text-xs tracking-wide text-basalt-muted-foreground/80">End of feed</p>
+								{s.nextCursor ? (
+									<div
+										ref={loadMoreSentinelRef}
+										data-testid="load-more-sentinel"
+										className="flex h-12 items-center justify-center"
+										aria-hidden
+									>
+										{s.loadingMore ? (
+											<span className="text-xs text-basalt-muted-foreground">Loading…</span>
+										) : null}
+									</div>
+								) : (
+									<div
+										data-testid="feed-end"
+										className="flex min-h-40 flex-col items-center justify-center gap-3 py-16 text-center"
+									>
+										<div className="h-px w-10 bg-basalt-border" aria-hidden />
+										<p className="text-xs tracking-wide text-basalt-muted-foreground/80">
+											End of feed
+										</p>
+									</div>
+								)}
 							</div>
 						)}
-					</div>
-				)}
-				{isMobile ? dock : null}
+					</TabsContent>
+				</Tabs>
+				{usePushDock ? null : dock}
 			</div>
-			{!isMobile ? <PageAside open={panel != null}>{dock}</PageAside> : null}
+			{usePushDock ? <PageAside open={panel != null}>{dock}</PageAside> : null}
 		</>
 	);
 }
