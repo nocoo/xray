@@ -6,13 +6,14 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-	Label,
+	Field,
 } from "@nocoo/basalt";
+import { Banner } from "@nocoo/basalt/components/banner";
 import { InputArea } from "@nocoo/basalt/components/input-area";
+import { ToggleGroup, ToggleGroupItem } from "@nocoo/basalt/components/toggle-group";
 import { Pencil } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { fetchTags, type Member, patchMember, type Tag } from "@/api/watchlists";
-import { cn } from "@/lib/utils";
 
 export function EditMemberDialog({
 	open,
@@ -94,40 +95,25 @@ export function EditMemberDialog({
 
 					<div className="grid gap-4">
 						{tagsError && (
-							<p className="text-sm text-basalt-destructive">Failed to load tags: {tagsError}</p>
+							<Banner variant="error" size="sm" description={`Failed to load tags: ${tagsError}`} />
 						)}
 						{tags.length > 0 && (
-							<div className="grid gap-2">
-								<span className="text-sm font-medium">Tags</span>
-								<div className="flex flex-wrap gap-2">
-									{tags.map((tag) => {
-										const on = selectedTagIds.includes(tag.id);
-										return (
-											<button
-												key={tag.id}
-												type="button"
-												onClick={() =>
-													setSelectedTagIds((prev) =>
-														on ? prev.filter((id) => id !== tag.id) : [...prev, tag.id],
-													)
-												}
-												className={cn(
-													"rounded-full border px-2.5 py-0.5 text-xs transition-colors",
-													on
-														? "border-basalt-primary bg-basalt-primary/15 text-basalt-foreground"
-														: "border-basalt-border text-basalt-muted-foreground",
-												)}
-												style={on ? { borderColor: tag.color } : undefined}
-											>
-												{tag.name}
-											</button>
-										);
-									})}
-								</div>
-							</div>
+							<Field label="Tags">
+								<ToggleGroup
+									type="multiple"
+									value={selectedTagIds.map(String)}
+									onValueChange={(vals) => setSelectedTagIds(vals.map(Number))}
+									className="flex flex-wrap gap-2"
+								>
+									{tags.map((tag) => (
+										<ToggleGroupItem key={tag.id} value={String(tag.id)}>
+											{tag.name}
+										</ToggleGroupItem>
+									))}
+								</ToggleGroup>
+							</Field>
 						)}
-						<div className="grid gap-2">
-							<Label htmlFor={noteId}>Note</Label>
+						<Field label="Note">
 							<InputArea
 								id={noteId}
 								placeholder="Optional private note"
@@ -136,8 +122,8 @@ export function EditMemberDialog({
 								rows={2}
 								maxLength={200}
 							/>
-						</div>
-						{error && <p className="text-sm text-basalt-destructive">{error}</p>}
+						</Field>
+						{error && <Banner variant="error" size="sm" description={error} />}
 					</div>
 
 					<DialogFooter>

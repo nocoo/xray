@@ -1,4 +1,5 @@
-import { Button, LayerCard } from "@nocoo/basalt";
+import { Button, ConfirmDialog, LayerCard } from "@nocoo/basalt";
+import { Banner } from "@nocoo/basalt/components/banner";
 import { Empty } from "@nocoo/basalt/components/empty";
 import { InputArea } from "@nocoo/basalt/components/input-area";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
@@ -42,6 +43,8 @@ export function GroupsPage() {
 	);
 	const s = useVm(vm);
 	const [renameTarget, setRenameTarget] = useState<Group | null>(null);
+	const [deleteTarget, setDeleteTarget] = useState<Group | null>(null);
+	const [deleteBusy, setDeleteBusy] = useState(false);
 
 	useEffect(() => {
 		setBreadcrumbs([{ label: "Groups" }]);
@@ -76,12 +79,18 @@ export function GroupsPage() {
 		if (s.selectedId != null) void vm.loadMembers(s.selectedId);
 	}, [s.selectedId, vm]);
 
-	const onDelete = async (g: Group) => {
-		if (!window.confirm(`Delete group “${g.name}”?`)) return;
-		const ok = await vm.deleteGroup(g);
-		if (ok) {
-			if (s.selectedId === g.id) selectGroup(null);
-			notifyListsChanged();
+	const onDelete = async () => {
+		if (!deleteTarget) return;
+		setDeleteBusy(true);
+		try {
+			const ok = await vm.deleteGroup(deleteTarget);
+			if (ok) {
+				if (s.selectedId === deleteTarget.id) selectGroup(null);
+				notifyListsChanged();
+				setDeleteTarget(null);
+			}
+		} finally {
+			setDeleteBusy(false);
 		}
 	};
 
@@ -123,7 +132,7 @@ export function GroupsPage() {
 				}
 			/>
 			{s.loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
-			{s.error && <p className="text-sm text-basalt-destructive">{s.error}</p>}
+			{s.error && <Banner variant="error" size="sm" description={s.error} />}
 			{!s.loading && s.groups.length === 0 && !s.error && (
 				<LayerCard>
 					<Empty
@@ -145,10 +154,11 @@ export function GroupsPage() {
 							outlined={s.selectedId === g.id}
 							className={cn(s.selectedId === g.id && "ring-2 ring-basalt-primary")}
 						>
-							<button
+							<Button
 								type="button"
+								variant="ghost"
 								onClick={() => selectGroup(g.id)}
-								className="flex w-full items-center gap-3 text-left"
+								className="h-auto w-full items-center justify-start gap-3 p-0 text-left"
 							>
 								<div
 									className={cn(
@@ -162,27 +172,38 @@ export function GroupsPage() {
 									<p className="truncate text-sm font-medium">{g.name}</p>
 									<p className="text-xs text-basalt-muted-foreground">{g.memberCount} members</p>
 								</div>
-							</button>
+							</Button>
 						</LayerCard>
 						<div className="mt-1 flex gap-1 px-1">
-							<button
-								type="button"
-								className="text-xs text-basalt-muted-foreground hover:text-basalt-foreground"
-								onClick={() => setRenameTarget(g)}
-							>
+							<Button type="button" size="sm" variant="ghost" onClick={() => setRenameTarget(g)}>
 								Rename
-							</button>
-							<button
+							</Button>
+							<Button
 								type="button"
-								className="text-xs text-basalt-muted-foreground hover:text-basalt-destructive"
-								onClick={() => void onDelete(g)}
+								size="sm"
+								variant="ghost"
+								className="text-basalt-destructive"
+								onClick={() => setDeleteTarget(g)}
 							>
 								Delete
-							</button>
+							</Button>
 						</div>
 					</li>
 				))}
 			</ul>
+
+			<ConfirmDialog
+				open={deleteTarget != null}
+				onOpenChange={(open) => {
+					if (!open && !deleteBusy) setDeleteTarget(null);
+				}}
+				title="Delete group"
+				description={deleteTarget ? `Delete group “${deleteTarget.name}”?` : "Delete this group?"}
+				confirmLabel="Delete"
+				variant="destructive"
+				loading={deleteBusy}
+				onConfirm={() => void onDelete()}
+			/>
 
 			<RenameDialog
 				open={renameTarget != null}
@@ -222,14 +243,16 @@ export function GroupsPage() {
 											<span className="text-basalt-muted-foreground">{m.sourceType}</span> · @
 											{m.handle}
 										</span>
-										<button
+										<Button
 											type="button"
-											className="text-basalt-muted-foreground hover:text-basalt-destructive"
+											size="icon"
+											variant="ghost"
+											className="h-7 w-7 text-basalt-muted-foreground hover:text-basalt-destructive"
 											onClick={() => void vm.removeMember(m.id)}
-											title="Remove"
+											aria-label="Remove member"
 										>
 											<Trash2 className="h-3.5 w-3.5" />
-										</button>
+										</Button>
 									</li>
 								))}
 							</ul>

@@ -164,24 +164,19 @@ export function WatchlistDetailPage() {
 					</>
 				}
 				filters={
-					<div className="flex flex-wrap items-center gap-3">
-						<Tabs
-							value={s.activeTab}
-							onValueChange={(v) => vm.setActiveTab(v as "members" | "posts")}
-						>
-							<TabsList>
-								<TabsTrigger value="members">Members ({s.members.length})</TabsTrigger>
-								<TabsTrigger value="posts">Posts ({s.items.length})</TabsTrigger>
-							</TabsList>
-						</Tabs>
-						<SourceFilter
-							value={s.sourceFilter}
-							onChange={(v) => vm.setSourceFilter(v)}
-							counts={counts}
-						/>
-					</div>
+					<SourceFilter
+						value={s.sourceFilter}
+						onChange={(v) => vm.setSourceFilter(v)}
+						counts={counts}
+					/>
 				}
 			/>
+			<Tabs value={s.activeTab} onValueChange={(v) => vm.setActiveTab(v as "members" | "posts")}>
+				<TabsList>
+					<TabsTrigger value="members">Members ({s.members.length})</TabsTrigger>
+					<TabsTrigger value="posts">Posts ({s.items.length})</TabsTrigger>
+				</TabsList>
+			</Tabs>
 
 			{s.loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
 			{s.error && <Banner variant="error" size="sm" description={s.error} />}

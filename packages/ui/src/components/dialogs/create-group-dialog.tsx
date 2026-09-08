@@ -6,18 +6,17 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
+	Field,
 	Input,
-	Label,
 } from "@nocoo/basalt";
 import { InputArea } from "@nocoo/basalt/components/input-area";
 import { Users } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { createGroup } from "@/api/groups";
+import { WatchlistIconPicker } from "@/components/watchlist-icon-picker";
 import { cn, getAvatarColor } from "@/lib/utils";
-import { resolveIcon, WATCHLIST_ICONS } from "@/lib/watchlist-icons";
-
-const ICON_KEYS = Object.keys(WATCHLIST_ICONS);
+import { resolveIcon } from "@/lib/watchlist-icons";
 
 export function CreateGroupDialog({
 	open,
@@ -29,8 +28,6 @@ export function CreateGroupDialog({
 	onCreated?: () => void;
 }) {
 	const navigate = useNavigate();
-	const nameId = useId();
-	const descId = useId();
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
 	const [icon, setIcon] = useState("users");
@@ -97,53 +94,27 @@ export function CreateGroupDialog({
 					</DialogHeader>
 
 					<div className="grid gap-4">
-						<div className="grid gap-2">
-							<Label htmlFor={nameId}>Name</Label>
+						<Field label="Name">
 							<Input
-								id={nameId}
 								autoFocus
 								placeholder="e.g. Following archive"
 								value={name}
 								onChange={(e) => setName(e.target.value)}
 								maxLength={80}
 							/>
-						</div>
-						<div className="grid gap-2">
-							<Label htmlFor={descId}>Description</Label>
+						</Field>
+						<Field label="Description">
 							<InputArea
-								id={descId}
 								placeholder="Optional"
 								value={description}
 								onChange={(e) => setDescription(e.target.value)}
 								rows={2}
 								maxLength={280}
 							/>
-						</div>
-						<div className="grid gap-2">
-							<Label>Icon</Label>
-							<div className="grid max-h-36 grid-cols-8 gap-1.5 overflow-y-auto rounded-md border border-basalt-border bg-basalt-secondary p-2">
-								{ICON_KEYS.map((key) => {
-									const Icon = resolveIcon(key);
-									const active = icon === key;
-									return (
-										<button
-											key={key}
-											type="button"
-											title={key}
-											onClick={() => setIcon(key)}
-											className={cn(
-												"flex h-8 w-8 items-center justify-center rounded-md transition-colors",
-												active
-													? "bg-basalt-primary text-basalt-primary-foreground"
-													: "text-basalt-muted-foreground hover:bg-basalt-accent hover:text-basalt-foreground",
-											)}
-										>
-											<Icon className="h-4 w-4" strokeWidth={1.75} />
-										</button>
-									);
-								})}
-							</div>
-						</div>
+						</Field>
+						<Field label="Icon">
+							<WatchlistIconPicker value={icon} onValueChange={setIcon} />
+						</Field>
 						{error && <p className="text-sm text-basalt-destructive">{error}</p>}
 					</div>
 

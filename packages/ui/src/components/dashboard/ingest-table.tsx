@@ -1,3 +1,12 @@
+import { Empty } from "@nocoo/basalt/components/empty";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@nocoo/basalt/components/table";
 import type { IngestLog } from "@/api/dashboard";
 import { useNow } from "@/hooks/use-now";
 import { cn, formatTimeAgo } from "@/lib/utils";
@@ -29,55 +38,48 @@ export function IngestTable({ logs }: { logs: IngestLog[] }) {
 	const nowMs = useNow();
 
 	if (logs.length === 0) {
-		return (
-			<div className="flex min-h-32 items-center justify-center text-sm text-basalt-muted-foreground">
-				No ingest activity yet.
-			</div>
-		);
+		return <Empty title="No ingest activity yet." />;
 	}
 
 	return (
 		<div className="overflow-x-auto">
-			<table className="w-full min-w-[640px] border-collapse text-sm">
-				<thead>
-					<tr className="border-b border-basalt-border text-left text-xs tracking-wide text-basalt-muted-foreground uppercase">
-						<th className="px-4 py-2.5 font-medium">Watchlist</th>
-						<th className="px-4 py-2.5 font-medium">Result</th>
-						<th className="px-4 py-2.5 font-medium">Attempted</th>
-						<th className="px-4 py-2.5 font-medium">When</th>
-					</tr>
-				</thead>
-				<tbody>
+			<Table className="min-w-[640px]">
+				<TableHeader>
+					<TableRow>
+						<TableHead>Watchlist</TableHead>
+						<TableHead>Result</TableHead>
+						<TableHead>Attempted</TableHead>
+						<TableHead>When</TableHead>
+					</TableRow>
+				</TableHeader>
+				<TableBody>
 					{logs.map((log) => (
-						<tr
-							key={log.id}
-							className="border-b border-basalt-border/70 last:border-0 hover:bg-basalt-accent/40"
-						>
-							<td className="px-4 py-3">
+						<TableRow key={log.id}>
+							<TableCell>
 								<p className="font-medium">
 									{log.watchlistName?.trim() || `Watchlist #${log.watchlistId}`}
 								</p>
 								<p className="text-xs text-basalt-muted-foreground tabular-nums">
 									#{log.watchlistId}
 								</p>
-							</td>
-							<td className="px-4 py-3">
+							</TableCell>
+							<TableCell>
 								<div className="flex flex-wrap gap-1.5">
 									<Metric label="+" value={log.accepted} tone="ok" />
 									<Metric label="dup" value={log.deduped} tone="muted" />
 									<Metric label="rej" value={log.rejected} tone="bad" />
 								</div>
-							</td>
-							<td className="px-4 py-3 tabular-nums text-basalt-muted-foreground">
+							</TableCell>
+							<TableCell className="tabular-nums text-basalt-muted-foreground">
 								{log.attempted}
-							</td>
-							<td className="px-4 py-3 text-basalt-muted-foreground">
+							</TableCell>
+							<TableCell className="text-basalt-muted-foreground">
 								{formatTimeAgo(new Date(log.createdAtMs).toISOString(), "long", nowMs)}
-							</td>
-						</tr>
+							</TableCell>
+						</TableRow>
 					))}
-				</tbody>
-			</table>
+				</TableBody>
+			</Table>
 		</div>
 	);
 }

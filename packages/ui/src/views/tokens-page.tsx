@@ -1,9 +1,9 @@
-import { Button, LayerCard } from "@nocoo/basalt";
+import { Button, ConfirmDialog, LayerCard } from "@nocoo/basalt";
 import { Banner } from "@nocoo/basalt/components/banner";
 import { ClipboardText } from "@nocoo/basalt/components/clipboard-text";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { Plus, Trash2 } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as tokensApi from "@/api/tokens";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
@@ -15,6 +15,8 @@ export function TokensPage() {
 	const { openCreateToken } = useCreateDialogs();
 	const vm = useMemo(() => createTokensVm(tokensApi), []);
 	const { tokens, loading, error, onceSecret } = useVm(vm);
+	const [revokeId, setRevokeId] = useState<number | null>(null);
+	const [revokeBusy, setRevokeBusy] = useState(false);
 
 	useEffect(() => {
 		setBreadcrumbs([{ label: "Settings", href: "/settings" }, { label: "Push tokens" }]);
@@ -34,9 +36,15 @@ export function TokensPage() {
 		});
 	};
 
-	const onRevoke = async (id: number) => {
-		if (!window.confirm("Revoke this token?")) return;
-		await vm.revoke(id);
+	const onRevoke = async () => {
+		if (revokeId == null) return;
+		setRevokeBusy(true);
+		try {
+			await vm.revoke(revokeId);
+			setRevokeId(null);
+		} finally {
+			setRevokeBusy(false);
+		}
 	};
 
 	return (
@@ -102,7 +110,7 @@ export function TokensPage() {
 									variant="ghost"
 									type="button"
 									className="h-8 w-8 text-basalt-destructive"
-									onClick={() => void onRevoke(t.id)}
+									onClick={() => setRevokeId(t.id)}
 									aria-label="Revoke token"
 								>
 									<Trash2 className="h-3.5 w-3.5" />
@@ -112,6 +120,19 @@ export function TokensPage() {
 					</ul>
 				)}
 			</LayerCard>
+
+			<ConfirmDialog
+				open={revokeId != null}
+				onOpenChange={(open) => {
+					if (!open && !revokeBusy) setRevokeId(null);
+				}}
+				title="Revoke token"
+				description="Revoke this token? Producers using it will stop being able to push."
+				confirmLabel="Revoke"
+				variant="destructive"
+				loading={revokeBusy}
+				onConfirm={() => void onRevoke()}
+			/>
 		</div>
 	);
 }
