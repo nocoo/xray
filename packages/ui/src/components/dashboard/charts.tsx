@@ -35,7 +35,7 @@ export function IngestTrendChart({ data }: { data: IngestDayPoint[] }) {
 	}
 
 	return (
-		<div className="min-h-[200px] flex-1">
+		<div className="h-[208px] w-full">
 			<ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
 				<AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
 					<defs>
@@ -44,12 +44,12 @@ export function IngestTrendChart({ data }: { data: IngestDayPoint[] }) {
 							<stop offset="100%" stopColor={CHART_COLORS[0]} stopOpacity={0} />
 						</linearGradient>
 						<linearGradient id="ingestDeduped" x1="0" y1="0" x2="0" y2="1">
-							<stop offset="0%" stopColor={CHART_COLORS[4]} stopOpacity={0.18} />
-							<stop offset="100%" stopColor={CHART_COLORS[4]} stopOpacity={0} />
+							<stop offset="0%" stopColor={CHART_COLORS[2]} stopOpacity={0.18} />
+							<stop offset="100%" stopColor={CHART_COLORS[2]} stopOpacity={0} />
 						</linearGradient>
 						<linearGradient id="ingestRejected" x1="0" y1="0" x2="0" y2="1">
-							<stop offset="0%" stopColor={CHART_COLORS[9]} stopOpacity={0.16} />
-							<stop offset="100%" stopColor={CHART_COLORS[9]} stopOpacity={0} />
+							<stop offset="0%" stopColor={CHART_COLORS[3]} stopOpacity={0.16} />
+							<stop offset="100%" stopColor={CHART_COLORS[3]} stopOpacity={0} />
 						</linearGradient>
 					</defs>
 					<CartesianGrid
@@ -93,7 +93,7 @@ export function IngestTrendChart({ data }: { data: IngestDayPoint[] }) {
 					<Area
 						type="monotone"
 						dataKey="deduped"
-						stroke={CHART_COLORS[4] ?? ""}
+						stroke={CHART_COLORS[2] ?? ""}
 						fill="url(#ingestDeduped)"
 						strokeWidth={1.5}
 						name="deduped"
@@ -101,7 +101,7 @@ export function IngestTrendChart({ data }: { data: IngestDayPoint[] }) {
 					<Area
 						type="monotone"
 						dataKey="rejected"
-						stroke={CHART_COLORS[9] ?? ""}
+						stroke={CHART_COLORS[3] ?? ""}
 						fill="url(#ingestRejected)"
 						strokeWidth={1.5}
 						name="rejected"
@@ -123,7 +123,7 @@ export function ItemsTrendChart({ data }: { data: ItemDayPoint[] }) {
 	}
 
 	return (
-		<div className="min-h-[200px] flex-1">
+		<div className="h-[208px] w-full">
 			<ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
 				<AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
 					<defs>
