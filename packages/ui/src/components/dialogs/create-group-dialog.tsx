@@ -1,19 +1,19 @@
-import { Users } from "lucide-react";
-import { useEffect, useId, useState } from "react";
-import { useNavigate } from "react-router";
-import { createGroup } from "@/api/groups";
-import { Button } from "@/components/ui/button";
 import {
+	Button,
 	Dialog,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+	Input,
+	Label,
+} from "@nocoo/basalt";
+import { InputArea } from "@nocoo/basalt/components/input-area";
+import { Users } from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import { useNavigate } from "react-router";
+import { createGroup } from "@/api/groups";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { resolveIcon, WATCHLIST_ICONS } from "@/lib/watchlist-icons";
 
@@ -110,7 +110,7 @@ export function CreateGroupDialog({
 						</div>
 						<div className="grid gap-2">
 							<Label htmlFor={descId}>Description</Label>
-							<Textarea
+							<InputArea
 								id={descId}
 								placeholder="Optional"
 								value={description}
@@ -121,7 +121,7 @@ export function CreateGroupDialog({
 						</div>
 						<div className="grid gap-2">
 							<Label>Icon</Label>
-							<div className="grid max-h-36 grid-cols-8 gap-1.5 overflow-y-auto rounded-md border border-border bg-secondary p-2">
+							<div className="grid max-h-36 grid-cols-8 gap-1.5 overflow-y-auto rounded-md border border-basalt-border bg-basalt-secondary p-2">
 								{ICON_KEYS.map((key) => {
 									const Icon = resolveIcon(key);
 									const active = icon === key;
@@ -134,8 +134,8 @@ export function CreateGroupDialog({
 											className={cn(
 												"flex h-8 w-8 items-center justify-center rounded-md transition-colors",
 												active
-													? "bg-primary text-primary-foreground"
-													: "text-muted-foreground hover:bg-accent hover:text-foreground",
+													? "bg-basalt-primary text-basalt-primary-foreground"
+													: "text-basalt-muted-foreground hover:bg-basalt-accent hover:text-basalt-foreground",
 											)}
 										>
 											<Icon className="h-4 w-4" strokeWidth={1.75} />
@@ -144,7 +144,7 @@ export function CreateGroupDialog({
 								})}
 							</div>
 						</div>
-						{error && <p className="text-sm text-destructive">{error}</p>}
+						{error && <p className="text-sm text-basalt-destructive">{error}</p>}
 					</div>
 
 					<DialogFooter>

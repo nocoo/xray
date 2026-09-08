@@ -14,8 +14,8 @@ import type { IngestDayPoint, ItemDayPoint } from "@/api/dashboard";
 import { CHART_COLORS, chartAxis, withAlpha } from "@/lib/chart-palette";
 
 const tooltipStyle = {
-	background: "hsl(var(--popover))",
-	border: "1px solid hsl(var(--border))",
+	background: "hsl(var(--basalt-popover))",
+	border: "1px solid hsl(var(--basalt-border))",
 	borderRadius: "8px",
 	fontSize: "12px",
 };
@@ -28,7 +28,7 @@ export function IngestTrendChart({ data }: { data: IngestDayPoint[] }) {
 	const hasSignal = data.some((d) => d.accepted + d.deduped + d.rejected > 0);
 	if (!hasSignal) {
 		return (
-			<div className="flex min-h-[200px] flex-1 items-center justify-center text-sm text-muted-foreground">
+			<div className="flex min-h-[200px] flex-1 items-center justify-center text-sm text-basalt-muted-foreground">
 				No ingest activity in the last 14 days
 			</div>
 		);
@@ -116,7 +116,7 @@ export function ItemsTrendChart({ data }: { data: ItemDayPoint[] }) {
 	const hasSignal = data.some((d) => d.count > 0);
 	if (!hasSignal) {
 		return (
-			<div className="flex min-h-[200px] flex-1 items-center justify-center text-sm text-muted-foreground">
+			<div className="flex min-h-[200px] flex-1 items-center justify-center text-sm text-basalt-muted-foreground">
 				No items ingested in the last 14 days
 			</div>
 		);
@@ -172,7 +172,7 @@ export function SourceDonut({ data }: { data: { sourceType: string; count: numbe
 	const entries = [...data].sort((a, b) => b.count - a.count);
 	if (entries.length === 0) {
 		return (
-			<div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
+			<div className="flex h-[200px] items-center justify-center text-sm text-basalt-muted-foreground">
 				No source mix yet
 			</div>
 		);
@@ -208,7 +208,7 @@ export function SourceDonut({ data }: { data: { sourceType: string; count: numbe
 							className="inline-block h-2.5 w-2.5 rounded-full"
 							style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
 						/>
-						<span className="text-muted-foreground">{entry.sourceType}</span>
+						<span className="text-basalt-muted-foreground">{entry.sourceType}</span>
 						<span className="font-medium tabular-nums">{entry.count}</span>
 					</div>
 				))}

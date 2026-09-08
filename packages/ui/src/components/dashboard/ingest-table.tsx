@@ -15,9 +15,9 @@ function Metric({
 		<span
 			className={cn(
 				"inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums",
-				tone === "ok" && "bg-success/12 text-success",
-				tone === "muted" && "bg-muted text-muted-foreground",
-				tone === "bad" && "bg-destructive/12 text-destructive",
+				tone === "ok" && "bg-basalt-info-tint text-basalt-info",
+				tone === "muted" && "bg-basalt-muted text-basalt-muted-foreground",
+				tone === "bad" && "bg-basalt-danger-tint text-basalt-danger",
 			)}
 		>
 			{label} {value}
@@ -30,7 +30,7 @@ export function IngestTable({ logs }: { logs: IngestLog[] }) {
 
 	if (logs.length === 0) {
 		return (
-			<div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">
+			<div className="flex min-h-32 items-center justify-center text-sm text-basalt-muted-foreground">
 				No ingest activity yet.
 			</div>
 		);
@@ -40,7 +40,7 @@ export function IngestTable({ logs }: { logs: IngestLog[] }) {
 		<div className="overflow-x-auto">
 			<table className="w-full min-w-[640px] border-collapse text-sm">
 				<thead>
-					<tr className="border-b border-border text-left text-xs tracking-wide text-muted-foreground uppercase">
+					<tr className="border-b border-basalt-border text-left text-xs tracking-wide text-basalt-muted-foreground uppercase">
 						<th className="px-4 py-2.5 font-medium">Watchlist</th>
 						<th className="px-4 py-2.5 font-medium">Result</th>
 						<th className="px-4 py-2.5 font-medium">Attempted</th>
@@ -49,12 +49,17 @@ export function IngestTable({ logs }: { logs: IngestLog[] }) {
 				</thead>
 				<tbody>
 					{logs.map((log) => (
-						<tr key={log.id} className="border-b border-border/70 last:border-0 hover:bg-accent/40">
+						<tr
+							key={log.id}
+							className="border-b border-basalt-border/70 last:border-0 hover:bg-basalt-accent/40"
+						>
 							<td className="px-4 py-3">
 								<p className="font-medium">
 									{log.watchlistName?.trim() || `Watchlist #${log.watchlistId}`}
 								</p>
-								<p className="text-xs text-muted-foreground tabular-nums">#{log.watchlistId}</p>
+								<p className="text-xs text-basalt-muted-foreground tabular-nums">
+									#{log.watchlistId}
+								</p>
 							</td>
 							<td className="px-4 py-3">
 								<div className="flex flex-wrap gap-1.5">
@@ -63,8 +68,10 @@ export function IngestTable({ logs }: { logs: IngestLog[] }) {
 									<Metric label="rej" value={log.rejected} tone="bad" />
 								</div>
 							</td>
-							<td className="px-4 py-3 tabular-nums text-muted-foreground">{log.attempted}</td>
-							<td className="px-4 py-3 text-muted-foreground">
+							<td className="px-4 py-3 tabular-nums text-basalt-muted-foreground">
+								{log.attempted}
+							</td>
+							<td className="px-4 py-3 text-basalt-muted-foreground">
 								{formatTimeAgo(new Date(log.createdAtMs).toISOString(), "long", nowMs)}
 							</td>
 						</tr>

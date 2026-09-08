@@ -1,17 +1,17 @@
-import { Pencil } from "lucide-react";
-import { useEffect, useId, useState } from "react";
-import { fetchTags, type Member, patchMember, type Tag } from "@/api/watchlists";
-import { Button } from "@/components/ui/button";
 import {
+	Button,
 	Dialog,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+	Label,
+} from "@nocoo/basalt";
+import { InputArea } from "@nocoo/basalt/components/input-area";
+import { Pencil } from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import { fetchTags, type Member, patchMember, type Tag } from "@/api/watchlists";
 import { cn } from "@/lib/utils";
 
 export function EditMemberDialog({
@@ -80,7 +80,7 @@ export function EditMemberDialog({
 				<form onSubmit={(e) => void submit(e)} className="grid gap-5">
 					<DialogHeader>
 						<div className="mb-1 flex items-center gap-3">
-							<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+							<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-basalt-primary/15 text-basalt-primary">
 								<Pencil className="h-5 w-5" strokeWidth={2} />
 							</div>
 							<div>
@@ -94,7 +94,7 @@ export function EditMemberDialog({
 
 					<div className="grid gap-4">
 						{tagsError && (
-							<p className="text-sm text-destructive">Failed to load tags: {tagsError}</p>
+							<p className="text-sm text-basalt-destructive">Failed to load tags: {tagsError}</p>
 						)}
 						{tags.length > 0 && (
 							<div className="grid gap-2">
@@ -114,8 +114,8 @@ export function EditMemberDialog({
 												className={cn(
 													"rounded-full border px-2.5 py-0.5 text-xs transition-colors",
 													on
-														? "border-primary bg-primary/15 text-foreground"
-														: "border-border text-muted-foreground",
+														? "border-basalt-primary bg-basalt-primary/15 text-basalt-foreground"
+														: "border-basalt-border text-basalt-muted-foreground",
 												)}
 												style={on ? { borderColor: tag.color } : undefined}
 											>
@@ -128,7 +128,7 @@ export function EditMemberDialog({
 						)}
 						<div className="grid gap-2">
 							<Label htmlFor={noteId}>Note</Label>
-							<Textarea
+							<InputArea
 								id={noteId}
 								placeholder="Optional private note"
 								value={note}
@@ -137,7 +137,7 @@ export function EditMemberDialog({
 								maxLength={200}
 							/>
 						</div>
-						{error && <p className="text-sm text-destructive">{error}</p>}
+						{error && <p className="text-sm text-basalt-destructive">{error}</p>}
 					</div>
 
 					<DialogFooter>

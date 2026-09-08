@@ -1,3 +1,4 @@
+import { LayerCard } from "@nocoo/basalt";
 import type { SourceType } from "@xray/shared";
 import {
 	ArrowLeftRight,
@@ -134,10 +135,11 @@ export function CustomItemCard({
 	const showInsight = lang === "zh" && !!summaryText;
 
 	return (
-		<article
+		<LayerCard
 			data-testid="custom-item-card"
 			data-source-type={sourceType}
-			className="relative rounded-card border border-dashed border-violet-500/35 bg-secondary p-4 shadow-[0_1px_4px_rgba(0,0,0,0.04)]"
+			outlined
+			className="relative border-dashed border-violet-500/35"
 		>
 			<div className="absolute top-2.5 right-2.5 flex items-center gap-1">
 				<SourceChip sourceType={sourceType} />
@@ -267,6 +269,6 @@ export function CustomItemCard({
 					)}
 				</div>
 			)}
-		</article>
+		</LayerCard>
 	);
 }

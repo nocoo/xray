@@ -1,20 +1,21 @@
-import type { SourceType } from "@xray/shared";
-import { UserPlus } from "lucide-react";
-import { useEffect, useId, useState } from "react";
-import { addGroupMember } from "@/api/groups";
-import { addMember, fetchTags, type Tag } from "@/api/watchlists";
-import { Button } from "@/components/ui/button";
 import {
+	Button,
 	Dialog,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+	Input,
+	Label,
+	SegmentControl,
+} from "@nocoo/basalt";
+import { InputArea } from "@nocoo/basalt/components/input-area";
+import type { SourceType } from "@xray/shared";
+import { UserPlus } from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import { addGroupMember } from "@/api/groups";
+import { addMember, fetchTags, type Tag } from "@/api/watchlists";
 import { cn } from "@/lib/utils";
 
 export type AddMemberTarget =
@@ -112,7 +113,7 @@ export function AddMemberDialog({
 				<form onSubmit={(e) => void submit(e)} className="grid gap-5">
 					<DialogHeader>
 						<div className="mb-1 flex items-center gap-3">
-							<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+							<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-basalt-primary/15 text-basalt-primary">
 								<UserPlus className="h-5 w-5" strokeWidth={2} />
 							</div>
 							<div>
@@ -125,36 +126,20 @@ export function AddMemberDialog({
 					</DialogHeader>
 
 					<div className="grid gap-4">
-						<div className="grid gap-2">
-							<Label>Source</Label>
-							<div className="flex gap-2">
-								{(
-									[
-										{ value: "x.com" as const, label: "x.com" },
-										{ value: "custom" as const, label: "Custom" },
-									] as const
-								).map((opt) => (
-									<button
-										key={opt.value}
-										type="button"
-										onClick={() => setSourceType(opt.value)}
-										className={cn(
-											"flex-1 rounded-md border px-3 py-2 text-sm transition-colors",
-											sourceType === opt.value
-												? "border-primary bg-primary/10 text-foreground"
-												: "border-border bg-secondary text-muted-foreground hover:text-foreground",
-										)}
-									>
-										{opt.label}
-									</button>
-								))}
-							</div>
-						</div>
+						<SegmentControl
+							legend="Source"
+							value={sourceType}
+							onValueChange={(v) => setSourceType(v as SourceType)}
+							options={[
+								{ value: "x.com", label: "x.com" },
+								{ value: "custom", label: "Custom" },
+							]}
+						/>
 						<div className="grid gap-2">
 							<Label htmlFor={handleId}>{sourceType === "x.com" ? "Username" : "Handle"}</Label>
 							<div className="relative">
 								{sourceType === "x.com" && (
-									<span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground">
+									<span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-basalt-muted-foreground">
 										@
 									</span>
 								)}
@@ -170,7 +155,7 @@ export function AddMemberDialog({
 							</div>
 						</div>
 						{target?.kind === "watchlist" && tagsError && (
-							<p className="text-sm text-destructive">Failed to load tags: {tagsError}</p>
+							<p className="text-sm text-basalt-destructive">Failed to load tags: {tagsError}</p>
 						)}
 						{target?.kind === "watchlist" && tags.length > 0 && (
 							<div className="grid gap-2">
@@ -190,8 +175,8 @@ export function AddMemberDialog({
 												className={cn(
 													"rounded-full border px-2.5 py-0.5 text-xs transition-colors",
 													on
-														? "border-primary bg-primary/15 text-foreground"
-														: "border-border text-muted-foreground",
+														? "border-basalt-primary bg-basalt-primary/15 text-basalt-foreground"
+														: "border-basalt-border text-basalt-muted-foreground",
 												)}
 												style={on ? { borderColor: tag.color } : undefined}
 											>
@@ -205,7 +190,7 @@ export function AddMemberDialog({
 						{target?.kind === "watchlist" && (
 							<div className="grid gap-2">
 								<Label htmlFor={noteId}>Note</Label>
-								<Textarea
+								<InputArea
 									id={noteId}
 									placeholder="Optional private note"
 									value={note}
@@ -215,7 +200,7 @@ export function AddMemberDialog({
 								/>
 							</div>
 						)}
-						{error && <p className="text-sm text-destructive">{error}</p>}
+						{error && <p className="text-sm text-basalt-destructive">{error}</p>}
 					</div>
 
 					<DialogFooter>

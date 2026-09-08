@@ -1,8 +1,8 @@
+import { Button, LayerCard } from "@nocoo/basalt";
 import { Pencil, RefreshCw, Trash2, Users } from "lucide-react";
 import { memo } from "react";
 import { XVerified } from "@/components/icons/x-verified";
 import { SourceChip } from "@/components/source-chip";
-import { Button } from "@/components/ui/button";
 import type { MockWatchlistMember } from "@/lib/mock-data";
 import { formatCount } from "@/lib/utils";
 
@@ -42,19 +42,22 @@ export const MemberCard = memo(function MemberCard({
 				href={profileHref}
 				target="_blank"
 				rel="noopener noreferrer"
-				className="truncate text-xs text-muted-foreground leading-tight hover:underline"
+				className="truncate text-xs text-basalt-muted-foreground leading-tight hover:underline"
 				onClick={(e) => e.stopPropagation()}
 			>
 				{handleLabel}
 			</a>
 		) : (
-			<span className="truncate text-xs text-muted-foreground leading-tight">{handleLabel}</span>
+			<span className="truncate text-xs text-basalt-muted-foreground leading-tight">
+				{handleLabel}
+			</span>
 		)
 	) : null;
 
 	return (
-		<div
-			className="group relative flex items-start gap-3 rounded-card bg-secondary p-3"
+		<LayerCard
+			className="group relative flex items-start gap-3"
+			padding="sm"
 			data-source-type={member.sourceType}
 		>
 			{/* Avatar */}
@@ -79,7 +82,7 @@ export const MemberCard = memo(function MemberCard({
 				<div className="mb-1 flex flex-wrap items-center gap-1.5">
 					<SourceChip sourceType={member.sourceType} />
 					{p && isX && p.followersCount > 0 && (
-						<span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground">
+						<span className="inline-flex items-center gap-0.5 text-[11px] text-basalt-muted-foreground">
 							<Users className="h-3 w-3" />
 							{formatCount(p.followersCount)}
 						</span>
@@ -113,19 +116,21 @@ export const MemberCard = memo(function MemberCard({
 							</span>
 						))}
 						{member.tags.length > 4 && (
-							<span className="text-[10px] text-muted-foreground">+{member.tags.length - 4}</span>
+							<span className="text-[10px] text-basalt-muted-foreground">
+								+{member.tags.length - 4}
+							</span>
 						)}
 					</div>
 				)}
 
 				{p?.description && (
-					<p className="mt-1 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+					<p className="mt-1 line-clamp-2 text-[11px] leading-snug text-basalt-muted-foreground">
 						{p.description}
 					</p>
 				)}
 
 				{member.note && (
-					<p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground/70 italic">
+					<p className="mt-0.5 line-clamp-1 text-[11px] text-basalt-muted-foreground/70 italic">
 						{member.note}
 					</p>
 				)}
@@ -137,7 +142,8 @@ export const MemberCard = memo(function MemberCard({
 					{onRefresh && isX && (
 						<Button
 							variant="ghost"
-							size="icon-xs"
+							size="icon"
+							className="h-6 w-6"
 							onClick={onRefresh}
 							disabled={refreshing}
 							title="Refresh profile"
@@ -146,31 +152,31 @@ export const MemberCard = memo(function MemberCard({
 						</Button>
 					)}
 					{onEdit && (
-						<Button variant="ghost" size="icon-xs" onClick={onEdit} title="Edit">
+						<Button variant="ghost" size="icon" className="h-6 w-6" onClick={onEdit} title="Edit">
 							<Pencil className="h-3 w-3" />
 						</Button>
 					)}
 					{onDelete && (
 						<Button
 							variant="ghost"
-							size="icon-xs"
+							size="icon"
+							className="h-6 w-6 text-basalt-muted-foreground hover:text-basalt-destructive"
 							onClick={onDelete}
 							title="Remove"
-							className="text-muted-foreground hover:text-destructive"
 						>
 							<Trash2 className="h-3 w-3" />
 						</Button>
 					)}
 				</div>
 			)}
-		</div>
+		</LayerCard>
 	);
 });
 
 function MemberAvatar({ url, letter }: { url: string; letter: string }) {
 	if (!url) {
 		return (
-			<div className="flex h-11 w-11 items-center justify-center rounded-full bg-muted text-sm font-medium">
+			<div className="flex h-11 w-11 items-center justify-center rounded-full bg-basalt-muted text-sm font-medium">
 				{letter}
 			</div>
 		);
@@ -179,12 +185,12 @@ function MemberAvatar({ url, letter }: { url: string; letter: string }) {
 		<img
 			src={url}
 			alt=""
-			className="h-11 w-11 rounded-full bg-muted object-cover"
+			className="h-11 w-11 rounded-full bg-basalt-muted object-cover"
 			onError={(e) => {
 				const target = e.target as HTMLImageElement;
 				const fallback = document.createElement("div");
 				fallback.className =
-					"flex h-11 w-11 items-center justify-center rounded-full bg-muted text-sm font-medium";
+					"flex h-11 w-11 items-center justify-center rounded-full bg-basalt-muted text-sm font-medium";
 				fallback.textContent = letter;
 				target.replaceWith(fallback);
 			}}

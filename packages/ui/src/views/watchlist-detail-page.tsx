@@ -1,3 +1,7 @@
+import { Button, LayerCard, Switch, Tabs, TabsList, TabsTrigger } from "@nocoo/basalt";
+import { Banner } from "@nocoo/basalt/components/banner";
+import { Empty } from "@nocoo/basalt/components/empty";
+import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { Eye, Languages, Plus, RefreshCw, ScrollText, Settings } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
@@ -13,7 +17,6 @@ import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { SlidePanel } from "@/components/layout/slide-panel";
 import { PostsColumnsPages } from "@/components/posts-columns-pages";
 import { SourceFilter } from "@/components/source-filter";
-import { Button } from "@/components/ui/button";
 import { useColumns } from "@/hooks/use-columns";
 import { cn } from "@/lib/utils";
 import { useVm } from "@/viewmodels/use-vm";
@@ -68,7 +71,6 @@ export function WatchlistDetailPage() {
 		return () => setBreadcrumbs([]);
 	}, [setBreadcrumbs, s.wl?.name, watchlistId]);
 
-	// Infinite scroll — stable auto-load when the sentinel enters the posts scrollport.
 	useEffect(() => {
 		if (s.activeTab !== "posts" || !s.nextCursor) return;
 		const root = postsScrollRef.current;
@@ -105,114 +107,84 @@ export function WatchlistDetailPage() {
 	};
 
 	const postsFeedActive = s.activeTab === "posts" && !s.loading && s.items.length > 0;
+	const title = s.wl?.name ?? "Watchlist";
 
 	return (
 		<div
-			className={cn(
-				postsFeedActive
-					? // Occupy shell card height so the feed scrollport can meet the bottom edge.
-						"flex min-h-0 flex-1 flex-col gap-3 md:gap-4"
-					: "space-y-4",
-			)}
+			className={cn(postsFeedActive ? "flex min-h-0 flex-1 flex-col gap-3 md:gap-4" : "space-y-4")}
 		>
-			<div className="flex items-center gap-1">
-				<div className="flex items-center">
-					<button
-						type="button"
-						onClick={() => vm.setActiveTab("members")}
-						className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-							s.activeTab === "members"
-								? "bg-secondary text-foreground"
-								: "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
-						}`}
-					>
-						Members
-						<span className="ml-1.5 text-xs text-muted-foreground">({s.members.length})</span>
-					</button>
-					<button
-						type="button"
-						onClick={() => vm.setActiveTab("posts")}
-						className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-							s.activeTab === "posts"
-								? "bg-secondary text-foreground"
-								: "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
-						}`}
-					>
-						Posts
-						<span className="ml-1.5 text-xs text-muted-foreground">({s.items.length})</span>
-					</button>
-				</div>
-
-				<div className="flex flex-1 justify-center">
-					<button
-						type="button"
-						onClick={openActivity}
-						className="max-w-full truncate rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
-						title="Open activity / ingest logs"
-					>
-						{s.wl?.name ?? "…"}
-						{s.wl?.translateEnabled ? " · Translate on" : " · Translate off"}
-						{s.logs[0] ? (
-							<span className="ml-2 tabular-nums opacity-80">
-								· last +{s.logs[0].accepted}/{s.logs[0].attempted}
-							</span>
-						) : null}
-					</button>
-				</div>
-
-				<div className="flex items-center gap-1.5">
-					{s.activeTab === "members" && (
-						<Button size="sm" type="button" onClick={onAddMember}>
-							<Plus className="h-4 w-4" />
-							Add
+			<PageHeader
+				title={title}
+				description={
+					s.wl
+						? `${s.wl.translateEnabled ? "Translate on" : "Translate off"}${
+								s.logs[0] ? ` · last +${s.logs[0].accepted}/${s.logs[0].attempted}` : ""
+							}`
+						: undefined
+				}
+				actions={
+					<>
+						{s.activeTab === "members" && (
+							<Button size="sm" type="button" onClick={onAddMember}>
+								<Plus className="h-4 w-4" />
+								Add
+							</Button>
+						)}
+						{s.activeTab === "posts" && (
+							<Button size="sm" type="button" onClick={() => void vm.translate()}>
+								Translate
+							</Button>
+						)}
+						<Button variant="outline" size="sm" type="button" onClick={() => void vm.load()}>
+							<RefreshCw className="h-4 w-4" />
+							Reload
 						</Button>
-					)}
-					{s.activeTab === "posts" && (
-						<Button size="sm" type="button" onClick={() => void vm.translate()}>
-							Translate
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8"
+							type="button"
+							onClick={openActivity}
+							title="Activity / ingest logs"
+							aria-label="Open activity panel"
+						>
+							<ScrollText className="h-4 w-4" />
 						</Button>
-					)}
-					<Button
-						variant="outline"
-						size="sm"
-						type="button"
-						onClick={() => void vm.load()}
-						title="Reload"
-					>
-						<RefreshCw className="h-4 w-4" />
-						Reload
-					</Button>
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						type="button"
-						onClick={openActivity}
-						title="Activity / ingest logs"
-						aria-label="Open activity panel"
-					>
-						<ScrollText className="h-4 w-4" />
-					</Button>
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						type="button"
-						onClick={() => setSettingsOpen(true)}
-						title="Settings"
-						aria-label="Open settings panel"
-					>
-						<Settings className="h-4 w-4" />
-					</Button>
-				</div>
-			</div>
-
-			<SourceFilter
-				value={s.sourceFilter}
-				onChange={(v) => vm.setSourceFilter(v)}
-				counts={counts}
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8"
+							type="button"
+							onClick={() => setSettingsOpen(true)}
+							title="Settings"
+							aria-label="Open settings panel"
+						>
+							<Settings className="h-4 w-4" />
+						</Button>
+					</>
+				}
+				filters={
+					<div className="flex flex-wrap items-center gap-3">
+						<Tabs
+							value={s.activeTab}
+							onValueChange={(v) => vm.setActiveTab(v as "members" | "posts")}
+						>
+							<TabsList>
+								<TabsTrigger value="members">Members ({s.members.length})</TabsTrigger>
+								<TabsTrigger value="posts">Posts ({s.items.length})</TabsTrigger>
+							</TabsList>
+						</Tabs>
+						<SourceFilter
+							value={s.sourceFilter}
+							onChange={(v) => vm.setSourceFilter(v)}
+							counts={counts}
+						/>
+					</div>
+				}
 			/>
 
-			{s.loading && <p className="text-sm text-muted-foreground">Loading…</p>}
-			{s.error && <p className="text-sm text-destructive">{s.error}</p>}
+			{s.loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
+			{s.error && <Banner variant="error" size="sm" description={s.error} />}
 
 			{s.activeTab === "members" && !s.loading && (
 				<div>
@@ -228,11 +200,9 @@ export function WatchlistDetailPage() {
 							))}
 						</div>
 					) : (
-						<div className="rounded-card bg-secondary p-10 text-center">
-							<p className="text-muted-foreground">
-								No members yet. Add an x.com or custom handle.
-							</p>
-						</div>
+						<LayerCard>
+							<Empty title="No members yet." description="Add an x.com or custom handle." />
+						</LayerCard>
 					)}
 					<EditMemberDialog
 						open={editMember != null}
@@ -247,19 +217,16 @@ export function WatchlistDetailPage() {
 			)}
 
 			{s.activeTab === "posts" && !s.loading && s.items.length === 0 && (
-				<div className="flex flex-col items-center gap-2 rounded-card bg-secondary p-10 text-center">
-					<Eye className="h-8 w-8 text-muted-foreground" />
-					<p className="text-sm font-medium">No items yet.</p>
-					<p className="max-w-md text-xs text-muted-foreground">
-						Mint a push token under Settings → Push tokens, then{" "}
-						<code className="rounded bg-muted px-1">POST /api/v1/ingest/push</code> on the ingest
-						host with x.com + custom items.
-					</p>
-				</div>
+				<LayerCard>
+					<Empty
+						icon={<Eye className="h-8 w-8 text-basalt-muted-foreground" />}
+						title="No items yet."
+						description="Mint a push token under Settings → Push tokens, then POST /api/v1/ingest/push on the ingest host with x.com + custom items."
+					/>
+				</LayerCard>
 			)}
 
 			{postsFeedActive && (
-				/* Fill remaining shell height; bleed through card bottom padding so feed meets the edge. */
 				<div
 					ref={postsScrollRef}
 					data-testid="posts-scroll"
@@ -325,7 +292,6 @@ export function WatchlistDetailPage() {
 						}}
 					/>
 
-					{/* Sentinel for infinite load — stays off-screen until near bottom */}
 					{s.nextCursor ? (
 						<div
 							ref={loadMoreSentinelRef}
@@ -334,23 +300,21 @@ export function WatchlistDetailPage() {
 							aria-hidden
 						>
 							{s.loadingMore ? (
-								<span className="text-xs text-muted-foreground">Loading…</span>
+								<span className="text-xs text-basalt-muted-foreground">Loading…</span>
 							) : null}
 						</div>
 					) : (
-						/* End of feed — quiet center marker with generous whitespace */
 						<div
 							data-testid="feed-end"
 							className="flex min-h-40 flex-col items-center justify-center gap-3 py-16 text-center"
 						>
-							<div className="h-px w-10 bg-border" aria-hidden />
-							<p className="text-xs tracking-wide text-muted-foreground/80">End of feed</p>
+							<div className="h-px w-10 bg-basalt-border" aria-hidden />
+							<p className="text-xs tracking-wide text-basalt-muted-foreground/80">End of feed</p>
 						</div>
 					)}
 				</div>
 			)}
 
-			{/* Settings — right slide panel (legacy v1) */}
 			<SlidePanel
 				open={settingsOpen}
 				onClose={() => setSettingsOpen(false)}
@@ -358,56 +322,39 @@ export function WatchlistDetailPage() {
 				data-testid="settings-panel"
 			>
 				<div className="space-y-6 p-4">
-					{s.settingsError && (
-						<div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-							{s.settingsError}
-						</div>
-					)}
+					{s.settingsError && <Banner variant="error" size="sm" description={s.settingsError} />}
 					<div className="space-y-2">
 						<p className="flex items-center gap-2 text-sm font-medium">
-							<Languages className="h-4 w-4 text-muted-foreground" />
+							<Languages className="h-4 w-4 text-basalt-muted-foreground" />
 							Auto translate
 						</p>
-						<p className="text-xs text-muted-foreground">
+						<p className="text-xs text-basalt-muted-foreground">
 							When on, new items are eligible for batch translation from the toolbar.
 						</p>
-						<button
-							type="button"
-							role="switch"
+						<Switch
 							aria-label="Auto translate"
-							aria-checked={s.wl?.translateEnabled ?? false}
+							checked={s.wl?.translateEnabled ?? false}
 							disabled={!s.wl || s.settingsSaving}
-							onClick={() => void vm.setTranslateEnabled(!(s.wl?.translateEnabled ?? false))}
-							className={cn(
-								"relative h-7 w-12 rounded-full transition-colors",
-								s.wl?.translateEnabled ? "bg-emerald-500" : "bg-muted",
-								(!s.wl || s.settingsSaving) && "opacity-60",
-							)}
-						>
-							<span
-								className={cn(
-									"absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform",
-									s.wl?.translateEnabled && "translate-x-5",
-								)}
-							/>
-						</button>
+							onCheckedChange={(next) => void vm.setTranslateEnabled(next === true)}
+						/>
 					</div>
-					<div className="space-y-1 border-t border-border pt-4 text-xs text-muted-foreground">
+					<div className="space-y-1 border-t border-basalt-border pt-4 text-xs text-basalt-muted-foreground">
 						<p>
-							<span className="font-medium text-foreground">Members</span> · {s.members.length}
+							<span className="font-medium text-basalt-foreground">Members</span> ·{" "}
+							{s.members.length}
 						</p>
 						<p>
-							<span className="font-medium text-foreground">Posts loaded</span> · {s.items.length}
+							<span className="font-medium text-basalt-foreground">Posts loaded</span> ·{" "}
+							{s.items.length}
 						</p>
 						<p>
-							<span className="font-medium text-foreground">Source model</span> · mix (x.com +
-							custom)
+							<span className="font-medium text-basalt-foreground">Source model</span> · mix (x.com
+							+ custom)
 						</p>
 					</div>
 				</div>
 			</SlidePanel>
 
-			{/* Activity / ingest logs — right slide panel (not under waterfall) */}
 			<SlidePanel
 				open={activityOpen}
 				onClose={() => setActivityOpen(false)}
@@ -415,11 +362,11 @@ export function WatchlistDetailPage() {
 				data-testid="activity-panel"
 			>
 				<div className="flex h-full flex-col" data-testid="ingest-logs">
-					<div className="flex items-center justify-between border-b border-border px-4 py-2">
-						<p className="text-xs text-muted-foreground">Recent ingest pushes</p>
+					<div className="flex items-center justify-between border-b border-basalt-border px-4 py-2">
+						<p className="text-xs text-basalt-muted-foreground">Recent ingest pushes</p>
 						<Button
 							variant="ghost"
-							size="xs"
+							size="sm"
 							type="button"
 							disabled={s.logsLoading}
 							onClick={() => void vm.loadLogs()}
@@ -429,37 +376,34 @@ export function WatchlistDetailPage() {
 							Refresh
 						</Button>
 					</div>
-					{s.logsError && (
-						<div
-							role="alert"
-							className="border-b border-red-200 bg-red-50 px-4 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
-						>
-							{s.logsError}
-						</div>
-					)}
+					{s.logsError && <Banner variant="error" size="sm" description={s.logsError} />}
 					{s.logsLoading && s.logs.length === 0 ? (
-						<p role="status" aria-live="polite" className="p-4 text-xs text-muted-foreground">
+						<p
+							role="status"
+							aria-live="polite"
+							className="p-4 text-xs text-basalt-muted-foreground"
+						>
 							Loading logs…
 						</p>
 					) : s.logs.length === 0 ? (
-						<p className="p-4 text-xs text-muted-foreground">No pushes logged yet.</p>
+						<p className="p-4 text-xs text-basalt-muted-foreground">No pushes logged yet.</p>
 					) : (
-						<ul className="divide-y divide-border">
+						<ul className="divide-y divide-basalt-border">
 							{s.logs.map((log) => (
 								<li key={log.id} className="space-y-1 px-4 py-3 text-xs">
 									<div className="flex items-center justify-between gap-2">
-										<span className="font-medium text-foreground tabular-nums">
+										<span className="font-medium text-basalt-foreground tabular-nums">
 											+{log.accepted}
-											<span className="font-normal text-muted-foreground">
+											<span className="font-normal text-basalt-muted-foreground">
 												{" "}
 												/ dup {log.deduped} / rej {log.rejected}
 											</span>
 										</span>
-										<span className="shrink-0 text-muted-foreground tabular-nums">
+										<span className="shrink-0 text-basalt-muted-foreground tabular-nums">
 											of {log.attempted}
 										</span>
 									</div>
-									<p className="text-muted-foreground tabular-nums">
+									<p className="text-basalt-muted-foreground tabular-nums">
 										{new Date(log.createdAtMs).toLocaleString()}
 									</p>
 								</li>

@@ -1,5 +1,6 @@
 /** Tweet card — layout ported from legacy/v1 (avatar, metrics, translate bar, AI insight). */
 
+import { Badge, LayerCard } from "@nocoo/basalt";
 import type { SourceType } from "@xray/shared";
 import {
 	ArrowLeftRight,
@@ -27,7 +28,6 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExpandableText } from "@/components/expandable-text";
 import { XVerified } from "@/components/icons/x-verified";
 import { SourceChip } from "@/components/source-chip";
-import { Badge } from "@/components/ui/badge";
 import { useNow } from "@/hooks/use-now";
 import { POST_TEXT_CLAMP_LINES, QUOTED_TEXT_CLAMP_LINES } from "@/lib/expandable-text";
 import type { Tweet, TweetMedia } from "@/lib/tweet-types";
@@ -200,10 +200,10 @@ export const TweetCard = memo(function TweetCard({
 	}, [zhetoStatus, tweet.url, tweet.author.username, tweet.text]);
 
 	const card = (
-		<div
+		<LayerCard
 			className={cn(
-				"relative rounded-card bg-secondary p-4 transition-colors hover:bg-secondary/80",
-				showActionBar && "rounded-b-none border border-border",
+				"relative transition-colors hover:bg-basalt-accent/40",
+				showActionBar && "rounded-b-none",
 				className,
 			)}
 		>
@@ -468,11 +468,11 @@ export const TweetCard = memo(function TweetCard({
 					value={tweet.metrics.bookmark_count}
 				/>
 			</div>
-		</div>
+		</LayerCard>
 	);
 
 	const actionBar = showActionBar ? (
-		<div className="flex items-center gap-1 border border-t-0 border-border rounded-b-card bg-secondary px-2 py-1.5">
+		<div className="flex items-center gap-1 rounded-b-card border border-t-0 border-basalt-border bg-basalt-secondary px-2 py-1.5">
 			{/* Open on X */}
 			<a
 				href={tweet.url}

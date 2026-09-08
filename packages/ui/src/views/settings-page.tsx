@@ -1,8 +1,10 @@
+import { Button, Field, Input, LayerCard } from "@nocoo/basalt";
+import { Banner } from "@nocoo/basalt/components/banner";
+import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import * as settingsApi from "@/api/settings";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
-import { Button } from "@/components/ui/button";
 import { createSettingsVm } from "@/viewmodels/settings-vm";
 import { useVm } from "@/viewmodels/use-vm";
 
@@ -21,45 +23,48 @@ export function SettingsPage() {
 	}, [vm]);
 
 	return (
-		<div className="space-y-4">
-			<h1 className="font-display text-2xl font-semibold tracking-tight">Settings</h1>
-			{loading && <p className="text-sm text-muted-foreground">Loading…</p>}
-			{error && <p className="text-sm text-destructive">{error}</p>}
-			{saved && <p className="text-sm text-green-600">Saved.</p>}
-			{email && (
-				<p className="text-sm text-muted-foreground">
-					Signed in as <span className="text-foreground">{email}</span>
-				</p>
-			)}
-			<form
-				className="max-w-sm space-y-3"
-				onSubmit={(ev) => {
-					ev.preventDefault();
-					void vm.save();
-				}}
-			>
-				<label className="block text-sm">
-					<span className="text-muted-foreground">Ingest window hours (1–168)</span>
-					<input
-						type="number"
-						min={1}
-						max={168}
-						className="mt-1 w-full rounded-md border border-border bg-secondary px-3 py-2"
-						value={windowHours}
-						onChange={(e) => vm.setWindowHours(Number(e.target.value))}
-					/>
-				</label>
-				<Button type="submit" size="sm">
-					Save window
-				</Button>
-			</form>
-			<ul className="space-y-2 text-sm">
-				<li>
-					<Link className="text-primary underline-offset-4 hover:underline" to="/settings/tokens">
-						Push Tokens
-					</Link>
-				</li>
-			</ul>
+		<div className="space-y-8">
+			<PageHeader title="Settings" description="Account and ingest window." />
+			{loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
+			{error && <Banner variant="error" size="sm" description={error} />}
+			{saved && <Banner variant="default" size="sm" description="Saved." />}
+			<LayerCard className="max-w-lg">
+				<LayerCard.Body className="space-y-4">
+					{email && (
+						<p className="text-sm text-basalt-muted-foreground">
+							Signed in as <span className="text-basalt-foreground">{email}</span>
+						</p>
+					)}
+					<form
+						className="space-y-3"
+						onSubmit={(ev) => {
+							ev.preventDefault();
+							void vm.save();
+						}}
+					>
+						<Field label="Ingest window hours (1–168)">
+							<Input
+								type="number"
+								min={1}
+								max={168}
+								value={windowHours}
+								onChange={(e) => vm.setWindowHours(Number(e.target.value))}
+							/>
+						</Field>
+						<Button type="submit" size="sm">
+							Save window
+						</Button>
+					</form>
+					<p className="text-sm">
+						<Link
+							className="text-basalt-primary underline-offset-4 hover:underline"
+							to="/settings/tokens"
+						>
+							Push Tokens
+						</Link>
+					</p>
+				</LayerCard.Body>
+			</LayerCard>
 		</div>
 	);
 }

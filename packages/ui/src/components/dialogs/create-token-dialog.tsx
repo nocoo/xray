@@ -1,17 +1,17 @@
-import { KeyRound } from "lucide-react";
-import { useEffect, useId, useState } from "react";
-import { createPushToken } from "@/api/tokens";
-import { Button } from "@/components/ui/button";
 import {
+	Button,
 	Dialog,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+	Input,
+	Label,
+} from "@nocoo/basalt";
+import { KeyRound } from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import { createPushToken } from "@/api/tokens";
 
 export function CreateTokenDialog({
 	open,
@@ -57,7 +57,7 @@ export function CreateTokenDialog({
 				<form onSubmit={(e) => void submit(e)} className="grid gap-5">
 					<DialogHeader>
 						<div className="mb-1 flex items-center gap-3">
-							<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+							<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-basalt-primary/15 text-basalt-primary">
 								<KeyRound className="h-5 w-5" strokeWidth={2} />
 							</div>
 							<div>
@@ -81,7 +81,7 @@ export function CreateTokenDialog({
 								maxLength={40}
 							/>
 						</div>
-						{error && <p className="text-sm text-destructive">{error}</p>}
+						{error && <p className="text-sm text-basalt-destructive">{error}</p>}
 					</div>
 
 					<DialogFooter>
