@@ -143,12 +143,12 @@ export function CustomItemCard({
 			outlined
 			className="relative animate-fade-up"
 		>
-			<LayerCard.Body className="relative">
-				<div className="absolute top-0 right-0 flex items-center gap-1">
+			<LayerCard.Body className="relative flex flex-col gap-3">
+				<div className="absolute top-4 right-4 flex items-center gap-1">
 					<SourceChip sourceType={sourceType} />
 				</div>
 
-				<div className="mb-2 flex flex-wrap items-center gap-2 pr-16">
+				<div className="flex flex-wrap items-center gap-2 pr-16">
 					{producer && (
 						<span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
 							{producer}
@@ -164,7 +164,7 @@ export function CustomItemCard({
 				<ExpandableText
 					key={displayBody}
 					lines={POST_TEXT_CLAMP_LINES}
-					className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap text-foreground/90"
+					className="text-sm leading-relaxed whitespace-pre-wrap text-foreground/90"
 				>
 					{displayBody}
 				</ExpandableText>

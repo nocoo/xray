@@ -200,16 +200,14 @@ export const TweetCard = memo(function TweetCard({
 	}, [zhetoStatus, tweet.url, tweet.author.username, tweet.text]);
 
 	const body = (
-		<LayerCard.Body className="relative">
-			{/* source_type chip — top-right (v2 mix timeline) */}
-			<div className="absolute top-0 right-0 flex items-center gap-1">
+		<LayerCard.Body className="relative flex flex-col gap-3">
+			<div className="absolute top-4 right-4 flex items-center gap-1">
 				<SourceChip sourceType={sourceType} />
 			</div>
 
-			{/* X-style context line for RT / reply / quote (not a corner badge) */}
 			{(tweet.is_retweet || tweet.is_reply || tweet.is_quote) && (
 				<div
-					className="mb-2 flex items-center gap-1.5 pr-14 text-xs font-medium text-muted-foreground"
+					className="flex items-center gap-1.5 pr-14 text-xs font-medium text-muted-foreground"
 					data-testid="tweet-context"
 				>
 					{tweet.is_retweet && (
@@ -305,22 +303,18 @@ export const TweetCard = memo(function TweetCard({
 			<ExpandableText
 				key={displayTweet.text}
 				lines={POST_TEXT_CLAMP_LINES}
-				className="mt-3 text-sm leading-relaxed whitespace-pre-wrap"
+				className="text-sm leading-relaxed whitespace-pre-wrap"
 			>
 				{linkifyText(displayTweet.text)}
 			</ExpandableText>
 
-			{/* Media preview */}
 			{tweet.media && tweet.media.length > 0 && (
-				<div className="mt-3">
-					<MediaGrid media={tweet.media} onPhotoClick={setLightboxUrl} />
-				</div>
+				<MediaGrid media={tweet.media} onPhotoClick={setLightboxUrl} />
 			)}
 
-			{/* Entities */}
 			{tweet.entities &&
 				(tweet.entities.hashtags.length > 0 || tweet.entities.mentioned_users.length > 0) && (
-					<div className="mt-2 flex flex-wrap gap-1.5">
+					<div className="flex flex-wrap gap-1.5">
 						{tweet.entities.hashtags.map((tag) => (
 							<Badge key={tag} variant="secondary" className="h-5 text-[10px]">
 								<Hash className="mr-0.5 h-2.5 w-2.5" />
@@ -336,111 +330,99 @@ export const TweetCard = memo(function TweetCard({
 					</div>
 				)}
 
-			{/* Quoted tweet — X-style embedded card (left rail + distinct surface) */}
 			{tweet.quoted_tweet && (
 				<div
 					data-testid="quoted-embed"
-					className="group/quote relative mt-3 overflow-hidden rounded-xl border border-border bg-background/80 shadow-sm transition-colors hover:border-foreground/25"
+					className="relative overflow-hidden rounded-xl ring-1 ring-basalt-border/30"
 				>
-					<div className="flex">
-						<div className="w-1 shrink-0 bg-neutral-900 dark:bg-white" aria-hidden />
-						<div className="min-w-0 flex-1 p-3">
-							<div className="mb-1.5 flex items-center gap-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-								<Quote className="h-3 w-3" aria-hidden />
-								Quoted post
-								<a
-									href={tweet.quoted_tweet.url}
-									target="_blank"
-									rel="noopener noreferrer"
-									className="ml-auto rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-									title="Open quoted post on X"
-									onClick={(e) => e.stopPropagation()}
-								>
-									<ExternalLink className="h-3 w-3" aria-hidden />
-								</a>
-							</div>
-
-							<div className="flex items-center gap-2">
-								<a
-									href={`https://x.com/${tweet.quoted_tweet.author.username}`}
-									target="_blank"
-									rel="noopener noreferrer"
-									className="flex min-w-0 items-center gap-2 hover:opacity-80"
-									onClick={(e) => e.stopPropagation()}
-								>
-									{tweet.quoted_tweet.author.profile_image_url ? (
-										<img
-											src={tweet.quoted_tweet.author.profile_image_url}
-											alt=""
-											className="h-5 w-5 shrink-0 rounded-full"
-										/>
-									) : (
-										<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
-											{tweet.quoted_tweet.author.name[0]}
-										</div>
-									)}
-									<span className="truncate text-xs font-medium">
-										{tweet.quoted_tweet.author.name}
-									</span>
-								</a>
-								{tweet.quoted_tweet.author.is_verified && <XVerified className="h-3.5 w-3.5" />}
-								<a
-									href={`https://x.com/${tweet.quoted_tweet.author.username}`}
-									target="_blank"
-									rel="noopener noreferrer"
-									className="truncate text-xs text-muted-foreground hover:underline"
-									onClick={(e) => e.stopPropagation()}
-								>
-									@{tweet.quoted_tweet.author.username}
-								</a>
-								{tweet.quoted_tweet.created_at ? (
-									<>
-										<span className="text-xs text-muted-foreground">·</span>
-										<span className="shrink-0 text-xs text-muted-foreground">
-											{formatTimeAgo(tweet.quoted_tweet.created_at, "compact", nowMs)}
-										</span>
-									</>
-								) : null}
-							</div>
-
-							<ExpandableText
-								key={displayTweet.quoted_tweet?.text ?? tweet.quoted_tweet.text}
-								lines={QUOTED_TEXT_CLAMP_LINES}
-								className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-foreground/90"
+					<Quote
+						className="pointer-events-none absolute right-1 bottom-0 h-14 w-14 text-basalt-foreground/[0.08]"
+						aria-hidden
+					/>
+					<div className="relative flex flex-col gap-3 p-3 pr-10">
+						<div className="flex items-center gap-2">
+							<a
+								href={`https://x.com/${tweet.quoted_tweet.author.username}`}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="flex min-w-0 items-center gap-2 hover:opacity-80"
+								onClick={(e) => e.stopPropagation()}
 							>
-								{linkifyText(displayTweet.quoted_tweet?.text ?? tweet.quoted_tweet.text)}
-							</ExpandableText>
-
-							{tweet.quoted_tweet.media && tweet.quoted_tweet.media.length > 0 && (
-								<div className="mt-2">
-									<MediaGrid
-										media={tweet.quoted_tweet.media}
-										compact
-										onPhotoClick={setLightboxUrl}
+								{tweet.quoted_tweet.author.profile_image_url ? (
+									<img
+										src={tweet.quoted_tweet.author.profile_image_url}
+										alt=""
+										className="h-5 w-5 shrink-0 rounded-full"
 									/>
-								</div>
-							)}
+								) : (
+									<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
+										{tweet.quoted_tweet.author.name[0]}
+									</div>
+								)}
+								<span className="truncate text-xs font-medium">
+									{tweet.quoted_tweet.author.name}
+								</span>
+							</a>
+							{tweet.quoted_tweet.author.is_verified && <XVerified className="h-3.5 w-3.5" />}
+							<a
+								href={`https://x.com/${tweet.quoted_tweet.author.username}`}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="truncate text-xs text-muted-foreground hover:underline"
+								onClick={(e) => e.stopPropagation()}
+							>
+								@{tweet.quoted_tweet.author.username}
+							</a>
+							{tweet.quoted_tweet.created_at ? (
+								<>
+									<span className="text-xs text-muted-foreground">·</span>
+									<span className="shrink-0 text-xs text-muted-foreground">
+										{formatTimeAgo(tweet.quoted_tweet.created_at, "compact", nowMs)}
+									</span>
+								</>
+							) : null}
+							<a
+								href={tweet.quoted_tweet.url}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="ml-auto rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+								title="Open quoted post on X"
+								onClick={(e) => e.stopPropagation()}
+							>
+								<ExternalLink className="h-3 w-3" aria-hidden />
+							</a>
+						</div>
 
-							<div className="mt-2 flex items-center gap-3 text-[10px] text-muted-foreground">
-								<span className="flex items-center gap-0.5">
-									<Heart className="h-3 w-3" /> {formatCount(tweet.quoted_tweet.metrics.like_count)}
-								</span>
-								<span className="flex items-center gap-0.5">
-									<Repeat2 className="h-3 w-3" />{" "}
-									{formatCount(tweet.quoted_tweet.metrics.retweet_count)}
-								</span>
-								<span className="flex items-center gap-0.5">
-									<Eye className="h-3 w-3" /> {formatCount(tweet.quoted_tweet.metrics.view_count)}
-								</span>
-							</div>
+						<ExpandableText
+							key={displayTweet.quoted_tweet?.text ?? tweet.quoted_tweet.text}
+							lines={QUOTED_TEXT_CLAMP_LINES}
+							className="text-sm leading-relaxed whitespace-pre-wrap text-foreground/90"
+						>
+							{linkifyText(displayTweet.quoted_tweet?.text ?? tweet.quoted_tweet.text)}
+						</ExpandableText>
+
+						{tweet.quoted_tweet.media && tweet.quoted_tweet.media.length > 0 && (
+							<MediaGrid media={tweet.quoted_tweet.media} compact onPhotoClick={setLightboxUrl} />
+						)}
+
+						<div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+							<span className="flex items-center gap-0.5">
+								<Heart className="h-3 w-3" /> {formatCount(tweet.quoted_tweet.metrics.like_count)}
+							</span>
+							<span className="flex items-center gap-0.5">
+								<Repeat2 className="h-3 w-3" />{" "}
+								{formatCount(tweet.quoted_tweet.metrics.retweet_count)}
+							</span>
+							<span className="flex items-center gap-0.5">
+								<Eye className="h-3 w-3" /> {formatCount(tweet.quoted_tweet.metrics.view_count)}
+							</span>
 						</div>
 					</div>
 				</div>
 			)}
 
-			{/* Metrics row — overflow hidden with fade-out mask on the right */}
 			<div
-				className="mt-3 flex items-center gap-4 text-xs text-muted-foreground overflow-hidden"
+				className="flex items-center gap-4 overflow-hidden text-xs text-muted-foreground"
 				style={{
 					maskImage: "linear-gradient(to right, black 80%, transparent 100%)",
 					WebkitMaskImage: "linear-gradient(to right, black 80%, transparent 100%)",
