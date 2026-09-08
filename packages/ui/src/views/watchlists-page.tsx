@@ -79,7 +79,7 @@ export function WatchlistsPage() {
 					const color = getAvatarColor(wl.name);
 					return (
 						<Link key={wl.id} to={`/watchlist/${wl.id}`} className="group">
-							<LayerCard className="transition-colors hover:bg-basalt-accent/50">
+							<LayerCard className="animate-fade-up transition-colors hover:bg-basalt-accent/50">
 								<div className="flex items-center gap-3">
 									<div
 										className={cn("flex h-10 w-10 items-center justify-center rounded-lg", color)}

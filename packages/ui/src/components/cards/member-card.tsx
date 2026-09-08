@@ -56,7 +56,7 @@ export const MemberCard = memo(function MemberCard({
 
 	return (
 		<LayerCard
-			className="group relative flex items-start gap-3"
+			className="group relative flex animate-fade-up items-start gap-3"
 			padding="sm"
 			data-source-type={member.sourceType}
 		>

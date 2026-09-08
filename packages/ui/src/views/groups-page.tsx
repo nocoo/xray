@@ -152,7 +152,10 @@ export function GroupsPage() {
 					<li key={g.id}>
 						<LayerCard
 							outlined={s.selectedId === g.id}
-							className={cn(s.selectedId === g.id && "ring-2 ring-basalt-primary")}
+							className={cn(
+								"animate-fade-up",
+								s.selectedId === g.id && "ring-2 ring-basalt-primary",
+							)}
 						>
 							<Button
 								type="button"

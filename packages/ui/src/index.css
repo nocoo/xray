@@ -66,7 +66,7 @@
 @keyframes fade-up {
 	from {
 		opacity: 0;
-		transform: translateY(12px);
+		transform: translateY(6px);
 	}
 	to {
 		opacity: 1;
@@ -75,32 +75,32 @@
 }
 
 @utility fade-up-stagger-1 {
-	animation: fade-up 0.5s ease-out both;
+	animation: fade-up 0.18s ease-out both;
 	animation-delay: 0ms;
 }
 
 @utility fade-up-stagger-2 {
-	animation: fade-up 0.5s ease-out both;
-	animation-delay: 60ms;
+	animation: fade-up 0.18s ease-out both;
+	animation-delay: 30ms;
 }
 
 @utility fade-up-stagger-3 {
-	animation: fade-up 0.5s ease-out both;
-	animation-delay: 120ms;
+	animation: fade-up 0.18s ease-out both;
+	animation-delay: 60ms;
 }
 
 @utility fade-up-stagger-4 {
-	animation: fade-up 0.5s ease-out both;
-	animation-delay: 180ms;
+	animation: fade-up 0.18s ease-out both;
+	animation-delay: 90ms;
 }
 
 @utility fade-up-stagger-5 {
-	animation: fade-up 0.5s ease-out both;
-	animation-delay: 240ms;
+	animation: fade-up 0.18s ease-out both;
+	animation-delay: 120ms;
 }
 
 @utility animate-fade-up {
-	animation: fade-up 0.5s ease-out both;
+	animation: fade-up 0.18s ease-out both;
 }
 
 nav[aria-label="Breadcrumb"] svg,
