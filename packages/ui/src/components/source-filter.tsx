@@ -22,6 +22,7 @@ export function SourceFilter({
 	return (
 		<SegmentControl
 			legend="Source"
+			className="[&>legend]:sr-only [&_[data-slot=segment-control-viewport]]:pb-0"
 			value={value}
 			onValueChange={(next) => onChange(next as SourceFilterValue)}
 			allOption={{ value: "all", label: labelFor("all", counts?.all) }}
