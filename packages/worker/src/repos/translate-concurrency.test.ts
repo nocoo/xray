@@ -100,6 +100,19 @@ describe("translate claim ownership", () => {
 
 		const secondOut = await second;
 		expect(secondOut.results).toEqual([]);
+
+		const perCard = await runTranslateBatch(db, "u1", wlId, {
+			itemIds: [itemId],
+			config,
+			apiKey: "sk",
+			deadlineMs: 60_000,
+			translateFn: async () => {
+				calls += 1;
+				throw new Error("should not steal in-flight item");
+			},
+		});
+		expect(perCard.results).toEqual([{ id: itemId, ai_status: "pending" }]);
+
 		release();
 		const firstOut = await first;
 

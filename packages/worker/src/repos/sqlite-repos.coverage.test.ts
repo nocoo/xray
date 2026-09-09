@@ -227,6 +227,8 @@ describe("sqlite repos coverage", () => {
 				claimMs,
 			);
 			await translate.loadSucceededTranslations(db, "u1", wl.id, [firstCand.id]);
+			await translate.loadPendingTranslations(db, "u1", wl.id, [firstCand.id]);
+			await translate.loadPendingTranslations(db, "u1", wl.id, []);
 		}
 		const batch = await translate.runTranslateBatch(db, "u1", wl.id, {
 			limit: 3,

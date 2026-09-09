@@ -86,6 +86,30 @@ export async function loadSucceededTranslations(
 	}));
 }
 
+export async function loadPendingTranslations(
+	db: D1Database,
+	userId: string,
+	watchlistId: number,
+	itemIds: number[],
+): Promise<TranslateItemResult[]> {
+	const ids = itemIds.filter((n) => Number.isInteger(n) && n > 0).slice(0, TRANSLATE_MAX);
+	if (!ids.length) return [];
+	const ph = ids.map(() => "?").join(",");
+	const { results } = await db
+		.prepare(
+			`SELECT id FROM items
+       WHERE user_id = ? AND watchlist_id = ?
+         AND id IN (${ph})
+         AND ai_status = 'pending'`,
+		)
+		.bind(userId, watchlistId, ...ids)
+		.all<{ id: number }>();
+	return (results ?? []).map((r) => ({
+		id: r.id,
+		ai_status: "pending" as const,
+	}));
+}
+
 export async function selectTranslateCandidates(
 	db: D1Database,
 	userId: string,
@@ -220,10 +244,10 @@ export async function runTranslateBatch(
 		nowMs,
 	);
 	if (!claimed.length) {
-		// Per-card translate with item_ids: return already-succeeded rows so UI can hydrate.
 		if (opts.itemIds?.length) {
 			const existing = await loadSucceededTranslations(db, userId, watchlistId, opts.itemIds);
-			return { results: existing, timed_out: false };
+			const pending = await loadPendingTranslations(db, userId, watchlistId, opts.itemIds);
+			return { results: [...existing, ...pending], timed_out: false };
 		}
 		return { results: [], timed_out: false };
 	}

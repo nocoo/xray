@@ -30,6 +30,7 @@ import { XVerified } from "@/components/icons/x-verified";
 import { SourceChip } from "@/components/source-chip";
 import { useNow } from "@/hooks/use-now";
 import { POST_TEXT_CLAMP_LINES, QUOTED_TEXT_CLAMP_LINES } from "@/lib/expandable-text";
+import { readTranslateRow } from "@/lib/translate-result";
 import type { Tweet, TweetMedia } from "@/lib/tweet-types";
 import { cn, formatCount, formatTimeAgo } from "@/lib/utils";
 
@@ -158,16 +159,18 @@ export const TweetCard = memo(function TweetCard({
 				throw new Error(json?.error || res.statusText || `HTTP ${res.status}`);
 			}
 			const row = json.data?.results?.find((r) => r.id === itemId) ?? json.data?.results?.[0];
-			if (row?.ai_status !== "succeeded" || !row.translatedText) {
-				throw new Error(row?.error || "Translation failed — configure AI Settings");
+			const parsed = readTranslateRow(row);
+			if (parsed.status === "pending") return;
+			if (parsed.status === "failed") {
+				throw new Error(parsed.error);
 			}
-			setTranslatedText(row.translatedText);
-			setCommentText(row.summaryText ?? null);
+			setTranslatedText(parsed.translatedText);
+			setCommentText(parsed.summaryText);
 			setQuotedTranslatedText(null);
 			setLang("zh");
 			onTranslated?.({
-				translatedText: row.translatedText,
-				summaryText: row.summaryText ?? null,
+				translatedText: parsed.translatedText,
+				summaryText: parsed.summaryText,
 			});
 		} catch (e) {
 			setTranslateError(e instanceof Error ? e.message : String(e));

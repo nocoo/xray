@@ -13,6 +13,7 @@ import { ExpandableText } from "@/components/expandable-text";
 import { SourceChip } from "@/components/source-chip";
 import { useNow } from "@/hooks/use-now";
 import { POST_TEXT_CLAMP_LINES } from "@/lib/expandable-text";
+import { readTranslateRow } from "@/lib/translate-result";
 import { cn, formatTimeAgo } from "@/lib/utils";
 import { canSaveToZheto, postZhetoSave, type ZhetoSaveState } from "@/lib/zheto-save";
 
@@ -103,15 +104,17 @@ export function CustomItemCard({
 				throw new Error(json?.error || res.statusText || `HTTP ${res.status}`);
 			}
 			const row = json.data?.results?.find((r) => r.id === itemId) ?? json.data?.results?.[0];
-			if (row?.ai_status !== "succeeded" || !row.translatedText) {
-				throw new Error(row?.error || "Translation failed — configure AI Settings");
+			const parsed = readTranslateRow(row);
+			if (parsed.status === "pending") return;
+			if (parsed.status === "failed") {
+				throw new Error(parsed.error);
 			}
-			setTranslatedText(row.translatedText);
-			setSummaryText(row.summaryText ?? null);
+			setTranslatedText(parsed.translatedText);
+			setSummaryText(parsed.summaryText);
 			setLang("zh");
 			onTranslated?.({
-				translatedText: row.translatedText,
-				summaryText: row.summaryText ?? null,
+				translatedText: parsed.translatedText,
+				summaryText: parsed.summaryText,
 			});
 		} catch (e) {
 			setTranslateError(e instanceof Error ? e.message : String(e));
