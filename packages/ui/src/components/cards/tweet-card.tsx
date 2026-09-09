@@ -843,7 +843,12 @@ function MediaGrid({
 		const m = at(media, 0);
 		return (
 			<div className={`overflow-hidden ${roundedClass} bg-muted`}>
-				<VideoMedia media={m} className={`w-full ${roundedClass}`} onPlay={onVideoPlay} />
+				<VideoMedia
+					key={m.id}
+					media={m}
+					className={`w-full ${roundedClass}`}
+					onPlay={onVideoPlay}
+				/>
 			</div>
 		);
 	}
@@ -873,7 +878,7 @@ function MediaGrid({
 				if (m.type === "GIF" || m.type === "VIDEO") {
 					return (
 						<div key={m.id} className={containerClass}>
-							<VideoMedia media={m} className={scrollMediaClass} onPlay={onVideoPlay} />
+							<VideoMedia key={m.id} media={m} className={scrollMediaClass} onPlay={onVideoPlay} />
 						</div>
 					);
 				}
@@ -893,6 +898,9 @@ function MediaGrid({
 
 // =============================================================================
 // VideoMedia — GIF loops inline; VIDEO is a fake poster that opens VideoLightbox
+// twitter-cli media is {type,url,width,height} only — no preview_image_url.
+// When thumbnail_url is missing, capture the first decoded frame via canvas
+// (proxied same-origin) so the feed still shows a still behind the play button.
 // =============================================================================
 
 function VideoMedia({
@@ -906,7 +914,73 @@ function VideoMedia({
 }) {
 	const isGif = media.type === "GIF";
 	const src = proxyUrl(media.url);
-	const poster = media.thumbnail_url ? proxyUrl(media.thumbnail_url) : undefined;
+	const givenPoster = media.thumbnail_url ? proxyUrl(media.thumbnail_url) : undefined;
+	const videoRef = useRef<HTMLVideoElement>(null);
+	const [capturedPoster, setCapturedPoster] = useState<string | undefined>(undefined);
+	const poster = givenPoster ?? capturedPoster;
+
+	// media.url is the clip identity; swapping src reuses this element.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: media.url is the intentional identity key
+	useEffect(() => {
+		if (isGif || givenPoster) return;
+		const v = videoRef.current;
+		if (!v) return;
+		let cancelled = false;
+		setCapturedPoster(undefined);
+
+		const snap = () => {
+			if (cancelled || !v.videoWidth || !v.videoHeight) return;
+			try {
+				const maxEdge = 720;
+				const scale = Math.min(1, maxEdge / Math.max(v.videoWidth, v.videoHeight));
+				const w = Math.max(1, Math.round(v.videoWidth * scale));
+				const h = Math.max(1, Math.round(v.videoHeight * scale));
+				const canvas = document.createElement("canvas");
+				canvas.width = w;
+				canvas.height = h;
+				const ctx = canvas.getContext("2d");
+				if (!ctx) return;
+				ctx.drawImage(v, 0, 0, w, h);
+				const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
+				if (!cancelled && dataUrl.startsWith("data:image")) {
+					setCapturedPoster(dataUrl);
+				}
+			} catch {
+				/* tainted canvas / decode race */
+			}
+		};
+
+		const onSeeked = () => {
+			snap();
+			try {
+				v.pause();
+				v.currentTime = 0;
+			} catch {
+				/* ignore */
+			}
+		};
+
+		const kick = () => {
+			if (cancelled) return;
+			v.addEventListener("seeked", onSeeked, { once: true });
+			try {
+				const t =
+					Number.isFinite(v.duration) && v.duration > 0 ? Math.min(0.25, v.duration * 0.05) : 0.1;
+				v.currentTime = t;
+			} catch {
+				snap();
+			}
+		};
+
+		if (v.readyState >= 2) kick();
+		else v.addEventListener("loadeddata", kick, { once: true });
+
+		return () => {
+			cancelled = true;
+			v.removeEventListener("seeked", onSeeked);
+			v.removeEventListener("loadeddata", kick);
+		};
+	}, [media.url, isGif, givenPoster]);
 
 	if (isGif) {
 		return (
@@ -941,14 +1015,22 @@ function VideoMedia({
 				}}
 				aria-label="Play video"
 			>
+				{givenPoster ? null : (
+					<video
+						ref={videoRef}
+						src={`${src}#t=0.001`}
+						muted
+						playsInline
+						preload="metadata"
+						className={cn("pointer-events-none block", className, poster ? "hidden" : null)}
+						aria-hidden
+					>
+						<track kind="captions" />
+					</video>
+				)}
 				{poster ? (
 					<img src={poster} alt="" className={cn("block", className)} loading="lazy" />
-				) : (
-					<div
-						className={cn(className, "aspect-video min-h-40 min-w-[12rem] bg-zinc-900")}
-						aria-hidden
-					/>
-				)}
+				) : null}
 				<span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25 opacity-80 transition-opacity group-hover:opacity-100">
 					<span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/60 text-white shadow-lg ring-1 ring-white/30 backdrop-blur-sm">
 						<Play className="ml-0.5 h-7 w-7 fill-current" aria-hidden />
