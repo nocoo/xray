@@ -998,8 +998,11 @@ function PhotoItem({
 }
 
 // =============================================================================
-// ImageLightbox — fullscreen popup to view a high-res photo
+// ImageLightbox — media at 80% on the Dialog overlay blur, no panel chrome
 // =============================================================================
+
+const LIGHTBOX_SHELL =
+	"flex h-[80vh] w-[80vw] max-h-[80vh] max-w-[80vw] flex-col items-center justify-center overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none ring-0 outline-none sm:w-[80vw] sm:max-w-[80vw]";
 
 function ImageLightbox({
 	urls,
@@ -1055,7 +1058,8 @@ function ImageLightbox({
 			<DialogContent
 				size="xl"
 				aria-describedby={undefined}
-				className="flex h-[80vh] w-[80vw] max-h-[80vh] max-w-[80vw] flex-col overflow-hidden bg-zinc-950 p-0 shadow-none ring-0 sm:w-[80vw]"
+				className={LIGHTBOX_SHELL}
+				style={{ background: "transparent" }}
 				onCloseAutoFocus={onCloseAutoFocus}
 			>
 				<DialogTitle className="sr-only">
@@ -1066,23 +1070,20 @@ function ImageLightbox({
 						type="button"
 						variant="ghost"
 						size="icon"
-						className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
+						className="fixed top-4 right-4 z-10 h-8 w-8 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
 						aria-label="Close"
 					>
 						<X className="h-5 w-5" />
 					</Button>
 				</DialogClose>
-				<div className="relative min-h-0 flex-1 overflow-hidden">
+				<div className="relative h-full w-full overflow-hidden">
 					<div
 						className="flex h-full transition-transform duration-300 ease-out motion-reduce:transition-none"
 						style={{ transform: `translateX(-${index * 100}%)` }}
 					>
 						{urls.map((src) => (
-							<div
-								key={src}
-								className="flex h-full w-full shrink-0 items-center justify-center px-12"
-							>
-								<img src={src} alt="" className="max-h-full max-w-full rounded-lg object-contain" />
+							<div key={src} className="flex h-full w-full shrink-0 items-center justify-center">
+								<img src={src} alt="" className="max-h-full max-w-full object-contain" />
 							</div>
 						))}
 					</div>
@@ -1092,7 +1093,7 @@ function ImageLightbox({
 								type="button"
 								variant="ghost"
 								size="icon"
-								className="absolute top-1/2 left-2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
+								className="absolute top-1/2 left-0 z-10 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
 								aria-label="Previous image"
 								onClick={() => go(-1)}
 							>
@@ -1102,7 +1103,7 @@ function ImageLightbox({
 								type="button"
 								variant="ghost"
 								size="icon"
-								className="absolute top-1/2 right-2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
+								className="absolute top-1/2 right-0 z-10 h-10 w-10 translate-x-1/2 -translate-y-1/2 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
 								aria-label="Next image"
 								onClick={() => go(1)}
 							>
@@ -1112,7 +1113,7 @@ function ImageLightbox({
 					) : null}
 				</div>
 				{canNav ? (
-					<div className="flex shrink-0 flex-col items-center gap-2 px-4 py-3">
+					<div className="absolute bottom-0 left-1/2 z-10 flex max-w-full translate-y-[calc(100%+0.75rem)] -translate-x-1/2 flex-col items-center gap-2">
 						<p className="text-xs tabular-nums text-white/70">
 							{index + 1} / {count}
 						</p>
@@ -1167,7 +1168,8 @@ function VideoLightbox({
 			<DialogContent
 				size="xl"
 				aria-describedby={undefined}
-				className="flex h-[80vh] w-[80vw] max-h-[80vh] max-w-[80vw] flex-col overflow-hidden bg-zinc-950 p-0 shadow-none ring-0 sm:w-[80vw]"
+				className={LIGHTBOX_SHELL}
+				style={{ background: "transparent" }}
 				onCloseAutoFocus={onCloseAutoFocus}
 			>
 				<DialogTitle className="sr-only">Video player</DialogTitle>
@@ -1176,27 +1178,25 @@ function VideoLightbox({
 						type="button"
 						variant="ghost"
 						size="icon"
-						className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
+						className="fixed top-4 right-4 z-10 h-8 w-8 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
 						aria-label="Close"
 					>
 						<X className="h-5 w-5" />
 					</Button>
 				</DialogClose>
-				<div className="flex min-h-0 flex-1 items-center justify-center p-4">
-					{src ? (
-						<video
-							key={src}
-							src={src}
-							poster={poster}
-							controls
-							autoPlay
-							playsInline
-							className="max-h-full max-w-full rounded-lg"
-						>
-							<track kind="captions" />
-						</video>
-					) : null}
-				</div>
+				{src ? (
+					<video
+						key={src}
+						src={src}
+						poster={poster}
+						controls
+						autoPlay
+						playsInline
+						className="max-h-full max-w-full"
+					>
+						<track kind="captions" />
+					</video>
+				) : null}
 			</DialogContent>
 		</Dialog>
 	);
