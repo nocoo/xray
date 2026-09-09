@@ -593,7 +593,7 @@ describe("createWatchlistDetailVm", () => {
 			followers_count: 9,
 		});
 
-		// no profile_image_url → unavatar; sparse user fields
+		// no profile_image_url → letter fallback in the card, not a third-party avatar CDN
 		const sparse = itemToTweet({
 			...item,
 			payload: {
@@ -613,7 +613,7 @@ describe("createWatchlistDetailVm", () => {
 		});
 		expect(sparse?.quoted_tweet?.author.username).toBe("c");
 		expect(sparse?.quoted_tweet?.author.name).toBe("c");
-		expect(sparse?.quoted_tweet?.author.profile_image_url).toContain("unavatar.io/x/c");
+		expect(sparse?.quoted_tweet?.author.profile_image_url).toBeUndefined();
 
 		// author_id present but user missing from includes
 		const miss = itemToTweet({

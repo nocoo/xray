@@ -66,7 +66,7 @@ export function memberToCard(m: Member): MockWatchlistMember {
 		profile: m.displayName
 			? {
 					displayName: m.displayName,
-					profileImageUrl: m.sourceType === "x.com" ? `https://unavatar.io/x/${m.handle}` : "",
+					profileImageUrl: "",
 					followersCount: 0,
 					isVerified: false,
 				}
@@ -177,10 +177,7 @@ function resolveAuthor(
 	const username =
 		fromIncludes?.username || payloadAuthor?.username || item.authorUsername || "unknown";
 	const displayName = fromIncludes?.name || payloadAuthor?.display_name || username;
-	const avatar =
-		fromIncludes?.profile_image_url ||
-		payloadAuthor?.avatar_url ||
-		(username !== "unknown" ? `https://unavatar.io/x/${username}` : undefined);
+	const avatar = fromIncludes?.profile_image_url || payloadAuthor?.avatar_url;
 	return {
 		id: authorId || fromIncludes?.id || username,
 		username,

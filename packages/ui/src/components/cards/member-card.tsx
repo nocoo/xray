@@ -22,7 +22,7 @@ export const MemberCard = memo(function MemberCard({
 	const p = member.profile;
 	const displayName = p?.displayName ?? null;
 	const isX = member.sourceType === "x.com";
-	const avatarUrl = p?.profileImageUrl || (isX ? `https://unavatar.io/x/${member.handle}` : "");
+	const avatarUrl = p?.profileImageUrl ?? "";
 	const profileHref = isX ? `https://x.com/${member.handle}` : undefined;
 	const handleLabel = isX ? `@${member.handle}` : member.handle;
 	const letter = (displayName ?? member.handle)[0]?.toUpperCase() ?? "?";
