@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { createElement, useState } from "react";
+import { createElement, StrictMode, useState } from "react";
 import { afterEach, describe, expect, test } from "vitest";
 import { useRestoreDialogFocus } from "./restore-dialog-focus";
 
@@ -48,6 +48,16 @@ describe("useRestoreDialogFocus", () => {
 
 	test("restores opener after the overlay remounts", () => {
 		render(createElement(Probe, { remount: true }));
+		const open = screen.getByRole("button", { name: "Open" });
+		open.focus();
+		fireEvent.click(open);
+		fireEvent.click(screen.getByRole("button", { name: "Remount" }));
+		fireEvent.click(screen.getByRole("button", { name: "Close" }));
+		expect(document.activeElement).toBe(open);
+	});
+
+	test("restores opener under StrictMode after remount", () => {
+		render(createElement(StrictMode, null, createElement(Probe, { remount: true })));
 		const open = screen.getByRole("button", { name: "Open" });
 		open.focus();
 		fireEvent.click(open);

@@ -4,17 +4,20 @@ import { useEffect, useRef } from "react";
 export function useRestoreDialogFocus(open: boolean) {
 	const restoreFocusRef = useRef<HTMLElement | null>(null);
 	const wasOpenRef = useRef(false);
-	if (open && !wasOpenRef.current) {
-		restoreFocusRef.current =
-			document.activeElement instanceof HTMLElement ? document.activeElement : null;
-	}
-	const closing = wasOpenRef.current && !open;
-	wasOpenRef.current = open;
 
 	useEffect(() => {
-		if (!closing) return;
+		if (open) {
+			if (!wasOpenRef.current) {
+				restoreFocusRef.current =
+					document.activeElement instanceof HTMLElement ? document.activeElement : null;
+			}
+			wasOpenRef.current = true;
+			return;
+		}
+		if (!wasOpenRef.current) return;
+		wasOpenRef.current = false;
 		restoreFocusRef.current?.focus();
-	}, [closing]);
+	}, [open]);
 
 	return (event: { preventDefault: () => void }) => {
 		event.preventDefault();
