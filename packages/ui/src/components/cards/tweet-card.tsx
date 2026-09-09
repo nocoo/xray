@@ -50,6 +50,8 @@ import { cn, formatCount, formatTimeAgo } from "@/lib/utils";
 // TweetCard — reusable tweet display component
 // =============================================================================
 
+type LightboxPhoto = { id: string; src: string };
+
 export interface TweetCardProps {
 	tweet: Tweet;
 	/** Canonical source_type — always x.com for this card shell. */
@@ -94,15 +96,18 @@ export const TweetCard = memo(function TweetCard({
 }: TweetCardProps) {
 	void linkToDetail;
 	const nowMs = useNow();
-	const [lightbox, setLightbox] = useState<{ urls: string[]; index: number } | null>(null);
+	const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null);
 	const lightboxOpenerRef = useRef<HTMLElement | null>(null);
 	const [videoPlayer, setVideoPlayer] = useState<{ src: string; poster?: string } | null>(null);
 	const videoOpenerRef = useRef<HTMLElement | null>(null);
 
-	const openLightbox = useCallback((urls: string[], index: number, opener: HTMLElement) => {
-		lightboxOpenerRef.current = opener;
-		setLightbox({ urls, index });
-	}, []);
+	const openLightbox = useCallback(
+		(photos: LightboxPhoto[], index: number, opener: HTMLElement) => {
+			lightboxOpenerRef.current = opener;
+			setLightbox({ photos, index });
+		},
+		[],
+	);
 
 	const openVideo = useCallback((src: string, poster: string | undefined, opener: HTMLElement) => {
 		videoOpenerRef.current = opener;
@@ -623,7 +628,7 @@ export const TweetCard = memo(function TweetCard({
 				{actionBar}
 			</LayerCard>
 			<ImageLightbox
-				urls={lightbox?.urls ?? []}
+				photos={lightbox?.photos ?? []}
 				index={lightbox?.index ?? 0}
 				open={lightbox != null}
 				onClose={() => setLightbox(null)}
@@ -740,16 +745,16 @@ function MediaGrid({
 }: {
 	media: TweetMedia[];
 	compact?: boolean;
-	onPhotoClick?: (urls: string[], index: number, opener: HTMLElement) => void;
+	onPhotoClick?: (photos: LightboxPhoto[], index: number, opener: HTMLElement) => void;
 	onVideoPlay?: (src: string, poster: string | undefined, opener: HTMLElement) => void;
 }) {
 	const photos = media.filter((m) => m.type === "PHOTO");
 	const allPhotos = photos.length === media.length;
-	const photoUrls = photos.map((m) => proxyUrl(m.url));
+	const galleryPhotos = photos.map((m) => ({ id: m.id, src: proxyUrl(m.url) }));
 	const handlePhotoClick = onPhotoClick
-		? (url: string, opener: HTMLElement) => {
-				const index = photoUrls.indexOf(url);
-				onPhotoClick(photoUrls, index < 0 ? 0 : index, opener);
+		? (id: string, opener: HTMLElement) => {
+				const index = galleryPhotos.findIndex((photo) => photo.id === id);
+				onPhotoClick(galleryPhotos, index < 0 ? 0 : index, opener);
 			}
 		: undefined;
 	const gridHeight = compact ? "h-44" : "h-60";
@@ -961,7 +966,7 @@ function PhotoItem({
 	media: TweetMedia;
 	className: string;
 	containerClass?: string;
-	onClick?: (url: string, opener: HTMLElement) => void;
+	onClick?: (id: string, opener: HTMLElement) => void;
 }) {
 	const src = proxyUrl(media.url);
 	const handleClick = useCallback(
@@ -969,9 +974,9 @@ function PhotoItem({
 			if (!onClick) return;
 			e.stopPropagation();
 			e.preventDefault();
-			onClick(src, e.currentTarget);
+			onClick(media.id, e.currentTarget);
 		},
-		[onClick, src],
+		[onClick, media.id],
 	);
 
 	const content = (
@@ -1002,51 +1007,133 @@ function PhotoItem({
 // =============================================================================
 
 const LIGHTBOX_SHELL =
-	"flex h-[80vh] w-[80vw] max-h-[80vh] max-w-[80vw] flex-col items-center justify-center overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none ring-0 outline-none sm:w-[80vw] sm:max-w-[80vw]";
+	"h-[80dvh] w-[80vw] max-h-[80dvh] max-w-[80vw] overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none ring-0 sm:w-[80vw] sm:max-w-[80vw]";
+
+const LIGHTBOX_BUTTON = "rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white";
+
+function LightboxCloseButton() {
+	return (
+		<DialogClose asChild>
+			<Button
+				variant="ghost"
+				size="icon"
+				className={cn(
+					LIGHTBOX_BUTTON,
+					"absolute right-0 bottom-full z-10 mb-[min(0.5rem,1dvh)] h-[min(2rem,8dvh)] w-[min(2rem,8dvh)]",
+				)}
+				aria-label="Close"
+			>
+				<X className="h-5 w-5" />
+			</Button>
+		</DialogClose>
+	);
+}
+
+function LightboxMedia({
+	src,
+	poster,
+	kind,
+}: {
+	src: string;
+	poster?: string;
+	kind: "image" | "video";
+}) {
+	const [failed, setFailed] = useState(false);
+
+	if (failed) {
+		return (
+			<div className="flex h-full w-full flex-col items-center justify-center gap-3 text-white">
+				<p role="alert" className="text-sm">
+					Unable to load this {kind}.
+				</p>
+				<Button variant="secondary" onClick={() => setFailed(false)}>
+					Retry
+				</Button>
+			</div>
+		);
+	}
+
+	if (kind === "image") {
+		return (
+			<img
+				src={src}
+				alt=""
+				draggable={false}
+				className="block h-full w-full object-contain"
+				onError={() => setFailed(true)}
+			/>
+		);
+	}
+
+	return (
+		<video
+			src={src}
+			poster={poster}
+			controls
+			autoPlay
+			playsInline
+			className="block h-full w-full object-contain"
+			onError={() => setFailed(true)}
+		>
+			<track kind="captions" />
+		</video>
+	);
+}
 
 function ImageLightbox({
-	urls,
+	photos,
 	index: initialIndex,
 	open,
 	onClose,
 	onCloseAutoFocus,
 }: {
-	urls: string[];
+	photos: LightboxPhoto[];
 	index: number;
 	open: boolean;
 	onClose: () => void;
 	onCloseAutoFocus?: (event: { preventDefault: () => void }) => void;
 }) {
 	const [index, setIndex] = useState(initialIndex);
-	const count = urls.length;
+	const dialogRef = useRef<HTMLDivElement>(null);
+	const [thumbnailStrip, setThumbnailStrip] = useState<HTMLDivElement | null>(null);
+	const count = photos.length;
 	const canNav = count > 1;
 
 	useEffect(() => {
 		if (open) setIndex(initialIndex);
 	}, [open, initialIndex]);
 
+	useEffect(() => {
+		if (!thumbnailStrip) return;
+		const revealCurrent = () => {
+			thumbnailStrip
+				.querySelector(`[data-image-index="${index}"]`)
+				?.scrollIntoView({ block: "nearest", inline: "nearest" });
+		};
+		revealCurrent();
+		const observer = new ResizeObserver(revealCurrent);
+		observer.observe(thumbnailStrip);
+		return () => observer.disconnect();
+	}, [thumbnailStrip, index]);
+
+	const selectImage = useCallback((next: React.SetStateAction<number>) => {
+		const dialog = dialogRef.current;
+		// A focused retry button becomes inert when its slide is no longer active.
+		if (
+			dialog?.querySelector('[data-testid="media-preview-stage"]')?.contains(document.activeElement)
+		) {
+			dialog.focus();
+		}
+		setIndex(next);
+	}, []);
+
 	const go = useCallback(
 		(delta: number) => {
 			if (!canNav) return;
-			setIndex((current) => (current + delta + count) % count);
+			selectImage((current) => (current + delta + count) % count);
 		},
-		[canNav, count],
+		[canNav, count, selectImage],
 	);
-
-	useEffect(() => {
-		if (!open || !canNav) return;
-		const onKey = (event: KeyboardEvent) => {
-			if (event.key === "ArrowLeft") {
-				event.preventDefault();
-				go(-1);
-			} else if (event.key === "ArrowRight") {
-				event.preventDefault();
-				go(1);
-			}
-		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
-	}, [open, canNav, go]);
 
 	return (
 		<Dialog
@@ -1056,87 +1143,112 @@ function ImageLightbox({
 			}}
 		>
 			<DialogContent
+				ref={dialogRef}
 				size="xl"
 				aria-describedby={undefined}
 				className={LIGHTBOX_SHELL}
 				style={{ background: "transparent" }}
 				onCloseAutoFocus={onCloseAutoFocus}
+				onKeyDown={(event) => {
+					if (!canNav || event.altKey || event.ctrlKey || event.metaKey) return;
+					if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+						event.preventDefault();
+						event.stopPropagation();
+						go(event.key === "ArrowLeft" ? -1 : 1);
+					}
+				}}
 			>
 				<DialogTitle className="sr-only">
 					{count > 0 ? `Image ${index + 1} of ${count}` : "Image preview"}
 				</DialogTitle>
-				<DialogClose asChild>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon"
-						className="fixed top-4 right-4 z-10 h-8 w-8 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
-						aria-label="Close"
-					>
-						<X className="h-5 w-5" />
-					</Button>
-				</DialogClose>
-				<div className="relative h-full w-full overflow-hidden">
+				<LightboxCloseButton />
+				<div className="h-full w-full overflow-hidden" data-testid="media-preview-stage">
 					<div
-						className="flex h-full transition-transform duration-300 ease-out motion-reduce:transition-none"
+						className="flex h-full w-full transition-transform duration-300 ease-out motion-reduce:transition-none"
 						style={{ transform: `translateX(-${index * 100}%)` }}
 					>
-						{urls.map((src) => (
-							<div key={src} className="flex h-full w-full shrink-0 items-center justify-center">
-								<img src={src} alt="" className="max-h-full max-w-full object-contain" />
+						{photos.map((photo, i) => (
+							<div
+								key={photo.id}
+								aria-hidden={i !== index}
+								inert={i !== index}
+								className={cn(
+									"flex h-full w-full min-w-0 shrink-0 items-center justify-center transition-opacity duration-300 motion-reduce:transition-none",
+									i === index ? "opacity-100" : "opacity-0",
+								)}
+							>
+								<LightboxMedia key={photo.src} src={photo.src} kind="image" />
 							</div>
 						))}
 					</div>
-					{canNav ? (
-						<>
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon"
-								className="absolute top-1/2 left-0 z-10 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
-								aria-label="Previous image"
-								onClick={() => go(-1)}
-							>
-								<ChevronLeft className="h-6 w-6" />
-							</Button>
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon"
-								className="absolute top-1/2 right-0 z-10 h-10 w-10 translate-x-1/2 -translate-y-1/2 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
-								aria-label="Next image"
-								onClick={() => go(1)}
-							>
-								<ChevronRight className="h-6 w-6" />
-							</Button>
-						</>
-					) : null}
 				</div>
 				{canNav ? (
-					<div className="absolute bottom-0 left-1/2 z-10 flex max-w-full translate-y-[calc(100%+0.75rem)] -translate-x-1/2 flex-col items-center gap-2">
-						<p className="text-xs tabular-nums text-white/70">
+					<>
+						<Button
+							variant="ghost"
+							size="icon"
+							className={cn(
+								LIGHTBOX_BUTTON,
+								"absolute top-1/2 left-0 z-10 h-10 w-10 -translate-x-1/2 -translate-y-1/2",
+							)}
+							aria-label="Previous image"
+							aria-keyshortcuts="ArrowLeft"
+							onClick={() => go(-1)}
+						>
+							<ChevronLeft className="h-6 w-6" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="icon"
+							className={cn(
+								LIGHTBOX_BUTTON,
+								"absolute top-1/2 right-0 z-10 h-10 w-10 translate-x-1/2 -translate-y-1/2",
+							)}
+							aria-label="Next image"
+							aria-keyshortcuts="ArrowRight"
+							onClick={() => go(1)}
+						>
+							<ChevronRight className="h-6 w-6" />
+						</Button>
+						<p
+							aria-live="polite"
+							aria-atomic="true"
+							className="absolute bottom-full left-1/2 mb-[min(0.5rem,1dvh)] flex h-[min(2rem,8dvh)] -translate-x-1/2 items-center text-xs text-white/90 tabular-nums"
+						>
 							{index + 1} / {count}
 						</p>
-						<div className="flex max-w-full gap-2 overflow-x-auto">
-							{urls.map((src, i) => (
-								<button
-									key={src}
-									type="button"
-									aria-label={`Show image ${i + 1}`}
-									aria-current={i === index ? "true" : undefined}
-									className={cn(
-										"h-14 w-14 shrink-0 overflow-hidden rounded-md ring-2 transition-opacity",
-										i === index
-											? "ring-white opacity-100"
-											: "ring-transparent opacity-50 hover:opacity-80",
-									)}
-									onClick={() => setIndex(i)}
-								>
-									<img src={src} alt="" className="h-full w-full object-cover" />
-								</button>
-							))}
+						<div className="absolute top-full left-0 mt-[min(0.5rem,1dvh)] flex h-[min(4rem,8dvh)] w-full justify-center">
+							<div
+								ref={setThumbnailStrip}
+								className="flex h-full min-w-0 max-w-full gap-2 overflow-x-auto p-[min(0.25rem,0.5dvh)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+							>
+								{photos.map((photo, i) => (
+									<Button
+										key={photo.id}
+										variant="ghost"
+										size="icon"
+										data-image-index={i}
+										aria-label={`Show image ${i + 1}`}
+										aria-current={i === index ? "true" : undefined}
+										className={cn(
+											"aspect-square h-full w-auto shrink-0 overflow-hidden rounded-md border-2 p-0 transition-opacity",
+											i === index
+												? "border-white opacity-100"
+												: "border-transparent opacity-50 hover:opacity-80",
+										)}
+										onClick={() => selectImage(i)}
+									>
+										<img
+											src={photo.src}
+											alt=""
+											draggable={false}
+											className="h-full w-full object-cover"
+										/>
+									</Button>
+								))}
+							</div>
 						</div>
-					</div>
+					</>
 				) : null}
 			</DialogContent>
 		</Dialog>
@@ -1173,30 +1285,10 @@ function VideoLightbox({
 				onCloseAutoFocus={onCloseAutoFocus}
 			>
 				<DialogTitle className="sr-only">Video player</DialogTitle>
-				<DialogClose asChild>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon"
-						className="fixed top-4 right-4 z-10 h-8 w-8 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
-						aria-label="Close"
-					>
-						<X className="h-5 w-5" />
-					</Button>
-				</DialogClose>
-				{src ? (
-					<video
-						key={src}
-						src={src}
-						poster={poster}
-						controls
-						autoPlay
-						playsInline
-						className="max-h-full max-w-full"
-					>
-						<track kind="captions" />
-					</video>
-				) : null}
+				<LightboxCloseButton />
+				<div className="h-full w-full" data-testid="media-preview-stage">
+					{src ? <LightboxMedia key={src} src={src} poster={poster} kind="video" /> : null}
+				</div>
 			</DialogContent>
 		</Dialog>
 	);
