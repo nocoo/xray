@@ -495,7 +495,7 @@ export const TweetCard = memo(function TweetCard({
 					href={tweet.url}
 					target="_blank"
 					rel="noopener noreferrer"
-					className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+					className="inline-flex h-8 items-center gap-1.5 rounded-md bg-transparent px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 					onClick={(e) => e.stopPropagation()}
 				>
 					<ExternalLink className="h-3.5 w-3.5" />
@@ -514,10 +514,10 @@ export const TweetCard = memo(function TweetCard({
 							setLang((l) => (l === "zh" ? "en" : "zh"));
 						}}
 						className={cn(
-							"h-8 px-2 text-xs font-medium",
+							"h-8 px-2 text-xs font-medium focus-visible:ring-offset-0",
 							lang === "zh"
 								? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-								: "text-muted-foreground",
+								: "bg-transparent text-muted-foreground",
 						)}
 						title={lang === "zh" ? "Show original" : "Show translation"}
 					>
@@ -536,7 +536,7 @@ export const TweetCard = memo(function TweetCard({
 						}}
 						loading={translating}
 						icon={<Languages className="h-3.5 w-3.5" />}
-						className="h-8 px-2 text-xs text-muted-foreground"
+						className="h-8 bg-transparent px-2 text-xs text-muted-foreground focus-visible:ring-offset-0"
 						title="Translate this post"
 					>
 						{translating ? "Translating..." : "Translate"}
@@ -562,7 +562,7 @@ export const TweetCard = memo(function TweetCard({
 						)
 					}
 					className={cn(
-						"h-8 px-2 text-xs font-medium",
+						"h-8 bg-transparent px-2 text-xs font-medium focus-visible:ring-offset-0",
 						zhetoStatus === "saved"
 							? "text-emerald-600 dark:text-emerald-400"
 							: zhetoStatus === "error"
@@ -590,7 +590,7 @@ export const TweetCard = memo(function TweetCard({
 							e.preventDefault();
 							onRemove();
 						}}
-						className="ml-auto h-8 px-2 text-xs text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+						className="ml-auto h-8 bg-transparent px-2 text-xs text-muted-foreground focus-visible:ring-offset-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
 						title="Remove this post"
 					>
 						<Trash2 className="h-3.5 w-3.5" />
@@ -933,7 +933,7 @@ function VideoMedia({
 		<div className="relative bg-black">
 			<button
 				type="button"
-				className="relative block w-full cursor-pointer border-0 bg-transparent p-0"
+				className="group relative block w-full cursor-pointer appearance-none border-0 bg-transparent p-0 outline-none"
 				onClick={(e) => {
 					e.stopPropagation();
 					e.preventDefault();
@@ -942,14 +942,14 @@ function VideoMedia({
 				aria-label="Play video"
 			>
 				{poster ? (
-					<img src={poster} alt="" className={className} loading="lazy" />
+					<img src={poster} alt="" className={cn("block", className)} loading="lazy" />
 				) : (
 					<div
 						className={cn(className, "aspect-video min-h-40 min-w-[12rem] bg-zinc-900")}
 						aria-hidden
 					/>
 				)}
-				<span className="absolute inset-0 flex items-center justify-center bg-black/20 transition-colors hover:bg-black/30">
+				<span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25 opacity-80 transition-opacity group-hover:opacity-100">
 					<span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/60 text-white shadow-lg ring-1 ring-white/30 backdrop-blur-sm">
 						<Play className="ml-0.5 h-7 w-7 fill-current" aria-hidden />
 					</span>
@@ -990,17 +990,17 @@ function PhotoItem({
 			{onClick ? (
 				<button
 					type="button"
-					className="block h-full w-full cursor-zoom-in border-0 bg-transparent p-0"
+					className="relative block h-full w-full cursor-zoom-in appearance-none overflow-hidden border-0 bg-transparent p-0 outline-none"
 					onClick={handleClick}
 					aria-label="Open image"
 				>
-					<img src={src} alt="" className={className} loading="lazy" />
-					<div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20">
-						<Search className="h-6 w-6 text-white opacity-0 drop-shadow-md transition-opacity group-hover:opacity-90" />
+					<img src={src} alt="" className={cn("block", className)} loading="lazy" />
+					<div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity group-hover:opacity-100">
+						<Search className="h-6 w-6 text-white opacity-90 drop-shadow-md" />
 					</div>
 				</button>
 			) : (
-				<img src={src} alt="" className={className} loading="lazy" />
+				<img src={src} alt="" className={cn("block", className)} loading="lazy" />
 			)}
 		</div>
 	);
@@ -1015,7 +1015,8 @@ function PhotoItem({
 const LIGHTBOX_SHELL =
 	"h-[80dvh] w-[80vw] max-h-[80dvh] max-w-[80vw] overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none ring-0 sm:w-[80vw] sm:max-w-[80vw]";
 
-const LIGHTBOX_BUTTON = "rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white";
+const LIGHTBOX_BUTTON =
+	"rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white focus-visible:ring-offset-0";
 
 function LightboxCloseButton() {
 	return (
@@ -1237,7 +1238,7 @@ function ImageLightbox({
 										aria-label={`Show image ${i + 1}`}
 										aria-current={i === index ? "true" : undefined}
 										className={cn(
-											"aspect-square h-full w-auto shrink-0 overflow-hidden rounded-md border-2 p-0 transition-opacity",
+											"aspect-square h-full w-auto shrink-0 overflow-hidden rounded-md border-2 p-0 transition-opacity hover:bg-transparent focus-visible:ring-offset-0",
 											i === index
 												? "border-white opacity-100"
 												: "border-transparent opacity-50 hover:opacity-80",
@@ -1248,7 +1249,7 @@ function ImageLightbox({
 											src={photo.src}
 											alt=""
 											draggable={false}
-											className="h-full w-full object-cover"
+											className="block h-full w-full object-cover"
 										/>
 									</Button>
 								))}

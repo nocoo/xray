@@ -297,7 +297,7 @@ export function WatchlistDetailPage() {
 							<Button
 								variant="ghost"
 								size="icon"
-								className="h-8 w-8"
+								className="h-8 w-8 focus-visible:ring-offset-0"
 								type="button"
 								onClick={toggleActivity}
 								title="Activity / ingest logs"
@@ -309,7 +309,7 @@ export function WatchlistDetailPage() {
 							<Button
 								variant="ghost"
 								size="icon"
-								className="h-8 w-8"
+								className="h-8 w-8 focus-visible:ring-offset-0"
 								type="button"
 								onClick={() => setPanel((current) => (current === "settings" ? null : "settings"))}
 								title="Settings"

@@ -143,7 +143,7 @@ export const MemberCard = memo(function MemberCard({
 						<Button
 							variant="ghost"
 							size="icon"
-							className="h-6 w-6"
+							className="h-6 w-6 focus-visible:ring-offset-0"
 							onClick={onRefresh}
 							disabled={refreshing}
 							title="Refresh profile"
@@ -152,7 +152,13 @@ export const MemberCard = memo(function MemberCard({
 						</Button>
 					)}
 					{onEdit && (
-						<Button variant="ghost" size="icon" className="h-6 w-6" onClick={onEdit} title="Edit">
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-6 w-6 focus-visible:ring-offset-0"
+							onClick={onEdit}
+							title="Edit"
+						>
 							<Pencil className="h-3 w-3" />
 						</Button>
 					)}
@@ -160,7 +166,7 @@ export const MemberCard = memo(function MemberCard({
 						<Button
 							variant="ghost"
 							size="icon"
-							className="h-6 w-6 text-basalt-muted-foreground hover:text-basalt-destructive"
+							className="h-6 w-6 text-basalt-muted-foreground focus-visible:ring-offset-0 hover:text-basalt-destructive"
 							onClick={onDelete}
 							title="Remove"
 						>

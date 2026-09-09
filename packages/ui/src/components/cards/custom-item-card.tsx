@@ -199,7 +199,7 @@ export function CustomItemCard({
 							href={url}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+							className="inline-flex h-8 items-center gap-1.5 rounded-md bg-transparent px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 						>
 							<ExternalLink className="h-3.5 w-3.5" />
 							Open
@@ -212,10 +212,10 @@ export function CustomItemCard({
 							size="sm"
 							onClick={() => setLang((l) => (l === "zh" ? "en" : "zh"))}
 							className={cn(
-								"h-8 px-2 text-xs font-medium",
+								"h-8 px-2 text-xs font-medium focus-visible:ring-offset-0",
 								lang === "zh"
 									? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-									: "text-muted-foreground",
+									: "bg-transparent text-muted-foreground",
 							)}
 							title={lang === "zh" ? "Show original" : "Show translation"}
 						>
@@ -230,7 +230,7 @@ export function CustomItemCard({
 							onClick={() => void handleTranslate()}
 							loading={translating}
 							icon={<Languages className="h-3.5 w-3.5" />}
-							className="h-8 px-2 text-xs text-muted-foreground"
+							className="h-8 bg-transparent px-2 text-xs text-muted-foreground focus-visible:ring-offset-0"
 							title="Translate this post"
 						>
 							{translating ? "Translating..." : "Translate"}
@@ -246,7 +246,7 @@ export function CustomItemCard({
 							disabled={zhetoStatus === "saved"}
 							icon={<Bookmark className="h-3.5 w-3.5" />}
 							className={cn(
-								"h-8 px-2 text-xs",
+								"h-8 bg-transparent px-2 text-xs focus-visible:ring-offset-0",
 								zhetoStatus === "saved"
 									? "text-emerald-600"
 									: zhetoStatus === "error"
@@ -269,7 +269,7 @@ export function CustomItemCard({
 							variant="ghost"
 							size="sm"
 							onClick={onRemove}
-							className="ml-auto h-8 px-2 text-xs text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+							className="ml-auto h-8 bg-transparent px-2 text-xs text-muted-foreground focus-visible:ring-offset-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
 						>
 							Remove
 						</Button>
