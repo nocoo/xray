@@ -102,7 +102,7 @@ export async function selectTranslateCandidates(
 				`SELECT id, text FROM items
          WHERE user_id = ? AND watchlist_id = ?
            AND id IN (${ph})
-           AND ai_status IN ('not_requested', 'failed', 'pending')
+           AND ai_status IN ('not_requested', 'failed')
          ORDER BY created_at_ms DESC, id DESC
          LIMIT ?`,
 			)
@@ -114,7 +114,7 @@ export async function selectTranslateCandidates(
 		.prepare(
 			`SELECT id, text FROM items
        WHERE user_id = ? AND watchlist_id = ?
-         AND ai_status IN ('not_requested', 'failed', 'pending')
+         AND ai_status IN ('not_requested', 'failed')
        ORDER BY created_at_ms DESC, id DESC
        LIMIT ?`,
 		)
@@ -123,21 +123,25 @@ export async function selectTranslateCandidates(
 	return results ?? [];
 }
 
-export async function markPending(
+export async function claimTranslateItems(
 	db: D1Database,
 	userId: string,
 	ids: number[],
-	nowMs: number,
-): Promise<void> {
-	if (!ids.length) return;
+	claimMs: number,
+): Promise<Array<{ id: number; text: string }>> {
+	if (!ids.length) return [];
 	const ph = ids.map(() => "?").join(",");
-	await db
+	const { results } = await db
 		.prepare(
-			`UPDATE items SET ai_status = 'pending', ai_status_updated_at_ms = ?
-       WHERE user_id = ? AND id IN (${ph})`,
+			`UPDATE items
+       SET ai_status = 'pending', ai_status_updated_at_ms = ?
+       WHERE user_id = ? AND id IN (${ph})
+         AND ai_status IN ('not_requested', 'failed')
+       RETURNING id, text`,
 		)
-		.bind(nowMs, userId, ...ids)
-		.run();
+		.bind(claimMs, userId, ...ids)
+		.all<{ id: number; text: string }>();
+	return results ?? [];
 }
 
 export async function markTranslateResult(
@@ -148,6 +152,7 @@ export async function markTranslateResult(
 		| { ok: true; translatedText: string; summaryText?: string | null }
 		| { ok: false; error: string },
 	nowMs: number,
+	claimMs: number,
 ): Promise<void> {
 	if (result.ok) {
 		await db
@@ -158,9 +163,11 @@ export async function markTranslateResult(
              translated_text = ?,
              summary_text = ?,
              translation_error = NULL
-         WHERE user_id = ? AND id = ?`,
+         WHERE user_id = ? AND id = ?
+           AND ai_status = 'pending'
+           AND ai_status_updated_at_ms = ?`,
 			)
-			.bind(nowMs, result.translatedText, result.summaryText ?? null, userId, id)
+			.bind(nowMs, result.translatedText, result.summaryText ?? null, userId, id, claimMs)
 			.run();
 		return;
 	}
@@ -170,9 +177,11 @@ export async function markTranslateResult(
        SET ai_status = 'failed',
            ai_status_updated_at_ms = ?,
            translation_error = ?
-       WHERE user_id = ? AND id = ?`,
+       WHERE user_id = ? AND id = ?
+         AND ai_status = 'pending'
+         AND ai_status_updated_at_ms = ?`,
 		)
-		.bind(nowMs, result.error.slice(0, 500), userId, id)
+		.bind(nowMs, result.error.slice(0, 500), userId, id, claimMs)
 		.run();
 }
 
@@ -201,7 +210,13 @@ export async function runTranslateBatch(
 		limit: opts.limit ?? TRANSLATE_MAX,
 		itemIds: opts.itemIds,
 	});
-	if (!candidates.length) {
+	const claimed = await claimTranslateItems(
+		db,
+		userId,
+		candidates.map((c) => c.id),
+		nowMs,
+	);
+	if (!claimed.length) {
 		// Per-card translate with item_ids: return already-succeeded rows so UI can hydrate.
 		if (opts.itemIds?.length) {
 			const existing = await loadSucceededTranslations(db, userId, watchlistId, opts.itemIds);
@@ -210,28 +225,21 @@ export async function runTranslateBatch(
 		return { results: [], timed_out: false };
 	}
 
-	await markPending(
-		db,
-		userId,
-		candidates.map((c) => c.id),
-		nowMs,
-	);
-
 	const results: TranslateItemResult[] = [];
 	let timedOut = false;
 	const controller = new AbortController();
 
-	for (const item of candidates) {
+	for (const item of claimed) {
 		const remaining = deadlineAt - Date.now();
 		if (remaining <= 0) {
 			timedOut = true;
-			// revert unfinished pending to not_requested
 			await db
 				.prepare(
 					`UPDATE items SET ai_status = 'not_requested', ai_status_updated_at_ms = ?
-           WHERE user_id = ? AND id = ? AND ai_status = 'pending'`,
+           WHERE user_id = ? AND id = ? AND ai_status = 'pending'
+             AND ai_status_updated_at_ms = ?`,
 				)
-				.bind(Date.now(), userId, item.id)
+				.bind(Date.now(), userId, item.id, nowMs)
 				.run();
 			results.push({ id: item.id, ai_status: "not_requested", error: "timed_out" });
 			continue;
@@ -255,6 +263,7 @@ export async function runTranslateBatch(
 				item.id,
 				{ ok: true, translatedText: out.translatedText, summaryText: out.summaryText },
 				doneAt,
+				nowMs,
 			);
 			results.push({
 				id: item.id,
@@ -270,14 +279,15 @@ export async function runTranslateBatch(
 				await db
 					.prepare(
 						`UPDATE items SET ai_status = 'not_requested', ai_status_updated_at_ms = ?
-             WHERE user_id = ? AND id = ? AND ai_status = 'pending'`,
+             WHERE user_id = ? AND id = ? AND ai_status = 'pending'
+               AND ai_status_updated_at_ms = ?`,
 					)
-					.bind(Date.now(), userId, item.id)
+					.bind(Date.now(), userId, item.id, nowMs)
 					.run();
 				results.push({ id: item.id, ai_status: "not_requested", error: "timed_out" });
 			} else {
 				const doneAt = Date.now();
-				await markTranslateResult(db, userId, item.id, { ok: false, error: msg }, doneAt);
+				await markTranslateResult(db, userId, item.id, { ok: false, error: msg }, doneAt, nowMs);
 				results.push({ id: item.id, ai_status: "failed", error: msg });
 			}
 		} finally {

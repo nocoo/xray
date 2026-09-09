@@ -1320,7 +1320,7 @@ describe("branch matrix coverage", () => {
 		expect(
 			await translateRepo.selectTranslateCandidates(db, "u1", wlId, { limit: 1, itemIds: [0] }),
 		).toEqual([]);
-		await translateRepo.markPending(db, "u1", [], Date.now());
+		await translateRepo.claimTranslateItems(db, "u1", [], Date.now());
 	});
 
 	test("zheto decrypt failure path", async () => {

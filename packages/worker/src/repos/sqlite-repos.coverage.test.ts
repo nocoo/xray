@@ -203,11 +203,12 @@ describe("sqlite repos coverage", () => {
 		const cands = await translate.selectTranslateCandidates(db, "u1", wl.id, { limit: 5 });
 		const firstCand = cands[0];
 		if (firstCand) {
-			await translate.markPending(
+			const claimMs = Date.now();
+			await translate.claimTranslateItems(
 				db,
 				"u1",
 				cands.map((c) => c.id),
-				Date.now(),
+				claimMs,
 			);
 			await translate.markTranslateResult(
 				db,
@@ -215,6 +216,7 @@ describe("sqlite repos coverage", () => {
 				firstCand.id,
 				{ ok: true, translatedText: "译", summaryText: "摘" },
 				Date.now(),
+				claimMs,
 			);
 			await translate.markTranslateResult(
 				db,
@@ -222,6 +224,7 @@ describe("sqlite repos coverage", () => {
 				firstCand.id,
 				{ ok: false, error: "fail" },
 				Date.now(),
+				claimMs,
 			);
 			await translate.loadSucceededTranslations(db, "u1", wl.id, [firstCand.id]);
 		}

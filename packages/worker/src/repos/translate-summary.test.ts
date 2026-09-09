@@ -176,34 +176,47 @@ describe("runTranslateBatch persists summary_text", () => {
 						return stmt;
 					},
 					async all<T>() {
+						if (sql.includes("RETURNING")) {
+							const claimMs = binds[0] as number;
+							const userId = binds[1] as string;
+							const ids = binds.slice(2) as number[];
+							const claimed: Array<{ id: number; text: string }> = [];
+							for (const id of ids) {
+								const row = items.find((i) => i.id === id && i.user_id === userId);
+								if (row && (row.ai_status === "not_requested" || row.ai_status === "failed")) {
+									row.ai_status = "pending";
+									row.ai_status_updated_at_ms = claimMs;
+									claimed.push({ id: row.id as number, text: row.text as string });
+								}
+							}
+							return { results: claimed as T[] };
+						}
 						if (sql.includes("FROM items") && sql.includes("ai_status")) {
 							return {
 								results: items
-									.filter((i) => i.user_id === binds[0] && i.watchlist_id === binds[1])
+									.filter(
+										(i) =>
+											i.user_id === binds[0] &&
+											i.watchlist_id === binds[1] &&
+											(i.ai_status === "not_requested" || i.ai_status === "failed"),
+									)
 									.map((i) => ({ id: i.id, text: i.text })) as T[],
 							};
 						}
 						return { results: [] as T[] };
 					},
 					async run() {
-						if (sql.includes("ai_status = 'pending'")) {
-							const ids = binds.slice(2) as number[];
-							for (const id of ids) {
-								const row = items.find((i) => i.id === id);
-								if (row) row.ai_status = "pending";
-							}
-							return { meta: { changes: ids.length } };
-						}
 						if (sql.includes("succeeded") || sql.includes("summary_text")) {
-							const [, translated, summary, userId, id] = binds as [
+							const [, translated, summary, userId, id, claimMs] = binds as [
 								number,
 								string,
 								string | null,
 								string,
 								number,
+								number,
 							];
 							const row = items.find((i) => i.id === id && i.user_id === userId);
-							if (row) {
+							if (row && row.ai_status === "pending" && row.ai_status_updated_at_ms === claimMs) {
 								row.ai_status = "succeeded";
 								row.translated_text = translated;
 								row.summary_text = summary;
@@ -270,8 +283,9 @@ describe("runTranslateBatch persists summary_text", () => {
 			7,
 			{ ok: true, translatedText: "t", summaryText: "s" },
 			123,
+			456,
 		);
-		expect(bindsLog[0]).toEqual([123, "t", "s", "u1", 7]);
+		expect(bindsLog[0]).toEqual([123, "t", "s", "u1", 7, 456]);
 	});
 
 	test("markTranslateResult failed path", async () => {
@@ -289,7 +303,7 @@ describe("runTranslateBatch persists summary_text", () => {
 				};
 			},
 		} as unknown as D1Database;
-		await markTranslateResult(db, "u1", 1, { ok: false, error: "x" }, 1);
+		await markTranslateResult(db, "u1", 1, { ok: false, error: "x" }, 1, 1);
 		expect(sqlHit).toMatch(/failed/);
 	});
 

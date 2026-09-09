@@ -105,8 +105,42 @@ function makeDb() {
 							})) as T[],
 						};
 					}
+					if (up.includes("RETURNING")) {
+						const claimMs = binds[0] as number;
+						const userId = binds[1] as string;
+						const ids = binds.slice(2) as number[];
+						const claimed: Array<{ id: number; text: string }> = [];
+						for (const id of ids) {
+							const row = tables.items.find((i) => i.id === id && i.user_id === userId);
+							if (row && (row.ai_status === "not_requested" || row.ai_status === "failed")) {
+								row.ai_status = "pending";
+								row.ai_status_updated_at_ms = claimMs;
+								claimed.push({ id: row.id as number, text: String(row.text) });
+							}
+						}
+						return { results: claimed as T[] };
+					}
+					if (up.includes("FROM ITEMS") && up.includes("AI_STATUS = 'SUCCEEDED'")) {
+						const userId = binds[0] as string;
+						const wl = binds[1] as number;
+						const ids = binds.slice(2) as number[];
+						const rows = tables.items
+							.filter(
+								(i) =>
+									i.user_id === userId &&
+									i.watchlist_id === wl &&
+									ids.includes(i.id as number) &&
+									i.ai_status === "succeeded" &&
+									i.translated_text != null,
+							)
+							.map((i) => ({
+								id: i.id,
+								translated_text: i.translated_text,
+								summary_text: i.summary_text,
+							}));
+						return { results: rows as T[] };
+					}
 					if (up.includes("FROM ITEMS") && up.includes("AI_STATUS")) {
-						// select candidates
 						const userId = binds[0] as string;
 						const wl = binds[1] as number;
 						const limit = binds[binds.length - 1] as number;
@@ -115,9 +149,7 @@ function makeDb() {
 								(i) =>
 									i.user_id === userId &&
 									i.watchlist_id === wl &&
-									(i.ai_status === "not_requested" ||
-										i.ai_status === "failed" ||
-										i.ai_status === "pending"),
+									(i.ai_status === "not_requested" || i.ai_status === "failed"),
 							)
 							.slice(0, limit)
 							.map((i) => ({ id: i.id, text: i.text }));
@@ -172,7 +204,7 @@ function makeDb() {
 						else tables.integration_secrets.push(row);
 						return { meta: { changes: 1 } };
 					}
-					if (up.startsWith("UPDATE ITEMS") && up.includes("AI_STATUS = 'PENDING'")) {
+					if (up.startsWith("UPDATE ITEMS") && up.includes("SET AI_STATUS = 'PENDING'")) {
 						const now = binds[0] as number;
 						const userId = binds[1] as string;
 						const ids = binds.slice(2) as number[];
@@ -186,15 +218,16 @@ function makeDb() {
 						return { meta: { changes: ids.length } };
 					}
 					if (up.startsWith("UPDATE ITEMS") && up.includes("SUCCEEDED")) {
-						const [now, translated, summary, userId, id] = binds as [
+						const [now, translated, summary, userId, id, claimMs] = binds as [
 							number,
 							string,
 							string | null,
 							string,
 							number,
+							number,
 						];
 						const row = tables.items.find((i) => i.id === id && i.user_id === userId);
-						if (row) {
+						if (row && row.ai_status === "pending" && row.ai_status_updated_at_ms === claimMs) {
 							row.ai_status = "succeeded";
 							row.ai_status_updated_at_ms = now;
 							row.translated_text = translated;
@@ -204,9 +237,15 @@ function makeDb() {
 						return { meta: { changes: 1 } };
 					}
 					if (up.startsWith("UPDATE ITEMS") && up.includes("FAILED")) {
-						const [now, err, userId, id] = binds as [number, string, string, number];
+						const [now, err, userId, id, claimMs] = binds as [
+							number,
+							string,
+							string,
+							number,
+							number,
+						];
 						const row = tables.items.find((i) => i.id === id && i.user_id === userId);
-						if (row) {
+						if (row && row.ai_status === "pending" && row.ai_status_updated_at_ms === claimMs) {
 							row.ai_status = "failed";
 							row.ai_status_updated_at_ms = now;
 							row.translation_error = err;
