@@ -2,6 +2,12 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.3.4
+
+### Fixed
+- Drop unavatar avatar fallback
+- Restore video poster frame capture
+
 ## v2.3.3
 
 ### Added
