@@ -141,7 +141,7 @@ export function WatchlistDetailPage() {
 		<Dock
 			open={panel != null}
 			mode={usePushDock ? "push" : "overlay"}
-			width="20rem"
+			width="min(20rem, 100%)"
 			onDismiss={closePanel}
 			aria-label={panelTitle}
 			className={usePushDock ? "h-full rounded-[16px] md:rounded-basalt-island" : "h-full"}
