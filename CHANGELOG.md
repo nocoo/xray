@@ -2,6 +2,88 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.3.0
+
+### Added
+- Play feed videos in popup
+- Add lightbox gallery with 80% stage
+- Prefix html title with page name
+- Use basalt dock for timeline
+- Switch accent to deep rose
+- Add snappy card enter motion
+- Migrate pages and controls to basalt
+- Migrate app chrome to basalt
+- Adopt xray family identity
+
+### Changed
+- Add local debug feed seeder
+- Add @nocoo/basalt 2.1.2
+- Refresh bilingual project readmes
+- Upgrade wrangler to 4.129.1
+- Bump lucide-react to 1.42.0
+- Upgrade workers types
+- Bump workers types to 5.20260906.1
+- Bump jose 6.2.11 → 6.2.12
+- Upgrade workers types to 5.20260905.1
+- Resolve jose dependency update with main
+- Upgrade lucide-react to 1.41.0 (#494)
+- Bump jose 6.2.10 → 6.2.11
+- Upgrade hono to 4.13.7
+- Upgrade playwright to 1.63.0
+- Bump workers types to 5.20260904.1
+- Upgrade wrangler to 4.129.0
+- Upgrade vitest to 5.0.0
+- Upgrade workers types to 5.20260903.1
+- Upgrade lucide-react to 1.40.0
+- Upgrade happy-dom to 20.14.0
+- Upgrade react-dom types to 19.2.7
+- Upgrade biome to 2.5.12
+- Upgrade turbo to 2.10.12
+- Upgrade biome to 2.5.11
+- Upgrade hono to 4.13.5
+- Upgrade wrangler to 4.127.1
+- Upgrade workers types to 5.20260831.1
+- Upgrade testing-library to 16.3.3
+- Upgrade react-router to 8.3.1
+- Upgrade happy-dom to 20.12.0
+- Upgrade lucide-react to 1.38.0
+- Hono 4.13.3 → 4.13.4
+
+### Fixed
+- Polish lightbox media preview
+- Drop lightbox panel, keep overlay blur
+- Put loading button icons in icon prop
+- Restore image preview opener focus
+- Skip proxy for non-twitter media
+- Use dialog for image lightbox
+- Use basalt button for card actions
+- Snapshot translate status in one query
+- Restore dock focus in commit phase
+- Return pending for in-flight translate
+- Translate claimed items newest first
+- Limit dock percent width to overlay
+- Restore dock focus from page parent
+- Cap overlay dock to container width
+- Claim translate batches atomically
+- Align tweet metric and action rows
+- Retry pending items on auto-translate
+- Scope e2e headings to content island
+- Keep sidebar nav as real links
+- Restore mobile nav focus and lock
+- Close group delete dialog on error
+- Overlay dock and wire tab panels
+- Size feed columns from container
+- Restore dashboard chart height and colors
+- Refine feed card chip and quotes
+- Split dock from content island
+- Auto-translate watchlist on enter
+- Unify feed card chrome
+- Replace leftover native controls
+
+### Removed
+- Remove unused watchlist post card
+- Drop unused local ui kit
+
 ## v2.2.2
 
 ### Added
