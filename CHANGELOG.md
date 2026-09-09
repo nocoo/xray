@@ -2,6 +2,14 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.3.2
+
+### Added
+- Merge settings pages into one
+
+### Fixed
+- Use full-width cards on settings
+
 ## v2.3.1
 
 ### Fixed
