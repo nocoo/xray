@@ -274,6 +274,11 @@ export function WatchlistDetailPage() {
 					}
 					actions={
 						<>
+							<SourceFilter
+								value={s.sourceFilter}
+								onChange={(v) => vm.setSourceFilter(v)}
+								counts={counts}
+							/>
 							{s.activeTab === "members" && (
 								<Button size="sm" type="button" onClick={onAddMember}>
 									<Plus className="h-4 w-4" />
@@ -314,13 +319,6 @@ export function WatchlistDetailPage() {
 								<Settings className="h-4 w-4" />
 							</Button>
 						</>
-					}
-					filters={
-						<SourceFilter
-							value={s.sourceFilter}
-							onChange={(v) => vm.setSourceFilter(v)}
-							counts={counts}
-						/>
 					}
 				/>
 				{s.loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}

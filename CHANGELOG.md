@@ -50,6 +50,7 @@ All notable changes to X-Ray are documented in this file.
 - Hono 4.13.3 → 4.13.4
 
 ### Fixed
+- Put short source filter beside page actions
 - Polish lightbox media preview
 - Drop lightbox panel, keep overlay blur
 - Put loading button icons in icon prop
