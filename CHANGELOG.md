@@ -2,6 +2,11 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.3.1
+
+### Fixed
+- Hide source filter legend and align
+
 ## v2.3.0
 
 ### Added
