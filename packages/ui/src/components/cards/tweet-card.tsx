@@ -93,6 +93,12 @@ export const TweetCard = memo(function TweetCard({
 	void linkToDetail;
 	const nowMs = useNow();
 	const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+	const lightboxOpenerRef = useRef<HTMLElement | null>(null);
+
+	const openLightbox = useCallback((url: string, opener: HTMLElement) => {
+		lightboxOpenerRef.current = opener;
+		setLightboxUrl(url);
+	}, []);
 
 	// --- Translation state ---
 	const [lang, setLang] = useState<"zh" | "en">(initialTranslation?.translatedText ? "zh" : "en");
@@ -319,7 +325,7 @@ export const TweetCard = memo(function TweetCard({
 			</ExpandableText>
 
 			{tweet.media && tweet.media.length > 0 && (
-				<MediaGrid media={tweet.media} onPhotoClick={setLightboxUrl} />
+				<MediaGrid media={tweet.media} onPhotoClick={openLightbox} />
 			)}
 
 			{tweet.entities &&
@@ -412,7 +418,7 @@ export const TweetCard = memo(function TweetCard({
 						</ExpandableText>
 
 						{tweet.quoted_tweet.media && tweet.quoted_tweet.media.length > 0 && (
-							<MediaGrid media={tweet.quoted_tweet.media} compact onPhotoClick={setLightboxUrl} />
+							<MediaGrid media={tweet.quoted_tweet.media} compact onPhotoClick={openLightbox} />
 						)}
 
 						<div className="flex items-center gap-3 text-[10px] text-muted-foreground">
@@ -600,7 +606,14 @@ export const TweetCard = memo(function TweetCard({
 				{aiInsight}
 				{actionBar}
 			</LayerCard>
-			<ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
+			<ImageLightbox
+				url={lightboxUrl}
+				onClose={() => setLightboxUrl(null)}
+				onCloseAutoFocus={(event) => {
+					event.preventDefault();
+					lightboxOpenerRef.current?.focus();
+				}}
+			/>
 		</>
 	);
 });
@@ -699,7 +712,7 @@ function MediaGrid({
 }: {
 	media: TweetMedia[];
 	compact?: boolean;
-	onPhotoClick?: (url: string) => void;
+	onPhotoClick?: (url: string, opener: HTMLElement) => void;
 }) {
 	const photos = media.filter((m) => m.type === "PHOTO");
 	const allPhotos = photos.length === media.length;
@@ -976,16 +989,15 @@ function PhotoItem({
 	media: TweetMedia;
 	className: string;
 	containerClass?: string;
-	onClick?: (url: string) => void;
+	onClick?: (url: string, opener: HTMLElement) => void;
 }) {
 	const src = proxyUrl(media.url);
 	const handleClick = useCallback(
-		(e: React.MouseEvent) => {
+		(e: React.MouseEvent<HTMLButtonElement>) => {
 			if (!onClick) return;
 			e.stopPropagation();
 			e.preventDefault();
-			// Lightbox gets the proxied URL so large view also bypasses CDN hotlink checks.
-			onClick(src);
+			onClick(src, e.currentTarget);
 		},
 		[onClick, src],
 	);
@@ -1017,7 +1029,15 @@ function PhotoItem({
 // ImageLightbox — fullscreen popup to view a high-res photo
 // =============================================================================
 
-function ImageLightbox({ url, onClose }: { url: string | null; onClose: () => void }) {
+function ImageLightbox({
+	url,
+	onClose,
+	onCloseAutoFocus,
+}: {
+	url: string | null;
+	onClose: () => void;
+	onCloseAutoFocus?: (event: { preventDefault: () => void }) => void;
+}) {
 	return (
 		<Dialog
 			open={url != null}
@@ -1029,6 +1049,7 @@ function ImageLightbox({ url, onClose }: { url: string | null; onClose: () => vo
 				size="xl"
 				aria-describedby={undefined}
 				className="w-auto max-w-[90vw] bg-transparent p-0 shadow-none ring-0 sm:w-auto"
+				onCloseAutoFocus={onCloseAutoFocus}
 			>
 				<DialogTitle className="sr-only">Image preview</DialogTitle>
 				<DialogClose asChild>
