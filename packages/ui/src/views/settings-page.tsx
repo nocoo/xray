@@ -68,7 +68,7 @@ export function SettingsPage() {
 				{account.loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
 				{account.error && <Banner variant="error" size="sm" description={account.error} />}
 				{account.saved && <Banner variant="default" size="sm" description="Saved." />}
-				<LayerCard className="max-w-lg">
+				<LayerCard>
 					<LayerCard.Body className="space-y-4">
 						{account.email && (
 							<p className="text-sm text-basalt-muted-foreground">
@@ -176,7 +176,7 @@ export function SettingsPage() {
 				hint="Provider keys are encrypted at rest (AES-GCM). Plaintext is never echoed back."
 			>
 				{ai.loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
-				<LayerCard className="max-w-lg">
+				<LayerCard>
 					<LayerCard.Body>
 						<form
 							className="space-y-3"
