@@ -10,7 +10,9 @@ import { createStore, errMsg } from "./store";
 export type SourceFilterValue = "all" | SourceType;
 
 function itemNeedsTranslate(item: TimelineItem): boolean {
-	return item.aiStatus === "not_requested" || item.aiStatus === "failed";
+	return (
+		item.aiStatus === "not_requested" || item.aiStatus === "failed" || item.aiStatus === "pending"
+	);
 }
 
 export type WatchlistDetailApi = {

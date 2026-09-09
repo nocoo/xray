@@ -46,7 +46,7 @@ const item: TimelineItem = {
 		body: { tweet: { id: "t1", text: "hello world", author_id: "u1" }, includes: { users: [] } },
 		author: { id: "u1", username: "alice", display_name: "Alice" },
 	},
-	aiStatus: "pending",
+	aiStatus: "succeeded",
 	translatedText: null,
 	summaryText: null,
 	translationError: null,
@@ -809,7 +809,7 @@ describe("createWatchlistDetailVm", () => {
 	});
 
 	test("load auto-translates when enabled and items are untranslated", async () => {
-		const untranslated = { ...item, aiStatus: "not_requested" };
+		const untranslated = { ...item, aiStatus: "pending" };
 		const api = {
 			fetchWatchlist: vi.fn().mockResolvedValue(wl),
 			fetchMembers: vi.fn().mockResolvedValue([]),

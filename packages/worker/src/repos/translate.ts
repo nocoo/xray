@@ -114,7 +114,7 @@ export async function selectTranslateCandidates(
 		.prepare(
 			`SELECT id, text FROM items
        WHERE user_id = ? AND watchlist_id = ?
-         AND ai_status IN ('not_requested', 'failed')
+         AND ai_status IN ('not_requested', 'failed', 'pending')
        ORDER BY created_at_ms DESC, id DESC
        LIMIT ?`,
 		)
