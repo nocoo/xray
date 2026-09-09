@@ -12,6 +12,7 @@ import { useLocation } from "react-router";
 import { Github } from "@/components/icons/github";
 import { useRestoreDialogFocus } from "@/hooks/restore-dialog-focus";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { documentTitle, SITE_TITLE } from "@/lib/document-title";
 import { BreadcrumbsProvider, useBreadcrumbs } from "./breadcrumbs-context";
 import { PageAsideProvider, usePageAsideHost } from "./page-aside";
 import { Sidebar } from "./sidebar";
@@ -40,6 +41,13 @@ function AppShellInner({ children }: AppShellProps) {
 	const { theme } = useTheme();
 	const chrome = headerChrome(pathname, breadcrumbs);
 	const { setSlot, open: asideOpen } = usePageAsideHost();
+
+	useEffect(() => {
+		document.title = documentTitle(chrome.title);
+		return () => {
+			document.title = SITE_TITLE;
+		};
+	}, [chrome.title]);
 	const restoreNavFocus = useRestoreDialogFocus(mobileOpen);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: close drawer on route or search change

@@ -1,8 +1,9 @@
 import { Button } from "@nocoo/basalt/components/button";
 import { LoadingScreen } from "@nocoo/basalt/components/loading-screen";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { MeProvider } from "@/hooks/me-context";
 import { useMe } from "@/hooks/use-me";
+import { documentTitle, SITE_TITLE } from "@/lib/document-title";
 
 function XrayMark({ className }: { className?: string }) {
 	return <img src="/logo-24.png" alt="" width={32} height={32} className={className} />;
@@ -67,6 +68,12 @@ function IdentityBadge({
 
 export function SessionGate({ children }: { children: ReactNode }) {
 	const me = useMe();
+
+	useEffect(() => {
+		if (me.status === "unauthenticated") document.title = documentTitle("Sign in");
+		else if (me.status === "error") document.title = documentTitle("Session error");
+		else if (me.status === "loading") document.title = SITE_TITLE;
+	}, [me.status]);
 
 	if (me.status === "loading") {
 		return <LoadingScreen label="Loading session" mark={<XrayMark className="h-8 w-8" />} />;
