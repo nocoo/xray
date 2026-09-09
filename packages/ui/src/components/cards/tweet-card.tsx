@@ -15,6 +15,8 @@ import {
 	AtSign,
 	Bookmark,
 	Check,
+	ChevronLeft,
+	ChevronRight,
 	ExternalLink,
 	Eye,
 	Hash,
@@ -92,12 +94,12 @@ export const TweetCard = memo(function TweetCard({
 }: TweetCardProps) {
 	void linkToDetail;
 	const nowMs = useNow();
-	const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+	const [lightbox, setLightbox] = useState<{ urls: string[]; index: number } | null>(null);
 	const lightboxOpenerRef = useRef<HTMLElement | null>(null);
 
-	const openLightbox = useCallback((url: string, opener: HTMLElement) => {
+	const openLightbox = useCallback((urls: string[], index: number, opener: HTMLElement) => {
 		lightboxOpenerRef.current = opener;
-		setLightboxUrl(url);
+		setLightbox({ urls, index });
 	}, []);
 
 	// --- Translation state ---
@@ -609,8 +611,10 @@ export const TweetCard = memo(function TweetCard({
 				{actionBar}
 			</LayerCard>
 			<ImageLightbox
-				url={lightboxUrl}
-				onClose={() => setLightboxUrl(null)}
+				urls={lightbox?.urls ?? []}
+				index={lightbox?.index ?? 0}
+				open={lightbox != null}
+				onClose={() => setLightbox(null)}
 				onCloseAutoFocus={(event) => {
 					event.preventDefault();
 					lightboxOpenerRef.current?.focus();
@@ -714,10 +718,17 @@ function MediaGrid({
 }: {
 	media: TweetMedia[];
 	compact?: boolean;
-	onPhotoClick?: (url: string, opener: HTMLElement) => void;
+	onPhotoClick?: (urls: string[], index: number, opener: HTMLElement) => void;
 }) {
 	const photos = media.filter((m) => m.type === "PHOTO");
 	const allPhotos = photos.length === media.length;
+	const photoUrls = photos.map((m) => proxyUrl(m.url));
+	const handlePhotoClick = onPhotoClick
+		? (url: string, opener: HTMLElement) => {
+				const index = photoUrls.indexOf(url);
+				onPhotoClick(photoUrls, index < 0 ? 0 : index, opener);
+			}
+		: undefined;
 	const gridHeight = compact ? "h-44" : "h-60";
 	const roundedClass = compact ? "rounded-md" : "rounded-lg";
 
@@ -732,7 +743,7 @@ function MediaGrid({
 								key={m.id}
 								media={m}
 								className="w-full h-full object-cover"
-								onClick={onPhotoClick}
+								onClick={handlePhotoClick}
 							/>
 						))}
 					</div>
@@ -745,21 +756,21 @@ function MediaGrid({
 							media={at(media, 0)}
 							className="w-full h-full object-cover"
 							containerClass="row-span-2 h-full min-h-0"
-							onClick={onPhotoClick}
+							onClick={handlePhotoClick}
 						/>
 						<PhotoItem
 							key={at(media, 1).id}
 							media={at(media, 1)}
 							className="w-full h-full object-cover"
 							containerClass="h-full min-h-0"
-							onClick={onPhotoClick}
+							onClick={handlePhotoClick}
 						/>
 						<PhotoItem
 							key={at(media, 2).id}
 							media={at(media, 2)}
 							className="w-full h-full object-cover"
 							containerClass="h-full min-h-0"
-							onClick={onPhotoClick}
+							onClick={handlePhotoClick}
 						/>
 					</div>
 				)}
@@ -771,7 +782,7 @@ function MediaGrid({
 								key={m.id}
 								media={m}
 								className="w-full h-full object-cover"
-								onClick={onPhotoClick}
+								onClick={handlePhotoClick}
 							/>
 						))}
 					</div>
@@ -787,7 +798,7 @@ function MediaGrid({
 				<PhotoItem
 					media={at(media, 0)}
 					className={`w-full ${roundedClass}`}
-					onClick={onPhotoClick}
+					onClick={handlePhotoClick}
 				/>
 			</div>
 		);
@@ -820,7 +831,7 @@ function MediaGrid({
 							media={m}
 							className={scrollMediaClass}
 							containerClass={containerClass}
-							onClick={onPhotoClick}
+							onClick={handlePhotoClick}
 						/>
 					);
 				}
@@ -1032,41 +1043,140 @@ function PhotoItem({
 // =============================================================================
 
 function ImageLightbox({
-	url,
+	urls,
+	index: initialIndex,
+	open,
 	onClose,
 	onCloseAutoFocus,
 }: {
-	url: string | null;
+	urls: string[];
+	index: number;
+	open: boolean;
 	onClose: () => void;
 	onCloseAutoFocus?: (event: { preventDefault: () => void }) => void;
 }) {
+	const [index, setIndex] = useState(initialIndex);
+	const count = urls.length;
+	const canNav = count > 1;
+
+	useEffect(() => {
+		if (open) setIndex(initialIndex);
+	}, [open, initialIndex]);
+
+	const go = useCallback(
+		(delta: number) => {
+			if (!canNav) return;
+			setIndex((current) => (current + delta + count) % count);
+		},
+		[canNav, count],
+	);
+
+	useEffect(() => {
+		if (!open || !canNav) return;
+		const onKey = (event: KeyboardEvent) => {
+			if (event.key === "ArrowLeft") {
+				event.preventDefault();
+				go(-1);
+			} else if (event.key === "ArrowRight") {
+				event.preventDefault();
+				go(1);
+			}
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [open, canNav, go]);
+
 	return (
 		<Dialog
-			open={url != null}
-			onOpenChange={(open) => {
-				if (!open) onClose();
+			open={open}
+			onOpenChange={(next) => {
+				if (!next) onClose();
 			}}
 		>
 			<DialogContent
 				size="xl"
 				aria-describedby={undefined}
-				className="w-auto max-w-[90vw] bg-transparent p-0 shadow-none ring-0 sm:w-auto"
+				className="flex h-[80vh] w-[80vw] max-h-[80vh] max-w-[80vw] flex-col overflow-hidden bg-zinc-950 p-0 shadow-none ring-0 sm:w-[80vw]"
 				onCloseAutoFocus={onCloseAutoFocus}
 			>
-				<DialogTitle className="sr-only">Image preview</DialogTitle>
+				<DialogTitle className="sr-only">
+					{count > 0 ? `Image ${index + 1} of ${count}` : "Image preview"}
+				</DialogTitle>
 				<DialogClose asChild>
 					<Button
 						type="button"
 						variant="ghost"
 						size="icon"
-						className="absolute top-2 right-2 z-10 h-8 w-8 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
+						className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
 						aria-label="Close"
 					>
 						<X className="h-5 w-5" />
 					</Button>
 				</DialogClose>
-				{url ? (
-					<img src={url} alt="" className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain" />
+				<div className="relative min-h-0 flex-1 overflow-hidden">
+					<div
+						className="flex h-full transition-transform duration-300 ease-out motion-reduce:transition-none"
+						style={{ transform: `translateX(-${index * 100}%)` }}
+					>
+						{urls.map((src) => (
+							<div
+								key={src}
+								className="flex h-full w-full shrink-0 items-center justify-center px-12"
+							>
+								<img src={src} alt="" className="max-h-full max-w-full rounded-lg object-contain" />
+							</div>
+						))}
+					</div>
+					{canNav ? (
+						<>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="absolute top-1/2 left-2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
+								aria-label="Previous image"
+								onClick={() => go(-1)}
+							>
+								<ChevronLeft className="h-6 w-6" />
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="absolute top-1/2 right-2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
+								aria-label="Next image"
+								onClick={() => go(1)}
+							>
+								<ChevronRight className="h-6 w-6" />
+							</Button>
+						</>
+					) : null}
+				</div>
+				{canNav ? (
+					<div className="flex shrink-0 flex-col items-center gap-2 px-4 py-3">
+						<p className="text-xs tabular-nums text-white/70">
+							{index + 1} / {count}
+						</p>
+						<div className="flex max-w-full gap-2 overflow-x-auto">
+							{urls.map((src, i) => (
+								<button
+									key={src}
+									type="button"
+									aria-label={`Show image ${i + 1}`}
+									aria-current={i === index ? "true" : undefined}
+									className={cn(
+										"h-14 w-14 shrink-0 overflow-hidden rounded-md ring-2 transition-opacity",
+										i === index
+											? "ring-white opacity-100"
+											: "ring-transparent opacity-50 hover:opacity-80",
+									)}
+									onClick={() => setIndex(i)}
+								>
+									<img src={src} alt="" className="h-full w-full object-cover" />
+								</button>
+							))}
+						</div>
+					</div>
 				) : null}
 			</DialogContent>
 		</Dialog>
