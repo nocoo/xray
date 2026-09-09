@@ -1,6 +1,6 @@
 /** Tweet card — layout ported from legacy/v1 (avatar, metrics, translate bar, AI insight). */
 
-import { Badge, LayerCard } from "@nocoo/basalt";
+import { Badge, Button, LayerCard } from "@nocoo/basalt";
 import type { SourceType } from "@xray/shared";
 import {
 	ArrowLeftRight,
@@ -14,7 +14,6 @@ import {
 	Image as ImageIcon,
 	Languages,
 	LinkIcon,
-	Loader2,
 	MessageCircle,
 	MessageSquareQuote,
 	Play,
@@ -466,67 +465,67 @@ export const TweetCard = memo(function TweetCard({
 
 				{/* Translate / Toggle language */}
 				{hasTranslation ? (
-					<button
+					<Button
 						type="button"
+						variant="ghost"
+						size="sm"
 						onClick={(e) => {
 							e.stopPropagation();
 							e.preventDefault();
 							setLang((l) => (l === "zh" ? "en" : "zh"));
 						}}
 						className={cn(
-							"inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors",
+							"h-8 px-2 text-xs font-medium",
 							lang === "zh"
 								? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-								: "text-muted-foreground hover:text-foreground hover:bg-accent",
+								: "text-muted-foreground",
 						)}
 						title={lang === "zh" ? "Show original" : "Show translation"}
 					>
 						<ArrowLeftRight className="h-3.5 w-3.5" />
 						{lang === "zh" ? "中文" : "EN"}
-					</button>
+					</Button>
 				) : (
-					<button
+					<Button
 						type="button"
+						variant="ghost"
+						size="sm"
 						onClick={(e) => {
 							e.stopPropagation();
 							e.preventDefault();
-							handleTranslate();
+							void handleTranslate();
 						}}
-						disabled={translating}
-						className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+						loading={translating}
+						className="h-8 px-2 text-xs text-muted-foreground"
 						title="Translate this post"
 					>
-						{translating ? (
-							<Loader2 className="h-3.5 w-3.5 animate-spin" />
-						) : (
-							<Languages className="h-3.5 w-3.5" />
-						)}
+						<Languages className="h-3.5 w-3.5" />
 						{translating ? "Translating..." : "Translate"}
-					</button>
+					</Button>
 				)}
 
-				<button
+				<Button
 					type="button"
+					variant="ghost"
+					size="sm"
 					onClick={(e) => {
 						e.stopPropagation();
 						e.preventDefault();
-						handleSaveToZheto();
+						void handleSaveToZheto();
 					}}
-					disabled={zhetoStatus === "saving" || zhetoStatus === "saved"}
+					loading={zhetoStatus === "saving"}
+					disabled={zhetoStatus === "saved"}
 					className={cn(
-						"inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors",
+						"h-8 px-2 text-xs font-medium",
 						zhetoStatus === "saved"
 							? "text-emerald-600 dark:text-emerald-400"
 							: zhetoStatus === "error"
 								? "text-red-500 dark:text-red-400"
-								: "text-muted-foreground hover:text-foreground hover:bg-accent",
-						(zhetoStatus === "saving" || zhetoStatus === "saved") && "opacity-60 cursor-default",
+								: "text-muted-foreground",
 					)}
 					title="Save to zhe.to"
 				>
-					{zhetoStatus === "saving" ? (
-						<Loader2 className="h-3.5 w-3.5 animate-spin" />
-					) : zhetoStatus === "saved" ? (
+					{zhetoStatus === "saved" ? (
 						<Check className="h-3.5 w-3.5" />
 					) : (
 						<LinkIcon className="h-3.5 w-3.5" />
@@ -538,22 +537,24 @@ export const TweetCard = memo(function TweetCard({
 							: zhetoStatus === "error"
 								? "Failed"
 								: "zhe.to"}
-				</button>
+				</Button>
 
 				{onRemove && (
-					<button
+					<Button
 						type="button"
+						variant="ghost"
+						size="sm"
 						onClick={(e) => {
 							e.stopPropagation();
 							e.preventDefault();
 							onRemove();
 						}}
-						className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+						className="ml-auto h-8 px-2 text-xs text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
 						title="Remove this post"
 					>
 						<Trash2 className="h-3.5 w-3.5" />
 						Remove
-					</button>
+					</Button>
 				)}
 			</div>
 		</LayerCard.Footer>

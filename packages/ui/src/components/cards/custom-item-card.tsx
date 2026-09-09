@@ -1,11 +1,10 @@
-import { LayerCard } from "@nocoo/basalt";
+import { Button, LayerCard } from "@nocoo/basalt";
 import type { SourceType } from "@xray/shared";
 import {
 	ArrowLeftRight,
 	Bookmark,
 	ExternalLink,
 	Languages,
-	Loader2,
 	MessageSquareQuote,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -207,57 +206,54 @@ export function CustomItemCard({
 						</a>
 					)}
 					{hasTranslation ? (
-						<button
+						<Button
 							type="button"
+							variant="ghost"
+							size="sm"
 							onClick={() => setLang((l) => (l === "zh" ? "en" : "zh"))}
 							className={cn(
-								"inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors",
+								"h-8 px-2 text-xs font-medium",
 								lang === "zh"
 									? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-									: "text-muted-foreground hover:bg-accent hover:text-foreground",
+									: "text-muted-foreground",
 							)}
 							title={lang === "zh" ? "Show original" : "Show translation"}
 						>
 							<ArrowLeftRight className="h-3.5 w-3.5" />
 							{lang === "zh" ? "中文" : "EN"}
-						</button>
+						</Button>
 					) : (
-						<button
+						<Button
 							type="button"
+							variant="ghost"
+							size="sm"
 							onClick={() => void handleTranslate()}
-							disabled={translating}
-							className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+							loading={translating}
+							className="h-8 px-2 text-xs text-muted-foreground"
 							title="Translate this post"
 						>
-							{translating ? (
-								<Loader2 className="h-3.5 w-3.5 animate-spin" />
-							) : (
-								<Languages className="h-3.5 w-3.5" />
-							)}
+							<Languages className="h-3.5 w-3.5" />
 							{translating ? "Translating..." : "Translate"}
-						</button>
+						</Button>
 					)}
 					{canSave && (
-						<button
+						<Button
 							type="button"
+							variant="ghost"
+							size="sm"
 							onClick={() => void onSave()}
-							disabled={zhetoStatus === "saving" || zhetoStatus === "saved"}
+							loading={zhetoStatus === "saving"}
+							disabled={zhetoStatus === "saved"}
 							className={cn(
-								"inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs transition-colors",
+								"h-8 px-2 text-xs",
 								zhetoStatus === "saved"
 									? "text-emerald-600"
 									: zhetoStatus === "error"
 										? "text-destructive"
-										: "text-muted-foreground hover:bg-accent hover:text-foreground",
-								(zhetoStatus === "saving" || zhetoStatus === "saved") &&
-									"opacity-60 cursor-default",
+										: "text-muted-foreground",
 							)}
 						>
-							{zhetoStatus === "saving" ? (
-								<Loader2 className="h-3.5 w-3.5 animate-spin" />
-							) : (
-								<Bookmark className="h-3.5 w-3.5" />
-							)}
+							<Bookmark className="h-3.5 w-3.5" />
 							{zhetoStatus === "saving"
 								? "Saving…"
 								: zhetoStatus === "saved"
@@ -265,16 +261,18 @@ export function CustomItemCard({
 									: zhetoStatus === "error"
 										? "Error"
 										: "zhe.to"}
-						</button>
+						</Button>
 					)}
 					{onRemove && (
-						<button
+						<Button
 							type="button"
+							variant="ghost"
+							size="sm"
 							onClick={onRemove}
-							className="ml-auto inline-flex h-8 items-center rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+							className="ml-auto h-8 px-2 text-xs text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
 						>
 							Remove
-						</button>
+						</Button>
 					)}
 				</LayerCard.Footer>
 			)}

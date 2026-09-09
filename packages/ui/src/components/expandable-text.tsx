@@ -1,3 +1,4 @@
+import { Button } from "@nocoo/basalt";
 import { useLayoutEffect, useRef, useState } from "react";
 import {
 	parseLineHeightPx,
@@ -46,10 +47,12 @@ export function ExpandableText({ lines, className, children }: ExpandableTextPro
 				{children}
 			</p>
 			{overflows ? (
-				<button
+				<Button
 					type="button"
+					variant="link"
+					size="sm"
 					data-testid="expandable-text-toggle"
-					className="mt-1 text-xs font-medium text-sky-600 hover:underline dark:text-sky-400"
+					className="mt-1 h-auto px-0 text-xs font-medium text-sky-600 dark:text-sky-400"
 					aria-expanded={expanded}
 					onClick={(e) => {
 						e.stopPropagation();
@@ -57,7 +60,7 @@ export function ExpandableText({ lines, className, children }: ExpandableTextPro
 					}}
 				>
 					{expanded ? "Show less" : "Show more"}
-				</button>
+				</Button>
 			) : null}
 		</div>
 	);
