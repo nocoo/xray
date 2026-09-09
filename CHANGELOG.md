@@ -16,6 +16,7 @@ All notable changes to X-Ray are documented in this file.
 - Adopt xray family identity
 
 ### Changed
+- Override sharp to 0.35.4
 - Add local debug feed seeder
 - Add @nocoo/basalt 2.1.2
 - Refresh bilingual project readmes
