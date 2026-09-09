@@ -18,6 +18,7 @@ import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { PageAside } from "@/components/layout/page-aside";
 import { PostsColumnsPages } from "@/components/posts-columns-pages";
 import { SourceFilter } from "@/components/source-filter";
+import { useRestoreDialogFocus } from "@/hooks/restore-dialog-focus";
 import { useColumns } from "@/hooks/use-columns";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,7 @@ export function WatchlistDetailPage() {
 	const { openAddMember } = useCreateDialogs();
 	const [editMember, setEditMember] = useState<Member | null>(null);
 	const [panel, setPanel] = useState<"settings" | "activity" | null>(null);
+	useRestoreDialogFocus(panel != null);
 	const isMobile = useIsMobile();
 	const [wideEnoughForPush, setWideEnoughForPush] = useState(false);
 	const [feedEl, setFeedEl] = useState<HTMLDivElement | null>(null);

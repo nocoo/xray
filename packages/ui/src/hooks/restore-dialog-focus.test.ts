@@ -3,8 +3,9 @@ import { createElement, useState } from "react";
 import { afterEach, describe, expect, test } from "vitest";
 import { useRestoreDialogFocus } from "./restore-dialog-focus";
 
-function Probe() {
+function Probe({ remount = false }: { remount?: boolean }) {
 	const [open, setOpen] = useState(false);
+	const [host, setHost] = useState("a");
 	const onCloseAutoFocus = useRestoreDialogFocus(open);
 	return createElement(
 		"div",
@@ -12,15 +13,22 @@ function Probe() {
 		createElement("button", { type: "button", onClick: () => setOpen(true) }, "Open"),
 		open
 			? createElement(
-					"button",
-					{
-						type: "button",
-						onClick: () => {
-							setOpen(false);
-							onCloseAutoFocus({ preventDefault: () => undefined });
+					"div",
+					{ key: remount ? host : "dock" },
+					remount
+						? createElement("button", { type: "button", onClick: () => setHost("b") }, "Remount")
+						: null,
+					createElement(
+						"button",
+						{
+							type: "button",
+							onClick: () => {
+								setOpen(false);
+								if (!remount) onCloseAutoFocus({ preventDefault: () => undefined });
+							},
 						},
-					},
-					"Close",
+						"Close",
+					),
 				)
 			: null,
 	);
@@ -34,6 +42,16 @@ describe("useRestoreDialogFocus", () => {
 		const open = screen.getByRole("button", { name: "Open" });
 		open.focus();
 		fireEvent.click(open);
+		fireEvent.click(screen.getByRole("button", { name: "Close" }));
+		expect(document.activeElement).toBe(open);
+	});
+
+	test("restores opener after the overlay remounts", () => {
+		render(createElement(Probe, { remount: true }));
+		const open = screen.getByRole("button", { name: "Open" });
+		open.focus();
+		fireEvent.click(open);
+		fireEvent.click(screen.getByRole("button", { name: "Remount" }));
 		fireEvent.click(screen.getByRole("button", { name: "Close" }));
 		expect(document.activeElement).toBe(open);
 	});
