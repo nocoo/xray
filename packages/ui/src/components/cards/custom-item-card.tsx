@@ -229,10 +229,10 @@ export function CustomItemCard({
 							size="sm"
 							onClick={() => void handleTranslate()}
 							loading={translating}
+							icon={<Languages className="h-3.5 w-3.5" />}
 							className="h-8 px-2 text-xs text-muted-foreground"
 							title="Translate this post"
 						>
-							<Languages className="h-3.5 w-3.5" />
 							{translating ? "Translating..." : "Translate"}
 						</Button>
 					)}
@@ -244,6 +244,7 @@ export function CustomItemCard({
 							onClick={() => void onSave()}
 							loading={zhetoStatus === "saving"}
 							disabled={zhetoStatus === "saved"}
+							icon={<Bookmark className="h-3.5 w-3.5" />}
 							className={cn(
 								"h-8 px-2 text-xs",
 								zhetoStatus === "saved"
@@ -253,7 +254,6 @@ export function CustomItemCard({
 										: "text-muted-foreground",
 							)}
 						>
-							<Bookmark className="h-3.5 w-3.5" />
 							{zhetoStatus === "saving"
 								? "Saving…"
 								: zhetoStatus === "saved"
