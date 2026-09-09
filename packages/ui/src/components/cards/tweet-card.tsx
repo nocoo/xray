@@ -1,6 +1,14 @@
 /** Tweet card — layout ported from legacy/v1 (avatar, metrics, translate bar, AI insight). */
 
-import { Badge, Button, LayerCard } from "@nocoo/basalt";
+import {
+	Badge,
+	Button,
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogTitle,
+	LayerCard,
+} from "@nocoo/basalt";
 import type { SourceType } from "@xray/shared";
 import {
 	ArrowLeftRight,
@@ -1000,42 +1008,34 @@ function PhotoItem({
 // =============================================================================
 
 function ImageLightbox({ url, onClose }: { url: string | null; onClose: () => void }) {
-	if (!url) return null;
-
 	return (
-		<div
-			className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 animate-in fade-in-0 duration-200"
-			onClick={onClose}
-			onKeyDown={(e) => {
-				if (e.key === "Escape") onClose();
+		<Dialog
+			open={url != null}
+			onOpenChange={(open) => {
+				if (!open) onClose();
 			}}
-			role="dialog"
-			aria-modal="true"
-			tabIndex={-1}
-			ref={(el) => el?.focus()}
 		>
-			{/* Close button */}
-			<button
-				type="button"
-				className="absolute top-4 right-4 z-10 rounded-full bg-black/50 p-2 text-white/80 hover:text-white hover:bg-black/70 transition-colors"
-				onClick={(e) => {
-					e.stopPropagation();
-					onClose();
-				}}
-				aria-label="Close"
+			<DialogContent
+				size="xl"
+				aria-describedby={undefined}
+				className="w-auto max-w-[90vw] bg-transparent p-0 shadow-none ring-0 sm:w-auto"
 			>
-				<X className="h-5 w-5" />
-			</button>
-
-			{/* Full-res image */}
-			<button
-				type="button"
-				className="border-0 bg-transparent p-0"
-				onClick={(e) => e.stopPropagation()}
-				aria-label="Image preview"
-			>
-				<img src={url} alt="" className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain" />
-			</button>
-		</div>
+				<DialogTitle className="sr-only">Image preview</DialogTitle>
+				<DialogClose asChild>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						className="absolute top-2 right-2 z-10 h-8 w-8 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
+						aria-label="Close"
+					>
+						<X className="h-5 w-5" />
+					</Button>
+				</DialogClose>
+				{url ? (
+					<img src={url} alt="" className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain" />
+				) : null}
+			</DialogContent>
+		</Dialog>
 	);
 }
