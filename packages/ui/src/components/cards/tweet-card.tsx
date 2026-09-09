@@ -610,9 +610,19 @@ export const TweetCard = memo(function TweetCard({
 // proxy to avoid 403 from Twitter CDN's Referer-based hotlink protection
 // =============================================================================
 
+const TWIMG_HOSTS = new Set(["video.twimg.com", "pbs.twimg.com", "abs.twimg.com"]);
+
 /** Route Twitter CDN media through worker proxy (Referer hotlink protection). */
 function proxyUrl(url: string): string {
-	return `/api/media/proxy?url=${encodeURIComponent(url)}`;
+	try {
+		const host = new URL(url).hostname.toLowerCase();
+		if (TWIMG_HOSTS.has(host)) {
+			return `/api/media/proxy?url=${encodeURIComponent(url)}`;
+		}
+	} catch {
+		return url;
+	}
+	return url;
 }
 
 // =============================================================================
