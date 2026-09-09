@@ -191,15 +191,15 @@ export function CustomItemCard({
 			)}
 
 			{hasActions && (
-				<LayerCard.Footer className="justify-start gap-1 py-2">
+				<LayerCard.Footer className="items-center justify-start gap-1 px-2 py-1">
 					{url && (
 						<a
 							href={url}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+							className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 						>
-							<ExternalLink className="h-3 w-3" />
+							<ExternalLink className="h-3.5 w-3.5" />
 							Open
 						</a>
 					)}
@@ -208,14 +208,14 @@ export function CustomItemCard({
 							type="button"
 							onClick={() => setLang((l) => (l === "zh" ? "en" : "zh"))}
 							className={cn(
-								"flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+								"inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors",
 								lang === "zh"
 									? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
 									: "text-muted-foreground hover:bg-accent hover:text-foreground",
 							)}
 							title={lang === "zh" ? "Show original" : "Show translation"}
 						>
-							<ArrowLeftRight className="h-3 w-3" />
+							<ArrowLeftRight className="h-3.5 w-3.5" />
 							{lang === "zh" ? "中文" : "EN"}
 						</button>
 					) : (
@@ -223,13 +223,13 @@ export function CustomItemCard({
 							type="button"
 							onClick={() => void handleTranslate()}
 							disabled={translating}
-							className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+							className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
 							title="Translate this post"
 						>
 							{translating ? (
-								<Loader2 className="h-3 w-3 animate-spin" />
+								<Loader2 className="h-3.5 w-3.5 animate-spin" />
 							) : (
-								<Languages className="h-3 w-3" />
+								<Languages className="h-3.5 w-3.5" />
 							)}
 							{translating ? "Translating..." : "Translate"}
 						</button>
@@ -240,7 +240,7 @@ export function CustomItemCard({
 							onClick={() => void onSave()}
 							disabled={zhetoStatus === "saving" || zhetoStatus === "saved"}
 							className={cn(
-								"flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] transition-colors",
+								"inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs transition-colors",
 								zhetoStatus === "saved"
 									? "text-emerald-600"
 									: zhetoStatus === "error"
@@ -251,9 +251,9 @@ export function CustomItemCard({
 							)}
 						>
 							{zhetoStatus === "saving" ? (
-								<Loader2 className="h-3 w-3 animate-spin" />
+								<Loader2 className="h-3.5 w-3.5 animate-spin" />
 							) : (
-								<Bookmark className="h-3 w-3" />
+								<Bookmark className="h-3.5 w-3.5" />
 							)}
 							{zhetoStatus === "saving"
 								? "Saving…"
@@ -268,7 +268,7 @@ export function CustomItemCard({
 						<button
 							type="button"
 							onClick={onRemove}
-							className="ml-auto rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+							className="ml-auto inline-flex h-8 items-center rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
 						>
 							Remove
 						</button>

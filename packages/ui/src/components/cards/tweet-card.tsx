@@ -420,140 +420,139 @@ export const TweetCard = memo(function TweetCard({
 					</div>
 				</div>
 			)}
-
-			<div
-				className="flex items-center gap-4 overflow-hidden text-xs text-muted-foreground"
-				style={{
-					maskImage: "linear-gradient(to right, black 80%, transparent 100%)",
-					WebkitMaskImage: "linear-gradient(to right, black 80%, transparent 100%)",
-				}}
-			>
-				<MetricItem
-					icon={<MessageCircle className="h-3.5 w-3.5" />}
-					value={tweet.metrics.reply_count}
-				/>
-				<MetricItem
-					icon={<Repeat2 className="h-3.5 w-3.5" />}
-					value={tweet.metrics.retweet_count}
-				/>
-				<MetricItem icon={<Quote className="h-3.5 w-3.5" />} value={tweet.metrics.quote_count} />
-				<MetricItem icon={<Heart className="h-3.5 w-3.5" />} value={tweet.metrics.like_count} />
-				<MetricItem icon={<Eye className="h-3.5 w-3.5" />} value={tweet.metrics.view_count} />
-				<MetricItem
-					icon={<Bookmark className="h-3.5 w-3.5" />}
-					value={tweet.metrics.bookmark_count}
-				/>
-			</div>
 		</LayerCard.Body>
 	);
 
+	const metricRow = (
+		<div
+			className="flex h-8 items-center gap-1 overflow-hidden text-xs text-muted-foreground"
+			style={{
+				maskImage: "linear-gradient(to right, black 80%, transparent 100%)",
+				WebkitMaskImage: "linear-gradient(to right, black 80%, transparent 100%)",
+			}}
+		>
+			<MetricItem
+				icon={<MessageCircle className="h-3.5 w-3.5" />}
+				value={tweet.metrics.reply_count}
+			/>
+			<MetricItem icon={<Repeat2 className="h-3.5 w-3.5" />} value={tweet.metrics.retweet_count} />
+			<MetricItem icon={<Quote className="h-3.5 w-3.5" />} value={tweet.metrics.quote_count} />
+			<MetricItem icon={<Heart className="h-3.5 w-3.5" />} value={tweet.metrics.like_count} />
+			<MetricItem icon={<Eye className="h-3.5 w-3.5" />} value={tweet.metrics.view_count} />
+			<MetricItem
+				icon={<Bookmark className="h-3.5 w-3.5" />}
+				value={tweet.metrics.bookmark_count}
+			/>
+		</div>
+	);
+
 	const actionBar = showActionBar ? (
-		<LayerCard.Footer className="justify-start gap-1 py-2">
-			{/* Open on X */}
-			<a
-				href={tweet.url}
-				target="_blank"
-				rel="noopener noreferrer"
-				className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-				onClick={(e) => e.stopPropagation()}
-			>
-				<ExternalLink className="h-3 w-3" />
-				Open
-			</a>
-
-			{/* Translate / Toggle language */}
-			{hasTranslation ? (
-				<button
-					type="button"
-					onClick={(e) => {
-						e.stopPropagation();
-						e.preventDefault();
-						setLang((l) => (l === "zh" ? "en" : "zh"));
-					}}
-					className={cn(
-						"flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
-						lang === "zh"
-							? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-							: "text-muted-foreground hover:text-foreground hover:bg-accent",
-					)}
-					title={lang === "zh" ? "Show original" : "Show translation"}
+		<LayerCard.Footer className="flex-col items-stretch justify-start gap-0 px-2 py-1">
+			{metricRow}
+			<div className="flex h-8 items-center gap-1">
+				<a
+					href={tweet.url}
+					target="_blank"
+					rel="noopener noreferrer"
+					className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+					onClick={(e) => e.stopPropagation()}
 				>
-					<ArrowLeftRight className="h-3 w-3" />
-					{lang === "zh" ? "中文" : "EN"}
-				</button>
-			) : (
-				<button
-					type="button"
-					onClick={(e) => {
-						e.stopPropagation();
-						e.preventDefault();
-						handleTranslate();
-					}}
-					disabled={translating}
-					className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
-					title="Translate this post"
-				>
-					{translating ? (
-						<Loader2 className="h-3 w-3 animate-spin" />
-					) : (
-						<Languages className="h-3 w-3" />
-					)}
-					{translating ? "Translating..." : "Translate"}
-				</button>
-			)}
+					<ExternalLink className="h-3.5 w-3.5" />
+					Open
+				</a>
 
-			{/* Save to zhe.to */}
-			<button
-				type="button"
-				onClick={(e) => {
-					e.stopPropagation();
-					e.preventDefault();
-					handleSaveToZheto();
-				}}
-				disabled={zhetoStatus === "saving" || zhetoStatus === "saved"}
-				className={cn(
-					"flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
-					zhetoStatus === "saved"
-						? "text-emerald-600 dark:text-emerald-400"
-						: zhetoStatus === "error"
-							? "text-red-500 dark:text-red-400"
-							: "text-muted-foreground hover:text-foreground hover:bg-accent",
-					(zhetoStatus === "saving" || zhetoStatus === "saved") && "opacity-60 cursor-default",
-				)}
-				title="Save to zhe.to"
-			>
-				{zhetoStatus === "saving" ? (
-					<Loader2 className="h-3 w-3 animate-spin" />
-				) : zhetoStatus === "saved" ? (
-					<Check className="h-3 w-3" />
+				{/* Translate / Toggle language */}
+				{hasTranslation ? (
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							e.preventDefault();
+							setLang((l) => (l === "zh" ? "en" : "zh"));
+						}}
+						className={cn(
+							"inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors",
+							lang === "zh"
+								? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+								: "text-muted-foreground hover:text-foreground hover:bg-accent",
+						)}
+						title={lang === "zh" ? "Show original" : "Show translation"}
+					>
+						<ArrowLeftRight className="h-3.5 w-3.5" />
+						{lang === "zh" ? "中文" : "EN"}
+					</button>
 				) : (
-					<LinkIcon className="h-3 w-3" />
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							e.preventDefault();
+							handleTranslate();
+						}}
+						disabled={translating}
+						className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+						title="Translate this post"
+					>
+						{translating ? (
+							<Loader2 className="h-3.5 w-3.5 animate-spin" />
+						) : (
+							<Languages className="h-3.5 w-3.5" />
+						)}
+						{translating ? "Translating..." : "Translate"}
+					</button>
 				)}
-				{zhetoStatus === "saving"
-					? "Saving..."
-					: zhetoStatus === "saved"
-						? "Saved"
-						: zhetoStatus === "error"
-							? "Failed"
-							: "zhe.to"}
-			</button>
 
-			{/* Remove post */}
-			{onRemove && (
 				<button
 					type="button"
 					onClick={(e) => {
 						e.stopPropagation();
 						e.preventDefault();
-						onRemove();
+						handleSaveToZheto();
 					}}
-					className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors ml-auto"
-					title="Remove this post"
+					disabled={zhetoStatus === "saving" || zhetoStatus === "saved"}
+					className={cn(
+						"inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors",
+						zhetoStatus === "saved"
+							? "text-emerald-600 dark:text-emerald-400"
+							: zhetoStatus === "error"
+								? "text-red-500 dark:text-red-400"
+								: "text-muted-foreground hover:text-foreground hover:bg-accent",
+						(zhetoStatus === "saving" || zhetoStatus === "saved") && "opacity-60 cursor-default",
+					)}
+					title="Save to zhe.to"
 				>
-					<Trash2 className="h-3 w-3" />
-					Remove
+					{zhetoStatus === "saving" ? (
+						<Loader2 className="h-3.5 w-3.5 animate-spin" />
+					) : zhetoStatus === "saved" ? (
+						<Check className="h-3.5 w-3.5" />
+					) : (
+						<LinkIcon className="h-3.5 w-3.5" />
+					)}
+					{zhetoStatus === "saving"
+						? "Saving..."
+						: zhetoStatus === "saved"
+							? "Saved"
+							: zhetoStatus === "error"
+								? "Failed"
+								: "zhe.to"}
 				</button>
-			)}
+
+				{onRemove && (
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							e.preventDefault();
+							onRemove();
+						}}
+						className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+						title="Remove this post"
+					>
+						<Trash2 className="h-3.5 w-3.5" />
+						Remove
+					</button>
+				)}
+			</div>
 		</LayerCard.Footer>
 	) : null;
 
@@ -654,7 +653,7 @@ function linkifyText(text: string): React.ReactNode {
 
 function MetricItem({ icon, value }: { icon: React.ReactNode; value: number }) {
 	return (
-		<div className="flex shrink-0 items-center gap-1">
+		<div className="inline-flex h-8 shrink-0 items-center gap-1.5 px-2">
 			{icon}
 			<span className="font-display">{formatCount(value)}</span>
 		</div>
