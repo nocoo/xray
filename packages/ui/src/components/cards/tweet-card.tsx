@@ -96,10 +96,17 @@ export const TweetCard = memo(function TweetCard({
 	const nowMs = useNow();
 	const [lightbox, setLightbox] = useState<{ urls: string[]; index: number } | null>(null);
 	const lightboxOpenerRef = useRef<HTMLElement | null>(null);
+	const [videoPlayer, setVideoPlayer] = useState<{ src: string; poster?: string } | null>(null);
+	const videoOpenerRef = useRef<HTMLElement | null>(null);
 
 	const openLightbox = useCallback((urls: string[], index: number, opener: HTMLElement) => {
 		lightboxOpenerRef.current = opener;
 		setLightbox({ urls, index });
+	}, []);
+
+	const openVideo = useCallback((src: string, poster: string | undefined, opener: HTMLElement) => {
+		videoOpenerRef.current = opener;
+		setVideoPlayer({ src, poster });
 	}, []);
 
 	// --- Translation state ---
@@ -327,7 +334,7 @@ export const TweetCard = memo(function TweetCard({
 			</ExpandableText>
 
 			{tweet.media && tweet.media.length > 0 && (
-				<MediaGrid media={tweet.media} onPhotoClick={openLightbox} />
+				<MediaGrid media={tweet.media} onPhotoClick={openLightbox} onVideoPlay={openVideo} />
 			)}
 
 			{tweet.entities &&
@@ -420,7 +427,12 @@ export const TweetCard = memo(function TweetCard({
 						</ExpandableText>
 
 						{tweet.quoted_tweet.media && tweet.quoted_tweet.media.length > 0 && (
-							<MediaGrid media={tweet.quoted_tweet.media} compact onPhotoClick={openLightbox} />
+							<MediaGrid
+								media={tweet.quoted_tweet.media}
+								compact
+								onPhotoClick={openLightbox}
+								onVideoPlay={openVideo}
+							/>
 						)}
 
 						<div className="flex items-center gap-3 text-[10px] text-muted-foreground">
@@ -620,6 +632,15 @@ export const TweetCard = memo(function TweetCard({
 					lightboxOpenerRef.current?.focus();
 				}}
 			/>
+			<VideoLightbox
+				src={videoPlayer?.src ?? null}
+				poster={videoPlayer?.poster}
+				onClose={() => setVideoPlayer(null)}
+				onCloseAutoFocus={(event) => {
+					event.preventDefault();
+					videoOpenerRef.current?.focus();
+				}}
+			/>
 		</>
 	);
 });
@@ -715,10 +736,12 @@ function MediaGrid({
 	media,
 	compact = false,
 	onPhotoClick,
+	onVideoPlay,
 }: {
 	media: TweetMedia[];
 	compact?: boolean;
 	onPhotoClick?: (urls: string[], index: number, opener: HTMLElement) => void;
+	onVideoPlay?: (src: string, poster: string | undefined, opener: HTMLElement) => void;
 }) {
 	const photos = media.filter((m) => m.type === "PHOTO");
 	const allPhotos = photos.length === media.length;
@@ -809,7 +832,7 @@ function MediaGrid({
 		const m = at(media, 0);
 		return (
 			<div className={`overflow-hidden ${roundedClass} bg-muted`}>
-				<VideoMedia media={m} className={`w-full ${roundedClass}`} />
+				<VideoMedia media={m} className={`w-full ${roundedClass}`} onPlay={onVideoPlay} />
 			</div>
 		);
 	}
@@ -839,7 +862,7 @@ function MediaGrid({
 				if (m.type === "GIF" || m.type === "VIDEO") {
 					return (
 						<div key={m.id} className={containerClass}>
-							<VideoMedia media={m} className={scrollMediaClass} />
+							<VideoMedia media={m} className={scrollMediaClass} onPlay={onVideoPlay} />
 						</div>
 					);
 				}
@@ -858,133 +881,69 @@ function MediaGrid({
 }
 
 // =============================================================================
-// VideoMedia — X.com-like poster frame before play
-// twitter-cli drops GraphQL media_url_https (the real thumb). When we lack
-// thumbnail_url, capture the first decoded frame via canvas (same-origin proxy).
+// VideoMedia — GIF loops inline; VIDEO is a fake poster that opens VideoLightbox
 // =============================================================================
 
-function VideoMedia({ media, className }: { media: TweetMedia; className: string }) {
+function VideoMedia({
+	media,
+	className,
+	onPlay,
+}: {
+	media: TweetMedia;
+	className: string;
+	onPlay?: (src: string, poster: string | undefined, opener: HTMLElement) => void;
+}) {
 	const isGif = media.type === "GIF";
 	const src = proxyUrl(media.url);
-	const givenPoster = media.thumbnail_url ? proxyUrl(media.thumbnail_url) : undefined;
-	const videoRef = useRef<HTMLVideoElement>(null);
-	const [capturedPoster, setCapturedPoster] = useState<string | undefined>(undefined);
-	const [playing, setPlaying] = useState(isGif);
-	const poster = givenPoster ?? capturedPoster;
+	const poster = media.thumbnail_url ? proxyUrl(media.thumbnail_url) : undefined;
 
-	// Capture a still from the proxied mp4 when API/CLI gave no preview image.
-	// media.url kept so swapping the clip re-runs capture (element instance is reused).
-	// biome-ignore lint/correctness/useExhaustiveDependencies: media.url is the intentional identity key
-	useEffect(() => {
-		if (isGif || givenPoster) return;
-		const v = videoRef.current;
-		if (!v) return;
-		let cancelled = false;
-		setCapturedPoster(undefined);
-
-		const snap = () => {
-			if (cancelled || !v.videoWidth || !v.videoHeight) return;
-			try {
-				// Downscale large sources (4K) so N cards don't keep full-res base64 posters.
-				const maxEdge = 720;
-				const scale = Math.min(1, maxEdge / Math.max(v.videoWidth, v.videoHeight));
-				const w = Math.max(1, Math.round(v.videoWidth * scale));
-				const h = Math.max(1, Math.round(v.videoHeight * scale));
-				const canvas = document.createElement("canvas");
-				canvas.width = w;
-				canvas.height = h;
-				const ctx = canvas.getContext("2d");
-				if (!ctx) return;
-				ctx.drawImage(v, 0, 0, w, h);
-				const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
-				if (!cancelled && dataUrl.startsWith("data:image")) {
-					setCapturedPoster(dataUrl);
-				}
-			} catch {
-				/* tainted canvas / decode race */
-			}
-		};
-
-		const onSeeked = () => {
-			snap();
-			try {
-				v.pause();
-				v.currentTime = 0;
-			} catch {
-				/* ignore */
-			}
-		};
-
-		const kick = () => {
-			if (cancelled) return;
-			v.addEventListener("seeked", onSeeked, { once: true });
-			try {
-				// Slight seek — some encodes have a black keyframe at t=0.
-				const t =
-					Number.isFinite(v.duration) && v.duration > 0 ? Math.min(0.25, v.duration * 0.05) : 0.1;
-				v.currentTime = t;
-			} catch {
-				snap();
-			}
-		};
-
-		if (v.readyState >= 2) kick();
-		else v.addEventListener("loadeddata", kick, { once: true });
-
-		return () => {
-			cancelled = true;
-			v.removeEventListener("seeked", onSeeked);
-			v.removeEventListener("loadeddata", kick);
-		};
-	}, [media.url, isGif, givenPoster]);
-
-	const onPlayClick = useCallback((e: React.MouseEvent) => {
-		e.stopPropagation();
-		e.preventDefault();
-		const v = videoRef.current;
-		if (!v) return;
-		setPlaying(true);
-		void v.play().catch(() => undefined);
-	}, []);
+	if (isGif) {
+		return (
+			<div className="relative bg-black">
+				<video
+					src={src}
+					poster={poster}
+					controls={false}
+					autoPlay
+					loop
+					muted
+					playsInline
+					preload="auto"
+					className={className}
+					onClick={(e) => e.stopPropagation()}
+				>
+					<track kind="captions" />
+				</video>
+			</div>
+		);
+	}
 
 	return (
 		<div className="relative bg-black">
-			<video
-				ref={videoRef}
-				// #t=0.001 helps some browsers paint a frame before JS capture finishes
-				src={isGif ? src : `${src}#t=0.001`}
-				poster={poster}
-				controls={isGif ? false : playing}
-				autoPlay={isGif}
-				loop={isGif}
-				muted={isGif}
-				playsInline
-				preload={isGif ? "auto" : "metadata"}
-				className={className}
-				onClick={(e) => e.stopPropagation()}
-				onPlay={() => setPlaying(true)}
-				onPause={() => {
-					if (!isGif) setPlaying(false);
+			<button
+				type="button"
+				className="relative block w-full cursor-pointer border-0 bg-transparent p-0"
+				onClick={(e) => {
+					e.stopPropagation();
+					e.preventDefault();
+					onPlay?.(src, poster, e.currentTarget);
 				}}
-				onEnded={() => {
-					if (!isGif) setPlaying(false);
-				}}
+				aria-label="Play video"
 			>
-				<track kind="captions" />
-			</video>
-			{/* X-style play affordance until the user starts the video */}
-			{!isGif && !playing && (
-				<button
-					type="button"
-					className="absolute inset-0 flex items-center justify-center border-0 bg-black/20 transition-colors hover:bg-black/30"
-					onClick={onPlayClick}
-					aria-label="Play video"
-				>
+				{poster ? (
+					<img src={poster} alt="" className={className} loading="lazy" />
+				) : (
+					<div
+						className={cn(className, "aspect-video min-h-40 min-w-[12rem] bg-zinc-900")}
+						aria-hidden
+					/>
+				)}
+				<span className="absolute inset-0 flex items-center justify-center bg-black/20 transition-colors hover:bg-black/30">
 					<span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/60 text-white shadow-lg ring-1 ring-white/30 backdrop-blur-sm">
 						<Play className="ml-0.5 h-7 w-7 fill-current" aria-hidden />
 					</span>
-				</button>
-			)}
+				</span>
+			</button>
 		</div>
 	);
 }
@@ -1178,6 +1137,66 @@ function ImageLightbox({
 						</div>
 					</div>
 				) : null}
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+// =============================================================================
+// VideoLightbox — centered popup player (same 80% stage as ImageLightbox)
+// =============================================================================
+
+function VideoLightbox({
+	src,
+	poster,
+	onClose,
+	onCloseAutoFocus,
+}: {
+	src: string | null;
+	poster?: string;
+	onClose: () => void;
+	onCloseAutoFocus?: (event: { preventDefault: () => void }) => void;
+}) {
+	return (
+		<Dialog
+			open={src != null}
+			onOpenChange={(next) => {
+				if (!next) onClose();
+			}}
+		>
+			<DialogContent
+				size="xl"
+				aria-describedby={undefined}
+				className="flex h-[80vh] w-[80vw] max-h-[80vh] max-w-[80vw] flex-col overflow-hidden bg-zinc-950 p-0 shadow-none ring-0 sm:w-[80vw]"
+				onCloseAutoFocus={onCloseAutoFocus}
+			>
+				<DialogTitle className="sr-only">Video player</DialogTitle>
+				<DialogClose asChild>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
+						aria-label="Close"
+					>
+						<X className="h-5 w-5" />
+					</Button>
+				</DialogClose>
+				<div className="flex min-h-0 flex-1 items-center justify-center p-4">
+					{src ? (
+						<video
+							key={src}
+							src={src}
+							poster={poster}
+							controls
+							autoPlay
+							playsInline
+							className="max-h-full max-w-full rounded-lg"
+						>
+							<track kind="captions" />
+						</video>
+					) : null}
+				</div>
 			</DialogContent>
 		</Dialog>
 	);
