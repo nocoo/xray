@@ -136,6 +136,70 @@ describe("translate claim ownership", () => {
 		expect(row?.translation_error).toBeNull();
 	});
 
+	test("batch translates newest items first", async () => {
+		const db = createSqliteD1();
+		await db
+			.prepare(
+				`INSERT INTO users (id, email, name, image, access_iss, access_sub, created_at_ms)
+         VALUES ('u1', 'u@t.local', 'n', NULL, 'iss', 'sub', ?)`,
+			)
+			.bind(Date.now())
+			.run();
+		const wl = await watchlists.createWatchlist(db, "u1", {
+			name: "W",
+			description: null,
+			icon: "eye",
+			translateEnabled: true,
+		});
+		await db
+			.prepare(
+				`INSERT INTO items
+         (user_id, watchlist_id, source_type, external_id, text, created_at_ms, ingested_at_ms,
+          payload_json, ai_status, ai_status_updated_at_ms)
+       VALUES ('u1', ?, 'custom', 'old', 'old', 1, 1, '{}', 'not_requested', 0)`,
+			)
+			.bind(wl.id)
+			.run();
+		await db
+			.prepare(
+				`INSERT INTO items
+         (user_id, watchlist_id, source_type, external_id, text, created_at_ms, ingested_at_ms,
+          payload_json, ai_status, ai_status_updated_at_ms)
+       VALUES ('u1', ?, 'custom', 'new', 'new', 2, 2, '{}', 'not_requested', 0)`,
+			)
+			.bind(wl.id)
+			.run();
+
+		const seen: string[] = [];
+		const out = await runTranslateBatch(db, "u1", wl.id, {
+			config,
+			apiKey: "sk",
+			deadlineMs: 60_000,
+			translateFn: async ({ text }) => {
+				seen.push(text);
+				if (seen.length > 1) {
+					throw new Error("The operation was aborted");
+				}
+				return { translatedText: `译:${text}`, summaryText: null };
+			},
+		});
+
+		expect(seen).toEqual(["new", "old"]);
+		expect(out.results[0]).toMatchObject({ ai_status: "succeeded", translatedText: "译:new" });
+		expect(out.results[1]?.error).toBe("timed_out");
+		const rows = await db
+			.prepare(
+				`SELECT text, ai_status, translated_text FROM items WHERE watchlist_id = ? ORDER BY created_at_ms DESC`,
+			)
+			.bind(wl.id)
+			.all<{ text: string; ai_status: string; translated_text: string | null }>();
+		expect(rows.results[0]).toMatchObject({
+			text: "new",
+			ai_status: "succeeded",
+			translated_text: "译:new",
+		});
+	});
+
 	test("fresh pending is skipped; stale pending is retried", async () => {
 		const fresh = await seedItem("pending", Date.now());
 		expect(await selectTranslateCandidates(fresh.db, "u1", fresh.wlId, { limit: 5 })).toEqual([]);

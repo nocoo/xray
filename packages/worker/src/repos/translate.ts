@@ -141,7 +141,10 @@ export async function claimTranslateItems(
 		)
 		.bind(claimMs, userId, ...ids)
 		.all<{ id: number; text: string }>();
-	return results ?? [];
+	const claimed = results ?? [];
+	const order = new Map(ids.map((id, i) => [id, i]));
+	claimed.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+	return claimed;
 }
 
 export async function markTranslateResult(
