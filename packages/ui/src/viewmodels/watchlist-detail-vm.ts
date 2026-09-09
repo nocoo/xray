@@ -228,8 +228,10 @@ export function itemToTweet(item: TimelineItem): Tweet | null {
 
 	let quoted_tweet: Tweet | undefined;
 	const quotedRef = refs.find((r) => r.type === "quoted" && r.id);
-	if (quotedRef?.id) {
-		const qt = includesTweets.find((x) => x.id === quotedRef.id);
+	const replyEmbedRef = refs.find((r) => r.type === "replied_to" && r.id);
+	const embedRef = quotedRef ?? replyEmbedRef;
+	if (embedRef?.id) {
+		const qt = includesTweets.find((x) => x.id === embedRef.id);
 		if (qt) {
 			// Isolate from parent item author so missing quote user stays "unknown".
 			const qAuthor = resolveAuthor(qt.author_id, users, undefined, {
@@ -242,14 +244,14 @@ export function itemToTweet(item: TimelineItem): Tweet | null {
 					? new Date(qt.created_at).toISOString()
 					: "";
 			quoted_tweet = {
-				id: qt.id || quotedRef.id,
+				id: qt.id || embedRef.id,
 				text: typeof qt.text === "string" ? qt.text : "",
 				author: qAuthor,
 				created_at: qCreated,
 				url:
 					qAuthor.username !== "unknown"
-						? `https://x.com/${qAuthor.username}/status/${qt.id || quotedRef.id}`
-						: `https://x.com/i/status/${qt.id || quotedRef.id}`,
+						? `https://x.com/${qAuthor.username}/status/${qt.id || embedRef.id}`
+						: `https://x.com/i/status/${qt.id || embedRef.id}`,
 				metrics: metricsFromTweet(qt),
 				is_retweet: false,
 				is_quote: false,
@@ -422,7 +424,11 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 		},
 		onItemTranslated(
 			itemId: number,
-			patch: { translatedText: string; summaryText?: string | null },
+			patch: {
+				translatedText: string;
+				quotedTranslatedText?: string | null;
+				summaryText?: string | null;
+			},
 		) {
 			const { items } = store.getState();
 			store.setState({
@@ -431,6 +437,7 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 						? {
 								...it,
 								translatedText: patch.translatedText,
+								quotedTranslatedText: patch.quotedTranslatedText ?? it.quotedTranslatedText,
 								summaryText: patch.summaryText ?? null,
 							}
 						: it,

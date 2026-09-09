@@ -7,6 +7,7 @@ export type RateLimit = {
 
 export type TranslateFn = (input: {
 	text: string;
+	quotedText?: string | null;
 	apiKey: string;
 	provider: string;
 	model: string | null;
@@ -14,7 +15,11 @@ export type TranslateFn = (input: {
 	translationPrompt: string | null;
 	summaryPrompt: string | null;
 	signal: AbortSignal;
-}) => Promise<{ translatedText: string; summaryText?: string | null }>;
+}) => Promise<{
+	translatedText: string;
+	quotedTranslatedText?: string | null;
+	summaryText?: string | null;
+}>;
 
 export type ZhetoUpstream = (
 	webhookUrl: string,

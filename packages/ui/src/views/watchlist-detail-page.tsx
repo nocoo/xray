@@ -442,6 +442,7 @@ export function WatchlistDetailPage() {
 															? {
 																	translatedText: item.translatedText,
 																	commentText: item.summaryText,
+																	quotedTranslatedText: item.quotedTranslatedText,
 																}
 															: undefined
 													}

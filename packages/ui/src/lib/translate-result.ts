@@ -3,12 +3,18 @@ export type TranslateApiRow = {
 	ai_status: string;
 	error?: string;
 	translatedText?: string | null;
+	quotedTranslatedText?: string | null;
 	summaryText?: string | null;
 };
 
 export type TranslateRowView =
 	| { status: "pending" }
-	| { status: "succeeded"; translatedText: string; summaryText: string | null }
+	| {
+			status: "succeeded";
+			translatedText: string;
+			quotedTranslatedText: string | null;
+			summaryText: string | null;
+	  }
 	| { status: "failed"; error: string };
 
 export function readTranslateRow(row: TranslateApiRow | undefined): TranslateRowView {
@@ -17,6 +23,7 @@ export function readTranslateRow(row: TranslateApiRow | undefined): TranslateRow
 		return {
 			status: "succeeded",
 			translatedText: row.translatedText,
+			quotedTranslatedText: row.quotedTranslatedText ?? null,
 			summaryText: row.summaryText ?? null,
 		};
 	}

@@ -474,6 +474,40 @@ describe("createWatchlistDetailVm", () => {
 		expect(t?.quoted_tweet?.media?.[0]?.type).toBe("PHOTO");
 	});
 
+	test("itemToTweet embeds replied_to tweet when no quote", () => {
+		const t = itemToTweet({
+			...item,
+			payload: {
+				body: {
+					tweet: {
+						id: "1",
+						text: "reply",
+						author_id: "u1",
+						created_at: "2026-08-01T00:00:00.000Z",
+						referenced_tweets: [{ type: "replied_to", id: "p1" }],
+					},
+					includes: {
+						users: [
+							{ id: "u1", username: "alice", name: "Alice" },
+							{ id: "u2", username: "bob", name: "Bob" },
+						],
+						tweets: [
+							{
+								id: "p1",
+								text: "parent post",
+								author_id: "u2",
+								created_at: "2026-07-01T00:00:00.000Z",
+							},
+						],
+					},
+				},
+			},
+		});
+		expect(t?.is_reply).toBe(true);
+		expect(t?.quoted_tweet?.text).toBe("parent post");
+		expect(t?.quoted_tweet?.author.username).toBe("bob");
+	});
+
 	test("itemToTweet reads retweeted_by from meta when no retweeted ref", () => {
 		const t = itemToTweet({
 			...item,

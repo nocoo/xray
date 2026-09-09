@@ -16,6 +16,7 @@ export type ItemRow = {
 	ai_status: string;
 	ai_status_updated_at_ms: number;
 	translated_text: string | null;
+	quoted_translated_text?: string | null;
 	summary_text: string | null;
 	translation_error: string | null;
 };
@@ -34,6 +35,7 @@ export type ItemDto = {
 	payload: unknown;
 	aiStatus: string;
 	translatedText: string | null;
+	quotedTranslatedText?: string | null;
 	summaryText: string | null;
 	translationError: string | null;
 };
@@ -60,6 +62,7 @@ function toItemDto(row: ItemRow): ItemDto {
 		payload,
 		aiStatus: row.ai_status,
 		translatedText: row.translated_text,
+		quotedTranslatedText: row.quoted_translated_text ?? null,
 		summaryText: row.summary_text,
 		translationError: row.translation_error,
 	};

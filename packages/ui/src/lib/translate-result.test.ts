@@ -14,7 +14,12 @@ describe("readTranslateRow", () => {
 				translatedText: "你好",
 				summaryText: "摘",
 			}),
-		).toEqual({ status: "succeeded", translatedText: "你好", summaryText: "摘" });
+		).toEqual({
+			status: "succeeded",
+			translatedText: "你好",
+			quotedTranslatedText: null,
+			summaryText: "摘",
+		});
 	});
 
 	test("empty result is a config error", () => {

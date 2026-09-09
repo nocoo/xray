@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { defaultTranslateFn, resetStalePending, TRANSLATE_MAX } from "./translate.js";
+import {
+	defaultTranslateFn,
+	referencedCardText,
+	resetStalePending,
+	TRANSLATE_MAX,
+} from "./translate.js";
 
 describe("translate helpers", () => {
 	test("TRANSLATE_MAX is 20", () => {
@@ -49,6 +54,40 @@ describe("translate helpers", () => {
 		} finally {
 			globalThis.fetch = orig;
 		}
+	});
+
+	test("referencedCardText reads quoted and replied posts", () => {
+		expect(referencedCardText(null)).toBeNull();
+		expect(
+			referencedCardText(
+				JSON.stringify({
+					body: {
+						tweet: { referenced_tweets: [{ type: "quoted", id: "q1" }] },
+						includes: { tweets: [{ id: "q1", text: "  quoted body  " }] },
+					},
+				}),
+			),
+		).toBe("quoted body");
+		expect(
+			referencedCardText(
+				JSON.stringify({
+					body: {
+						tweet: {
+							referenced_tweets: [
+								{ type: "quoted", id: "q1" },
+								{ type: "replied_to", id: "r1" },
+							],
+						},
+						includes: {
+							tweets: [
+								{ id: "q1", text: "quote" },
+								{ id: "r1", text: "parent" },
+							],
+						},
+					},
+				}),
+			),
+		).toBe("quote\n\nparent");
 	});
 
 	test("resetStalePending runs update", async () => {

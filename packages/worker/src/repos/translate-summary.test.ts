@@ -207,9 +207,10 @@ describe("runTranslateBatch persists summary_text", () => {
 					},
 					async run() {
 						if (sql.includes("succeeded") || sql.includes("summary_text")) {
-							const [, translated, summary, userId, id, claimMs] = binds as [
+							const [, translated, summary, , userId, id, claimMs] = binds as [
 								number,
 								string,
+								string | null,
 								string | null,
 								string,
 								number,
@@ -285,7 +286,7 @@ describe("runTranslateBatch persists summary_text", () => {
 			123,
 			456,
 		);
-		expect(bindsLog[0]).toEqual([123, "t", "s", "u1", 7, 456]);
+		expect(bindsLog[0]).toEqual([123, "t", "s", null, "u1", 7, 456]);
 	});
 
 	test("markTranslateResult failed path", async () => {

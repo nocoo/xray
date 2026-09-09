@@ -78,7 +78,11 @@ export interface TweetCardProps {
 	watchlistId?: number;
 	itemId?: number;
 	/** After successful translate — parent should patch item in place (no full-page reload). */
-	onTranslated?: (result: { translatedText: string; summaryText?: string | null }) => void;
+	onTranslated?: (result: {
+		translatedText: string;
+		quotedTranslatedText?: string | null;
+		summaryText?: string | null;
+	}) => void;
 }
 
 export const TweetCard = memo(function TweetCard({
@@ -178,6 +182,7 @@ export const TweetCard = memo(function TweetCard({
 						ai_status: string;
 						error?: string;
 						translatedText?: string | null;
+						quotedTranslatedText?: string | null;
 						summaryText?: string | null;
 					}>;
 				};
@@ -193,10 +198,11 @@ export const TweetCard = memo(function TweetCard({
 			}
 			setTranslatedText(parsed.translatedText);
 			setCommentText(parsed.summaryText);
-			setQuotedTranslatedText(null);
+			setQuotedTranslatedText(parsed.quotedTranslatedText);
 			setLang("zh");
 			onTranslated?.({
 				translatedText: parsed.translatedText,
+				quotedTranslatedText: parsed.quotedTranslatedText,
 				summaryText: parsed.summaryText,
 			});
 		} catch (e) {
@@ -416,7 +422,7 @@ export const TweetCard = memo(function TweetCard({
 								target="_blank"
 								rel="noopener noreferrer"
 								className="ml-auto rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-								title="Open quoted post on X"
+								title={tweet.is_quote ? "Open quoted post on X" : "Open original post on X"}
 								onClick={(e) => e.stopPropagation()}
 							>
 								<ExternalLink className="h-3 w-3" aria-hidden />

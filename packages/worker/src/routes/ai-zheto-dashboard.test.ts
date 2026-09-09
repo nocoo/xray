@@ -218,9 +218,10 @@ function makeDb() {
 						return { meta: { changes: ids.length } };
 					}
 					if (up.startsWith("UPDATE ITEMS") && up.includes("SUCCEEDED")) {
-						const [now, translated, summary, userId, id, claimMs] = binds as [
+						const [now, translated, summary, quoted, userId, id, claimMs] = binds as [
 							number,
 							string,
+							string | null,
 							string | null,
 							string,
 							number,
@@ -232,6 +233,7 @@ function makeDb() {
 							row.ai_status_updated_at_ms = now;
 							row.translated_text = translated;
 							row.summary_text = summary;
+							row.quoted_translated_text = quoted;
 							row.translation_error = null;
 						}
 						return { meta: { changes: 1 } };

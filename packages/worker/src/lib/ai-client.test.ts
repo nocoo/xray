@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { chatCompletion, translateAndSummarize } from "./ai-client.js";
+import { chatCompletion, parseCardTranslation, translateAndSummarize } from "./ai-client.js";
 
 const origFetch = globalThis.fetch;
 afterEach(() => {
@@ -70,6 +70,22 @@ describe("chatCompletion", () => {
 	});
 });
 
+describe("parseCardTranslation", () => {
+	test("splits post and referenced translations", () => {
+		expect(parseCardTranslation("[翻译]\n主帖译文\n[引用翻译]\n引用译文")).toEqual({
+			translatedText: "主帖译文",
+			quotedTranslatedText: "引用译文",
+		});
+	});
+
+	test("falls back to whole text without markers", () => {
+		expect(parseCardTranslation("整段译文")).toEqual({
+			translatedText: "整段译文",
+			quotedTranslatedText: null,
+		});
+	});
+});
+
 describe("translateAndSummarize", () => {
 	test("two calls when summary prompt set", async () => {
 		let n = 0;
@@ -110,5 +126,26 @@ describe("translateAndSummarize", () => {
 			summaryPrompt: null,
 		});
 		expect(out.summaryText).toBeNull();
+	});
+
+	test("parses referenced translation when quotedText set", async () => {
+		globalThis.fetch = vi.fn(
+			async () =>
+				new Response(
+					JSON.stringify({
+						choices: [{ message: { content: "[翻译]\n主译\n[引用翻译]\n引译" } }],
+					}),
+					{ status: 200 },
+				),
+		) as unknown as typeof fetch;
+
+		const out = await translateAndSummarize({
+			text: "hello",
+			quotedText: "quoted",
+			apiKey: "sk",
+			baseUrl: "https://api.example.com/v1",
+		});
+		expect(out.translatedText).toBe("主译");
+		expect(out.quotedTranslatedText).toBe("引译");
 	});
 });

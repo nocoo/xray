@@ -39,6 +39,7 @@ export type TimelineItem = {
 	payload: unknown;
 	aiStatus: string;
 	translatedText: string | null;
+	quotedTranslatedText?: string | null;
 	summaryText: string | null;
 	translationError: string | null;
 };

@@ -33,6 +33,7 @@ export type TranslateResult = {
 		ai_status: string;
 		error?: string;
 		translatedText?: string | null;
+		quotedTranslatedText?: string | null;
 		summaryText?: string | null;
 	}>;
 	timed_out: boolean;

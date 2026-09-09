@@ -127,7 +127,7 @@ describe("translate claim ownership", () => {
 		const { db, itemId } = await seedItem();
 		const first = await claimTranslateItems(db, "u1", [itemId], 10);
 		const second = await claimTranslateItems(db, "u1", [itemId], 11);
-		expect(first).toEqual([{ id: itemId, text: "hello" }]);
+		expect(first).toEqual([{ id: itemId, text: "hello", payload_json: "{}" }]);
 		expect(second).toEqual([]);
 	});
 
@@ -289,6 +289,7 @@ describe("translate claim ownership", () => {
 				id: itemId,
 				ai_status: "succeeded",
 				translatedText: "批量译文",
+				quotedTranslatedText: null,
 				summaryText: null,
 			},
 		]);
