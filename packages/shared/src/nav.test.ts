@@ -3,15 +3,7 @@ import { V2_NAV_GROUPS, V2_NAV_LABELS } from "./nav.js";
 
 describe("V2_NAV", () => {
 	test("includes core v2 surface labels", () => {
-		for (const label of [
-			"Dashboard",
-			"All watchlists",
-			"All groups",
-			"zhe.to",
-			"AI Settings",
-			"Settings",
-			"Push Tokens",
-		]) {
+		for (const label of ["Dashboard", "All watchlists", "All groups", "zhe.to", "Settings"]) {
 			expect(V2_NAV_LABELS).toContain(label);
 		}
 		const groupLabels = V2_NAV_GROUPS.map((g) => g.label);
@@ -31,6 +23,8 @@ describe("V2_NAV", () => {
 			"Usage",
 			"Webhooks",
 			"My Account",
+			"AI Settings",
+			"Push Tokens",
 		];
 		for (const label of banned) {
 			expect(V2_NAV_LABELS).not.toContain(label);

@@ -6,15 +6,7 @@ describe("nav-config", () => {
 		const groups = getV2NavGroups();
 		const labels = groups.flatMap((g) => g.items.map((i) => i.label));
 		expect(labels).toEqual(
-			expect.arrayContaining([
-				"Dashboard",
-				"All watchlists",
-				"All groups",
-				"zhe.to",
-				"AI Settings",
-				"Settings",
-				"Push Tokens",
-			]),
+			expect.arrayContaining(["Dashboard", "All watchlists", "All groups", "zhe.to", "Settings"]),
 		);
 		expect(groups.find((g) => g.label === "Watchlists")?.dynamic).toBe("watchlists");
 		expect(groups.find((g) => g.label === "Groups")?.dynamic).toBe("groups");

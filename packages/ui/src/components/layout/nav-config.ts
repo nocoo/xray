@@ -1,8 +1,6 @@
 import { type NavGroupDef, V2_NAV_GROUPS } from "@xray/shared";
 import {
-	Brain,
 	Eye,
-	KeyRound,
 	LayoutDashboard,
 	Link as LinkIcon,
 	type LucideIcon,
@@ -15,9 +13,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
 	Eye,
 	Users,
 	Link: LinkIcon,
-	Brain,
 	Settings,
-	KeyRound,
 };
 
 export type UiNavItem = {

@@ -7,7 +7,7 @@ test.describe("L3 tokens + settings + AI + zheto shells", () => {
 
 		await page.goto(`${BROWSER}/settings`);
 		await expect(
-			page.locator("[data-basalt-surface-root]").getByRole("heading", { name: /Settings/i }),
+			page.locator("[data-basalt-surface-root]").getByRole("heading", { name: /^Settings$/i }),
 		).toBeVisible({
 			timeout: 15_000,
 		});
@@ -19,20 +19,17 @@ test.describe("L3 tokens + settings + AI + zheto shells", () => {
 		});
 		expect(tok.ok()).toBeTruthy();
 
-		await page.goto(`${BROWSER}/settings/tokens`);
 		await expect(
 			page.locator("[data-basalt-surface-root]").getByRole("heading", { name: /Push tokens/i }),
-		).toBeVisible({
-			timeout: 15_000,
-		});
+		).toBeVisible();
 	});
 
 	test("AI settings and zheto pages load", async ({ page, request }) => {
 		await requireWorker(request);
 
-		await page.goto(`${BROWSER}/ai-settings`);
+		await page.goto(`${BROWSER}/settings`);
 		await expect(
-			page.locator("[data-basalt-surface-root]").getByRole("heading", { name: /AI Settings/i }),
+			page.locator("[data-basalt-surface-root]").getByRole("heading", { name: /^Settings$/i }),
 		).toBeVisible({
 			timeout: 15_000,
 		});
@@ -45,8 +42,6 @@ test.describe("L3 tokens + settings + AI + zheto shells", () => {
 			timeout: 15_000,
 		});
 		await expect(page.getByText(/Webhook URL/i).first()).toBeVisible();
-
-
 	});
 
 	test("dashboard aggregates shell", async ({ page, request }) => {

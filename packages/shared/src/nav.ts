@@ -40,11 +40,7 @@ export const V2_NAV_GROUPS: readonly NavGroupDef[] = [
 	{
 		label: "Settings",
 		defaultOpen: true,
-		items: [
-			{ href: "/ai-settings", label: "AI Settings", icon: "Brain" },
-			{ href: "/settings", label: "Settings", icon: "Settings" },
-			{ href: "/settings/tokens", label: "Push Tokens", icon: "KeyRound" },
-		],
+		items: [{ href: "/settings", label: "Settings", icon: "Settings" }],
 	},
 ] as const;
 
