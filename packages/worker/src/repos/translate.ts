@@ -58,8 +58,8 @@ export async function resetStalePending(
 	return result.meta.changes ?? 0;
 }
 
-/** Already-succeeded items for explicit item_ids (idempotent per-card translate). */
-export async function loadSucceededTranslations(
+/** Snapshot of succeeded/pending rows for explicit item_ids (one query). */
+export async function loadExistingTranslations(
 	db: D1Database,
 	userId: string,
 	watchlistId: number,
@@ -70,44 +70,34 @@ export async function loadSucceededTranslations(
 	const ph = ids.map(() => "?").join(",");
 	const { results } = await db
 		.prepare(
-			`SELECT id, translated_text, summary_text FROM items
+			`SELECT id, ai_status, translated_text, summary_text FROM items
        WHERE user_id = ? AND watchlist_id = ?
          AND id IN (${ph})
-         AND ai_status = 'succeeded'
-         AND translated_text IS NOT NULL`,
+         AND ai_status IN ('succeeded', 'pending')`,
 		)
 		.bind(userId, watchlistId, ...ids)
-		.all<{ id: number; translated_text: string; summary_text: string | null }>();
-	return (results ?? []).map((r) => ({
-		id: r.id,
-		ai_status: "succeeded" as const,
-		translatedText: r.translated_text,
-		summaryText: r.summary_text,
-	}));
-}
-
-export async function loadPendingTranslations(
-	db: D1Database,
-	userId: string,
-	watchlistId: number,
-	itemIds: number[],
-): Promise<TranslateItemResult[]> {
-	const ids = itemIds.filter((n) => Number.isInteger(n) && n > 0).slice(0, TRANSLATE_MAX);
-	if (!ids.length) return [];
-	const ph = ids.map(() => "?").join(",");
-	const { results } = await db
-		.prepare(
-			`SELECT id FROM items
-       WHERE user_id = ? AND watchlist_id = ?
-         AND id IN (${ph})
-         AND ai_status = 'pending'`,
-		)
-		.bind(userId, watchlistId, ...ids)
-		.all<{ id: number }>();
-	return (results ?? []).map((r) => ({
-		id: r.id,
-		ai_status: "pending" as const,
-	}));
+		.all<{
+			id: number;
+			ai_status: string;
+			translated_text: string | null;
+			summary_text: string | null;
+		}>();
+	const out: TranslateItemResult[] = [];
+	for (const r of results ?? []) {
+		if (r.ai_status === "pending") {
+			out.push({ id: r.id, ai_status: "pending" });
+			continue;
+		}
+		if (r.ai_status === "succeeded" && r.translated_text) {
+			out.push({
+				id: r.id,
+				ai_status: "succeeded",
+				translatedText: r.translated_text,
+				summaryText: r.summary_text,
+			});
+		}
+	}
+	return out;
 }
 
 export async function selectTranslateCandidates(
@@ -245,9 +235,8 @@ export async function runTranslateBatch(
 	);
 	if (!claimed.length) {
 		if (opts.itemIds?.length) {
-			const existing = await loadSucceededTranslations(db, userId, watchlistId, opts.itemIds);
-			const pending = await loadPendingTranslations(db, userId, watchlistId, opts.itemIds);
-			return { results: [...existing, ...pending], timed_out: false };
+			const existing = await loadExistingTranslations(db, userId, watchlistId, opts.itemIds);
+			return { results: existing, timed_out: false };
 		}
 		return { results: [], timed_out: false };
 	}

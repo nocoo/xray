@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
 	defaultTranslateFn,
-	loadSucceededTranslations,
+	loadExistingTranslations,
 	markTranslateResult,
 	resetStalePending,
 	runTranslateBatch,
@@ -338,9 +338,16 @@ describe("runTranslateBatch persists summary_text", () => {
 						return this;
 					},
 					async all() {
-						if (sql.includes("ai_status = 'succeeded'")) {
+						if (sql.includes("IN ('succeeded', 'pending')")) {
 							return {
-								results: [{ id: 9, translated_text: "已译", summary_text: "摘要" }],
+								results: [
+									{
+										id: 9,
+										ai_status: "succeeded",
+										translated_text: "已译",
+										summary_text: "摘要",
+									},
+								],
 							};
 						}
 						return { results: [] };
@@ -352,7 +359,7 @@ describe("runTranslateBatch persists summary_text", () => {
 			},
 		} as unknown as D1Database;
 
-		const existing = await loadSucceededTranslations(db, "u1", 1, [9]);
+		const existing = await loadExistingTranslations(db, "u1", 1, [9]);
 		expect(existing).toEqual([
 			{
 				id: 9,

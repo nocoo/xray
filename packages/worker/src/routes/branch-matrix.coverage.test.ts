@@ -1309,8 +1309,8 @@ describe("branch matrix coverage", () => {
 		expect(empty.results).toEqual([]);
 
 		// loadSucceeded with empty / invalid ids
-		expect(await translateRepo.loadSucceededTranslations(db, "u1", wlId, [])).toEqual([]);
-		expect(await translateRepo.loadSucceededTranslations(db, "u1", wlId, [0, -1])).toEqual([]);
+		expect(await translateRepo.loadExistingTranslations(db, "u1", wlId, [])).toEqual([]);
+		expect(await translateRepo.loadExistingTranslations(db, "u1", wlId, [0, -1])).toEqual([]);
 		// empty itemIds falls through to open candidate scan (length falsy)
 		const open = await translateRepo.selectTranslateCandidates(db, "u1", wlId, {
 			limit: 1,

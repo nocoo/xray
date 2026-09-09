@@ -120,7 +120,7 @@ function makeDb() {
 						}
 						return { results: claimed as T[] };
 					}
-					if (up.includes("FROM ITEMS") && up.includes("AI_STATUS = 'SUCCEEDED'")) {
+					if (up.includes("FROM ITEMS") && up.includes("IN ('SUCCEEDED', 'PENDING')")) {
 						const userId = binds[0] as string;
 						const wl = binds[1] as number;
 						const ids = binds.slice(2) as number[];
@@ -130,11 +130,11 @@ function makeDb() {
 									i.user_id === userId &&
 									i.watchlist_id === wl &&
 									ids.includes(i.id as number) &&
-									i.ai_status === "succeeded" &&
-									i.translated_text != null,
+									(i.ai_status === "succeeded" || i.ai_status === "pending"),
 							)
 							.map((i) => ({
 								id: i.id,
+								ai_status: i.ai_status,
 								translated_text: i.translated_text,
 								summary_text: i.summary_text,
 							}));

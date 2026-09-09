@@ -213,6 +213,87 @@ describe("translate claim ownership", () => {
 		});
 	});
 
+	test("item_ids hydrate uses one snapshot if work finishes mid-request", async () => {
+		const raw = createSqliteD1();
+		await raw
+			.prepare(
+				`INSERT INTO users (id, email, name, image, access_iss, access_sub, created_at_ms)
+         VALUES ('u1', 'u@t.local', 'n', NULL, 'iss', 'sub', ?)`,
+			)
+			.bind(Date.now())
+			.run();
+		const wl = await watchlists.createWatchlist(raw, "u1", {
+			name: "W",
+			description: null,
+			icon: "eye",
+			translateEnabled: true,
+		});
+		const inserted = await raw
+			.prepare(
+				`INSERT INTO items
+         (user_id, watchlist_id, source_type, external_id, text, created_at_ms, ingested_at_ms,
+          payload_json, ai_status, ai_status_updated_at_ms)
+       VALUES ('u1', ?, 'custom', 'e1', 'hello', ?, ?, '{}', 'not_requested', 0)
+       RETURNING id`,
+			)
+			.bind(wl.id, Date.now(), Date.now())
+			.first<{ id: number }>();
+		if (!inserted) throw new Error("seed item failed");
+		const itemId = inserted.id;
+		const claimMs = Date.now();
+		await claimTranslateItems(raw, "u1", [itemId], claimMs);
+
+		let snapshots = 0;
+		const db = {
+			prepare(sql: string) {
+				const stmt = raw.prepare(sql);
+				const api = {
+					bind(...args: unknown[]) {
+						stmt.bind(...args);
+						return api;
+					},
+					first: stmt.first.bind(stmt),
+					run: stmt.run.bind(stmt),
+					async all() {
+						if (sql.includes("IN ('succeeded', 'pending')")) {
+							snapshots += 1;
+							await markTranslateResult(
+								raw,
+								"u1",
+								itemId,
+								{ ok: true, translatedText: "批量译文", summaryText: null },
+								Date.now(),
+								claimMs,
+							);
+						}
+						return stmt.all();
+					},
+				};
+				return api;
+			},
+			batch: raw.batch.bind(raw),
+			exec: raw.exec.bind(raw),
+		} as unknown as D1Database;
+
+		const out = await runTranslateBatch(db, "u1", wl.id, {
+			itemIds: [itemId],
+			config,
+			apiKey: "sk",
+			translateFn: async () => {
+				throw new Error("should not translate");
+			},
+		});
+		expect(snapshots).toBe(1);
+		expect(out.results).toEqual([
+			{
+				id: itemId,
+				ai_status: "succeeded",
+				translatedText: "批量译文",
+				summaryText: null,
+			},
+		]);
+	});
+
 	test("fresh pending is skipped; stale pending is retried", async () => {
 		const fresh = await seedItem("pending", Date.now());
 		expect(await selectTranslateCandidates(fresh.db, "u1", fresh.wlId, { limit: 5 })).toEqual([]);
