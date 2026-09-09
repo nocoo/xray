@@ -2,6 +2,14 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.3.3
+
+### Added
+- Translate quoted and reply card text
+
+### Fixed
+- Stop hover jitter on media buttons
+
 ## v2.3.2
 
 ### Added
