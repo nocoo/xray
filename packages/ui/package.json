@@ -11,7 +11,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"@nocoo/basalt": "2.1.2",
+		"@nocoo/basalt": "2.1.7",
 		"@xray/shared": "workspace:*",
 		"clsx": "^2.1.1",
 		"lucide-react": "1.43.0",
