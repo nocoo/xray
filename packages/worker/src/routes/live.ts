@@ -66,5 +66,5 @@ export async function liveRoute(c: Context<AppEnv>) {
 		uptimeSec: Math.round((Date.now() - bootedAt) / 1000),
 		checks,
 	};
-	return c.json(body, allOk ? 200 : 503);
+	return c.json(body, allOk ? 200 : 503, { "Cache-Control": "no-store" });
 }
