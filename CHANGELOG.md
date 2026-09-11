@@ -2,6 +2,14 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.3.5
+
+### Changed
+- Upgrade basalt to 2.1.7
+
+### Fixed
+- Add no-store cache-control header to live route
+
 ## v2.3.4
 
 ### Fixed
