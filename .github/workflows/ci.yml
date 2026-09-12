@@ -13,7 +13,7 @@ jobs:
     with:
       runtime-version: "1.3.14"
       install-policy: "trusted"
-      coverage-path: "coverage"
+      coverage-path: "packages/*/coverage"
       lint-command: "bun run lint"
       typecheck-command: "bun run typecheck"
       test-command: |
