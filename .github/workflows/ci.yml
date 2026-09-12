@@ -9,7 +9,7 @@ on:
 
 jobs:
   quality:
-    uses: nocoo/base-ci/.github/workflows/quality.yml@2857469cc5206e7a4988171a1282209617996a67
+    uses: nocoo/base-ci/.github/workflows/quality.yml@ad43150de3a2be2fa464b5cd2f921dc4fa9f8f0f
     with:
       runtime-version: "1.3.14"
       install-policy: "trusted"
@@ -22,7 +22,7 @@ jobs:
 
   l2:
     name: L2 real-HTTP + routes
-    uses: nocoo/base-ci/.github/workflows/test-job.yml@2857469cc5206e7a4988171a1282209617996a67
+    uses: nocoo/base-ci/.github/workflows/test-job.yml@ad43150de3a2be2fa464b5cd2f921dc4fa9f8f0f
     with:
       runtime-version: "1.3.14"
       install-policy: "trusted"
