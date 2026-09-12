@@ -7,102 +7,25 @@ on:
     branches: [main]
   workflow_dispatch:
 
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   quality:
-    name: L1 + G1
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.3.14"
-      - name: Cache bun
-        uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: |
-            bun-${{ runner.os }}-
-      - name: Install
-        run: bun install --frozen-lockfile
-      - name: Lint
-        run: bun run lint
-      - name: Typecheck
-        run: bun run typecheck
-      - name: Unit tests
-        run: bun run test
-      - name: Coverage gate
-        run: bun run test:coverage
+    uses: nocoo/base-ci/.github/workflows/quality.yml@3d2e9e55fdd60aa756df454ded53ef6d06d6653f
+    with:
+      runtime-version: "1.3.14"
+      install-policy: "trusted"
+      coverage-path: "coverage"
+      lint-command: "bun run lint"
+      typecheck-command: "bun run typecheck"
+      test-command: "bun run test && bun run test:coverage"
+    secrets: inherit
 
   l2:
     name: L2 real-HTTP + routes
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.3.14"
-      - name: Cache bun
-        uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: |
-            bun-${{ runner.os }}-
-      - name: Install
-        run: bun install --frozen-lockfile
-      - name: Build shared
-        run: bun run build:shared
-      - name: L2 (isolated local D1)
-        # No CLOUDFLARE_* secrets — L2 global-setup refuses remote credentials
-        run: bun run test:l2
-
-  g2-secrets:
-    name: G2 gitleaks
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Install gitleaks
-        env:
-          GITLEAKS_VERSION: "8.24.3"
-        run: |
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
-            | sudo tar -xz -C /usr/local/bin gitleaks
-          gitleaks version
-      - name: Gitleaks
-        run: gitleaks detect --no-banner --source . --verbose --redact
-
-  g2-osv:
-    name: G2 osv-scanner
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup OSV Scanner
-        uses: google/osv-scanner-action/osv-scanner-action@v2.0.3
-        with:
-          scan-args: |-
-            --lockfile=bun.lock
-
-  # L3 is on-demand / release optional (needs UI+worker processes). Specs live in e2e/*.pw.ts.
-  # Local: bun run dev && bun run test:l3. CI hard-fails if CI=1 and worker down (requireWorker).
-
-  release-gate:
-    name: Release gate
-    needs: [quality, l2, g2-secrets, g2-osv]
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "L1 + L2 + G2 green — release allowed"
+    uses: nocoo/base-ci/.github/workflows/test-job.yml@3d2e9e55fdd60aa756df454ded53ef6d06d6653f
+    with:
+      runtime-version: "1.3.14"
+      install-policy: "trusted"
+      timeout-minutes: 15
+      pre-command: "bun run build:shared"
+      command: "bun run test:l2"
+      env-json: '{"PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD":"1"}'
