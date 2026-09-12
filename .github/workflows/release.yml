@@ -23,7 +23,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success')
-    uses: nocoo/base-ci/.github/workflows/deploy-worker.yml@3d2e9e55fdd60aa756df454ded53ef6d06d6653f
+    uses: nocoo/base-ci/.github/workflows/deploy-worker.yml@2857469cc5206e7a4988171a1282209617996a67
     with:
       expected-workflow-path: ".github/workflows/ci.yml"
       expected-workflow-name: "CI"

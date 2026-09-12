@@ -9,23 +9,28 @@ on:
 
 jobs:
   quality:
-    uses: nocoo/base-ci/.github/workflows/quality.yml@3d2e9e55fdd60aa756df454ded53ef6d06d6653f
+    uses: nocoo/base-ci/.github/workflows/quality.yml@2857469cc5206e7a4988171a1282209617996a67
     with:
       runtime-version: "1.3.14"
       install-policy: "trusted"
       coverage-path: "coverage"
       lint-command: "bun run lint"
       typecheck-command: "bun run typecheck"
-      test-command: "bun run test && bun run test:coverage"
+      test-command: |
+        bun run test
+        bun run test:coverage
     secrets: inherit
 
   l2:
     name: L2 real-HTTP + routes
-    uses: nocoo/base-ci/.github/workflows/test-job.yml@3d2e9e55fdd60aa756df454ded53ef6d06d6653f
+    uses: nocoo/base-ci/.github/workflows/test-job.yml@2857469cc5206e7a4988171a1282209617996a67
     with:
       runtime-version: "1.3.14"
       install-policy: "trusted"
       timeout-minutes: 15
       pre-command: "bun run build:shared"
       command: "bun run test:l2"
-      env-json: '{"PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD":"1"}'
+      env-json: |-
+        {
+          "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "1"
+        }
