@@ -27,7 +27,9 @@ jobs:
       runtime-version: "1.3.14"
       install-policy: "trusted"
       timeout-minutes: 15
-      pre-command: "bun run build:shared"
+      pre-command: |
+        bun run check:wrangler-version
+        bun run build:shared
       command: "bun run test:l2"
       env-json: |-
         {
