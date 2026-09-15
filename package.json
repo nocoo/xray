@@ -21,6 +21,7 @@
 		"test:coverage": "bash scripts/check-coverage.sh 95 95 95",
 		"test:l2": "bun run --filter @xray/worker test:e2e && bun run gate:routes",
 		"test:l2:unit": "bun run --filter @xray/worker test",
+		"check:wrangler-version": "bun run scripts/check-wrangler-version-sync.ts",
 		"gate:routes": "bun run scripts/check-route-coverage.ts",
 		"db:migrate:local": "cd packages/worker && bunx wrangler d1 migrations apply xray-db --local --env development",
 		"migrate:v1": "bun run scripts/migrate-v1-to-d1.ts",
