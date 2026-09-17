@@ -126,7 +126,7 @@ Push token is **agent authentication**, not a write-only capability.
 |-----|---------|
 | `AUTH_DEV_BYPASS=true` | **Only** when `ENVIRONMENT` is `development` or `test`. Injects fixed test identity. |
 | Production | If `AUTH_DEV_BYPASS` set → **Worker refuses to boot** / every request 500. |
-| L2/L3 | Use bypass + isolated D1 persist `.wrangler/state-l2` / `state-l3` |
+| L2/L3 | Local test bypass only; fixed L2 state exists, per-run persistence and a managed L3 stack remain required gaps (see root handbook) |
 
 Do **not** use alternate names (`E2E_SKIP_AUTH`); single switch only.
 
@@ -290,12 +290,12 @@ Direct pushes to `main` are allowed (D8). **CI cannot block a direct `git push` 
 | **pre-push L2+G2** | every `git push` to main | **push** (primary gate) |
 | CI GHA L1/L2/G1/G2 | after push / on PR | status check; gates CD |
 | Release CD | tag `v*.*.*` or CI green on main | `wrangler deploy --env production` |
-| L3 Playwright | CI after S5; **release/M8 blocked** if red | release |
+| L3 Playwright | Required for release; current CI has no L3 job, so enforcement is planned | release contract |
 
 Rules:
 
 1. Do **not** claim CI prevents bad commits from landing on main under direct-push.
-2. Developers **must not** `--no-verify` on push without documented emergency.
+2. Developers must never use `--no-verify` on commits or pushes; resolve failures through the normal gates.
 3. Optional short-lived PR still welcome; if used, required checks apply before merge.
 4. `release: 2.0.0` / prod DNS cutover **requires green CI including L3**.
 

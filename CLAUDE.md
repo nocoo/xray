@@ -1,89 +1,95 @@
-README.md
+# X-Ray
 
-## Secrets / local producer (not in git)
+Tenant-scoped watchlists and content ingestion with a browser dashboard and authenticated agent producers.
+Profile: `ts-worker-web` (Bun/Turbo monorepo, React/Vite UI, Hono Worker/D1).
+Direction: [rewrite charter](docs/01-rewrite-charter.md), [architecture](docs/02-architecture.md). Frameworks must preserve this handbook.
 
-| Path | Contents |
-|------|----------|
-| **`~/.config/xray/push.env`** | Prod token + ingest base. Token is ingest **auth** (graph + push). `chmod 600`. Load: `set -a && source ~/.config/xray/push.env && set +a` |
-| `.xray-push.env` (repo, gitignored) | Optional pointer only — never the real token |
+## Sources of Truth
 
-Prod refresh:
+This file is the contract; hooks, CI and config are enforcement. Raise weaker gates rather than lower the contract.
+
+| Fact | Where |
+|---|---|
+| Human docs | [README.md](README.md), [docs index](docs/README.md) |
+| Version / dependencies | Root `package.json`, `bun.lock`; bare SemVer, display `v` prefix |
+| Quality | [6DQ](docs/06-testing-6dq.md), `.husky/`, `.github/workflows/ci.yml`, package Vitest configs |
+| Secret management | [local producer](docs/09-local-producer-twitter-cli.md); values stay outside Git |
+| Machine rules / accidents | Global `AGENTS.md` and `rules/`; [Retrospective.md](Retrospective.md) |
+
+## Project Invariants
+
+- Browser `xray.hexly.ai` requires Cloudflare Access; agent `xray-ingest.hexly.ai` allows only live, ingest graph and ingest push. Agents use the ingest host; token administration stays browser-only and Bearer tokens cannot mint/revoke tokens.
+- Derive tenant `user_id` from verified auth, never a client authorization field. Scope parent and child queries to that user; reject cross-user access. Preserve stable Access issuer/sub identity binding and fail closed on conflicts.
+- `AUTH_DEV_BYPASS` is the only local auth switch, valid only with `ENVIRONMENT=development|test`; production must reject it. Keep browser mutation origin checks.
+- Ingest validates limits, normalizes/deduplicates and records status; it never triggers AI. Preserve manual AI execution, deadlines, bounded batches and tenant-scoped state transitions in the architecture contract.
+- Keep plaintext push tokens one-time-only and stored hashes; encrypt AI keys/webhooks using versioned AES-256-GCM with tenant/field AAD. Never log keys, tokens or full payloads.
+- Shared code is pure; UI ViewModels have no View/DOM imports; Worker code owns data/auth and has no React. The retired NextAuth/vinext/SQLite instructions in the retrospective do not describe this runtime.
+- Producer orchestration uses the existing refresh script and [refresh skill](skills/xray-refresh-watchlists/SKILL.md); do not reimplement fetch/push. Preserve secret file permissions and producer checkpoints.
+
+## Stack / Layout
+
+| Component | Location / choice |
+|---|---|
+| Shared contracts | `packages/shared/`; pure TypeScript DTOs/mappers |
+| UI | `packages/ui/`; React, Vite, MVVM, browser API client |
+| API / storage | `packages/worker/`; Hono, Access/Bearer middleware, repositories, D1 migrations |
+| Producer / quality | `scripts/`, `skills/`, package Vitest runners and `e2e/*.pw.ts` |
+
+## Commands
+
+Run from root with Bun 1.3.14, Node for tool scripts, and installed gitleaks/osv-scanner. Install uses the frozen root workspace lockfile.
 
 ```bash
-set -a && source ~/.config/xray/push.env && set +a
-bun run refresh:watchlists --
+bun install --frozen-lockfile
+bun run dev
+bun run build:shared
+bun run typecheck
+bun run lint
+bun run build
+bun run test:coverage
+env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID -u CF_API_TOKEN bun run test:l2
+bun run gate:routes
+gitleaks detect --no-banner --source .
+osv-scanner scan --lockfile=bun.lock
 ```
 
-Reset token: mint via UI or wrangler D1 (`push_tokens` hash from `mintPushToken()`), rewrite `~/.config/xray/push.env`. Details: `docs/09-local-producer-twitter-cli.md`.
+`test:l2` already includes `gate:routes`; run the latter alone when reviewing the endpoint inventory. Mocked route tests remain L1 helpers.
+`bun run test:l3` invokes Playwright without starting servers. It requires explicit `PLAYWRIGHT_BROWSER_URL`, `PLAYWRIGHT_WORKER_URL` and `PLAYWRIGHT_INGEST_URL` on a separately verified local test stack; do not use its daily-dev defaults.
 
-Agent/cron orchestration (preflight, token mint, graph ids, report): `skills/xray-refresh-watchlists/SKILL.md`. Always run the script above — do not reimplement fetch/push.
+## Verification
 
-## Release
+6DQ = L1/L2/L3 + G1/G2 + D1 isolation. Status: `enforced`, `planned`, `manual`, `N/A`; no skipped/focused tests.
 
-Version is managed in `package.json` (single source of truth). Versioning follows SemVer: X (major/breaking), Y (minor/feature), Z (patch/fix). Default bump is Z+1.
+| Piece | Required proof and current reality | Status | Evidence / gap |
+|---|---|---|---|
+| L1 shared/UI | Statements/branches/functions/lines each ≥95% over the declared non-View scope | enforced | Package Vitest configs, `test:coverage`, pre-commit and CI |
+| L1 Worker | All four metrics ≥95%; current branches floor is only 94 | planned | Worker config and `check-coverage.sh` explicitly override branches to 94 |
+| L2 | Real HTTP plus full endpoint/method inventory and cross-tenant/SQL assertions | enforced | Worker `test/e2e/`, `check-route-coverage.ts`; pre-push and CI |
+| L3 | Critical browser/agent journeys against an isolated local stack | planned | Specs exist, but `playwright.config.ts` has no server harness and CI has no L3 job |
+| G1 | Strict types and lint/format, zero errors/warnings | enforced | Turbo typecheck, Biome, pre-commit and CI |
+| G2 | Dependency + secret scanners, required tools fail closed | enforced | Pre-push gitleaks + OSV and CI; pre-commit gitleaks is optional, push-ref scoping remains a gap |
+| D1 | Per-run local state with guards/marker before writes and cleanup | planned | L2 is local and checks credentials/marker, but reuses fixed state and rewrites a shared `.dev.vars`; L3 defaults use dev |
+| Build | Build shared/UI/Worker output | manual | `bun run build`; current quality/L2 CI does not enforce the complete production bundle |
+| Docs | Keep route/tenant matrices and architecture current | manual | Numbered docs and full diff review |
 
-> **Full spec**: `search-memory "开发规范：版本号的维护"`
+Pre-commit runs working-tree lint, types and coverage, then optional staged gitleaks. Target: all L1/G1 on an index snapshot, <30s.
+Pre-push runs L2 then required gitleaks/OSV sequentially and scans repository history, not stdin push refs. Target: L2/G2 parallel, exact pushed refs, <3min.
+Hooks are check-only. No `--no-verify`, disabled gates, autofix gates or reduced thresholds.
 
-```bash
-bun run release              # Z+1 patch (default)
-bun run release -- minor     # Y+1 minor
-bun run release -- major     # X+1 major
-bun run release -- --dry-run # preview without side effects
-```
+## Resources / Isolation
 
-The script auto-detects project name and CHANGELOG format, then: bumps version → syncs lockfile → generates CHANGELOG → commits → pushes → tags → creates GitHub release.
+Daily dev: UI 7007 behind `xray.dev.hexly.ai`, Worker 37007, `.wrangler/state`. L2: Worker 18787, fixed `.wrangler/state-l2` in the Worker tree.
+The architecture reserves L3 Worker 28787/state-l3, but current Playwright defaults still target UI 7007/Worker 37007; isolated L3 setup is required before use.
+Use local Wrangler/Miniflare and a fresh per-run SQLite directory, validate local/test context and `_test_marker` before fixtures/cleanup. No remote `-test` deployments or production/daily-dev stores in E2E.
+Existing L2 names such as `xray-db-test` are local bindings; serialize current fixed-path runs until per-run isolation is implemented.
+
+## Operations / Release
+
+Authorized producer runs load `~/.config/xray/push.env` (mode 600) and call `bun run refresh:watchlists --`; `.xray-push.env` is only an ignored pointer, never a plaintext token store.
+Token rotation and producer setup: [runbook](docs/09-local-producer-twitter-cli.md). Do not read or print secret values as part of documentation/tests.
+Authorized releases use `bun run release` (patch default, `-- minor`/`-- major` when requested); it bumps/syncs/changelogs/commits/pushes/tags/releases. Deployment/migration and both-host live checks: [delivery plan](docs/07-implementation-plan.md).
 
 ## Retrospective
 
-1. **JWT sessions don't persist users to SQLite** — NextAuth with JWT strategy stores user info in the token only, not in the `user` table. Business tables (`api_credentials`, `webhooks`) have FK constraints to `user(id)`, so INSERT fails with `SQLITE_CONSTRAINT_FOREIGNKEY`. Fix: `ensureUserExists()` in `requireAuth()` auto-creates the user row on first API call.
-
-2. **E2E_SKIP_AUTH must bypass both middleware AND API auth** — The proxy middleware skip alone is insufficient. `requireAuth()` → `auth()` returns null without a real JWT cookie. Fix: `getAuthUser()` returns a deterministic `E2E_USER` when `E2E_SKIP_AUTH=true`.
-
-3. **Non-JSON error responses crash client-side `res.json()`** — If a server route throws an unhandled exception, Next.js may return an empty body. Client code calling `await res.json()` on a non-ok response must be wrapped in try/catch to avoid cascading failures.
-
-4. **Railway DOCKERFILE builder treats startCommand as exec, not shell** — When using DOCKERFILE builder, Railway's custom `startCommand` is executed in exec mode (not shell). Inline env vars like `PORT=7007 HOSTNAME=0.0.0.0 bun server.js` fail because `PORT=7007` is parsed as the executable name. Fix: remove startCommand entirely and rely on Dockerfile's `CMD` + `ENV` directives. RAILPACK builder runs startCommand in a shell, masking this issue.
-
-5. **Next.js standalone requires HOSTNAME=0.0.0.0 in containers** — Without `ENV HOSTNAME=0.0.0.0`, Next.js standalone `server.js` binds to the container's internal hostname (e.g., `6783221ac502`), making it unreachable by Railway's reverse proxy. Always set `HOSTNAME=0.0.0.0` in the Dockerfile.
-
-6. **`next dev` runs Node.js workers, not Bun** — Even when launched via `bun run dev`, Next.js dev server internally spawns Node.js worker processes. `require("bun:sqlite")` fails there. Fix: runtime detection `const isBun = typeof globalThis.Bun !== "undefined"` with `better-sqlite3` fallback. Same pattern used in surety and life.ai projects. Keep `serverExternalPackages: ["bun:sqlite"]` in `next.config.ts` to prevent webpack from bundling it.
-
-7. **Bun test runner discovers `*.spec.ts` files globally** — Bun has no `ignore` config for test discovery. If Playwright tests use `*.spec.ts` naming, `vitest run` (or previously `bun test`) will load them and crash on `@playwright/test` imports. Fix: name Playwright files `*.pw.ts` and set `testMatch: "*.pw.ts"` in `playwright.config.ts`.
-
-8. **`bunfig.toml` `coverage = false` overrides CLI `--coverage` flag** — Setting `coverage = false` in bunfig makes `vitest run --coverage` (previously `bun test --coverage`) silently skip coverage output. Fix: omit the `coverage` key entirely; bun defaults to off, and `--coverage` flag will work as expected.
-
-9. **vinext RSC environment is pure ESM — `require()` is unavailable** — Unlike Next.js which supports CJS `require()` in server code, vinext's RSC runtime is strict ESM. Fix: use top-level `await import()` to eagerly load modules at module init time, keeping downstream functions synchronous.
-
-10. **vinext passes params with null prototype across RSC boundary** — In Next.js 15+, dynamic route `params` is a `Promise` unwrapped via `use(params)`. vinext passes params as objects with null prototypes, which RSC serialization rejects ("Only plain objects can be passed to Client Components from Server Components"). Fix: use `useParams()` from `next/navigation` in `"use client"` components instead of receiving `params` as a prop.
-
-11. **vinext `next/font/google` shim only exports ~20 common fonts** — Named imports like `import { DM_Sans } from "next/font/google"` fail because Rollup can't statically resolve names not explicitly exported. Fix: use default import `import googleFonts from "next/font/google"` then `const DM_Sans = googleFonts.DM_Sans` — the shim's Proxy default export handles any font name at runtime.
-
-12. **vinext route handlers don't provide `nextUrl` on Request** — `next-auth` v5 expects `NextRequest` with a `nextUrl` property. vinext's route handlers pass plain `Request` objects. Fix: wrap handlers to convert `Request` to `NextRequest` before passing to next-auth.
-
-13. **`CREATE TABLE IF NOT EXISTS` won't add columns to existing tables** — When adding new columns (e.g., `comment_text`) to `initSchema()`'s DDL, pre-existing SQLite databases silently skip the entire CREATE statement. Fix: add an explicit `ALTER TABLE ... ADD COLUMN` wrapped in try/catch after the CREATE block. SQLite lacks `ADD COLUMN IF NOT EXISTS`, so catching the "duplicate column" error is the standard pattern.
-
-14. **TweAPI `userRecent20Tweets` endpoint was removed (404)** — The `/v1/twitter/user/userRecent20Tweets` endpoint documented in TweAPI returns 404 Not Found. It was used as a fallback when `userRecentTweetsByFilter` returned 400 for certain users. Fix: use `/v1/twitter/user/timeline` as the fallback instead — it accepts the same `{ url }` body and is a stable endpoint.
-
-15. **vinext `useRouter()` returns a new object every render** — Unlike Next.js where `useRouter()` returns a stable reference, vinext creates a new router object each render. Putting `router` in `useCallback` deps causes the callback to rebuild every render, and if that callback is in a `useEffect` dep array, it triggers an infinite fetch loop → `ERR_INSUFFICIENT_RESOURCES`. Fix: store `router` in a `useRef` and read from `routerRef.current` inside callbacks. Same pattern applies to any rapidly-changing state (`members`, `fetching`) used inside `useCallback` that feeds into `useEffect` deps.
-
-16. **`safeAddColumn` catch-all silently swallows migration failures** — The `try { sqlite.exec(alter) } catch {}` pattern intended to ignore "duplicate column" errors also swallows genuine failures (e.g., FK constraint issues, missing referenced tables). Fix: catch the error, check if `message.includes("duplicate column")`, and `console.error` anything else.
-
-17. **NextAuth without adapter generates a new random UUID on every OAuth sign-in** — `@auth/core` intentionally sets `user.id = crypto.randomUUID()` in `getUserAndAccount()`, expecting an adapter to resolve identity via `getUserByAccount()`. Without an adapter, the same Google account gets a different `user.id` in each browser, after cookie expiry, or after sign-out/sign-in. The `user.email UNIQUE` constraint then causes `SQLITE_CONSTRAINT` on INSERT. Fix: `ensureUserExists()` resolves identity by email (which is UNIQUE and stable from Google), returns the canonical user with the database's original ID, so all sessions for the same email share one user record.
-
-18. **ScopedDB migration: adapter + scoped pattern eliminates the root cause** — The proper fix for #17 is a NextAuth SQLite adapter (`auth-adapter.ts`) that resolves identity via the `account` table JOIN on `(provider, providerAccountId)`. Combined with `session: { strategy: "jwt" }` (must be explicit when adapter is present, or NextAuth defaults to database sessions), this gives stable user IDs across browsers. The `ScopedDB` class then binds `userId` at construction time, making row-level security "correct by construction" — every method auto-injects the `WHERE user_id = ?` constraint. The old `ensureUserExists()` and per-repository `userId` parameter passing are both eliminated.
-
-19. **Middleware can't import bun:sqlite — lazy-load the adapter** — `proxy.ts` (middleware) imports `auth.ts`, and middleware runs in an edge-like environment that can't access `bun:sqlite`. Fix: lazy-load the adapter in `auth.ts` with `try { adapter = (await import("./auth-adapter")).SqliteAdapter(); } catch {}`. The adapter is only needed for sign-in/sign-up flows, not for session validation in middleware.
-
-20. **Test variable naming: avoid `db` clash with drizzle instance** — When migrating tests to ScopedDB, using `const db = new ScopedDB(userId)` clashes with the drizzle `db` import from `@/db`. Fix: use `scopedDb` as the variable name in tests. For cross-user test scenarios, create separate instances like `const otherDb = new ScopedDB("other-user")`.
-
-21. **E2E_SKIP_AUTH + ScopedDB needs `seedUser` with prior `getDb()`** — After replacing `ensureUserExists()` with the adapter pattern (#18), `requireAuth()` in E2E mode creates `ScopedDB("e2e-test-user")` but no user row exists (OAuth never runs). All writes fail with `SQLITE_CONSTRAINT_FOREIGNKEY`. Fix: call `getDb()` first (initializes the raw sqlite driver), then `seedUser(E2E_USER_ID)` before returning the ScopedDB. `seedUser` uses the module-level `sqlite` variable which is only set after `getDb()`/`createDatabase()`.
-
-22. **Playwright strict mode + sidebar: locators match both sidebar link and main content** — `page.locator("a", { hasText: "To Edit" })` matches sidebar navigation links AND card links in main content (2 elements → strict mode violation). Fix: scope card locators to `page.locator("main a", { hasText: "..." })`. Similarly, `getByRole("link", { name: "Settings" })` matches "AI Settings" too → use `{ exact: true }`.
-
-23. **Playwright tests sharing DB across files lose test isolation** — Playwright uses a single worker and a shared database (`xray.playwright.db`). Tests in `functional.pw.ts` create watchlists that persist into `smoke.pw.ts`, so "empty state" assertions fail. Fix: avoid fragile empty-state checks in smoke tests; check for always-present elements (header + "New" button) instead.
-
-24. **vinext proxy + auth route double-consume ReadableStream** — vinext's proxy layer (`auth()` in proxy.ts) reads the request body for session validation. When the same request reaches the NextAuth route handler, `@auth/core`'s `getBody()` calls `req.text()` again on the already-consumed stream → `TypeError: Invalid state: ReadableStream is locked`. This breaks sign-in (OAuth callback POST) and sign-out (POST /api/auth/signout). Fix: `req.clone()` in `wrapHandler` alone is insufficient — by the time vinext passes the request to the route handler, the body is already consumed and `clone()` clones an empty body. The real fix is excluding all `/api/*` routes from the proxy matcher so `auth()` never touches their body. Non-auth API routes are already protected by `requireAuth()` in each handler, making proxy-level auth redundant. The cascade: proxy `auth()` → `toInternalRequest()` → `getBody()` consumes body → route handler gets empty body → CSRF token missing → `MissingCSRF`.
-
-25. **vinext production hangs on POST body reads for Auth routes** — Two stacked bugs: (1) `new NextRequest(url, request)` drops method/body (POST→GET) → Auth.js `UnknownAction` → `/login?error=Configuration` → client `res.json()` on HTML (`Unexpected token '<'`). (2) Even with correct method, `req.text()` / `arrayBuffer()` / Auth `getBody()` **hang forever** on vinext HTTP Requests in production. Most APIs mask (2) because `requireAuth()` returns 401 before reading the body. Auth sign-in cannot. Fix: basePath `/api/xauth`; start Google OAuth with **GET** `/api/xauth/google` that synthesizes an internal POST Request (string body + `skipCSRFCheck`, same as next-auth server `signIn`); callback stays GET. Google Console redirect URI must be `https://xray.hexly.ai/api/xauth/callback/google`.
-
-
-26. **next-auth `auth()` middleware wrapper always sees null session under vinext** — `auth((req) => …)` calls `reqWithEnvURL()` → `new NextRequest(httpsUrl, req)`. That constructor path drops/ignores the Cookie header, so `req.auth` is always null even after a successful OAuth callback that correctly sets `__Secure-authjs.session-token`. Symptom: callback 302 → `/` → proxy 307 → `/login` with no `?error=`. `/api/xauth/session` with the same cookie returns a valid user. Fix: stop using the `auth()` wrapper in `proxy.ts`; read the JWT with `getToken({ req, secret, secureCookie })` from the original request headers.
+Narratives: [Retrospective.md](Retrospective.md); brief recurring rules here, cross-project lessons in global rules/nmem and deterministic checks in hooks/tests.
+- Keep browser and ingest host capabilities distinct in every new route and test.

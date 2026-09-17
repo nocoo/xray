@@ -4,12 +4,12 @@
 
 | Dimension | X-Ray v2 |
 |-----------|----------|
-| **L1** | vitest; VM/lib/middleware pure units; coverage gate **≥95%** lines/functions/branches (View shells exempt) |
+| **L1** | vitest; VM/lib/middleware pure units; contract **≥95%** statements/branches/functions/lines (View shells covered through L3); current Worker branches floor is 94, a gap |
 | **L2** | **Real HTTP** via `wrangler dev --local --persist-to .wrangler/state-l2` (port 18787) + route-coverage gate (100% `/api/*`); unit route mocks remain as L1 helpers |
 | **L3** | Playwright `e2e/*.pw.ts` — dual-host smoke + watchlists/groups/tokens/settings/AI/zheto/dashboard flows; local isolated data |
 | **G1** | biome + tsc strict |
 | **G2** | osv-scanner + gitleaks |
-| **D1 isolation** | DB `xray-db-test`; persist `.wrangler/state-l2` / `state-l3`; never prod |
+| **D1 isolation** | Local-only `xray-db-test`; current fixed L2 state is not per-run isolation. Managed isolated L3 remains planned; never use prod or daily-dev stores |
 
 ### Auth in tests (XR-21)
 
@@ -38,7 +38,7 @@ For each business resource (watchlist, group, item, token, log, ai config, zheto
 | worker | `lib` + `middleware` + `repos` + `routes` | test helpers, `handle` re-export |
 | ui | `viewmodels` + pure `lib` + `api` + `hooks` | View shells, React binders, static fixtures |
 
-**Thresholds (OBJECTIVE / gate):** lines **≥95%**, functions **≥95%**, branches **≥95%** (statements tracked; CLI `scripts/check-coverage.sh 95 95 95`). L2 `gate:routes` + real-HTTP is mandatory for all `/api/*`.
+**Required thresholds:** statements, branches, functions and lines each **≥95%**. Current package configs enforce all four except Worker branches (94); `scripts/check-coverage.sh 95 95 95` also overrides the Worker branch check to 94. Do not certify the stronger contract until that gap is closed. L2 `gate:routes` + real-HTTP is mandatory for all `/api/*`.
 
 ## 2. TDD rules
 
@@ -55,7 +55,7 @@ packages/worker/src/middleware/**/*.test.ts
 packages/ui/src/viewmodels/**/*.test.ts
 ```
 
-Vitest D1-shaped stubs (no auto migration apply)ss (bat pattern).
+Vitest D1-shaped stubs are L1 helpers; real HTTP L2 applies local SQLite migrations.
 
 ## 4. L2 layout
 
@@ -63,19 +63,7 @@ Vitest D1-shaped stubs (no auto migration apply)ss (bat pattern).
 
 ## 4b. L2 file layout
 
-```
-packages/worker/src/test (Vitest; hand-written SQL-shaped stubs — not auto-applied migrations)/
-  global-setup.ts   # wrangler dev --local --persist-to .wrangler/state-l2 --port 18787
-  live.http.test.ts
-  me.http.test.ts
-  watchlists.http.test.ts
-  ingest.http.test.ts
-  ingest-graph.http.test.ts    # GET /api/v1/ingest/graph (XR-29)
-  host-routing.http.test.ts    # R3-04 matrix (see 02)
-  tenant-isolation.http.test.ts
-  push-tokens.http.test.ts
-  migrate.http.test.ts         # R3-11 idempotent / conflict / kek
-```
+Actual runner: `packages/worker/test/e2e/global-setup.ts`; HTTP cases live alongside it and run through `vitest.e2e.config.ts`. The harness rejects remote credentials, writes/restores a local `.dev.vars`, applies migrations, starts local Wrangler on 18787 and checks `_test_marker`. Fixed `.wrangler/state-l2` and cleanup before marker verification remain gaps against per-run guarded isolation.
 
 ## 5. L3 Playwright (S5+)
 
@@ -83,7 +71,7 @@ packages/worker/src/test (Vitest; hand-written SQL-shaped stubs — not auto-app
 e2e/*.pw.ts   # dual-host-smoke, watchlists, groups, tokens-settings flows
 ```
 
-Paths grow per module (07 S5). Include zheto **save** with mock upstream (04 §5).
+Paths grow per module (07 S5). Include zheto **save** with mock upstream (04 §5). Current Playwright starts no server and defaults to daily-dev UI 7007/Worker 37007. Set explicit local `PLAYWRIGHT_BROWSER_URL`, `PLAYWRIGHT_WORKER_URL`, `PLAYWRIGHT_INGEST_URL` only after provisioning verified isolated fixtures; do not run against those defaults. A managed per-run L3 harness remains planned.
 
 ## 6. Hooks & CI (XR-14)
 
@@ -91,10 +79,10 @@ Paths grow per module (07 S5). Include zheto **save** with mock upstream (04 §5
 |------|------------|--------------------------------------|---------------------|
 | L1 + coverage | yes | | yes (status) |
 | G1 biome/tsc | yes | | yes |
-| gitleaks | staged | full | yes |
+| gitleaks | staged, optional if binary absent | required full-history scan | yes |
 | L2 | | **yes — primary hard gate** | yes |
 | G2 osv | | yes | yes |
-| L3 | | no | yes after S5; **release-optional (run before ship)** |
+| L3 | | no | No current CI job; required isolated workflow/harness remains planned |
 
 Direct main push: pre-push is the hard gate; CI is post-landing verification + release gate (R2-04).
 
