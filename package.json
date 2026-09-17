@@ -31,13 +31,13 @@
 		"test:ai": "bun run --filter @xray/worker test src/routes/ai-zheto-dashboard.test.ts src/lib/secrets-crypto.test.ts"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.5.13",
+		"@biomejs/biome": "2.5.14",
 		"@playwright/test": "1.63.0",
-		"@vitest/coverage-v8": "5.0.0",
+		"@vitest/coverage-v8": "5.0.1",
 		"husky": "^9.1.0",
 		"turbo": "2.10.13",
 		"typescript": "^7.0.2",
-		"vitest": "5.0.0"
+		"vitest": "5.0.1"
 	},
 	"trustedDependencies": [
 		"@biomejs/biome",
