@@ -63,7 +63,7 @@ osv-scanner scan --lockfile=bun.lock
 | Piece | Required proof and current reality | Status | Evidence / gap |
 |---|---|---|---|
 | L1 shared/UI | Statements/branches/functions/lines each ≥95% over the declared non-View scope | enforced | Package Vitest configs, `test:coverage`, pre-commit and CI |
-| L1 Worker | All four metrics ≥95%; current branches floor is only 94 | planned | Worker config and `check-coverage.sh` explicitly override branches to 94 |
+| L1 Worker | All four metrics ≥95% over the declared production scope | enforced | Worker config and `check-coverage.sh`; no per-package branch exception |
 | L2 | Real HTTP plus full endpoint/method inventory and cross-tenant/SQL assertions | enforced | Worker `test/e2e/`, `check-route-coverage.ts`; pre-push and CI |
 | L3 | Critical browser/agent journeys against an isolated local stack | planned | Specs exist, but `playwright.config.ts` has no server harness and CI has no L3 job |
 | G1 | Strict types and lint/format, zero errors/warnings | enforced | Turbo typecheck, Biome, pre-commit and CI |

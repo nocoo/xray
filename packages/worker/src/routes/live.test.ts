@@ -63,4 +63,31 @@ describe("GET /api/live", () => {
 		} as AppEnv["Bindings"]).request("/api/live");
 		expect(res.status).toBe(503);
 	});
+	test("checks local D1 without requiring production Access settings when environment is absent", async () => {
+		const response = await app({ DB: mockDb(true) }).request("/api/live");
+		expect(response.status).toBe(200);
+		expect(response.headers.get("cache-control")).toBe("no-store");
+		expect(await response.json()).toMatchObject({
+			status: "ok",
+			checks: [
+				{ name: "env", ok: true },
+				{ name: "d1", ok: true },
+			],
+		});
+	});
+	test("reports non-Error D1 failures as degraded without caching health", async () => {
+		const db = {
+			prepare: () => ({ first: () => Promise.reject("D1 unavailable") }),
+		} as unknown as D1Database;
+		const response = await app({ DB: db, ENVIRONMENT: "test" }).request("/api/live");
+		expect(response.status).toBe(503);
+		expect(response.headers.get("cache-control")).toBe("no-store");
+		expect(await response.json()).toMatchObject({
+			status: "degraded",
+			checks: [
+				{ name: "env", ok: true },
+				{ name: "d1", ok: false, detail: "D1 unavailable" },
+			],
+		});
+	});
 });

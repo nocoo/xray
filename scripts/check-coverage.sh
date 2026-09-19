@@ -85,8 +85,7 @@ NODE
 }
 
 run_pkg @xray/shared packages/shared
-# worker: vitest branch floor 94 (see packages/worker/vitest.config.ts); summary still ≥94.5
-BRANCHES_MIN=94 run_pkg @xray/worker packages/worker
+run_pkg @xray/worker packages/worker
 run_pkg @xray/ui packages/ui
 
 exit "$fail"

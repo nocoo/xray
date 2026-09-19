@@ -20,12 +20,11 @@ export default defineConfig({
 				"src/lib/handle.ts",
 			],
 			reporter: ["text", "json-summary"],
-			// Floors: lines/funcs/stmts 95; branches 94 (media-proxy/zheto edge branches ~94.9%).
-			// scripts/check-coverage.sh uses BRANCHES_MIN=94 for @xray/worker.
+			// Enforce the same four-metric contract as shared and UI.
 			thresholds: {
 				lines: 95,
 				functions: 95,
-				branches: 94,
+				branches: 95,
 				statements: 95,
 			},
 		},

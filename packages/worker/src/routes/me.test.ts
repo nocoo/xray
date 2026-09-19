@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
+import { resetAuthorProfileCache } from "../lib/author-profile.js";
 import type { AppEnv } from "../types.js";
 import { meRoute } from "./me.js";
 
@@ -77,5 +78,47 @@ describe("meRoute", () => {
 				image: "https://cdn.example/avatar-80.jpg",
 			},
 		});
+	});
+});
+
+describe("profile lookup fallbacks", () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		resetAuthorProfileCache();
+	});
+	test("retains authenticated identity when the default fetch returns no profile fields", async () => {
+		resetAuthorProfileCache();
+		const fetchProfile = vi.fn(async (_url: string, _init?: RequestInit) =>
+			Response.json({ name: null, avatar: null }),
+		);
+		vi.stubGlobal("fetch", fetchProfile);
+		const app = new Hono<AppEnv>();
+		app.use("*", async (c, next) => {
+			c.set("authUser", {
+				id: "local-user",
+				email: "fixture@example.invalid",
+				name: "Local Name",
+				image: "https://example.invalid/avatar.png",
+				accessIss: "fixture-issuer",
+				accessSub: "fixture-sub",
+			});
+			await next();
+		});
+		app.get("/api/me", meRoute);
+		const response = await app.request("/api/me", {}, {
+			ENVIRONMENT: "development",
+		} as AppEnv["Bindings"]);
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({
+			authenticated: true,
+			user: {
+				id: "local-user",
+				email: "fixture@example.invalid",
+				name: "Local Name",
+				image: "https://example.invalid/avatar.png",
+			},
+		});
+		expect(fetchProfile).toHaveBeenCalledOnce();
+		expect(fetchProfile.mock.calls[0]?.[0]).not.toContain("fixture@example.invalid");
 	});
 });
