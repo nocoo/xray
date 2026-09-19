@@ -4,7 +4,7 @@
 
 | Dimension | X-Ray v2 |
 |-----------|----------|
-| **L1** | vitest; VM/lib/middleware pure units; contract **≥95%** statements/branches/functions/lines (View shells covered through L3); current Worker branches floor is 94, a gap |
+| **L1** | vitest; VM/lib/middleware pure units; contract **≥95%** statements/branches/functions/lines (View shells covered through L3); all package gates enforce the contract |
 | **L2** | **Real HTTP** via `wrangler dev --local --persist-to .wrangler/state-l2` (port 18787) + route-coverage gate (100% `/api/*`); unit route mocks remain as L1 helpers |
 | **L3** | Playwright `e2e/*.pw.ts` — dual-host smoke + watchlists/groups/tokens/settings/AI/zheto/dashboard flows; local isolated data |
 | **G1** | biome + tsc strict |
@@ -38,7 +38,7 @@ For each business resource (watchlist, group, item, token, log, ai config, zheto
 | worker | `lib` + `middleware` + `repos` + `routes` | test helpers, `handle` re-export |
 | ui | `viewmodels` + pure `lib` + `api` + `hooks` | View shells, React binders, static fixtures |
 
-**Required thresholds:** statements, branches, functions and lines each **≥95%**. Current package configs enforce all four except Worker branches (94); `scripts/check-coverage.sh 95 95 95` also overrides the Worker branch check to 94. Do not certify the stronger contract until that gap is closed. L2 `gate:routes` + real-HTTP is mandatory for all `/api/*`.
+**Required thresholds:** statements, branches, functions and lines each **≥95%**. All package configs enforce all four; `scripts/check-coverage.sh 95 95 95` applies the same branch requirement to every package without an override. L2 `gate:routes` + real-HTTP is mandatory for all `/api/*`.
 
 ## 2. TDD rules
 

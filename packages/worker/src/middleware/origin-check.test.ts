@@ -231,4 +231,32 @@ describe("originCheck", () => {
 		});
 		expect(res.status).toBe(200);
 	});
+	test.each([
+		["production", "", "https://xray.hexly.ai", 403],
+		["production", "unknown.example", "https://unknown.example", 403],
+		["development", "api.example", "", 200],
+		["test", "api.example", "", 200],
+		["test", "api.example:80", "http://api.example", 200],
+		["test", "api.example:443", "https://api.example", 200],
+		["test", "api.example", "https://api.example", 200],
+		["test", "api.example:", "https://api.example", 200],
+		["test", "fixture.localhost", "https://evil.example", 403],
+	] as const)("enforces %s host %s and origin %s", async (mode, host, origin, status) => {
+		const headers: Record<string, string> = {};
+		if (host) headers.host = host;
+		if (origin) headers.origin = origin;
+		const response = await app({ ENVIRONMENT: mode }).request("/api/watchlists", {
+			method: "POST",
+			headers,
+		});
+		expect(response.status).toBe(status);
+		if (status === 200) {
+			expect(await response.json()).toEqual({ ok: true });
+		} else {
+			expect(await response.json()).toEqual({
+				success: false,
+				error: "Cross-origin mutation blocked",
+			});
+		}
+	});
 });

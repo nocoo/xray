@@ -149,3 +149,14 @@ describe("translateAndSummarize", () => {
 		expect(out.quotedTranslatedText).toBe("引译");
 	});
 });
+
+describe("translation marker fallbacks", () => {
+	test.each([
+		["[翻译]正文", "正文", null],
+		["[翻译]   ", "[翻译]", null],
+		["[翻译] [引用翻译] 引文", "[翻译] [引用翻译] 引文", "引文"],
+		["[翻译] 正文 [引用翻译]   ", "正文", null],
+	] as const)("preserves useful text in %s", (input, translatedText, quotedTranslatedText) => {
+		expect(parseCardTranslation(input)).toEqual({ translatedText, quotedTranslatedText });
+	});
+});
