@@ -1,8 +1,10 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router";
 import { AppProviders } from "@/components/app-providers";
+import { ChannelsProvider } from "@/components/channels-context";
 import { CreateDialogsProvider } from "@/components/dialogs/create-dialogs-context";
 import { AppShell } from "@/components/layout";
 import { SessionGate } from "@/components/session-gate";
+import { ChannelsPage } from "@/views/channels-page";
 import { DashboardPage } from "@/views/dashboard-page";
 import { GroupsPage } from "@/views/groups-page";
 import { IntegrationsZhetoPage } from "@/views/integrations-zheto-page";
@@ -13,11 +15,13 @@ import { WatchlistsPage } from "@/views/watchlists-page";
 function ShellLayout() {
 	return (
 		<SessionGate>
-			<CreateDialogsProvider>
-				<AppShell>
-					<Outlet />
-				</AppShell>
-			</CreateDialogsProvider>
+			<ChannelsProvider>
+				<CreateDialogsProvider>
+					<AppShell>
+						<Outlet />
+					</AppShell>
+				</CreateDialogsProvider>
+			</ChannelsProvider>
 		</SessionGate>
 	);
 }
@@ -31,6 +35,9 @@ export function App() {
 						<Route path="/" element={<DashboardPage />} />
 						<Route path="/watchlist" element={<WatchlistsPage />} />
 						<Route path="/watchlist/:id" element={<WatchlistDetailPage />} />
+						<Route path="/channels" element={<ChannelsPage />} />
+						<Route path="/channels/:channelId" element={<ChannelsPage />} />
+						<Route path="/channels/:channelId/articles/:articleId" element={<ChannelsPage />} />
 						<Route path="/groups" element={<GroupsPage />} />
 						<Route path="/integrations/zheto" element={<IntegrationsZhetoPage />} />
 						<Route path="/settings" element={<SettingsPage />} />

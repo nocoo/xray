@@ -19,11 +19,14 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { fetchGroups, type Group } from "@/api/groups";
 import { fetchWatchlists, type Watchlist } from "@/api/watchlists";
+import { useChannels } from "@/components/channels-context";
+import { ChannelDialog } from "@/components/dialogs/channel-dialog";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { useAuthUser } from "@/hooks/me-context";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/version";
 import { resolveIcon } from "@/lib/watchlist-icons";
+import { useVm } from "@/viewmodels/use-vm";
 import { getV2NavGroups, isActivePath, type UiNavItem } from "./nav-config";
 
 function useSidebarUser() {
@@ -143,6 +146,9 @@ function NewEntityItem({ label, onClick }: { label: string; onClick: () => void 
 
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
 	const { pathname, search } = useLocation();
+	const channelsVm = useChannels();
+	const { channels } = useVm(channelsVm);
+	const [creatingChannel, setCreatingChannel] = useState(false);
 	const user = useSidebarUser();
 	const { openCreateWatchlist, openCreateGroup, listVersion } = useCreateDialogs();
 	const { watchlists } = useSidebarWatchlists(listVersion);
@@ -257,6 +263,25 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 									/>
 								))}
 								<NewEntityItem label="New watchlist" onClick={openCreateWatchlist} />
+							</SidebarGroup>
+						);
+					}
+					if (group.dynamic === "channels") {
+						return (
+							<SidebarGroup key={group.label} label={group.label} defaultOpen={group.defaultOpen}>
+								{channels.map((channel) => (
+									<EntityNavItem
+										key={channel.id}
+										href={`/channels/${channel.id}`}
+										name={channel.name}
+										icon="radio"
+										pathname={pathname}
+									/>
+								))}
+								<NewEntityItem label="New channel" onClick={() => setCreatingChannel(true)} />
+								{creatingChannel && (
+									<ChannelDialog id={0} onClose={() => setCreatingChannel(false)} />
+								)}
 							</SidebarGroup>
 						);
 					}

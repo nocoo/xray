@@ -3,15 +3,29 @@ import { V2_NAV_GROUPS, V2_NAV_LABELS } from "./nav.js";
 
 describe("V2_NAV", () => {
 	test("includes core v2 surface labels", () => {
-		for (const label of ["Dashboard", "All watchlists", "All groups", "zhe.to", "Settings"]) {
+		for (const label of [
+			"Dashboard",
+			"All watchlists",
+			"All groups",
+			"All channels",
+			"zhe.to",
+			"Settings",
+		]) {
 			expect(V2_NAV_LABELS).toContain(label);
 		}
 		const groupLabels = V2_NAV_GROUPS.map((g) => g.label);
 		expect(groupLabels).toEqual(
-			expect.arrayContaining(["Watchlists", "Groups", "Dashboard", "Settings"]),
+			expect.arrayContaining(["Watchlists", "Groups", "Channels", "Dashboard", "Settings"]),
 		);
-		expect(V2_NAV_GROUPS.find((g) => g.label === "Watchlists")?.dynamic).toBe("watchlists");
-		expect(V2_NAV_GROUPS.find((g) => g.label === "Groups")?.dynamic).toBe("groups");
+		expect(V2_NAV_GROUPS.find((g) => g.label === "Channels")?.dynamic).toBe("channels");
+		expect(V2_NAV_GROUPS.map((g) => g.label)).toEqual([
+			"Dashboard",
+			"Watchlists",
+			"Groups",
+			"Channels",
+			"Integrations",
+			"Settings",
+		]);
 	});
 
 	test("excludes removed v1 nav", () => {

@@ -4,6 +4,7 @@ import {
 	LayoutDashboard,
 	Link as LinkIcon,
 	type LucideIcon,
+	Radio,
 	Settings,
 	Users,
 } from "lucide-react";
@@ -11,6 +12,7 @@ import {
 const ICON_MAP: Record<string, LucideIcon> = {
 	LayoutDashboard,
 	Eye,
+	Radio,
 	Users,
 	Link: LinkIcon,
 	Settings,
@@ -25,7 +27,7 @@ export type UiNavItem = {
 export type UiNavGroup = {
 	label: string;
 	defaultOpen: boolean;
-	dynamic?: "watchlists" | "groups";
+	dynamic?: "watchlists" | "groups" | "channels";
 	items: UiNavItem[];
 };
 
