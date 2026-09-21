@@ -3,7 +3,7 @@
 How `bun run refresh:watchlists` paces **x.com** fetches to finish a full pass inside a **60‑minute wall clock**, with room for future **incremental** epochs.
 
 Related: [09 Local producer](09-local-producer-twitter-cli.md) (boundary, token graph + push).  
-Secrets: `~/.config/xray/push.env` (see CLAUDE.md / 09). Graph comes from `GET /api/v1/ingest/graph` on the same ingest base.
+Secrets: `~/.config/xray/push.env` (see AGENTS.md / 09). Graph comes from `GET /api/v1/ingest/graph` on the same ingest base.
 
 ---
 

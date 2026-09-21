@@ -35,6 +35,13 @@ This file is the contract; hooks, CI and config are enforcement. Raise weaker ga
 | API / storage | `packages/worker/`; Hono, Access/Bearer middleware, repositories, D1 migrations |
 | Producer / quality | `scripts/`, `skills/`, package Vitest runners and `e2e/*.pw.ts` |
 
+## Local Preview
+
+- Start the full local stack with `bun run dev` from the repository root.
+- Open **https://xray.dev.hexly.ai** in Google Chrome for local preview and acceptance. Always use this Caddy HTTPS address instead of localhost or a raw port.
+- Caddy proxies to Vite on port 7007; Vite proxies `/api` to the local Worker on port 37007. Keep HMR on the Caddy hostname.
+- Maintain project instructions only in `AGENTS.md`; do not recreate a legacy handbook or alias.
+
 ## Commands
 
 Run from root with Bun 1.3.14, Node for tool scripts, and installed gitleaks/osv-scanner. Install uses the frozen root workspace lockfile.
