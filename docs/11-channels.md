@@ -80,7 +80,7 @@ Keyboard: J/K and list Up/Down select articles, Enter focuses the document, Esca
 
 - [x] Dedicated management/settings pages, named channel tokens, deletion, persistent ordering and statistics.
 - [x] Automatic first-report selection, floating reader preferences, 1020px/full-width control, shared page titles and aligned watchlist tabs.
-- [x] Isolated L2/L3 and desktop/mobile visual review; final commit gates and Caddy preview recorded below.
+- [x] Isolated L2/L3, desktop/mobile visual review, final commit gates and Caddy preview.
 
 ## Production cutover
 
@@ -104,4 +104,4 @@ L2 passed 28 real HTTP tests and the 53-route inventory. Coverage includes full-
 
 L3 passed all 16 browser tests with explicit ports 17007/28787 and a verified temporary test-marked D1 store. Channels journeys exercise dedicated management, profile editing, persistent sorting, confirmation/cancellation, deletion, named tokens, clipboard examples, automatic first-report selection, Chinese font glyph rendering, Markdown safety, keyboard/focus, date filters, history restoration and width persistence. Desktop and 390px/320px reader geometry checks cover toolbar/title clearance and viewport overflow. Management/settings and watchlist headers were also visually inspected on desktop and mobile.
 
-The test servers, temporary test store and task-owned panes are removed after verification. Daily preview uses the Caddy URL; production remains unchanged until the cutover above.
+Implementation commit: `7fe7bd7`. Its pre-commit lint, strict types, all four coverage floors and staged secret scan passed. The test servers, verified temporary test store and task-owned panes were removed. The daily Mock stack was restarted with migration 0004, and Google Chrome opened `https://xray.dev.hexly.ai/channels`. A read-only Caddy smoke check confirmed management, automatic selection of the first report and channel settings with no page errors or mutation requests. Production remains unchanged until the cutover above.
