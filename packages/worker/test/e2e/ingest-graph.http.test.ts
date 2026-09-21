@@ -15,7 +15,7 @@ describe("GET /api/v1/ingest/graph", () => {
 		const tok = await mintToken(`graph-${wl.id}`);
 
 		const noAuth = await rawHttp("/api/v1/ingest/graph", {
-			headers: { host: "xray-ingest.hexly.ai", accept: "application/json" },
+			headers: { host: "xray-ingest.worker.hexly.ai", accept: "application/json" },
 		});
 		expect(noAuth.status).toBe(401);
 

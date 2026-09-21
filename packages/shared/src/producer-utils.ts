@@ -3,8 +3,8 @@
 export const X_HANDLE_RE = /^[A-Za-z0-9_]{1,15}$/;
 
 const ALLOWED_INGEST_HOSTS = new Set([
-	"xray-ingest.hexly.ai",
-	"xray-ingest-staging.hexly.ai",
+	"xray-ingest.worker.hexly.ai",
+	"xray-ingest-staging.worker.hexly.ai",
 	"127.0.0.1",
 	"localhost",
 ]);

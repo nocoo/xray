@@ -158,7 +158,7 @@ Bad rows → `{ ok: false, reason }` — skipped; batch continues.
 
 ## 4. Ingest push (write path)
 
-**Host**: `https://xray-ingest.hexly.ai` (or `XRAY_INGEST_BASE`).  
+**Host**: `https://xray-ingest.worker.hexly.ai` (or `XRAY_INGEST_BASE`).  
 **Auth**: `Authorization: Bearer <xray_pt_…>` only (`XRAY_PUSH_TOKEN`).  
 **Not** Access JWT. Single-operator fixed token is expected.
 
@@ -200,7 +200,7 @@ Authorization: Bearer xray_pt_…
 
 | Mode | `XRAY_INGEST_BASE` (or `--ingest-base` / `--env`) |
 |------|---------------------------------------------------|
-| Prod | `https://xray-ingest.hexly.ai` |
+| Prod | `https://xray-ingest.worker.hexly.ai` |
 | Dev / local | `http://127.0.0.1:37007` (wrangler `--env development`) |
 
 Script may accept `--env prod|dev` as sugar for the row above. Graph and push **must** share that base so ids cannot cross environments.
@@ -244,7 +244,7 @@ twitter status --json          # authenticated
 set -a && source ~/.config/xray/push.env && set +a   # loads XRAY_PUSH_TOKEN (+ prod defaults)
 
 # 1. Target (graph + push share this base)
-export XRAY_INGEST_BASE=https://xray-ingest.hexly.ai   # prod
+export XRAY_INGEST_BASE=https://xray-ingest.worker.hexly.ai   # prod
 # export XRAY_INGEST_BASE=http://127.0.0.1:37007        # local/dev
 
 # 2. Optional knobs (push.env may already set these)

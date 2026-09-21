@@ -28,9 +28,9 @@ xray/
 | Hostname | CF Access | Traffic |
 |----------|-----------|---------|
 | **`xray.hexly.ai`** (prod browser) | **Required** (Google IdP) | SPA + browser `/api/*` |
-| **`xray-ingest.hexly.ai`** (prod agents) | **Bypass** | Bearer agent: graph read + push write + live |
+| **`xray-ingest.worker.hexly.ai`** (prod agents) | **Bypass** | Bearer agent: graph read + push write + live |
 | **`xray-staging.hexly.ai`** (pre-cutover smoke) | **Same Access app/AUD as prod browser** (R6-01) | SPA + browser APIs |
-| **`xray-ingest-staging.hexly.ai`** | **Bypass** (same as prod ingest) | graph + push + live |
+| **`xray-ingest-staging.worker.hexly.ai`** | **Bypass** (same as prod ingest) | graph + push + live |
 | **`xray.dev.hexly.ai`** (local Caddy) | `AUTH_DEV_BYPASS` | local |
 | Local wrangler | `AUTH_DEV_BYPASS` | L2/L3 |
 
@@ -41,7 +41,7 @@ Browser ──HTTPS──► CF Access (Google) ──► xray.hexly.ai ──�
                                                       ├─ /api/* (Access JWT)
                                                       └─ /* ASSETS
 
-Agent  ──HTTPS + Bearer──► xray-ingest.hexly.ai ──► same Worker
+Agent  ──HTTPS + Bearer──► xray-ingest.worker.hexly.ai ──► same Worker
                               (no Access edge)
                               ├─ GET  /api/live
                               ├─ GET  /api/v1/ingest/graph   (ingest:read)
@@ -55,7 +55,7 @@ Agent  ──HTTPS + Bearer──► xray-ingest.hexly.ai ──► same Worker
 1. Agents **must not** call `xray.hexly.ai` (Access would block Bearer-only clients). Graph and push both stay on the **ingest** host (or local wrangler).
 2. Ingest host **must not** serve the SPA dashboard. Worker allowlist: live + graph + push only.
 3. Token **mint/list/revoke** only on browser host under Access — never on ingest host. Bearer **cannot** mint/revoke.
-4. Production smoke: (a) browser login on `xray.hexly.ai`; (b) Bearer `GET /api/v1/ingest/graph` and `POST /api/v1/ingest/push` on `xray-ingest.hexly.ai` succeed; (c) same Bearer calls to `xray.hexly.ai` fail at Access or 404.
+4. Production smoke: (a) browser login on `xray.hexly.ai`; (b) Bearer `GET /api/v1/ingest/graph` and `POST /api/v1/ingest/push` on `xray-ingest.worker.hexly.ai` succeed; (c) same Bearer calls to `xray.hexly.ai` fail at Access or 404.
 5. `workers.dev` preview: document separately; default off for prod data.
 
 `wrangler.toml`: assets SPA + `run_worker_first = ["/api/*"]` + D1 (`xray-db`) + test DB name `xray-db-test`.
@@ -103,7 +103,7 @@ Local: **`xray.dev.hexly.ai` → 7007** (Caddy). UI vite + worker wrangler dev.
 | Email change | same `sub` updates email; never second user for same sub |
 | Conflict | migration dry-run; `--map` file |
 
-### Push agents — `xray-ingest.hexly.ai` (XR-01, XR-29)
+### Push agents — `xray-ingest.worker.hexly.ai` (XR-01, XR-29)
 
 Push token is **agent authentication**, not a write-only capability.
 
@@ -177,7 +177,7 @@ middleware: accessAuth | pushTokenAuth | originCheck
 ## 6. Ingest model (push-first, no auto refresh)
 
 ```
-Agent → xray-ingest.hexly.ai  (Bearer = user_id)
+Agent → xray-ingest.worker.hexly.ai  (Bearer = user_id)
   GET  /api/v1/ingest/graph     → tenant watchlists + x.com members
   POST /api/v1/ingest/push
        → pushTokenAuth

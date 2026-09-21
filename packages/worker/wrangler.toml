@@ -59,7 +59,7 @@ pattern = "xray.hexly.ai"
 custom_domain = true
 
 [[env.production.routes]]
-pattern = "xray-ingest.hexly.ai"
+pattern = "xray-ingest.worker.hexly.ai"
 custom_domain = true
 
 # S45-04 — production ingest rate limit (replace namespace_id with CF dashboard value)

@@ -13,7 +13,7 @@ describe("resolveIngestBase", () => {
 		expect(
 			resolveIngestBase({
 				cliEnv: "dev",
-				envBase: "https://xray-ingest.hexly.ai",
+				envBase: "https://xray-ingest.worker.hexly.ai",
 			}),
 		).toBe("http://127.0.0.1:37007");
 		expect(
@@ -21,39 +21,41 @@ describe("resolveIngestBase", () => {
 				cliEnv: "prod",
 				envBase: "http://127.0.0.1:37007",
 			}),
-		).toBe("https://xray-ingest.hexly.ai");
+		).toBe("https://xray-ingest.worker.hexly.ai");
 	});
 
 	test("--ingest-base wins over --env", () => {
 		expect(
 			resolveIngestBase({
-				cliBase: "https://xray-ingest.hexly.ai",
+				cliBase: "https://xray-ingest.worker.hexly.ai",
 				cliEnv: "dev",
 			}),
-		).toBe("https://xray-ingest.hexly.ai");
+		).toBe("https://xray-ingest.worker.hexly.ai");
 	});
 
 	test("env var used when no --env flag", () => {
 		expect(resolveIngestBase({ envBase: "http://127.0.0.1:37007" })).toBe("http://127.0.0.1:37007");
 		expect(resolveIngestBase({ envMode: "dev" })).toBe("http://127.0.0.1:37007");
-		expect(resolveIngestBase({})).toBe("https://xray-ingest.hexly.ai");
+		expect(resolveIngestBase({})).toBe("https://xray-ingest.worker.hexly.ai");
 	});
 });
 
 describe("ingestBaseForEnv", () => {
 	test("dev vs prod vs explicit cli base", () => {
 		expect(ingestBaseForEnv("dev", undefined)).toBe("http://127.0.0.1:37007");
-		expect(ingestBaseForEnv("prod", undefined)).toBe("https://xray-ingest.hexly.ai");
-		expect(ingestBaseForEnv("dev", "https://xray-ingest.hexly.ai")).toBe(
-			"https://xray-ingest.hexly.ai",
+		expect(ingestBaseForEnv("prod", undefined)).toBe("https://xray-ingest.worker.hexly.ai");
+		expect(ingestBaseForEnv("dev", "https://xray-ingest.worker.hexly.ai")).toBe(
+			"https://xray-ingest.worker.hexly.ai",
 		);
 	});
 });
 
 describe("ingestAgentHeaders", () => {
 	test("spoils ingest host only for loopback", () => {
-		expect(ingestAgentHeaders("http://127.0.0.1:37007", "tok").host).toBe("xray-ingest.hexly.ai");
-		expect(ingestAgentHeaders("https://xray-ingest.hexly.ai", "tok").host).toBeUndefined();
+		expect(ingestAgentHeaders("http://127.0.0.1:37007", "tok").host).toBe(
+			"xray-ingest.worker.hexly.ai",
+		);
+		expect(ingestAgentHeaders("https://xray-ingest.worker.hexly.ai", "tok").host).toBeUndefined();
 	});
 });
 
@@ -62,7 +64,7 @@ describe("fetchIngestGraph", () => {
 		await expect(
 			fetchIngestGraph({
 				fetch: async () => ({ status: 200, ok: true, text: async () => "{}" }),
-				ingestBase: "https://xray-ingest.hexly.ai",
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
 				pushToken: "",
 			}),
 		).rejects.toThrow(/XRAY_PUSH_TOKEN/);
@@ -72,21 +74,21 @@ describe("fetchIngestGraph", () => {
 		await expect(
 			fetchIngestGraph({
 				fetch: async () => ({ status: 401, ok: false, text: async () => "{}" }),
-				ingestBase: "https://xray-ingest.hexly.ai",
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
 				pushToken: "tok",
 			}),
 		).rejects.toThrow(/401/);
 		await expect(
 			fetchIngestGraph({
 				fetch: async () => ({ status: 403, ok: false, text: async () => "{}" }),
-				ingestBase: "https://xray-ingest.hexly.ai",
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
 				pushToken: "tok",
 			}),
 		).rejects.toThrow(/403/);
 		await expect(
 			fetchIngestGraph({
 				fetch: async () => ({ status: 429, ok: false, text: async () => "{}" }),
-				ingestBase: "https://xray-ingest.hexly.ai",
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
 				pushToken: "tok",
 			}),
 		).rejects.toThrow(/429/);
@@ -95,14 +97,14 @@ describe("fetchIngestGraph", () => {
 				fetch: async () => {
 					throw new Error("offline");
 				},
-				ingestBase: "https://xray-ingest.hexly.ai",
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
 				pushToken: "tok",
 			}),
 		).rejects.toThrow(/offline/);
 		await expect(
 			fetchIngestGraph({
 				fetch: async () => ({ status: 200, ok: true, text: async () => "not-json" }),
-				ingestBase: "https://xray-ingest.hexly.ai",
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
 				pushToken: "tok",
 			}),
 		).rejects.toThrow(/invalid JSON/);
@@ -115,7 +117,7 @@ describe("fetchIngestGraph", () => {
 				ok: true,
 				text: async () => JSON.stringify({ watchlists: [] }),
 			}),
-			ingestBase: "https://xray-ingest.hexly.ai",
+			ingestBase: "https://xray-ingest.worker.hexly.ai",
 			pushToken: "tok",
 		});
 		expect(empty).toEqual({ watchlists: [] });
@@ -137,10 +139,10 @@ describe("fetchIngestGraph", () => {
 						}),
 				};
 			},
-			ingestBase: "https://xray-ingest.hexly.ai",
+			ingestBase: "https://xray-ingest.worker.hexly.ai",
 			pushToken: "xray_pt_x",
 		});
-		expect(seenUrl).toBe("https://xray-ingest.hexly.ai/api/v1/ingest/graph");
+		expect(seenUrl).toBe("https://xray-ingest.worker.hexly.ai/api/v1/ingest/graph");
 		expect(seenAuth).toBe("Bearer xray_pt_x");
 		expect(g.watchlists[0]?.members[0]?.handle).toBe("sama");
 	});
@@ -187,7 +189,7 @@ describe("loadRefreshGraph", () => {
 				calls += 1;
 				return { status: 200, ok: true, text: async () => liveJson };
 			},
-			ingestBase: "https://xray-ingest.hexly.ai",
+			ingestBase: "https://xray-ingest.worker.hexly.ai",
 			pushToken: "tok",
 			io: { exists: () => false, read: () => "" },
 		});
@@ -199,7 +201,7 @@ describe("loadRefreshGraph", () => {
 				calls += 1;
 				return { status: 200, ok: true, text: async () => liveJson };
 			},
-			ingestBase: "https://xray-ingest.hexly.ai",
+			ingestBase: "https://xray-ingest.worker.hexly.ai",
 			pushToken: "tok",
 			membersFile: "/x.json",
 			io: {
@@ -219,7 +221,7 @@ describe("loadRefreshGraph", () => {
 		await expect(
 			loadRefreshGraph({
 				fetch: async () => ({ status: 403, ok: false, text: async () => "{}" }),
-				ingestBase: "https://xray-ingest.hexly.ai",
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
 				pushToken: "tok",
 				membersFile: "/x.json",
 				io: {

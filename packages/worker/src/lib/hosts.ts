@@ -7,7 +7,10 @@ export const BROWSER_HOSTS = new Set([
 	"127.0.0.1",
 ]);
 
-export const INGEST_HOSTS = new Set(["xray-ingest.hexly.ai", "xray-ingest-staging.hexly.ai"]);
+export const INGEST_HOSTS = new Set([
+	"xray-ingest.worker.hexly.ai",
+	"xray-ingest-staging.worker.hexly.ai",
+]);
 
 export type HostKind = "browser" | "ingest" | "local" | "unknown";
 

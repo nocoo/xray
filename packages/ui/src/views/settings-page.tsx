@@ -118,7 +118,7 @@ export function SettingsPage() {
 							<div className="space-y-3">
 								<ClipboardText text={tokens.onceSecret} className="w-full max-w-full" />
 								<pre className="overflow-x-auto rounded bg-basalt-background p-2 text-[11px] text-basalt-muted-foreground">
-									{`curl -X POST https://xray-ingest.hexly.ai/api/v1/ingest/push \\
+									{`curl -X POST https://xray-ingest.worker.hexly.ai/api/v1/ingest/push \\
   -H "Authorization: Bearer ${tokens.onceSecret.slice(0, 20)}…" \\
   -H "Content-Type: application/json" \\
   -d '{"watchlist_id":1,"items":[...]}'`}

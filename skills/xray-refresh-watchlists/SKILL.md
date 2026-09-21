@@ -31,7 +31,7 @@ Canonical docs (read if behavior is unclear):
 | **Runtime** | `bun` on PATH; `packageManager` in root `package.json` |
 | **Twitter CLI** | `twitter` on PATH (or `TWITTER_BIN` / `--twitter-bin`) — install: `uv tool install twitter-cli` |
 | **Secrets file** | `~/.config/xray/push.env` (`chmod 600`, **never commit**) |
-| **Prod ingest host** | `https://xray-ingest.hexly.ai` |
+| **Prod ingest host** | `https://xray-ingest.worker.hexly.ai` |
 | **Prod browser host** | `https://xray.hexly.ai` |
 | **Local worker default** | `http://127.0.0.1:37007` (`wrangler dev --env development --port 37007`) |
 
@@ -76,14 +76,14 @@ Do **not** use `XRAY_CF_AUTHORIZATION` or browser CRUD to list members.
 # value is secret. XRAY_INGEST_BASE is required for prod cron (section 5.1
 # sources this file and relies on it — do not leave it commented out).
 XRAY_PUSH_TOKEN=xray_pt_<prefix>_<secret>
-XRAY_INGEST_BASE=https://xray-ingest.hexly.ai
+XRAY_INGEST_BASE=https://xray-ingest.worker.hexly.ai
 XRAY_WINDOW_HOURS=24
 ```
 
 | Key | Required? | Notes |
 |-----|-----------|--------|
 | `XRAY_PUSH_TOKEN` | **Yes** | Graph read + push write (same token) |
-| `XRAY_INGEST_BASE` | **Yes** | Prod `https://xray-ingest.hexly.ai` or local `http://127.0.0.1:37007`. Graph and push share this. |
+| `XRAY_INGEST_BASE` | **Yes** | Prod `https://xray-ingest.worker.hexly.ai` or local `http://127.0.0.1:37007`. Graph and push share this. |
 | `XRAY_MEMBERS_FILE` | Optional | Override only if the file exists; default is token graph |
 | `XRAY_WINDOW_HOURS` | Optional | Default 24 |
 
@@ -109,7 +109,7 @@ test -n "${XRAY_INGEST_BASE:-}" && echo "XRAY_INGEST_BASE=$XRAY_INGEST_BASE" || 
    cat > ~/.config/xray/push.env <<'EOF'
    # X-Ray prod push token — DO NOT COMMIT
    XRAY_PUSH_TOKEN=xray_pt_REPLACE_ME
-   XRAY_INGEST_BASE=https://xray-ingest.hexly.ai
+   XRAY_INGEST_BASE=https://xray-ingest.worker.hexly.ai
    XRAY_WINDOW_HOURS=24
    EOF
    chmod 600 ~/.config/xray/push.env
@@ -216,7 +216,7 @@ console.log(path, JSON.stringify(out.watchlists.map((w) => ({ id: w.id, name: w.
 ```bash
 export XRAY_PUSH_TOKEN='…'
 # prod:
-export XRAY_INGEST_BASE=https://xray-ingest.hexly.ai
+export XRAY_INGEST_BASE=https://xray-ingest.worker.hexly.ai
 # local:
 # export XRAY_INGEST_BASE=http://127.0.0.1:37007
 ```
@@ -245,7 +245,7 @@ test -n "$XRAY_INGEST_BASE"
 
 # 4) Target health
 # prod:
-curl -sS -o /dev/null -w "%{http_code}\n" https://xray-ingest.hexly.ai/api/live
+curl -sS -o /dev/null -w "%{http_code}\n" https://xray-ingest.worker.hexly.ai/api/live
 # local:
 curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:37007/api/live
 ```
@@ -473,7 +473,7 @@ bun run refresh:watchlists -- 2>&1 | tee -a "$LOG_DIR/refresh-$(date -u +%Y%m%dT
 [ ] cwd = xray repo root
 [ ] twitter status OK
 [ ] secrets loaded (push.env or explicit export)
-[ ] ingest base matches intent (prod https://xray-ingest.hexly.ai | local http://127.0.0.1:37007)
+[ ] ingest base matches intent (prod https://xray-ingest.worker.hexly.ai | local http://127.0.0.1:37007)
 [ ] graph ids match that ingest DB
 [ ] pacing: prod default spread | local may --no-spread
 [ ] ran: bun run refresh:watchlists -- <flags>

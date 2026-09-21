@@ -6,15 +6,15 @@ describe("classifyHost", () => {
 		expect(classifyHost("xray.hexly.ai")).toBe("browser");
 		expect(classifyHost("xray-staging.hexly.ai")).toBe("browser");
 		expect(classifyHost("xray.dev.hexly.ai")).toBe("browser");
-		expect(classifyHost("xray-ingest.hexly.ai")).toBe("ingest");
-		expect(classifyHost("xray-ingest-staging.hexly.ai")).toBe("ingest");
+		expect(classifyHost("xray-ingest.worker.hexly.ai")).toBe("ingest");
+		expect(classifyHost("xray-ingest-staging.worker.hexly.ai")).toBe("ingest");
 		expect(classifyHost("localhost:8787")).toBe("local");
 	});
 
 	test("rejects lookalike hosts", () => {
 		expect(classifyHost("xray.evil.example")).toBe("unknown");
 		expect(classifyHost("not-xray.hexly.ai")).toBe("unknown");
-		expect(classifyHost("prefix-xray-ingest.hexly.ai")).toBe("unknown");
+		expect(classifyHost("prefix-xray-ingest.worker.hexly.ai")).toBe("unknown");
 	});
 
 	test("ingest path allowlist", () => {

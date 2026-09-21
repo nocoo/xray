@@ -46,7 +46,7 @@ describe("originCheck", () => {
 		const a = app({ ENVIRONMENT: "production" });
 		const res = await a.request("/api/v1/ingest/push", {
 			method: "POST",
-			headers: { host: "xray-ingest.hexly.ai" },
+			headers: { host: "xray-ingest.worker.hexly.ai" },
 		});
 		expect(res.status).toBe(200);
 	});

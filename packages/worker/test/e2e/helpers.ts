@@ -49,7 +49,7 @@ export function browserHeaders(extra?: Record<string, string>): Record<string, s
 
 export function ingestHeaders(token: string, extra?: Record<string, string>): Record<string, string> {
 	return {
-		host: "xray-ingest.hexly.ai",
+		host: "xray-ingest.worker.hexly.ai",
 		authorization: `Bearer ${token}`,
 		"content-type": "application/json",
 		accept: "application/json",

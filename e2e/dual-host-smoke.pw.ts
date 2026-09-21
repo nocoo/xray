@@ -77,7 +77,7 @@ test.describe("dual-host smoke", () => {
 		const externalId = `pw-${Date.now()}`;
 		const pushRes = await request.post(`${INGEST}/api/v1/ingest/push`, {
 			headers: {
-				host: "xray-ingest.hexly.ai",
+				host: "xray-ingest.worker.hexly.ai",
 				authorization: `Bearer ${token}`,
 				"content-type": "application/json",
 			},

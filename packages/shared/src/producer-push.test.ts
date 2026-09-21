@@ -26,7 +26,7 @@ describe("pushIngestBatch", () => {
 				sleep: async (ms) => {
 					sleeps.push(ms);
 				},
-				ingestBase: "https://xray-ingest.hexly.ai",
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
 				pushToken: "xray_pt_test",
 			},
 			body(),
@@ -59,7 +59,7 @@ describe("pushIngestBatch", () => {
 				sleep: async (ms) => {
 					sleeps.push(ms);
 				},
-				ingestBase: "https://xray-ingest.hexly.ai",
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
 				pushToken: "tok",
 			},
 			body(),
@@ -79,7 +79,7 @@ describe("pushIngestBatch", () => {
 					text: async () => JSON.stringify({ ok: true, accepted: 0, deduped: 0, rejected: 0 }),
 				}),
 				sleep: async () => {},
-				ingestBase: "https://xray-ingest.hexly.ai",
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
 				pushToken: "tok",
 			},
 			body(),

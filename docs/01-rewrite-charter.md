@@ -78,7 +78,7 @@ Rewrite = **clean cut**. Design/CSS stay; engine, auth, deploy, and ingest model
 
 1. **Prod browser** `https://xray.hexly.ai`：CF Access Google 登录后进 Dashboard。  
    **Dev** `https://xray.dev.hexly.ai`：Worker `AUTH_DEV_BYPASS`（仅 development/test）。
-2. **Prod ingest** `https://xray-ingest.hexly.ai`：Bearer 可读图 + 可 push；browser host 不做 agent 流量。
+2. **Prod ingest** `https://xray-ingest.worker.hexly.ai`：Bearer 可读图 + 可 push；browser host 不做 agent 流量。
 3. 迁移后 sidebar 出现原 watchlists/groups（无 posts）。
 4. Push token → `POST /api/v1/ingest/push` 写入 x.com + custom → 同一 watchlist mix 时间线。
 5. AI Settings 可配；有界手动翻译+总结；密钥 AES-256-GCM 加密。

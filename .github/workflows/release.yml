@@ -47,7 +47,7 @@ jobs:
       timeout-minutes: 15
       verify-command: |
         EXPECTED=$(jq -r .version package.json)
-        HTTP=$(curl -fsS -o /tmp/live.json -w "%{http_code}" https://xray-ingest.hexly.ai/api/live || echo "000")
+        HTTP=$(curl -fsS -o /tmp/live.json -w "%{http_code}" https://xray-ingest.worker.hexly.ai/api/live || echo "000")
         ACTUAL=$(jq -r .version /tmp/live.json 2>/dev/null || echo "?")
         test "$HTTP" = "200" && test "$ACTUAL" = "$EXPECTED"
       verify-retries: 6

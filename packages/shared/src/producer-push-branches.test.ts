@@ -17,7 +17,7 @@ describe("pushIngestBatch branches", () => {
 		const r = await pushIngestBatch(
 			{
 				fetch: async (_url, init) => {
-					sawHost = init.headers.host === "xray-ingest.hexly.ai";
+					sawHost = init.headers.host === "xray-ingest.worker.hexly.ai";
 					return {
 						status: 200,
 						ok: true,
@@ -43,7 +43,7 @@ describe("pushIngestBatch branches", () => {
 					throw new Error("offline");
 				},
 				sleep: async () => {},
-				ingestBase: "https://xray-ingest.hexly.ai",
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
 				pushToken: "tok",
 				maxAttempts: 2,
 			},
@@ -66,7 +66,7 @@ describe("pushIngestBatch branches", () => {
 					text: async () => "not-json",
 				}),
 				sleep: async () => {},
-				ingestBase: "https://xray-ingest.hexly.ai",
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
 				pushToken: "tok",
 			},
 			body,
@@ -87,7 +87,7 @@ describe("pushIngestBatch branches", () => {
 					};
 				},
 				sleep: async () => {},
-				ingestBase: "https://xray-ingest.hexly.ai",
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
 				pushToken: "tok",
 			},
 			body,
@@ -106,7 +106,7 @@ describe("pushIngestBatch branches", () => {
 					return { status: 429, ok: false, text: async () => "slow down" };
 				},
 				sleep: async () => {},
-				ingestBase: "https://xray-ingest.hexly.ai",
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
 				pushToken: "tok",
 				maxAttempts: 2,
 			},
@@ -122,7 +122,7 @@ describe("pushIngestBatch branches", () => {
 			{
 				fetch: async () => ({ status: 403, ok: false, text: async () => "forbidden" }),
 				sleep: async () => {},
-				ingestBase: "https://xray-ingest.hexly.ai",
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
 				pushToken: "tok",
 			},
 			body,

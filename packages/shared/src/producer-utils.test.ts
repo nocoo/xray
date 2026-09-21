@@ -28,11 +28,11 @@ describe("isValidXHandle / cacheFileBase", () => {
 
 describe("assertAllowedBaseUrl", () => {
 	test("allows prod/staging ingest https and loopback", () => {
-		expect(assertAllowedBaseUrl("https://xray-ingest.hexly.ai/", "ingest")).toBe(
-			"https://xray-ingest.hexly.ai",
+		expect(assertAllowedBaseUrl("https://xray-ingest.worker.hexly.ai/", "ingest")).toBe(
+			"https://xray-ingest.worker.hexly.ai",
 		);
-		expect(assertAllowedBaseUrl("https://xray-ingest-staging.hexly.ai", "ingest")).toBe(
-			"https://xray-ingest-staging.hexly.ai",
+		expect(assertAllowedBaseUrl("https://xray-ingest-staging.worker.hexly.ai", "ingest")).toBe(
+			"https://xray-ingest-staging.worker.hexly.ai",
 		);
 		expect(assertAllowedBaseUrl("https://xray-staging.hexly.ai", "browser")).toBe(
 			"https://xray-staging.hexly.ai",
@@ -42,11 +42,13 @@ describe("assertAllowedBaseUrl", () => {
 
 	test("rejects evil hosts and paths", () => {
 		expect(() => assertAllowedBaseUrl("https://evil.example/x", "ingest")).toThrow();
-		expect(() => assertAllowedBaseUrl("http://xray-ingest.hexly.ai", "ingest")).toThrow(/https/);
-		expect(() => assertAllowedBaseUrl("https://user:pass@xray-ingest.hexly.ai", "ingest")).toThrow(
-			/credentials/,
+		expect(() => assertAllowedBaseUrl("http://xray-ingest.worker.hexly.ai", "ingest")).toThrow(
+			/https/,
 		);
-		expect(() => assertAllowedBaseUrl("https://xray-ingest.hexly.ai/api", "ingest")).toThrow(
+		expect(() =>
+			assertAllowedBaseUrl("https://user:pass@xray-ingest.worker.hexly.ai", "ingest"),
+		).toThrow(/credentials/);
+		expect(() => assertAllowedBaseUrl("https://xray-ingest.worker.hexly.ai/api", "ingest")).toThrow(
 			/path/,
 		);
 	});
@@ -239,7 +241,7 @@ describe("parseMembersGraph / assertAllowedBaseUrl / parsePush more edges", () =
 
 	test("base url more rejects", () => {
 		expect(() => assertAllowedBaseUrl("not a url", "ingest")).toThrow(/invalid/);
-		expect(() => assertAllowedBaseUrl("https://xray-ingest.hexly.ai?x=1", "ingest")).toThrow(
+		expect(() => assertAllowedBaseUrl("https://xray-ingest.worker.hexly.ai?x=1", "ingest")).toThrow(
 			/query/,
 		);
 		expect(() => assertAllowedBaseUrl("ftp://127.0.0.1", "ingest")).toThrow(/loopback/);

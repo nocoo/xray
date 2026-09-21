@@ -50,7 +50,7 @@ export async function pushIngestBatch(
 		"content-type": "application/json",
 	};
 	if (deps.ingestBase.includes("127.0.0.1") || deps.ingestBase.includes("localhost")) {
-		headers.host = "xray-ingest.hexly.ai";
+		headers.host = "xray-ingest.worker.hexly.ai";
 	}
 
 	for (let attempt = 1; attempt <= maxAttempts; attempt++) {

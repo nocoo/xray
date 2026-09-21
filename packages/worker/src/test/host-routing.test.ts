@@ -7,8 +7,8 @@ describe("host routing matrix (R3-04)", () => {
 	test("four locked hosts classify correctly", () => {
 		expect(classifyHost("xray.hexly.ai")).toBe("browser");
 		expect(classifyHost("xray-staging.hexly.ai")).toBe("browser");
-		expect(classifyHost("xray-ingest.hexly.ai")).toBe("ingest");
-		expect(classifyHost("xray-ingest-staging.hexly.ai")).toBe("ingest");
+		expect(classifyHost("xray-ingest.worker.hexly.ai")).toBe("ingest");
+		expect(classifyHost("xray-ingest-staging.worker.hexly.ai")).toBe("ingest");
 		expect(classifyHost("unknown.example")).toBe("unknown");
 	});
 
@@ -46,10 +46,10 @@ describe("host routing matrix (R3-04)", () => {
 		app.post("/api/v1/ingest/push", (c) => c.json({ ok: true }));
 
 		expect(
-			(await app.request("/api/me", { headers: { host: "xray-ingest.hexly.ai" } })).status,
+			(await app.request("/api/me", { headers: { host: "xray-ingest.worker.hexly.ai" } })).status,
 		).toBe(404);
 		expect(
-			(await app.request("/api/live", { headers: { host: "xray-ingest.hexly.ai" } })).status,
+			(await app.request("/api/live", { headers: { host: "xray-ingest.worker.hexly.ai" } })).status,
 		).toBe(200);
 		// S45-03: browser host must not expose push
 		expect(
@@ -64,7 +64,7 @@ describe("host routing matrix (R3-04)", () => {
 			(
 				await app.request("/api/v1/ingest/push", {
 					method: "POST",
-					headers: { host: "xray-ingest.hexly.ai" },
+					headers: { host: "xray-ingest.worker.hexly.ai" },
 				})
 			).status,
 		).toBe(200);
@@ -78,7 +78,7 @@ describe("host routing matrix (R3-04)", () => {
 		expect(
 			(
 				await app.request("/api/v1/ingest/graph", {
-					headers: { host: "xray-ingest.hexly.ai" },
+					headers: { host: "xray-ingest.worker.hexly.ai" },
 				})
 			).status,
 		).toBe(200);
@@ -131,8 +131,8 @@ describe("host routing matrix (R3-04)", () => {
 		expect(await spa.text()).toContain("xray");
 
 		const ingestRoot = await app.request(
-			"http://xray-ingest.hexly.ai/",
-			{ headers: { host: "xray-ingest.hexly.ai" } },
+			"http://xray-ingest.worker.hexly.ai/",
+			{ headers: { host: "xray-ingest.worker.hexly.ai" } },
 			env,
 		);
 		expect(ingestRoot.status).toBe(404);

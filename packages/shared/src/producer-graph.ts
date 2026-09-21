@@ -14,7 +14,7 @@ export function ingestAgentHeaders(ingestBase: string, pushToken: string): Recor
 		"content-type": "application/json",
 	};
 	if (ingestBase.includes("127.0.0.1") || ingestBase.includes("localhost")) {
-		headers.host = "xray-ingest.hexly.ai";
+		headers.host = "xray-ingest.worker.hexly.ai";
 	}
 	return headers;
 }
@@ -84,10 +84,10 @@ export function resolveIngestBase(input: ResolveIngestBaseInput): string {
 	if (input.cliBase?.trim()) return input.cliBase.trim();
 	const cliEnv = (input.cliEnv ?? "").toLowerCase();
 	if (cliEnv === "dev") return "http://127.0.0.1:37007";
-	if (cliEnv === "prod") return "https://xray-ingest.hexly.ai";
+	if (cliEnv === "prod") return "https://xray-ingest.worker.hexly.ai";
 	if (input.envBase?.trim()) return input.envBase.trim();
 	if ((input.envMode ?? "").toLowerCase() === "dev") return "http://127.0.0.1:37007";
-	return "https://xray-ingest.hexly.ai";
+	return "https://xray-ingest.worker.hexly.ai";
 }
 
 export function ingestBaseForEnv(mode: string | undefined, explicit: string | undefined): string {

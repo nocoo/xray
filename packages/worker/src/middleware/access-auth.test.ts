@@ -85,7 +85,7 @@ afterEach(() => {
 describe("accessAuth host matrix", () => {
 	test("live public on browser and ingest", async () => {
 		const app = makeApp({ AUTH_DEV_BYPASS: "true", ENVIRONMENT: "development" });
-		for (const host of ["xray.hexly.ai", "xray-ingest.hexly.ai", "localhost"]) {
+		for (const host of ["xray.hexly.ai", "xray-ingest.worker.hexly.ai", "localhost"]) {
 			const res = await app.request("/api/live", { headers: { host } });
 			expect(res.status, host).toBe(200);
 		}
@@ -94,7 +94,7 @@ describe("accessAuth host matrix", () => {
 	test("ingest rejects /api/me and unknown host rejects all", async () => {
 		const app = makeApp({ AUTH_DEV_BYPASS: "true", ENVIRONMENT: "development" });
 		expect(
-			(await app.request("/api/me", { headers: { host: "xray-ingest.hexly.ai" } })).status,
+			(await app.request("/api/me", { headers: { host: "xray-ingest.worker.hexly.ai" } })).status,
 		).toBe(404);
 		expect(
 			(await app.request("/api/live", { headers: { host: "xray.evil.example" } })).status,
@@ -354,7 +354,7 @@ describe("accessAuth JWT path", () => {
 		app.post("/api/v1/ingest/push", (c) => c.json({ ok: true }));
 		const res = await app.request("/api/v1/ingest/push", {
 			method: "POST",
-			headers: { host: "xray-ingest.hexly.ai" },
+			headers: { host: "xray-ingest.worker.hexly.ai" },
 		});
 		expect(res.status).toBe(200);
 	});
