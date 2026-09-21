@@ -13,10 +13,12 @@ import type { AppEnv } from "../types.js";
 import {
 	createChannelKeyRoute,
 	createChannelRoute,
+	deleteChannelRoute,
 	getChannelArticleRoute,
 	listChannelArticlesRoute,
 	listChannelKeysRoute,
 	listChannelsRoute,
+	orderChannelsRoute,
 	patchChannelRoute,
 	revokeChannelKeyRoute,
 } from "./channels.js";
@@ -121,6 +123,109 @@ async function submit(env: AppEnv["Bindings"], token: string, body: unknown, ext
 }
 
 describe("channels browser routes", () => {
+	test("ordering requires a valid full set and returns ordered channel DTOs", async () => {
+		const env = makeEnv(createSqliteD1());
+		const request = (body: string, actor: "a" | "b" = "a") =>
+			call("/api/channels/order", { method: "PUT", headers: hdr(actor), body }, env);
+		expect(dataOf((await request('{"ids":[]}')).body)).toEqual([]);
+		const a = await createChannel(env, "A");
+		const b = await createChannel(env, "B");
+		for (const body of [
+			"{",
+			"null",
+			"[]",
+			"1",
+			"{}",
+			'{"ids":"x"}',
+			'{"ids":[0]}',
+			'{"ids":[-1]}',
+			'{"ids":[1.1]}',
+			'{"ids":["1"]}',
+			'{"ids":[9007199254740992]}',
+			JSON.stringify({ ids: [a.id, a.id] }),
+			'{"ids":[]}',
+			JSON.stringify({ ids: [a.id] }),
+			JSON.stringify({ ids: [b.id, 9999] }),
+			JSON.stringify({ ids: [a.id, b.id], user_id: "other" }),
+		]) {
+			expect((await request(body)).status, body).toBe(400);
+		}
+		expect((await request(JSON.stringify({ ids: [a.id, b.id] }), "b")).status).toBe(400);
+		const result = await request(JSON.stringify({ ids: [b.id, a.id] }));
+		expect(result.status).toBe(200);
+		expect(
+			dataOf<Array<{ id: number; sortOrder: number }>>(result.body).map((c) => [c.id, c.sortOrder]),
+		).toEqual([
+			[b.id, 0],
+			[a.id, 1],
+		]);
+	});
+
+	test("delete cascades and permanently invalidates producer keys", async () => {
+		const env = makeEnv(createSqliteD1());
+		const channel = await createChannel(env);
+		const key = await createKey(env, channel.id);
+		expect((await submit(env, key.token, article())).status).toBe(201);
+		const remove = (id: string, actor: "a" | "b" = "a") =>
+			call(`/api/channels/${id}`, { method: "DELETE", headers: hdr(actor) }, env);
+		expect((await remove("bad")).status).toBe(400);
+		expect((await remove(String(channel.id), "b")).status).toBe(404);
+		const result = await remove(String(channel.id));
+		expect(result.status).toBe(200);
+		expect(dataOf(result.body)).toEqual({ deleted: true });
+		expect((await remove(String(channel.id))).status).toBe(404);
+		expect((await submit(env, key.token, article())).status).toBe(401);
+	});
+
+	test("management mutations reject ingest hosts, bearer-only browser auth and foreign origins", async () => {
+		const env = makeEnv(createSqliteD1());
+		const channel = await createChannel(env);
+		const key = await createKey(env, channel.id);
+		for (const [path, method] of [
+			[`/api/channels/${channel.id}`, "DELETE"],
+			["/api/channels/order", "PUT"],
+		] as const) {
+			const body = JSON.stringify({ ids: [channel.id] });
+			expect((await call(path, { method, headers: ingestHdr(key.token), body }, env)).status).toBe(
+				404,
+			);
+			expect(
+				(
+					await call(
+						path,
+						{ method, headers: hdr("a", { origin: "https://evil.example" }), body },
+						env,
+					)
+				).status,
+			).toBe(403);
+			const prod = {
+				...env,
+				ENVIRONMENT: "production",
+				AUTH_DEV_BYPASS: undefined,
+				CF_ACCESS_TEAM_DOMAIN: "hexly.cloudflareaccess.com",
+				CF_ACCESS_AUD: "aud",
+			};
+			expect(
+				(
+					await call(
+						path,
+						{
+							method,
+							headers: ingestHdr(key.token, {
+								host: "xray.hexly.ai",
+								origin: "https://xray.hexly.ai",
+							}),
+							body,
+						},
+						prod,
+					)
+				).status,
+			).toBe(401);
+		}
+		expect(
+			dataOf<unknown[]>((await call("/api/channels", { headers: hdr() }, env)).body),
+		).toHaveLength(1);
+	});
 	test("create, rename, list with counts, read articles", async () => {
 		const env = makeEnv(createSqliteD1());
 		const channel = await createChannel(env);
@@ -316,6 +421,8 @@ describe("channels browser routes", () => {
 			["/api/channels", "GET"],
 			["/api/channels", "POST"],
 			["/api/channels/1", "PATCH"],
+			["/api/channels/1", "DELETE"],
+			["/api/channels/order", "PUT"],
 			["/api/channels/1/articles", "GET"],
 			["/api/channels/1/articles/1", "GET"],
 			["/api/channels/1/keys", "GET"],
@@ -389,6 +496,8 @@ describe("channels browser routes", () => {
 		bare.get("/api/channels", listChannelsRoute);
 		bare.post("/api/channels", createChannelRoute);
 		bare.patch("/api/channels/:id", patchChannelRoute);
+		bare.delete("/api/channels/:id", deleteChannelRoute);
+		bare.put("/api/channels/order", orderChannelsRoute);
 		bare.get("/api/channels/:id/articles", listChannelArticlesRoute);
 		bare.get("/api/channels/:id/articles/:articleId", getChannelArticleRoute);
 		bare.get("/api/channels/:id/keys", listChannelKeysRoute);
@@ -398,6 +507,8 @@ describe("channels browser routes", () => {
 			["/api/channels", "GET"],
 			["/api/channels", "POST"],
 			["/api/channels/1", "PATCH"],
+			["/api/channels/1", "DELETE"],
+			["/api/channels/order", "PUT"],
 			["/api/channels/1/articles", "GET"],
 			["/api/channels/1/articles/1", "GET"],
 			["/api/channels/1/keys", "GET"],

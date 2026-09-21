@@ -30,7 +30,7 @@ Xray 是一个内容监测与阅读工具。你可以把账号分成关注列表
 
 1. 打开[站点](https://xray.hexly.ai)，使用获准的账号通过 Cloudflare Access 登录。
 2. 创建关注列表并添加成员，也可以先在 Groups 整理账号后复制进去。
-3. 在 Settings → Push tokens 创建 token，交给采集生产者；完整 token 只在创建时显示。
+3. 在 Channels 中创建频道，并在频道设置中创建具名 Push token，供 AI 投递 Markdown 报告；完整 token 只在创建时显示。Watchlist 采集 token 仍通过浏览器认证 API 管理，见[本地生产者说明](docs/09-local-producer-twitter-cli.md)。
 4. 推送完成后，在关注列表中阅读内容。需要翻译或保存链接时，分别配置 AI Settings 和 Integrations → zhe.to。
 
 本地 X 采集需要 macOS / Linux、Bun、Python 3（使用 `fcntl` 进程锁）、已安装并登录的 `twitter-cli`，以及 Xray Push token。按[本地生产者文档](docs/09-local-producer-twitter-cli.md)配置后，在仓库根目录运行：

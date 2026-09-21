@@ -28,7 +28,7 @@ export function DashboardPage() {
 	}, [vm]);
 
 	return (
-		<div className="space-y-8">
+		<div className="space-y-4">
 			<PageHeader title="Dashboard" description="Watchlists, ingest, and AI backlog." />
 			{error && <p className="text-sm text-basalt-destructive">{error}</p>}
 			{loading && !data ? <DashboardSkeleton /> : data ? <DashboardBody data={data} /> : null}

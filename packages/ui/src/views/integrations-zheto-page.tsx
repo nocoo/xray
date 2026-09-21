@@ -23,7 +23,7 @@ export function IntegrationsZhetoPage() {
 	}, [vm]);
 
 	return (
-		<div className="space-y-8">
+		<div className="space-y-4">
 			<PageHeader
 				title="zhe.to"
 				description="Webhook URL is stored encrypted. Path token lives only inside the URL."

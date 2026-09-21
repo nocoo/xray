@@ -158,13 +158,15 @@ Worker uses encrypted secrets for translate/summary.
 | Summary on translate | `summaryPrompt` → second chat call in `defaultTranslateFn` | **done** |
 | Full multi-provider SaaS (gecko-grade adapters) | — | **not MVP** (optional backlog) |
 
-## 7. Settings + Push tokens
+## 7. Settings and channel push tokens
 
 ### General (`/settings` — S5 M0.5 / with M0)
 
 Profile (email from Access); `ingest.windowHours` (**1–168**, default 24) via `GET/PATCH /api/settings`.
 
-### Push tokens `/settings/tokens`
+### Watchlist producer tokens (browser-authenticated API)
+
+Global Settings has no token UI. Channel article tokens are managed separately at `/channels/:channelId/settings` and carry only `articles:write`; see [Channels](11-channels.md).
 
 | Action | Auth | Behavior |
 |--------|------|----------|

@@ -68,3 +68,9 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 - **What:** Channels browser verification observed a blank page while UI edits were still triggering HMR. A later L2 run returned 503 from an existing AI route while backend formatting was underway. All test mutations remained in isolated local databases.
 - **Why:** The coordinator started acceptance runs before every contributor had handed off stable files. Hot reload was a plausible source of the transient failures; the failures were not treated as proof of a product defect or as successful verification.
 - **Follow-up:** Wait for explicit stable handoffs before the final integration run. After edits stopped, all 14 L3 tests and all 23 L2 tests passed without weakening assertions. The test servers, marked temporary D1 store and task-owned panes were cleaned up.
+
+## 2026-09-22: Management acceptance exposed test synchronization errors
+
+- **What:** A new DELETE-then-PUT rejection test returned 501, and the reader history test restored the wrong report position after automatic first-report selection.
+- **Why:** The raw HTTP helper wrote a DELETE body without Content-Length, leaving bytes to corrupt the next request on its reused connection. The reader test waited for a Markdown heading shared by both reports, then scrolled the previous article while the requested article was still loading.
+- **Follow-up:** Frame every provided raw HTTP body using its UTF-8 byte length. Wait for the selected article's unique title and completed loading state before scrolling. Correct stale Settings-token and unscoped New channel selectors. All 28 L2 and 16 L3 tests subsequently passed; no authorization or reading-restoration assertions were weakened.

@@ -1,13 +1,16 @@
+import { readFileSync } from "node:fs";
 import type { ParsedArticle } from "@xray/shared";
 import { describe, expect, test } from "vitest";
 import { createSqliteD1 } from "../test/sqlite-d1.js";
 import {
 	createChannel,
+	deleteChannel,
 	getChannel,
 	getChannelArticle,
 	ingestChannelArticle,
 	listChannelArticles,
 	listChannels,
+	orderChannels,
 	updateChannel,
 } from "./channels.js";
 import { createChannelKey } from "./push-tokens.js";
@@ -42,6 +45,179 @@ async function seedChannelKey(db: D1Database, userId = U1, label = "Research Age
 	return { channel, key };
 }
 describe("channels repo", () => {
+	test("migration preserves per-tenant ID order and appends new channels", async () => {
+		const db = createSqliteD1({ migrate: false });
+		for (const name of [
+			"0000_users.sql",
+			"0001_full_schema.sql",
+			"0002_quoted_translated_text.sql",
+			"0003_channels.sql",
+		]) {
+			await db.exec(readFileSync(new URL(`../../migrations/${name}`, import.meta.url), "utf8"));
+		}
+		await db.exec(`INSERT INTO users (id, email, created_at_ms) VALUES ('${U1}', 'one@test', 1), ('${U2}', 'two@test', 1);
+   INSERT INTO channels (id, user_id, name, created_at_ms) VALUES (9, '${U1}', 'later', 1), (2, '${U1}', 'first', 9), (5, '${U2}', 'other', 1);`);
+		await db.exec(
+			readFileSync(
+				new URL("../../migrations/0004_channel_sort_order.sql", import.meta.url),
+				"utf8",
+			),
+		);
+		expect((await listChannels(db, U1)).map((c) => [c.id, c.sortOrder])).toEqual([
+			[2, 0],
+			[9, 1],
+		]);
+		expect((await listChannels(db, U2))[0]?.sortOrder).toBe(0);
+		expect((await createChannel(db, U1, { name: "new" })).sortOrder).toBe(2);
+	});
+
+	test("reorder validates the complete tenant set before any write", async () => {
+		const db = testDb();
+		expect(await orderChannels(db, U1, [])).toEqual([]);
+		const a = await createChannel(db, U1, { name: "A" });
+		const b = await createChannel(db, U1, { name: "B" });
+		const other = await createChannel(db, U2, { name: "Other" });
+		for (const ids of [
+			[],
+			[b.id],
+			[b.id, 999],
+			[b.id, other.id],
+			[b.id, b.id],
+			[b.id, a.id, other.id],
+		]) {
+			expect(await orderChannels(db, U1, ids)).toBeNull();
+			expect((await listChannels(db, U1)).map((c) => [c.id, c.sortOrder])).toEqual([
+				[a.id, 0],
+				[b.id, 1],
+			]);
+		}
+		expect((await orderChannels(db, U1, [b.id, a.id]))?.map((c) => [c.id, c.sortOrder])).toEqual([
+			[b.id, 0],
+			[a.id, 1],
+		]);
+		expect((await createChannel(db, U1, { name: "C" })).sortOrder).toBe(2);
+		expect(await getChannel(db, U2, other.id)).toEqual(other);
+		await db.prepare("UPDATE channels SET sort_order = 0 WHERE user_id = ?").bind(U1).run();
+		expect((await listChannels(db, U1)).map((c) => c.id)).toEqual([a.id, b.id, other.id + 1]);
+	});
+
+	test("ordering rolls back if its result query fails", async () => {
+		const db = testDb();
+		const a = await createChannel(db, U1, { name: "A" });
+		const b = await createChannel(db, U1, { name: "B" });
+		const prepare = db.prepare.bind(db);
+		const failingDb = {
+			prepare(sql: string) {
+				return prepare(
+					sql.includes("AS article_count")
+						? "SELECT abs(-9223372036854775808) WHERE ? IS NOT NULL"
+						: sql,
+				);
+			},
+			batch: db.batch.bind(db),
+		} as unknown as D1Database;
+		await expect(orderChannels(failingDb, U1, [b.id, a.id])).rejects.toThrow();
+		expect((await listChannels(db, U1)).map((c) => c.sortOrder)).toEqual([0, 1]);
+	});
+
+	test("ordering rejects an incomplete D1 batch response", async () => {
+		const db = testDb();
+		db.batch = async () => [];
+		await expect(orderChannels(db, U1, [])).rejects.toThrow("incomplete channel order batch");
+	});
+	test("single-statement ordering rolls back every row on a database failure", async () => {
+		const db = testDb();
+		const a = await createChannel(db, U1, { name: "A" });
+		const b = await createChannel(db, U1, { name: "B" });
+		await db.exec(`CREATE TRIGGER fail_order BEFORE UPDATE OF sort_order ON channels WHEN NEW.id = ${b.id}
+   BEGIN SELECT RAISE(ABORT, 'order failed'); END;`);
+		await expect(orderChannels(db, U1, [b.id, a.id])).rejects.toThrow("order failed");
+		expect((await listChannels(db, U1)).map((c) => c.sortOrder)).toEqual([0, 1]);
+	});
+
+	test("stats distinguish report dates from receipts and exclude foreign/revoked keys", async () => {
+		const db = testDb();
+		const { channel, key } = await seedChannelKey(db);
+		expect(channel).toMatchObject({
+			sortOrder: 0,
+			activeKeyCount: 0,
+			latestReportDate: null,
+			lastReceivedAtMs: null,
+		});
+		const revoked = await createChannelKey(
+			db,
+			U1,
+			channel.id,
+			"Revoked",
+			"revoked",
+			"hash-revoked",
+		);
+		await db
+			.prepare("UPDATE push_tokens SET revoked_at_ms = 1 WHERE id = ?")
+			.bind(revoked.id)
+			.run();
+		await createChannelKey(db, U2, channel.id, "Foreign", "foreign", "hash-foreign");
+		const source = { keyId: key.id, label: key.label };
+		await ingestChannelArticle(
+			db,
+			U1,
+			channel.id,
+			source,
+			article({ externalId: "new-date", reportDate: "2026-09-22" }),
+		);
+		await ingestChannelArticle(
+			db,
+			U1,
+			channel.id,
+			source,
+			article({ externalId: "late", reportDate: "2025-01-01" }),
+		);
+		await db
+			.prepare(
+				"UPDATE channel_articles SET created_at_ms = CASE external_id WHEN 'late' THEN 200 ELSE 100 END",
+			)
+			.run();
+		await ingestChannelArticle(
+			db,
+			U2,
+			channel.id,
+			source,
+			article({ externalId: "foreign", reportDate: "2099-01-01" }),
+		);
+		const expected = {
+			articleCount: 2,
+			activeKeyCount: 1,
+			latestReportDate: "2026-09-22",
+			lastReceivedAtMs: 200,
+		};
+		expect(await getChannel(db, U1, channel.id)).toMatchObject(expected);
+		expect((await listChannels(db, U1))[0]).toMatchObject(expected);
+	});
+
+	test("delete is scoped and cascades articles and active/revoked keys", async () => {
+		const db = testDb();
+		const { channel, key } = await seedChannelKey(db);
+		const other = await seedChannelKey(db, U2, "Other");
+		await ingestChannelArticle(db, U1, channel.id, { keyId: key.id, label: key.label }, article());
+		const revoked = await createChannelKey(db, U1, channel.id, "Revoked", "rev", "hash-rev");
+		await db
+			.prepare("UPDATE push_tokens SET revoked_at_ms = 1 WHERE id = ?")
+			.bind(revoked.id)
+			.run();
+		expect(await deleteChannel(db, U2, channel.id)).toBe(false);
+		expect(await getChannel(db, U1, channel.id)).not.toBeNull();
+		expect(await deleteChannel(db, U1, channel.id)).toBe(true);
+		expect(await deleteChannel(db, U1, channel.id)).toBe(false);
+		for (const table of ["channel_articles", "push_tokens"]) {
+			expect(
+				await db
+					.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE channel_id = ?`)
+					.bind(channel.id)
+					.first(),
+			).toEqual({ count: 0 });
+		}
+		expect(await getChannel(db, U2, other.channel.id)).not.toBeNull();
+	});
 	test("create, list, update are tenant scoped", async () => {
 		const db = testDb();
 		const a = await createChannel(db, U1, { name: "Alpha", description: "first" });

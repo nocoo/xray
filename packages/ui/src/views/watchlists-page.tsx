@@ -43,7 +43,7 @@ export function WatchlistsPage() {
 	}, [searchParams, setSearchParams, openCreateWatchlist]);
 
 	return (
-		<div className="space-y-8">
+		<div className="space-y-4">
 			<PageHeader
 				title="Watchlists"
 				description="Create and manage collections of Twitter/X and custom sources."

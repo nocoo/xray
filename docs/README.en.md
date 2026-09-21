@@ -30,7 +30,7 @@ The current app runs on Cloudflare Workers and D1, with Cloudflare Access protec
 
 1. Open the [website](https://xray.hexly.ai) and sign in through Cloudflare Access with an allowed account.
 2. Create a watchlist and add members, or organize accounts in Groups and copy them over.
-3. Create a token in Settings → Push tokens and supply it to your producer. The full token is shown only when created.
+3. Create a channel under Channels, then create named push tokens in its settings to submit Markdown reports. The full token is shown only when created. Watchlist producer tokens remain available through the browser-authenticated API; see the [producer runbook](09-local-producer-twitter-cli.md).
 4. Read the resulting timeline. Configure AI Settings for translation and Integrations → zhe.to for saving links.
 
 The local X collector requires macOS / Linux, Bun, Python 3 for `fcntl` process locking, an installed and authenticated `twitter-cli`, and an Xray Push token. Follow the [local producer guide](09-local-producer-twitter-cli.md), then run from the repository root:

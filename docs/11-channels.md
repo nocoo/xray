@@ -14,6 +14,8 @@ Browser responses use the existing `{ success: true, data: ... }` envelope. Iden
 | --- | --- | --- |
 | GET | `/api/channels` | `Channel[]` |
 | POST | `/api/channels` | `{ name, description? }` / `Channel` |
+| PUT | `/api/channels/order` | `{ ids: number[] }`, complete unique tenant-owned set / ordered `Channel[]` |
+| DELETE | `/api/channels/:id` | `{ deleted: true }`; cascades reports and keys |
 | PATCH | `/api/channels/:id` | `{ name, description? }` / `Channel` |
 | GET | `/api/channels/:id/articles` | Query `date=YYYY-MM-DD`, `before=<article id>`, `limit` (default 30, max 100); `ArticlePage` |
 | GET | `/api/channels/:id/articles/:articleId` | `ChannelArticle` |
@@ -25,7 +27,8 @@ Browser responses use the existing `{ success: true, data: ... }` envelope. Iden
 ```ts
 type Channel = {
   id: number; name: string; description: string | null;
-  createdAtMs: number; articleCount: number;
+  createdAtMs: number; articleCount: number; sortOrder: number;
+  activeKeyCount: number; latestReportDate: string | null; lastReceivedAtMs: number | null;
 };
 type ChannelKey = {
   id: number; channelId: number; label: string; tokenPrefix: string;
@@ -46,13 +49,19 @@ type ArticlePage = { items: ChannelArticleSummary[]; nextCursor: number | null }
 
 The key, not request fields, determines the tenant and channel. Capture the source label at submission. Uniqueness is `(channel_id, external_id)`; an identical retry returns the original record, while different content returns 409 and never replaces a report. A different key must not impersonate the original source on a duplicate. Dates are valid calendar dates, independent of receipt timestamps and watchlist rolling windows. Sort by `report_date DESC, id DESC`; cursor lookup and date filters preserve that order. Required limits: title 240 characters, external ID 160, summary 1000, author 120, Markdown 512 KiB UTF-8, total body 1 MiB. Plaintext keys are one-time-only; hashes and revocation reuse existing token infrastructure.
 
+## Management
+
+`/channels` is the management page, linked immediately above Settings. Dynamic reading links remain below Groups. The page provides creation, search, report/token totals, latest report dates, and keyboard-accessible up/down ordering. Sort order is stored per tenant and applied to the sidebar. New channels append to the end; full-set ordering and its response run in a single D1 transaction, rejecting stale or cross-tenant sets without partial writes.
+
+`/channels/:channelId/settings` contains the editable name/description, channel statistics, multiple named push tokens, copyable submission examples and individual revocation. Deleting a channel requires confirmation and cascades its reports and keys; revoking a key keeps existing reports. Global Settings contains account and AI configuration. Existing watchlist producer tokens retain their browser-authenticated API and scopes, with no global token UI.
+
 ## Reader
 
-Routes: `/channels`, `/channels/:channelId`, `/channels/:channelId/articles/:articleId`. The list and document scroll independently. On narrow screens, show one pane at a time. URL navigation preserves the channel, date filter and selection; session-local reading positions restore on back/forward and reload. New requests cannot overwrite a later navigation. Loading or errors must not erase an already open report.
+Routes: `/channels/:channelId`, `/channels/:channelId/articles/:articleId`. Entering a channel selects its first report after the matching list loads; explicit article links stay selected. The list and document scroll independently. On narrow screens, show one pane at a time. URL navigation preserves the channel, date filter and selection; session-local reading positions restore on back/forward and reload. New requests cannot overwrite a later navigation. Loading or errors must not erase an already open report.
 
 Use Basalt controls and existing theme tokens. Render GFM with `react-markdown` and `remark-gfm`, without raw HTML or MDX. Images accept only HTTPS external URLs, retain aspect ratio, lazy load and show alternative text on failure. Tables and code scroll within the document. Links use safe protocols and new-tab isolation.
 
-Typography follows Kami and GeekHub: Chinese `TsangerJinKai02`, English Charter, 18px body, 1.65 line height, maximum prose width around 680px. Interface text stays sans serif; code stays monospace. Reuse GeekHub's local WOFF2 subsets and preserve its font notice; these font assets are not MIT licensed. Provide serif/sans and size preferences. Keep the title and byline compact above the document to avoid adding another column.
+Typography follows Kami and GeekHub: Chinese `TsangerJinKai02`, English Charter, 18px body, 1.65 line height, maximum prose width 1020px, or full available width. Interface text stays sans serif; code stays monospace. Reuse GeekHub's local WOFF2 subsets and preserve its font notice; these font assets are not MIT licensed. Provide serif/sans, size and width preferences. The compact controls float at the top right, with responsive title clearance. Keep the title and byline compact. PageHeader supplies the page title, subtitle and outlined management link.
 
 Keyboard: J/K and list Up/Down select articles, Enter focuses the document, Escape returns focus to the list (and returns to it on mobile). Preserve native document scrolling. Ignore input fields, contenteditable, IME composition, modifier combinations, dialogs and menus. Background UI updates preserve selection and scroll.
 
@@ -67,24 +76,32 @@ Keyboard: J/K and list Up/Down select articles, Enter focuses the document, Esca
 - [x] Review, quality gates, atomic commits and Caddy preview.
 - [ ] Production domain/migration/deployment (not authorized in this implementation run).
 
+## Management revision
+
+- [x] Dedicated management/settings pages, named channel tokens, deletion, persistent ordering and statistics.
+- [x] Automatic first-report selection, floating reader preferences, 1020px/full-width control, shared page titles and aligned watchlist tabs.
+- [x] Isolated L2/L3 and desktop/mobile visual review; final commit gates and Caddy preview recorded below.
+
 ## Production cutover
 
-The local implementation does not change DNS, Cloudflare Access, remote D1 or existing producer secrets. At deployment, apply migration `0003_channels.sql`, bind the canonical machine hostname to the production Worker, verify that it does not require an interactive Access login, and verify its certificate. Browser Access protection and the ingest route allowlist must remain enforced. Update the existing producer's `XRAY_INGEST_BASE` and scheduled invocation together with deployment; the new Worker does not retain the old hostname as a compatibility path. Verify both-host health, one authenticated ingest request and browser-only route rejection before resuming producers.
+The local implementation does not change DNS, Cloudflare Access, remote D1 or existing producer secrets. At deployment, apply migrations `0003_channels.sql` and `0004_channel_sort_order.sql`, bind the canonical machine hostname to the production Worker, verify that it does not require an interactive Access login, and verify its certificate. Browser Access protection and the ingest route allowlist must remain enforced. Update the existing producer's `XRAY_INGEST_BASE` and scheduled invocation together with deployment; the new Worker does not retain the old hostname as a compatibility path. Verify both-host health, one authenticated ingest request and browser-only route rejection before resuming producers.
 
 ## Verification
 
 Run the existing lint, strict typecheck, coverage and build gates. L2 uses `env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID -u CF_API_TOKEN bun run test:l2`; serialize it because its existing harness owns a fixed test directory and temporarily supplies test environment variables. Browser tests require a separate local Worker with fresh SQLite state and a verified `_test_marker`, plus a separate Vite port. Never point automated tests at Product or the daily Mock store. Preview the completed application in Chrome through `https://xray.dev.hexly.ai`.
 
-Verified locally on 2026-09-22:
+Verified locally on 2026-09-22 after the management revision:
 
 | Package | Tests | Statements | Branches | Functions | Lines |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Shared | 167 | 98.26% | 96.16% | 100% | 99.17% |
-| Worker | 344 | 98.64% | 95.60% | 97.52% | 99.73% |
-| UI | 134 | 99.51% | 96.94% | 99.51% | 99.85% |
+| Worker | 354 | 98.66% | 95.67% | 97.56% | 99.73% |
+| UI | 146 | 99.54% | 97.12% | 99.53% | 99.86% |
 
-All 645 unit tests passed with the original coverage scope and thresholds. Strict typecheck, lint and the complete production build passed. Biome reports an existing schema-version information message; Vite reports a bundle-size warning. OSV found no issues across 496 packages, and gitleaks found no secrets in the scanned history or staged changes.
+All 667 unit tests passed with unchanged coverage configuration and thresholds. Removing the retired global token UI also removed its unused API/VM and three tests. Strict typecheck, lint and the complete production build passed. Biome reports an existing schema-version information message; Vite reports a bundle-size warning. Dependencies are unchanged from the original delivery, whose OSV scan found no issues across 496 packages.
 
-L2 passed 23 real HTTP tests and the 51-route inventory. A rerun during source formatting returned a transient 503 from the existing AI test route; the complete suite passed after edits stopped. L3 passed all 14 browser tests using separate ports 17007/28787 and a verified temporary D1 store. Channels coverage includes actual Chinese font glyph rendering, safe Markdown, external images, mobile layout, key revocation, keyboard focus, date filters and paginated history restoration. The temporary servers, marked test store and delegated panes were removed after verification.
+L2 passed 28 real HTTP tests and the 53-route inventory. Coverage includes full-set ordering, concurrent creation, atomic failure, cross-tenant isolation, statistics, key revocation, and cascading channel deletion. The raw HTTP test helper now frames request bodies with Content-Length, including DELETE bodies.
 
-The daily Mock stack was restarted and Chrome opened through Caddy. The health endpoint, seeded channels and report reader passed a read-only smoke check with no page errors. Production remains unchanged until the cutover above.
+L3 passed all 16 browser tests with explicit ports 17007/28787 and a verified temporary test-marked D1 store. Channels journeys exercise dedicated management, profile editing, persistent sorting, confirmation/cancellation, deletion, named tokens, clipboard examples, automatic first-report selection, Chinese font glyph rendering, Markdown safety, keyboard/focus, date filters, history restoration and width persistence. Desktop and 390px/320px reader geometry checks cover toolbar/title clearance and viewport overflow. Management/settings and watchlist headers were also visually inspected on desktop and mobile.
+
+The test servers, temporary test store and task-owned panes are removed after verification. Daily preview uses the Caddy URL; production remains unchanged until the cutover above.

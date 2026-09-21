@@ -8,6 +8,7 @@ describe("V2_NAV", () => {
 			"All watchlists",
 			"All groups",
 			"All channels",
+			"Channels",
 			"zhe.to",
 			"Settings",
 		]) {
@@ -18,6 +19,9 @@ describe("V2_NAV", () => {
 			expect.arrayContaining(["Watchlists", "Groups", "Channels", "Dashboard", "Settings"]),
 		);
 		expect(V2_NAV_GROUPS.find((g) => g.label === "Channels")?.dynamic).toBe("channels");
+		expect(
+			V2_NAV_GROUPS.find((g) => g.label === "Settings")?.items.map((item) => item.label),
+		).toEqual(["Channels", "Settings"]);
 		expect(V2_NAV_GROUPS.map((g) => g.label)).toEqual([
 			"Dashboard",
 			"Watchlists",

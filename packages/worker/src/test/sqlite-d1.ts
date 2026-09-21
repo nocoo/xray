@@ -14,6 +14,11 @@ type StmtApi = {
 	bind: (...args: unknown[]) => StmtApi;
 	first: <T>() => Promise<T | null>;
 	all: <T>() => Promise<{ results: T[] }>;
+	execute: () => {
+		results: unknown[];
+		success: boolean;
+		meta: { changes: number; last_row_id: number };
+	};
 	run: () => Promise<{ success: boolean; meta: { changes: number; last_row_id: number } }>;
 };
 
@@ -45,6 +50,13 @@ export function createSqliteD1(opts?: { migrate?: boolean }): D1Database {
 				const results = stmt.all(...(binds as never[])) as T[];
 				return { results };
 			},
+			execute() {
+				const results = stmt.all(...(binds as never[]));
+				const info = raw
+					.prepare("SELECT changes() AS changes, last_insert_rowid() AS last_row_id")
+					.get() as { changes: number; last_row_id: number };
+				return { results, success: true, meta: info };
+			},
 			async run() {
 				const info = stmt.run(...(binds as never[]));
 				return {
@@ -62,11 +74,15 @@ export function createSqliteD1(opts?: { migrate?: boolean }): D1Database {
 	const db = {
 		prepare,
 		async batch(statements: StmtApi[]) {
-			const out = [];
-			for (const s of statements) {
-				out.push(await s.run());
+			raw.exec("BEGIN");
+			try {
+				const out = statements.map((s) => s.execute());
+				raw.exec("COMMIT");
+				return out;
+			} catch (error) {
+				raw.exec("ROLLBACK");
+				throw error;
 			}
-			return out;
 		},
 		async exec(sql: string) {
 			raw.exec(sql);

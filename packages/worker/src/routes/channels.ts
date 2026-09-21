@@ -4,10 +4,12 @@ import { jsonErr, jsonOk, parseChannelBody, parseIdParam, requireUser } from "..
 import { mintPushToken } from "../lib/push-token-crypto.js";
 import {
 	createChannel,
+	deleteChannel,
 	getChannel,
 	getChannelArticle,
 	listChannelArticles,
 	listChannels,
+	orderChannels,
 	updateChannel,
 } from "../repos/channels.js";
 import { createChannelKey, listChannelKeys, revokeChannelKey } from "../repos/push-tokens.js";
@@ -45,6 +47,34 @@ export async function createChannelRoute(c: Context<AppEnv>) {
 		}),
 		201,
 	);
+}
+
+export async function deleteChannelRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	const id = parseIdParam(c.req.param("id"));
+	if (!id) return jsonErr(c, "invalid id", 400);
+	if (!(await deleteChannel(c.env.DB, user.id, id))) return jsonErr(c, "Not found", 404);
+	return jsonOk(c, { deleted: true });
+}
+
+export async function orderChannelsRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	const raw = await c.req.json().catch(() => null);
+	if (
+		!raw ||
+		typeof raw !== "object" ||
+		Array.isArray(raw) ||
+		Object.keys(raw).some((key) => key !== "ids") ||
+		!Array.isArray(raw.ids) ||
+		raw.ids.some((id: unknown) => typeof id !== "number" || !Number.isSafeInteger(id) || id <= 0) ||
+		new Set(raw.ids).size !== raw.ids.length
+	)
+		return jsonErr(c, "ids must be unique positive integers", 400);
+	const channels = await orderChannels(c.env.DB, user.id, raw.ids);
+	if (!channels) return jsonErr(c, "ids must contain every channel exactly once", 400);
+	return jsonOk(c, channels);
 }
 
 export async function patchChannelRoute(c: Context<AppEnv>) {

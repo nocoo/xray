@@ -24,6 +24,7 @@ This file is the contract; hooks, CI and config are enforcement. Raise weaker ga
 - `AUTH_DEV_BYPASS` is the only local auth switch, valid only with `ENVIRONMENT=development|test`; production must reject it. Keep browser mutation origin checks.
 - Ingest validates limits, normalizes/deduplicates and records status; it never triggers AI. Preserve manual AI execution, deadlines, bounded batches and tenant-scoped state transitions in the architecture contract.
 - Keep plaintext push tokens one-time-only and stored hashes; encrypt AI keys/webhooks using versioned AES-256-GCM with tenant/field AAD. Never log keys, tokens or full payloads.
+- Channel management lives at `/channels`, immediately above Settings in the sidebar. Per-channel `/channels/:channelId/settings` owns named push tokens; global Settings owns account/AI only. Persist sidebar order; deleting a channel also deletes its reports and invalidates its keys. Every content page uses Basalt `PageHeader` with a title and description.
 - Shared code is pure; UI ViewModels have no View/DOM imports; Worker code owns data/auth and has no React. The retired NextAuth/vinext/SQLite instructions in the retrospective do not describe this runtime.
 - Producer orchestration uses the existing refresh script and [refresh skill](skills/xray-refresh-watchlists/SKILL.md); do not reimplement fetch/push. Preserve secret file permissions and producer checkpoints.
 

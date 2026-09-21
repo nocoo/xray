@@ -1,16 +1,17 @@
 import { Button, Input } from "@nocoo/basalt";
-import { ArrowLeft } from "lucide-react";
+import { PageHeader } from "@nocoo/basalt/components/page-header";
+import { ArrowLeft, Columns2, Maximize2 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { ChannelMarkdown } from "@/components/channel-markdown";
 import { useChannels } from "@/components/channels-context";
-import { ChannelDialog } from "@/components/dialogs/channel-dialog";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { useAuthUser } from "@/hooks/me-context";
 import { restoreReadingPosition } from "@/hooks/reading-position";
 import {
 	adjacentArticle,
 	articlePath,
+	initialArticle,
 	readerAction,
 	readerStorageKey,
 	readPosition,
@@ -35,7 +36,6 @@ export function ChannelsPage() {
 	const [preferences, setPreferences] = useState(() =>
 		readPreferences(sessionStorage, `${scope}:preferences`),
 	);
-	const [dialog, setDialog] = useState<number | null>(null);
 	const [mobileList, setMobileList] = useState(false);
 	const list = useRef<HTMLElement>(null);
 	const documentRef = useRef<HTMLDivElement>(null);
@@ -43,7 +43,9 @@ export function ChannelsPage() {
 	const previousArticleId = useRef(articleId);
 	const selectedButton = useRef<HTMLButtonElement>(null);
 	const channel = state.channels.find((c) => c.id === channelId);
-	const article = state.article;
+	const article =
+		state.article?.channelId === channelId && state.article.id === articleId ? state.article : null;
+	const matchingList = state.channelId === channelId && state.date === date;
 	const listKey = `${scope}:list:${channelId}:${date}`;
 	const positionKey = `${scope}:article:${article?.channelId}:${article?.id}`;
 
@@ -61,6 +63,11 @@ export function ChannelsPage() {
 			readPosition(sessionStorage, `${listKey}:pages`) || 1,
 		);
 	}, [vm, channelId, date, listKey]);
+	useEffect(() => {
+		if (state !== vm.getState()) return;
+		const first = initialArticle(state, channelId, articleId, date);
+		if (first !== undefined) void navigate(articlePath(channelId, first, date), { replace: true });
+	}, [vm, state, channelId, articleId, date, navigate]);
 	useEffect(() => {
 		void vm.selectArticle(channelId, articleId);
 		setMobileList(false);
@@ -95,8 +102,7 @@ export function ChannelsPage() {
 		function keydown(event: KeyboardEvent) {
 			const target = event.target instanceof Element ? event.target : null;
 			const blocked = Boolean(
-				dialog !== null ||
-					document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]') ||
+				document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]') ||
 					target?.closest(
 						'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"]',
 					),
@@ -105,6 +111,7 @@ export function ChannelsPage() {
 			const action = readerAction(event, blocked, inList);
 			if (!action) return;
 			if (action === "next" || action === "previous") {
+				if (!matchingList || state.loading) return;
 				const next = adjacentArticle(
 					state.items.map((item) => item.id),
 					articleId,
@@ -129,7 +136,7 @@ export function ChannelsPage() {
 		}
 		window.addEventListener("keydown", keydown);
 		return () => window.removeEventListener("keydown", keydown);
-	}, [article, articleId, channelId, date, dialog, navigate, state.items]);
+	}, [article, articleId, channelId, date, navigate, matchingList, state.loading, state.items]);
 	function select(id: number) {
 		setMobileList(false);
 		void navigate(articlePath(channelId, id, date));
@@ -141,193 +148,177 @@ export function ChannelsPage() {
 
 	return (
 		<section className="channel-page" data-reading={Boolean(articleId && !mobileList)}>
-			<div className="channel-toolbar flex shrink-0 flex-wrap items-center gap-2 border-b border-basalt-border p-3">
-				<h2 className="mr-auto truncate font-semibold">{channel?.name ?? "Channels"}</h2>
-				{channelId > 0 && (
-					<>
-						<Input
-							type="date"
-							aria-label="Report date"
-							className="w-auto"
-							value={date}
-							onChange={(e) =>
-								void navigate(articlePath(channelId, articleId || null, e.target.value))
-							}
-						/>
-						<Button
-							variant="ghost"
-							onClick={() => {
-								setDialog(channelId);
-								void vm.manage(channelId);
-							}}
-						>
-							Manage channel
-						</Button>
-					</>
-				)}
-				<Button onClick={() => setDialog(0)}>New channel</Button>
+			<div className="channel-header">
+				<PageHeader
+					title={channel?.name ?? "Channel"}
+					description={channel?.description || "Published reports, ready to read."}
+					actions={
+						<>
+							<Input
+								type="date"
+								aria-label="Report date"
+								className="w-auto"
+								value={date}
+								onChange={(e) =>
+									void navigate(articlePath(channelId, articleId || null, e.target.value))
+								}
+							/>
+							<Button variant="outline" asChild>
+								<Link to={`/channels/${channelId}/settings`}>Manage channel</Link>
+							</Button>
+						</>
+					}
+				/>
 			</div>
 			{state.error && (
 				<p role="alert" className="px-3 py-2 text-sm text-basalt-destructive">
 					{state.error}
 				</p>
 			)}
-			{channelId === 0 ? (
-				<div className="grid gap-3 overflow-y-auto p-4">
-					{state.channels.map((c) => (
-						<Link
-							className="rounded-lg border border-basalt-border p-4 hover:bg-basalt-accent"
-							key={c.id}
-							to={`/channels/${c.id}`}
+
+			<div className="channel-panes" data-reading={Boolean(articleId && !mobileList)}>
+				<section
+					className="channel-list"
+					ref={list}
+					aria-label="Articles"
+					tabIndex={-1}
+					onScroll={(e) => {
+						if (!state.loading && matchingList)
+							writeReaderValue(sessionStorage, listKey, String(e.currentTarget.scrollTop));
+					}}
+				>
+					{(matchingList ? state.items : []).map((item) => (
+						<Button
+							key={item.id}
+							ref={item.id === articleId ? selectedButton : undefined}
+							variant="ghost"
+							className="channel-list-item"
+							aria-current={item.id === articleId ? "true" : undefined}
+							onClick={() => select(item.id)}
 						>
-							<h3 className="font-medium">{c.name}</h3>
-							<p className="text-sm text-basalt-muted-foreground">
-								{c.articleCount} reports{c.description ? ` · ${c.description}` : ""}
-							</p>
-						</Link>
-					))}
-					{state.channels.length === 0 && (
-						<p className="text-basalt-muted-foreground">
-							Create a channel to receive your first report.
-						</p>
-					)}
-				</div>
-			) : (
-				<div className="channel-panes" data-reading={Boolean(articleId && !mobileList)}>
-					<section
-						className="channel-list"
-						ref={list}
-						aria-label="Articles"
-						tabIndex={-1}
-						onScroll={(e) => {
-							if (!state.loading)
-								writeReaderValue(sessionStorage, listKey, String(e.currentTarget.scrollTop));
-						}}
-					>
-						{state.items.map((item) => (
-							<Button
-								key={item.id}
-								ref={item.id === articleId ? selectedButton : undefined}
-								variant="ghost"
-								className="channel-list-item"
-								aria-current={item.id === articleId ? "true" : undefined}
-								onClick={() => select(item.id)}
-							>
-								<span className="flex w-full min-w-0 flex-col gap-1 text-left">
-									<span className="text-xs text-basalt-muted-foreground">
-										{item.reportDate} · {item.sourceLabel}
-									</span>
-									<span className="whitespace-normal font-medium">{item.title}</span>
-									{item.summary && (
-										<span className="line-clamp-2 whitespace-normal text-sm font-normal text-basalt-muted-foreground">
-											{item.summary}
-										</span>
-									)}
+							<span className="flex w-full min-w-0 flex-col gap-1 text-left">
+								<span className="text-xs text-basalt-muted-foreground">
+									{item.reportDate} · {item.sourceLabel}
 								</span>
-							</Button>
-						))}
-						{state.loading ? (
-							<p role="status" className="p-3 text-sm">
-								Loading reports…
-							</p>
-						) : (
-							state.items.length === 0 && (
-								<p className="p-3 text-sm text-basalt-muted-foreground">
-									No reports for this date.
-								</p>
-							)
-						)}
-						{state.nextCursor !== null && (
-							<Button
-								variant="ghost"
-								disabled={state.loading}
-								className="m-2"
-								onClick={() => void vm.loadArticles(channelId, date, true)}
-							>
-								Load more
-							</Button>
-						)}
-					</section>
-					<div className="channel-detail">
-						<div className="channel-reader-controls flex shrink-0 flex-wrap items-center gap-1 border-b border-basalt-border px-3 py-1 text-sm">
-							<Button
-								variant="ghost"
-								className="channel-back"
-								size="icon"
-								aria-label="Back to reports"
-								onClick={() => {
-									setMobileList(true);
-									requestAnimationFrame(() => selectedButton.current?.focus());
-								}}
-							>
-								<ArrowLeft aria-hidden="true" className="h-4 w-4" />
-							</Button>
-							<Button
-								variant="ghost"
-								aria-pressed={!preferences.sans}
-								onClick={() => changePreferences({ ...preferences, sans: false })}
-							>
-								Serif
-							</Button>
-							<Button
-								variant="ghost"
-								aria-pressed={preferences.sans}
-								onClick={() => changePreferences({ ...preferences, sans: true })}
-							>
-								Sans
-							</Button>
-							<Button
-								variant="ghost"
-								aria-label="Decrease font size"
-								disabled={preferences.size <= 16}
-								onClick={() => changePreferences({ ...preferences, size: preferences.size - 2 })}
-							>
-								A−
-							</Button>
-							<span className="text-xs text-basalt-muted-foreground">{preferences.size}px</span>
-							<Button
-								variant="ghost"
-								aria-label="Increase font size"
-								disabled={preferences.size >= 22}
-								onClick={() => changePreferences({ ...preferences, size: preferences.size + 2 })}
-							>
-								A+
-							</Button>
-							{state.articleLoading && <span role="status">Loading…</span>}
-						</div>
-						<div
-							ref={documentRef}
-							role="document"
-							aria-label="Article content"
-							tabIndex={-1}
-							className="channel-document"
+								<span className="whitespace-normal font-medium">{item.title}</span>
+								{item.summary && (
+									<span className="line-clamp-2 whitespace-normal text-sm font-normal text-basalt-muted-foreground">
+										{item.summary}
+									</span>
+								)}
+							</span>
+						</Button>
+					))}
+					{state.loading || !matchingList ? (
+						<p role="status" className="p-3 text-sm">
+							Loading reports…
+						</p>
+					) : (
+						state.items.length === 0 && (
+							<p className="p-3 text-sm text-basalt-muted-foreground">No reports for this date.</p>
+						)
+					)}
+					{matchingList && state.nextCursor !== null && (
+						<Button
+							variant="ghost"
+							disabled={state.loading}
+							className="m-2"
+							onClick={() => void vm.loadArticles(channelId, date, true)}
 						>
-							{article ? (
-								<article
-									className={`channel-prose${preferences.sans ? " channel-sans" : ""}`}
-									style={{ fontSize: preferences.size }}
-								>
-									<header className="mb-5 font-sans">
-										<h1 className="text-xl font-semibold">{article.title}</h1>
-										<p className="mt-1 text-xs text-basalt-muted-foreground">
-											{article.reportDate} · {article.author ? `${article.author} · ` : ""}
-											{article.sourceLabel}
-										</p>
-									</header>
-									<ChannelMarkdown markdown={article.markdown} />
-								</article>
+							Load more
+						</Button>
+					)}
+				</section>
+				<div className="channel-detail">
+					<fieldset className="channel-reader-controls" aria-label="Reading preferences">
+						<Button
+							variant="ghost"
+							className="channel-back"
+							size="icon"
+							aria-label="Back to reports"
+							onClick={() => {
+								setMobileList(true);
+								requestAnimationFrame(() => selectedButton.current?.focus());
+							}}
+						>
+							<ArrowLeft aria-hidden="true" className="h-4 w-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							aria-label="Use sans-serif font"
+							aria-pressed={preferences.sans}
+							onClick={() => changePreferences({ ...preferences, sans: !preferences.sans })}
+						>
+							{preferences.sans ? "Sans" : "Serif"}
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							aria-label="Decrease font size"
+							disabled={preferences.size <= 16}
+							onClick={() => changePreferences({ ...preferences, size: preferences.size - 2 })}
+						>
+							A−
+						</Button>
+						<span className="text-xs text-basalt-muted-foreground">{preferences.size}px</span>
+						<Button
+							variant="ghost"
+							size="sm"
+							aria-label="Increase font size"
+							disabled={preferences.size >= 22}
+							onClick={() => changePreferences({ ...preferences, size: preferences.size + 2 })}
+						>
+							A+
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							aria-label="Use full reading width"
+							aria-pressed={preferences.fullWidth}
+							title={preferences.fullWidth ? "Use readable width" : "Use full width"}
+							onClick={() =>
+								changePreferences({ ...preferences, fullWidth: !preferences.fullWidth })
+							}
+						>
+							{preferences.fullWidth ? (
+								<Columns2 aria-hidden="true" className="h-4 w-4" />
 							) : (
-								<p className="p-4 text-sm text-basalt-muted-foreground">
-									Select a report to start reading.
-								</p>
+								<Maximize2 aria-hidden="true" className="h-4 w-4" />
 							)}
-						</div>
+						</Button>
+					</fieldset>
+					<div
+						ref={documentRef}
+						role="document"
+						aria-label="Article content"
+						tabIndex={-1}
+						className="channel-document"
+						data-full-width={preferences.fullWidth}
+						aria-busy={state.articleLoading}
+					>
+						{article ? (
+							<article
+								className={`channel-prose${preferences.sans ? " channel-sans" : ""}`}
+								style={{ fontSize: preferences.size }}
+							>
+								<header className="mb-5 font-sans">
+									<h1 className="text-xl font-semibold">{article.title}</h1>
+									<p className="mt-1 text-xs text-basalt-muted-foreground">
+										{article.reportDate} · {article.author ? `${article.author} · ` : ""}
+										{article.sourceLabel}
+									</p>
+								</header>
+								<ChannelMarkdown markdown={article.markdown} />
+							</article>
+						) : (
+							<p className="p-4 text-sm text-basalt-muted-foreground">
+								{state.articleLoading ? "Loading report…" : "Select a report to start reading."}
+							</p>
+						)}
 					</div>
 				</div>
-			)}
-			{dialog !== null && (
-				<ChannelDialog key={dialog} id={dialog} onClose={() => setDialog(null)} />
-			)}
+			</div>
 		</section>
 	);
 }

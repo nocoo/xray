@@ -6,6 +6,10 @@ export type Channel = {
 	description: string | null;
 	createdAtMs: number;
 	articleCount: number;
+	sortOrder: number;
+	activeKeyCount: number;
+	latestReportDate: string | null;
+	lastReceivedAtMs: number | null;
 };
 
 export type ChannelKey = {

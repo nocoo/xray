@@ -3,6 +3,7 @@ import {
 	adjacentArticle,
 	articlePath,
 	ingestEndpoint,
+	initialArticle,
 	readerAction,
 	readerStorageKey,
 	readPosition,
@@ -79,9 +80,14 @@ describe("reader contracts", () => {
 		expect(readPreferences({ getItem: () => '{"sans":true,"size":22}' }, "key")).toEqual({
 			sans: true,
 			size: 22,
+			fullWidth: false,
 		});
 		for (const value of [null, "null", "garbage", '{"size":100}'])
-			expect(readPreferences({ getItem: () => value }, "key")).toEqual({ sans: false, size: 18 });
+			expect(readPreferences({ getItem: () => value }, "key")).toEqual({
+				sans: false,
+				size: 18,
+				fullWidth: false,
+			});
 		const denied = {
 			getItem: () => {
 				throw Error("denied");
@@ -91,7 +97,7 @@ describe("reader contracts", () => {
 			},
 		};
 		expect(readPosition(denied, "key")).toBe(0);
-		expect(readPreferences(denied, "key")).toEqual({ sans: false, size: 18 });
+		expect(readPreferences(denied, "key")).toEqual({ sans: false, size: 18, fullWidth: false });
 		expect(() => writeReaderValue(denied, "key", "600")).not.toThrow();
 		writeReaderValue(storage, "key", "600");
 	});
@@ -123,4 +129,40 @@ test("copy request uses an external report file and reports clipboard failure", 
 			},
 		}),
 	).toMatch(/Copy failed/);
+});
+
+test("selects the first report only after the matching list loads without replacing deep links", () => {
+	const list = {
+		channelId: 1,
+		date: "2026-09-22",
+		loading: false,
+		pageCount: 2,
+		error: null,
+		items: [{ id: 7 }, { id: 6 }],
+	};
+	expect(initialArticle(list, 1, 0, list.date)).toBe(7);
+	expect(initialArticle(list, 1, 99, list.date)).toBeUndefined();
+	expect(initialArticle(list, 0, 0, list.date)).toBeUndefined();
+	expect(initialArticle(list, 2, 0, list.date)).toBeUndefined();
+	expect(initialArticle(list, 1, 0, "2026-09-21")).toBeUndefined();
+	for (const patch of [{ loading: true }, { pageCount: 0 }, { error: "Failed" }, { items: [] }]) {
+		expect(initialArticle({ ...list, ...patch }, 1, 0, list.date)).toBeUndefined();
+	}
+});
+
+test("persists full width alongside font preferences and rejects non-boolean width values", () => {
+	let saved = "";
+	const storage = {
+		getItem: () => saved,
+		setItem: (_key: string, value: string) => {
+			saved = value;
+		},
+	};
+	const preference = { sans: true, size: 20, fullWidth: true };
+	writeReaderValue(storage, "preferences", JSON.stringify(preference));
+	expect(readPreferences(storage, "preferences")).toEqual(preference);
+	for (const fullWidth of [false, null, 1, "true"]) {
+		saved = JSON.stringify({ fullWidth });
+		expect(readPreferences(storage, "preferences").fullWidth).toBe(false);
+	}
 });

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { BROWSER, WORKER, browserApiHeaders, requireWorker } from "./helpers";
 
 test.describe("L3 tokens + settings + AI + zheto shells", () => {
-	test("settings and tokens pages load", async ({ page, request }) => {
+	test("settings excludes global tokens while producer API remains available", async ({ page, request }) => {
 		await requireWorker(request);
 
 		await page.goto(`${BROWSER}/settings`);
@@ -21,7 +21,7 @@ test.describe("L3 tokens + settings + AI + zheto shells", () => {
 
 		await expect(
 			page.locator("[data-basalt-surface-root]").getByRole("heading", { name: /Push tokens/i }),
-		).toBeVisible();
+		).toHaveCount(0);
 	});
 
 	test("AI settings and zheto pages load", async ({ page, request }) => {

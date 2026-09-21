@@ -8,10 +8,12 @@ import { getAiConfigRoute, putAiConfigRoute, testAiConfigRoute } from "./routes/
 import {
 	createChannelKeyRoute,
 	createChannelRoute,
+	deleteChannelRoute,
 	getChannelArticleRoute,
 	listChannelArticlesRoute,
 	listChannelKeysRoute,
 	listChannelsRoute,
+	orderChannelsRoute,
 	patchChannelRoute,
 	revokeChannelKeyRoute,
 } from "./routes/channels.js";
@@ -136,6 +138,8 @@ app.delete("/api/push-tokens/:id", revokeTokenRoute);
 
 app.get("/api/channels", listChannelsRoute);
 app.post("/api/channels", createChannelRoute);
+app.put("/api/channels/order", orderChannelsRoute);
+app.delete("/api/channels/:id", deleteChannelRoute);
 app.patch("/api/channels/:id", patchChannelRoute);
 app.get("/api/channels/:id/articles", listChannelArticlesRoute);
 app.get("/api/channels/:id/articles/:articleId", getChannelArticleRoute);

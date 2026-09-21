@@ -16,11 +16,10 @@ import {
 } from "@nocoo/basalt";
 import { PanelLeft, Plus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { fetchGroups, type Group } from "@/api/groups";
 import { fetchWatchlists, type Watchlist } from "@/api/watchlists";
 import { useChannels } from "@/components/channels-context";
-import { ChannelDialog } from "@/components/dialogs/channel-dialog";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { useAuthUser } from "@/hooks/me-context";
 import { cn, getAvatarColor } from "@/lib/utils";
@@ -148,13 +147,13 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 	const { pathname, search } = useLocation();
 	const channelsVm = useChannels();
 	const { channels } = useVm(channelsVm);
-	const [creatingChannel, setCreatingChannel] = useState(false);
+	const navigate = useNavigate();
 	const user = useSidebarUser();
 	const { openCreateWatchlist, openCreateGroup, listVersion } = useCreateDialogs();
 	const { watchlists } = useSidebarWatchlists(listVersion);
 	const { groups: entityGroups } = useSidebarGroups(listVersion);
 	const navGroups = getV2NavGroups();
-	const flatItems = navGroups.flatMap((g) => g.items);
+	const flatItems = navGroups.flatMap((g) => (g.dynamic === "channels" ? [] : g.items));
 
 	const avatar = (
 		<Avatar className="h-9 w-9 shrink-0">
@@ -278,10 +277,10 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 										pathname={pathname}
 									/>
 								))}
-								<NewEntityItem label="New channel" onClick={() => setCreatingChannel(true)} />
-								{creatingChannel && (
-									<ChannelDialog id={0} onClose={() => setCreatingChannel(false)} />
-								)}
+								<NewEntityItem
+									label="New channel"
+									onClick={() => void navigate("/channels?new=1")}
+								/>
 							</SidebarGroup>
 						);
 					}

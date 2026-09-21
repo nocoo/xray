@@ -69,15 +69,16 @@ export function writeReaderValue(storage: Pick<Storage, "setItem">, key: string,
 export function readPreferences(
 	storage: Pick<Storage, "getItem">,
 	key: string,
-): { sans: boolean; size: number } {
+): { sans: boolean; size: number; fullWidth: boolean } {
 	try {
 		const value = JSON.parse(storage.getItem(key) || "{}");
 		return {
 			sans: value?.sans === true,
+			fullWidth: value?.fullWidth === true,
 			size: [16, 18, 20, 22].includes(value?.size) ? value.size : 18,
 		};
 	} catch {
-		return { sans: false, size: 18 };
+		return { sans: false, size: 18, fullWidth: false };
 	}
 }
 
@@ -108,4 +109,30 @@ export async function copyChannelText(
 	} catch {
 		return "Copy failed. Select and copy the text manually.";
 	}
+}
+
+export function initialArticle(
+	list: {
+		channelId: number;
+		date: string;
+		loading: boolean;
+		pageCount: number;
+		error: string | null;
+		items: { id: number }[];
+	},
+	channelId: number,
+	articleId: number,
+	date: string,
+) {
+	if (
+		!channelId ||
+		articleId ||
+		list.loading ||
+		list.error ||
+		!list.pageCount ||
+		list.channelId !== channelId ||
+		list.date !== date
+	)
+		return undefined;
+	return list.items[0]?.id;
 }

@@ -152,7 +152,7 @@ export function WatchlistDetailPage() {
 				<p className="text-sm font-semibold">{panelTitle}</p>
 				<Button
 					type="button"
-					variant="ghost"
+					variant="outline"
 					size="icon"
 					className="h-8 w-8"
 					onClick={closePanel}
@@ -201,7 +201,7 @@ export function WatchlistDetailPage() {
 					<div className="flex items-center justify-between border-b border-basalt-border px-4 py-2">
 						<p className="text-xs text-basalt-muted-foreground">Recent ingest pushes</p>
 						<Button
-							variant="ghost"
+							variant="outline"
 							size="sm"
 							type="button"
 							disabled={s.logsLoading}
@@ -263,76 +263,85 @@ export function WatchlistDetailPage() {
 					postsFeedActive ? "flex min-h-0 flex-col gap-3 md:gap-4" : "space-y-4",
 				)}
 			>
-				<PageHeader
-					title={title}
-					description={
-						s.wl
-							? `${s.wl.translateEnabled ? "Translate on" : "Translate off"}${
-									s.logs[0] ? ` · last +${s.logs[0].accepted}/${s.logs[0].attempted}` : ""
-								}`
-							: undefined
-					}
-					actions={
-						<>
-							<SourceFilter
-								value={s.sourceFilter}
-								onChange={(v) => vm.setSourceFilter(v)}
-								counts={counts}
-							/>
-							{s.activeTab === "members" && (
-								<Button size="sm" type="button" onClick={onAddMember}>
-									<Plus className="h-4 w-4" />
-									Add
-								</Button>
-							)}
-							{s.activeTab === "posts" && (
-								<Button size="sm" type="button" onClick={() => void vm.translate()}>
-									Translate
-								</Button>
-							)}
-							<Button variant="outline" size="sm" type="button" onClick={() => void vm.load()}>
-								<RefreshCw className="h-4 w-4" />
-								Reload
-							</Button>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 focus-visible:ring-offset-0"
-								type="button"
-								onClick={toggleActivity}
-								title="Activity / ingest logs"
-								aria-label="Open activity panel"
-								aria-pressed={panel === "activity"}
-							>
-								<ScrollText className="h-4 w-4" />
-							</Button>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 focus-visible:ring-offset-0"
-								type="button"
-								onClick={() => setPanel((current) => (current === "settings" ? null : "settings"))}
-								title="Settings"
-								aria-label="Open settings panel"
-								aria-pressed={panel === "settings"}
-							>
-								<Settings className="h-4 w-4" />
-							</Button>
-						</>
-					}
-				/>
-				{s.loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
-				{s.error && <Banner variant="error" size="sm" description={s.error} />}
-
 				<Tabs
 					value={s.activeTab}
 					onValueChange={(v) => vm.setActiveTab(v as "members" | "posts")}
-					className={postsFeedActive ? "flex min-h-0 flex-1 flex-col" : undefined}
+					className={cn(
+						"[&>header>div]:flex-wrap [&>header>div>div:first-child]:min-w-40",
+						postsFeedActive ? "flex min-h-0 flex-1 flex-col gap-4" : "space-y-4",
+					)}
 				>
-					<TabsList>
-						<TabsTrigger value="members">Members ({s.members.length})</TabsTrigger>
-						<TabsTrigger value="posts">Posts ({s.items.length})</TabsTrigger>
-					</TabsList>
+					<PageHeader
+						title={<span className="break-words">{title}</span>}
+						description={
+							s.wl
+								? `${s.wl.translateEnabled ? "Translate on" : "Translate off"}${
+										s.logs[0] ? ` · last +${s.logs[0].accepted}/${s.logs[0].attempted}` : ""
+									}`
+								: "Members and posts from your tracked sources."
+						}
+						actions={
+							<>
+								<TabsList aria-label="Watchlist view" className="shrink-0">
+									<TabsTrigger value="members">Members ({s.members.length})</TabsTrigger>
+									<TabsTrigger value="posts">Posts ({s.items.length})</TabsTrigger>
+								</TabsList>
+								<SourceFilter
+									value={s.sourceFilter}
+									onChange={(v) => vm.setSourceFilter(v)}
+									counts={counts}
+								/>
+								<Button variant="outline" size="sm" type="button" onClick={() => void vm.load()}>
+									<RefreshCw className="h-4 w-4" />
+									Reload
+								</Button>
+								<Button
+									variant="outline"
+									size="icon"
+									className="h-8 w-8 focus-visible:ring-offset-0"
+									type="button"
+									onClick={toggleActivity}
+									title="Activity / ingest logs"
+									aria-label="Open activity panel"
+									aria-pressed={panel === "activity"}
+								>
+									<ScrollText className="h-4 w-4" />
+								</Button>
+								<Button
+									variant="outline"
+									size="icon"
+									className="h-8 w-8 focus-visible:ring-offset-0"
+									type="button"
+									onClick={() =>
+										setPanel((current) => (current === "settings" ? null : "settings"))
+									}
+									title="Settings"
+									aria-label="Open settings panel"
+									aria-pressed={panel === "settings"}
+								>
+									<Settings className="h-4 w-4" />
+								</Button>
+								{s.activeTab === "members" && (
+									<Button size="sm" type="button" onClick={onAddMember}>
+										<Plus className="h-4 w-4" />
+										Add
+									</Button>
+								)}
+								{s.activeTab === "posts" && (
+									<Button
+										variant="outline"
+										size="sm"
+										type="button"
+										onClick={() => void vm.translate()}
+									>
+										Translate
+									</Button>
+								)}
+							</>
+						}
+					/>
+					{s.loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
+					{s.error && <Banner variant="error" size="sm" description={s.error} />}
 
 					<TabsContent value="members">
 						{!s.loading && (
@@ -375,7 +384,7 @@ export function WatchlistDetailPage() {
 								<Empty
 									icon={<Eye className="h-8 w-8 text-basalt-muted-foreground" />}
 									title="No items yet."
-									description="Mint a push token under Settings → Push tokens, then POST /api/v1/ingest/push on the ingest host with x.com + custom items."
+									description="Posts will appear here after your producer sends items to this watchlist."
 								/>
 							</LayerCard>
 						)}

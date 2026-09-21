@@ -24,7 +24,7 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 4. **UI/CSS**: full visual retain.
 5. **Ingest**: **push-first**, versioned canonical body. No CF Cron auto-refresh.
 6. **Sources**: typed (`x.com` | `custom`); mix timeline; source-aware members.
-7. **Product**: Dashboard, Watchlists (CRUD), Groups, zhe.to, AI Settings, Push tokens.
+7. **Product**: Dashboard, Watchlists (CRUD), Groups, zhe.to, AI Settings, Channels and per-channel push tokens.
 8. **Delete**: Explore, My Account, Usage, Webhooks, TweAPI, auto-refresh.
 9. **Migrate**: WL/groups/members/tags only; **no** posts.
 10. **Secrets**: versioned AES-256-GCM (KEK); AI keys never plaintext at rest.

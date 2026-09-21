@@ -103,24 +103,26 @@ function AppShellInner({ children }: AppShellProps) {
 							</HeaderTooltip>
 						) : null
 					}
-					breadcrumbs={chrome.breadcrumbs}
+					breadcrumbs={isMobile ? [] : chrome.breadcrumbs}
 					title={chrome.title}
 					actions={
 						<>
 							<DataModeSwitch />
-							<HeaderTooltip label="GitHub repository">
-								<Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-									<a
-										href="https://github.com/nocoo/xray"
-										target="_blank"
-										rel="noopener noreferrer"
-										aria-label="GitHub repository"
-									>
-										<Github aria-hidden="true" strokeWidth={1.5} />
-									</a>
-								</Button>
-							</HeaderTooltip>
-							<HexlyLink />
+							{!isMobile && (
+								<HeaderTooltip label="GitHub repository">
+									<Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+										<a
+											href="https://github.com/nocoo/xray"
+											target="_blank"
+											rel="noopener noreferrer"
+											aria-label="GitHub repository"
+										>
+											<Github aria-hidden="true" strokeWidth={1.5} />
+										</a>
+									</Button>
+								</HeaderTooltip>
+							)}
+							{!isMobile && <HexlyLink />}
 							<ThemeToggle aria-label={`Toggle theme (now ${theme})`} />
 						</>
 					}

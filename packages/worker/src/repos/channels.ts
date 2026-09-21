@@ -14,6 +14,10 @@ export type ChannelRow = {
 	description: string | null;
 	created_at_ms: number;
 	article_count?: number;
+	sort_order: number;
+	active_key_count: number;
+	latest_report_date: string | null;
+	last_received_at_ms: number | null;
 };
 
 function toChannelDto(row: ChannelRow): Channel {
@@ -23,6 +27,10 @@ function toChannelDto(row: ChannelRow): Channel {
 		description: row.description,
 		createdAtMs: row.created_at_ms,
 		articleCount: row.article_count ?? 0,
+		sortOrder: row.sort_order,
+		activeKeyCount: row.active_key_count,
+		latestReportDate: row.latest_report_date,
+		lastReceivedAtMs: row.last_received_at_ms,
 	};
 }
 
@@ -59,14 +67,20 @@ function toArticleDto(row: ArticleRow): ChannelArticle {
 	return { ...toSummaryDto(row), markdown: row.markdown };
 }
 
+const CHANNEL_SELECT = `SELECT c.*,
+  (SELECT COUNT(*) FROM channel_articles a
+   WHERE a.channel_id = c.id AND a.user_id = c.user_id) AS article_count,
+  (SELECT COUNT(*) FROM push_tokens k
+   WHERE k.channel_id = c.id AND k.user_id = c.user_id AND k.revoked_at_ms IS NULL) AS active_key_count,
+  (SELECT MAX(a.report_date) FROM channel_articles a
+   WHERE a.channel_id = c.id AND a.user_id = c.user_id) AS latest_report_date,
+  (SELECT MAX(a.created_at_ms) FROM channel_articles a
+   WHERE a.channel_id = c.id AND a.user_id = c.user_id) AS last_received_at_ms
+  FROM channels c WHERE c.user_id = ?`;
+
 export async function listChannels(db: D1Database, userId: string): Promise<Channel[]> {
 	const { results } = await db
-		.prepare(
-			`SELECT c.*,
-        (SELECT COUNT(*) FROM channel_articles a
-         WHERE a.channel_id = c.id AND a.user_id = c.user_id) AS article_count
-       FROM channels c WHERE c.user_id = ? ORDER BY c.id ASC`,
-		)
+		.prepare(`${CHANNEL_SELECT} ORDER BY c.sort_order, c.id`)
 		.bind(userId)
 		.all<ChannelRow>();
 	return (results ?? []).map(toChannelDto);
@@ -78,12 +92,7 @@ export async function getChannel(
 	id: number,
 ): Promise<Channel | null> {
 	const row = await db
-		.prepare(
-			`SELECT c.*,
-        (SELECT COUNT(*) FROM channel_articles a
-         WHERE a.channel_id = c.id AND a.user_id = c.user_id) AS article_count
-       FROM channels c WHERE c.user_id = ? AND c.id = ? LIMIT 1`,
-		)
+		.prepare(`${CHANNEL_SELECT} AND c.id = ? LIMIT 1`)
 		.bind(userId, id)
 		.first<ChannelRow>();
 	return row ? toChannelDto(row) : null;
@@ -96,8 +105,9 @@ export async function createChannel(
 ): Promise<Channel> {
 	const now = Date.now();
 	const result = await db
-		.prepare(`INSERT INTO channels (user_id, name, description, created_at_ms) VALUES (?, ?, ?, ?)`)
-		.bind(userId, input.name.trim(), input.description?.trim() || null, now)
+		.prepare(`INSERT INTO channels (user_id, name, description, created_at_ms, sort_order)
+ SELECT ?, ?, ?, ?, COALESCE(MAX(sort_order), -1) + 1 FROM channels WHERE user_id = ?`)
+		.bind(userId, input.name.trim(), input.description?.trim() || null, now, userId)
 		.run();
 	const id = Number(result.meta.last_row_id);
 	const channel = await getChannel(db, userId, id);
@@ -123,6 +133,36 @@ export async function updateChannel(
 		)
 		.run();
 	return getChannel(db, userId, id);
+}
+
+export async function deleteChannel(db: D1Database, userId: string, id: number): Promise<boolean> {
+	const result = await db
+		.prepare("DELETE FROM channels WHERE user_id = ? AND id = ?")
+		.bind(userId, id)
+		.run();
+	return result.meta.changes > 0;
+}
+
+export async function orderChannels(
+	db: D1Database,
+	userId: string,
+	ids: number[],
+): Promise<Channel[] | null> {
+	const [updated, listed] = await db.batch<ChannelRow>([
+		db
+			.prepare(`
+ WITH requested AS MATERIALIZED (SELECT key AS position, value AS id FROM json_each(?))
+ UPDATE channels SET sort_order = (SELECT position FROM requested WHERE requested.id = channels.id)
+ WHERE user_id = ?
+ AND (SELECT COUNT(*) FROM channels WHERE user_id = ?) = (SELECT COUNT(*) FROM requested)
+ AND (SELECT COUNT(DISTINCT c.id) FROM channels c JOIN requested r ON r.id = c.id WHERE c.user_id = ?) = (SELECT COUNT(*) FROM requested)
+ `)
+			.bind(JSON.stringify(ids), userId, userId, userId),
+		db.prepare(`${CHANNEL_SELECT} ORDER BY c.sort_order, c.id`).bind(userId),
+	]);
+	if (!updated || !listed) throw new Error("incomplete channel order batch");
+	if (updated.meta.changes !== ids.length || listed.results.length !== ids.length) return null;
+	return listed.results.map(toChannelDto);
 }
 
 const ARTICLE_COLS = `id, channel_id, external_id, title, report_date, summary, author, source_label, created_at_ms`;

@@ -4,6 +4,8 @@ import { ChannelsProvider } from "@/components/channels-context";
 import { CreateDialogsProvider } from "@/components/dialogs/create-dialogs-context";
 import { AppShell } from "@/components/layout";
 import { SessionGate } from "@/components/session-gate";
+import { ChannelSettingsPage } from "@/views/channel-settings-page";
+import { ChannelsManagePage } from "@/views/channels-manage-page";
 import { ChannelsPage } from "@/views/channels-page";
 import { DashboardPage } from "@/views/dashboard-page";
 import { GroupsPage } from "@/views/groups-page";
@@ -35,7 +37,8 @@ export function App() {
 						<Route path="/" element={<DashboardPage />} />
 						<Route path="/watchlist" element={<WatchlistsPage />} />
 						<Route path="/watchlist/:id" element={<WatchlistDetailPage />} />
-						<Route path="/channels" element={<ChannelsPage />} />
+						<Route path="/channels" element={<ChannelsManagePage />} />
+						<Route path="/channels/:channelId/settings" element={<ChannelSettingsPage />} />
 						<Route path="/channels/:channelId" element={<ChannelsPage />} />
 						<Route path="/channels/:channelId/articles/:articleId" element={<ChannelsPage />} />
 						<Route path="/groups" element={<GroupsPage />} />

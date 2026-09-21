@@ -120,7 +120,7 @@ export function GroupsPage() {
 	};
 
 	return (
-		<div className="space-y-8">
+		<div className="space-y-4">
 			<PageHeader
 				title="Groups"
 				description="Source-aware member pools you can copy into watchlists."
@@ -177,14 +177,14 @@ export function GroupsPage() {
 								</div>
 							</Button>
 						</LayerCard>
-						<div className="mt-1 flex gap-1 px-1">
-							<Button type="button" size="sm" variant="ghost" onClick={() => setRenameTarget(g)}>
+						<div className="mt-2 flex flex-wrap gap-2">
+							<Button type="button" size="sm" variant="outline" onClick={() => setRenameTarget(g)}>
 								Rename
 							</Button>
 							<Button
 								type="button"
 								size="sm"
-								variant="ghost"
+								variant="outline"
 								className="text-basalt-destructive"
 								onClick={() => setDeleteTarget(g)}
 							>
@@ -249,7 +249,7 @@ export function GroupsPage() {
 										<Button
 											type="button"
 											size="icon"
-											variant="ghost"
+											variant="outline"
 											className="h-7 w-7 text-basalt-muted-foreground hover:text-basalt-destructive"
 											onClick={() => void vm.removeMember(m.id)}
 											aria-label="Remove member"

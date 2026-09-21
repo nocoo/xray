@@ -16,7 +16,10 @@ export function rawHttp(
 				port: url.port,
 				path: `${url.pathname}${url.search}`,
 				method: init.method ?? "GET",
-				headers: init.headers,
+				headers: {
+					...(init.body === undefined ? {} : { "content-length": String(Buffer.byteLength(init.body)) }),
+					...init.headers,
+				},
 			},
 			(res) => {
 				const chunks: Buffer[] = [];

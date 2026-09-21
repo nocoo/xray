@@ -4,7 +4,6 @@ import * as dashboard from "./dashboard";
 import * as groups from "./groups";
 import * as me from "./me";
 import * as settings from "./settings";
-import * as tokens from "./tokens";
 import * as watchlists from "./watchlists";
 import * as zheto from "./zheto";
 
@@ -24,11 +23,10 @@ function okData<T>(data: T) {
 }
 
 describe("api modules hit real client", () => {
-	test("watchlists + groups + tokens + settings + dashboard + me + ai + zheto", async () => {
+	test("watchlists + groups + settings + dashboard + me + ai + zheto", async () => {
 		okData([]);
 		await watchlists.fetchWatchlists();
 		await groups.fetchGroups();
-		await tokens.fetchPushTokens();
 		await me.fetchMe();
 
 		okData({ id: 1 });
@@ -58,9 +56,6 @@ describe("api modules hit real client", () => {
 		await groups.deleteGroupMember(1, 2);
 		await groups.bulkImportGroupMembers(1, "@x");
 		await groups.copyGroupToWatchlist(1, { watchlistId: 3 });
-
-		await tokens.createPushToken("l");
-		await tokens.revokePushToken(9);
 
 		okData({
 			email: "a@b.c",

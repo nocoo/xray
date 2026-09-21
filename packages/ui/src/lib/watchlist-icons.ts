@@ -17,6 +17,7 @@ import {
 	Music,
 	Newspaper,
 	Radar,
+	Radio,
 	Rocket,
 	Shield,
 	Star,
@@ -30,6 +31,7 @@ import {
 export const WATCHLIST_ICONS: Record<string, LucideIcon> = {
 	eye: Eye,
 	radar: Radar,
+	radio: Radio,
 	brain: Brain,
 	zap: Zap,
 	star: Star,

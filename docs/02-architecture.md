@@ -255,7 +255,7 @@ AAD := utf8(user_id || ":" || field_name)   # e.g. userId:ai.api_key
 | Table | `push_tokens` (see 03) |
 | Mint | Browser + Access only; return plaintext once |
 | API | `GET /api/push-tokens`, `POST /api/push-tokens`, `DELETE /api/push-tokens/:id` |
-| UI | Settings → Push tokens |
+| UI | Named article tokens in Channels → channel settings; watchlist producer tokens are API-managed |
 
 ## 9. zhe.to
 

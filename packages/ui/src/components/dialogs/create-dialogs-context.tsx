@@ -1,13 +1,11 @@
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
 import { AddMemberDialog, type AddMemberTarget } from "@/components/dialogs/add-member-dialog";
 import { CreateGroupDialog } from "@/components/dialogs/create-group-dialog";
-import { CreateTokenDialog } from "@/components/dialogs/create-token-dialog";
 import { CreateWatchlistDialog } from "@/components/dialogs/create-watchlist-dialog";
 
 type CreateDialogsApi = {
 	openCreateWatchlist: () => void;
 	openCreateGroup: () => void;
-	openCreateToken: (opts?: { onCreated?: (plaintext: string, label: string) => void }) => void;
 	openAddMember: (target: AddMemberTarget, opts?: { onAdded?: () => void }) => void;
 	/** Bump when lists change so sidebar can refresh. */
 	listVersion: number;
@@ -22,10 +20,6 @@ export function CreateDialogsProvider({ children }: { children: ReactNode }) {
 
 	const [watchlistOpen, setWatchlistOpen] = useState(false);
 	const [groupOpen, setGroupOpen] = useState(false);
-	const [tokenOpen, setTokenOpen] = useState(false);
-	const [tokenCb, setTokenCb] = useState<
-		((plaintext: string, label: string) => void) | undefined
-	>();
 
 	const [memberOpen, setMemberOpen] = useState(false);
 	const [memberTarget, setMemberTarget] = useState<AddMemberTarget | null>(null);
@@ -33,13 +27,6 @@ export function CreateDialogsProvider({ children }: { children: ReactNode }) {
 
 	const openCreateWatchlist = useCallback(() => setWatchlistOpen(true), []);
 	const openCreateGroup = useCallback(() => setGroupOpen(true), []);
-	const openCreateToken = useCallback(
-		(opts?: { onCreated?: (plaintext: string, label: string) => void }) => {
-			setTokenCb(() => opts?.onCreated);
-			setTokenOpen(true);
-		},
-		[],
-	);
 	const openAddMember = useCallback((target: AddMemberTarget, opts?: { onAdded?: () => void }) => {
 		setMemberTarget(target);
 		setMemberCb(() => opts?.onAdded);
@@ -50,19 +37,11 @@ export function CreateDialogsProvider({ children }: { children: ReactNode }) {
 		() => ({
 			openCreateWatchlist,
 			openCreateGroup,
-			openCreateToken,
 			openAddMember,
 			listVersion,
 			notifyListsChanged,
 		}),
-		[
-			openCreateWatchlist,
-			openCreateGroup,
-			openCreateToken,
-			openAddMember,
-			listVersion,
-			notifyListsChanged,
-		],
+		[openCreateWatchlist, openCreateGroup, openAddMember, listVersion, notifyListsChanged],
 	);
 
 	return (
@@ -77,13 +56,6 @@ export function CreateDialogsProvider({ children }: { children: ReactNode }) {
 				open={groupOpen}
 				onOpenChange={setGroupOpen}
 				onCreated={notifyListsChanged}
-			/>
-			<CreateTokenDialog
-				open={tokenOpen}
-				onOpenChange={setTokenOpen}
-				onCreated={(plaintext, label) => {
-					tokenCb?.(plaintext, label);
-				}}
 			/>
 			<AddMemberDialog
 				open={memberOpen}
