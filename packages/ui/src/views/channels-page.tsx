@@ -1,11 +1,22 @@
-import { Button, Input } from "@nocoo/basalt";
+import { Button } from "@nocoo/basalt";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
-import { ArrowLeft, Columns2, Maximize2 } from "lucide-react";
+import {
+	AArrowDown,
+	AArrowUp,
+	ArrowLeft,
+	CalendarDays,
+	Columns2,
+	Maximize2,
+	Radio,
+	Settings,
+	Type,
+} from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { ChannelMarkdown } from "@/components/channel-markdown";
 import { useChannels } from "@/components/channels-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
+import { HeaderTooltip } from "@/components/layout/header-links";
 import { useAuthUser } from "@/hooks/me-context";
 import { restoreReadingPosition } from "@/hooks/reading-position";
 import {
@@ -100,6 +111,7 @@ export function ChannelsPage() {
 	}, [articleId, state.items]);
 	useEffect(() => {
 		function keydown(event: KeyboardEvent) {
+			if (event.defaultPrevented) return;
 			const target = event.target instanceof Element ? event.target : null;
 			const blocked = Boolean(
 				document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]') ||
@@ -150,22 +162,103 @@ export function ChannelsPage() {
 		<section className="channel-page" data-reading={Boolean(articleId && !mobileList)}>
 			<div className="channel-header">
 				<PageHeader
-					title={channel?.name ?? "Channel"}
+					title={
+						<span className="flex items-center gap-2">
+							<Radio className="h-5 w-5 shrink-0 text-basalt-muted-foreground" aria-hidden="true" />
+							{channel?.name ?? "Channel"}
+						</span>
+					}
 					description={channel?.description || "Published reports, ready to read."}
 					actions={
 						<>
-							<Input
-								type="date"
-								aria-label="Report date"
-								className="w-auto"
-								value={date}
-								onChange={(e) =>
-									void navigate(articlePath(channelId, articleId || null, e.target.value))
-								}
-							/>
-							<Button variant="outline" asChild>
-								<Link to={`/channels/${channelId}/settings`}>Manage channel</Link>
-							</Button>
+							{articleId > 0 && !mobileList && (
+								<HeaderTooltip label="Back to reports">
+									<Button
+										variant="outline"
+										className="channel-back h-8 w-8"
+										size="icon"
+										aria-label="Back to reports"
+										onClick={() => {
+											setMobileList(true);
+											requestAnimationFrame(() => selectedButton.current?.focus());
+										}}
+									>
+										<ArrowLeft aria-hidden="true" className="h-4 w-4" />
+									</Button>
+								</HeaderTooltip>
+							)}
+							<fieldset
+								className="flex min-w-0 items-center gap-2"
+								aria-label="Reading preferences"
+							>
+								<HeaderTooltip label={preferences.sans ? "Use serif font" : "Use sans-serif font"}>
+									<Button
+										variant="outline"
+										size="icon"
+										className="h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
+										aria-label="Use sans-serif font"
+										aria-pressed={preferences.sans}
+										onClick={() => changePreferences({ ...preferences, sans: !preferences.sans })}
+									>
+										<Type aria-hidden="true" className="h-4 w-4" />
+									</Button>
+								</HeaderTooltip>
+								<HeaderTooltip label={`Decrease font size · ${preferences.size}px`}>
+									<Button
+										variant="outline"
+										size="icon"
+										className="h-8 w-8"
+										aria-label="Decrease font size"
+										disabled={preferences.size <= 16}
+										onClick={() =>
+											changePreferences({ ...preferences, size: preferences.size - 2 })
+										}
+									>
+										<AArrowDown aria-hidden="true" className="h-4 w-4" />
+									</Button>
+								</HeaderTooltip>
+								<HeaderTooltip label={`Increase font size · ${preferences.size}px`}>
+									<Button
+										variant="outline"
+										size="icon"
+										className="h-8 w-8"
+										aria-label="Increase font size"
+										disabled={preferences.size >= 22}
+										onClick={() =>
+											changePreferences({ ...preferences, size: preferences.size + 2 })
+										}
+									>
+										<AArrowUp aria-hidden="true" className="h-4 w-4" />
+									</Button>
+								</HeaderTooltip>
+								<HeaderTooltip
+									label={preferences.fullWidth ? "Use readable width" : "Use full width"}
+								>
+									<Button
+										variant="outline"
+										size="icon"
+										className="h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
+										aria-label="Use full reading width"
+										aria-pressed={preferences.fullWidth}
+										onClick={() =>
+											changePreferences({ ...preferences, fullWidth: !preferences.fullWidth })
+										}
+									>
+										{preferences.fullWidth ? (
+											<Columns2 aria-hidden="true" className="h-4 w-4" />
+										) : (
+											<Maximize2 aria-hidden="true" className="h-4 w-4" />
+										)}
+									</Button>
+								</HeaderTooltip>
+							</fieldset>
+							<HeaderTooltip label="Manage channel">
+								<Button variant="outline" size="icon" className="h-8 w-8" asChild>
+									<Link to={`/channels/${channelId}/settings`} aria-label="Manage channel">
+										<Settings aria-hidden="true" className="h-4 w-4" />
+									</Link>
+								</Button>
+							</HeaderTooltip>
 						</>
 					}
 				/>
@@ -197,7 +290,8 @@ export function ChannelsPage() {
 							onClick={() => select(item.id)}
 						>
 							<span className="flex w-full min-w-0 flex-col gap-1 text-left">
-								<span className="text-xs text-basalt-muted-foreground">
+								<span className="flex items-center gap-1.5 text-xs text-basalt-muted-foreground">
+									<CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
 									{item.reportDate} · {item.sourceLabel}
 								</span>
 								<span className="whitespace-normal font-medium">{item.title}</span>
@@ -230,64 +324,6 @@ export function ChannelsPage() {
 					)}
 				</section>
 				<div className="channel-detail">
-					<fieldset className="channel-reader-controls" aria-label="Reading preferences">
-						<Button
-							variant="ghost"
-							className="channel-back"
-							size="icon"
-							aria-label="Back to reports"
-							onClick={() => {
-								setMobileList(true);
-								requestAnimationFrame(() => selectedButton.current?.focus());
-							}}
-						>
-							<ArrowLeft aria-hidden="true" className="h-4 w-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							aria-label="Use sans-serif font"
-							aria-pressed={preferences.sans}
-							onClick={() => changePreferences({ ...preferences, sans: !preferences.sans })}
-						>
-							{preferences.sans ? "Sans" : "Serif"}
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							aria-label="Decrease font size"
-							disabled={preferences.size <= 16}
-							onClick={() => changePreferences({ ...preferences, size: preferences.size - 2 })}
-						>
-							A−
-						</Button>
-						<span className="text-xs text-basalt-muted-foreground">{preferences.size}px</span>
-						<Button
-							variant="ghost"
-							size="sm"
-							aria-label="Increase font size"
-							disabled={preferences.size >= 22}
-							onClick={() => changePreferences({ ...preferences, size: preferences.size + 2 })}
-						>
-							A+
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							aria-label="Use full reading width"
-							aria-pressed={preferences.fullWidth}
-							title={preferences.fullWidth ? "Use readable width" : "Use full width"}
-							onClick={() =>
-								changePreferences({ ...preferences, fullWidth: !preferences.fullWidth })
-							}
-						>
-							{preferences.fullWidth ? (
-								<Columns2 aria-hidden="true" className="h-4 w-4" />
-							) : (
-								<Maximize2 aria-hidden="true" className="h-4 w-4" />
-							)}
-						</Button>
-					</fieldset>
 					<div
 						ref={documentRef}
 						role="document"
@@ -304,9 +340,15 @@ export function ChannelsPage() {
 							>
 								<header className="mb-5 font-sans">
 									<h1 className="text-xl font-semibold">{article.title}</h1>
-									<p className="mt-1 text-xs text-basalt-muted-foreground">
-										{article.reportDate} · {article.author ? `${article.author} · ` : ""}
-										{article.sourceLabel}
+									<p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-basalt-muted-foreground">
+										<span className="inline-flex items-center gap-1.5">
+											<CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+											{article.reportDate}
+										</span>
+										<span>
+											{article.author ? `${article.author} · ` : ""}
+											{article.sourceLabel}
+										</span>
 									</p>
 								</header>
 								<ChannelMarkdown markdown={article.markdown} />

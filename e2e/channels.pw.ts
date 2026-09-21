@@ -11,7 +11,9 @@ test.beforeAll(() => {
 });
 
 async function expectReaderChrome(page: Page) {
-	await expect(page.getByRole("group", { name: "Reading preferences", exact: true })).toBeVisible();
+	await expect(page.locator(".channel-header").getByRole("group", { name: "Reading preferences", exact: true })).toBeVisible();
+	await expect(page.getByLabel("Report date", { exact: true })).toHaveCount(0);
+	await expect(page.locator(".channel-detail").getByRole("group", { name: "Reading preferences", exact: true })).toHaveCount(0);
 	await expect(page.locator(".channel-header h1, .channel-prose > header > h1")).toHaveCount(2);
 	await expect.poll(() => page.evaluate(() => {
 		const controls = document.querySelector('[aria-label="Reading preferences"]');
@@ -26,6 +28,17 @@ async function expectReaderChrome(page: Page) {
 			);
 		});
 	}), { message: "Reader toolbar must not overlap the page or article title" }).toBe(true);
+	await expect.poll(() => page.evaluate(() => {
+		const controls = document.querySelector('[aria-label="Reading preferences"]');
+		const settings = document.querySelector('.channel-header a[aria-label="Manage channel"]');
+		const title = document.querySelector('.channel-header h1');
+		if (!controls || !settings || !title) return false;
+		const toolbar = controls.getBoundingClientRect();
+		const gear = settings.getBoundingClientRect();
+		const heading = title.getBoundingClientRect();
+		return toolbar.right < gear.left && Math.abs(toolbar.top - gear.top) < 1 &&
+			(innerWidth < 768 || Math.abs(toolbar.top - heading.top) < 1);
+	}), { message: "Reading controls and settings must share one row, aligned with the desktop title" }).toBe(true);
 	await expect.poll(() => page.evaluate(() =>
 		Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth,
 	), { message: "Reader must not overflow the viewport horizontally" }).toBe(true);
@@ -114,6 +127,28 @@ test("channel creation, one-time key, delivery, reader navigation and revocation
 		return result.fonts.some((font) => /TsangerJinKai/i.test(font.familyName) && font.glyphCount > 0);
 	}).toBe(true);
 	await cdp.detach();
+	const fontToggle = page.getByRole("button", { name: "Use sans-serif font", exact: true });
+	const smaller = page.getByRole("button", { name: "Decrease font size", exact: true });
+	const larger = page.getByRole("button", { name: "Increase font size", exact: true });
+	await fontToggle.click();
+	await expect(fontToggle).toHaveAttribute("aria-pressed", "true");
+	await expect(content.locator("article")).toHaveClass(/channel-sans/);
+	await smaller.click();
+	await expect(smaller).toBeDisabled();
+	await expect(content.locator("article")).toHaveCSS("font-size", "16px");
+	await larger.click();
+	await larger.click();
+	await larger.click();
+	await expect(larger).toBeDisabled();
+	await expect(content.locator("article")).toHaveCSS("font-size", "22px");
+	await page.reload();
+	await expect(fontToggle).toHaveAttribute("aria-pressed", "true");
+	await expect(content.locator("article")).toHaveCSS("font-size", "22px");
+	await fontToggle.click();
+	await smaller.click();
+	await smaller.click();
+	await expect(fontToggle).toHaveAttribute("aria-pressed", "false");
+	await expect(content.locator("article")).toHaveCSS("font-size", "18px");
 	await page.setViewportSize({ width: 2000, height: 1000 });
 	await expectReaderChrome(page);
 	const widthToggle = page.getByRole("button", { name: "Use full reading width", exact: true });
@@ -149,7 +184,7 @@ test("channel creation, one-time key, delivery, reader navigation and revocation
 	await expect.poll(() => content.evaluate((node) => node.scrollTop)).toBeGreaterThan(400);
 	await page.keyboard.press("Escape");
 	await expect(page.getByRole("button", { name: /研发日报 · 2026-09-22/ })).toBeFocused();
-	await page.getByLabel("Report date", { exact: true }).fill("2026-09-21");
+	await page.goto(`${BROWSER}/channels/${channelId}?date=2026-09-21`);
 	await expect(page.getByRole("button", { name: /研发日报 · 2026-09-22/ })).toHaveCount(0);
 	await expect(page.getByRole("button", { name: /研发日报 · 2026-09-21/ })).toBeVisible();
 	await page.getByRole("link", { name: "Manage channel", exact: true }).click();
@@ -159,6 +194,7 @@ test("channel creation, one-time key, delivery, reader navigation and revocation
 	await page.getByRole("button", { name: "Revoke Fundly Agent", exact: true }).click();
 	const confirmation = page.getByRole("alertdialog", { name: "Revoke push token?", exact: true });
 	await confirmation.getByRole("button", { name: "Cancel", exact: true }).click();
+	await expect(confirmation).toHaveCount(0);
 	await expect(page.getByRole("button", { name: "Revoke Fundly Agent", exact: true })).toBeVisible();
 	await page.getByRole("button", { name: "Revoke Fundly Agent", exact: true }).click();
 	await confirmation.getByRole("button", { name: "Revoke", exact: true }).click();
@@ -234,12 +270,13 @@ test("channel management edits profiles, persists ordering and confirms deletion
 	await expect(page.getByText("No reports for this date.", { exact: true })).toBeVisible();
 	await expect(page.getByText("Updated channel description", { exact: true })).toBeVisible();
 	await page.getByRole("link", { name: "Manage channel", exact: true }).click();
-	await page.getByRole("button", { name: "Delete channel", exact: true }).click();
+	await page.locator("#main-content").getByRole("button", { name: "Delete channel", exact: true }).click();
 	const confirmation = page.getByRole("alertdialog", { name: "Delete channel?", exact: true });
 	await expect(confirmation).toContainText(renamed);
 	await confirmation.getByRole("button", { name: "Cancel", exact: true }).click();
+	await expect(confirmation).toHaveCount(0);
 	await expect(page).toHaveURL(new RegExp(`/channels/${channelIds[0]}/settings$`));
-	await page.getByRole("button", { name: "Delete channel", exact: true }).click();
+	await page.locator("#main-content").getByRole("button", { name: "Delete channel", exact: true }).click();
 	await confirmation.getByRole("button", { name: "Delete channel", exact: true }).click();
 	await expect(page).toHaveURL(new RegExp(`${BROWSER}/channels$`));
 	await expect(page.getByRole("link", { name: `Manage ${renamed}`, exact: true })).toHaveCount(0);
@@ -283,8 +320,20 @@ test("mobile reader contains long Markdown and blocks executable or embedded ima
 	await page.setViewportSize({ width: 390, height: 844 });
 	await expectReaderChrome(page);
 	await page.screenshot({ path: "/tmp/xray-channels-mobile.png", fullPage: true });
+	await page.mouse.move(0, 0);
+	await content.focus();
+	await widthToggle.focus();
+	await expect(page.getByRole("tooltip", { name: "Use full width", exact: true })).toBeVisible();
 	await page.keyboard.press("Escape");
+	await expect(page.getByRole("tooltip")).toHaveCount(0);
+	await expect(widthToggle).toBeFocused();
+	await expect(content).toBeVisible();
+	await page.keyboard.press("Escape");
+	await expect(page.getByRole("button", { name: /中文阅读与安全排版/ })).toBeFocused();
+	await page.getByRole("button", { name: /中文阅读与安全排版/ }).click();
+	await page.getByRole("button", { name: "Back to reports", exact: true }).click();
 	await expect(page.getByRole("button", { name: /中文阅读与安全排版/ })).toBeVisible();
+	await expect(page.getByRole("button", { name: /中文阅读与安全排版/ })).toBeFocused();
 });
 
 test("global settings retains account and AI without push-token controls", async ({ page }) => {

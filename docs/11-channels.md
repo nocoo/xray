@@ -61,7 +61,7 @@ Routes: `/channels/:channelId`, `/channels/:channelId/articles/:articleId`. Ente
 
 Use Basalt controls and existing theme tokens. Render GFM with `react-markdown` and `remark-gfm`, without raw HTML or MDX. Images accept only HTTPS external URLs, retain aspect ratio, lazy load and show alternative text on failure. Tables and code scroll within the document. Links use safe protocols and new-tab isolation.
 
-Typography follows Kami and GeekHub: Chinese `TsangerJinKai02`, English Charter, 18px body, 1.65 line height, maximum prose width 1020px, or full available width. Interface text stays sans serif; code stays monospace. Reuse GeekHub's local WOFF2 subsets and preserve its font notice; these font assets are not MIT licensed. Provide serif/sans, size and width preferences. The compact controls float at the top right, with responsive title clearance. Keep the title and byline compact. PageHeader supplies the page title, subtitle and outlined management link.
+Typography follows Kami and GeekHub: Chinese `TsangerJinKai02`, English Charter, 18px body, 1.65 line height, maximum prose width 1020px, or full available width. Interface text stays sans serif; code stays monospace. Reuse GeekHub's local WOFF2 subsets and preserve its font notice; these font assets are not MIT licensed. Provide serif/sans, size and width preferences. PageHeader places outlined Lucide controls for font, size, width and channel settings in one row at the top right; the reader has no floating toolbar or date picker. Keep the title and byline compact without reserved toolbar clearance. PageHeader supplies the page title and subtitle. Channel management and settings use the brightest Basalt surface for statistics and restrained Lucide accents for titles, metrics and sections.
 
 Keyboard: J/K and list Up/Down select articles, Enter focuses the document, Escape returns focus to the list (and returns to it on mobile). Preserve native document scrolling. Ignore input fields, contenteditable, IME composition, modifier combinations, dialogs and menus. Background UI updates preserve selection and scroll.
 
@@ -74,12 +74,12 @@ Keyboard: J/K and list Up/Down select articles, Enter focuses the document, Esca
 - [x] L2 real HTTP authorization, idempotency and pagination coverage (23 tests passed, 51/51 routes, local-only).
 - [x] L3 isolated browser workflow, Chinese font, responsive layout and keyboard checks (14 tests passed, including three Channels journeys).
 - [x] Review, quality gates, atomic commits and Caddy preview.
-- [ ] Production domain/migration/deployment (not authorized in this implementation run).
+- [ ] Production domain/migration/deployment (authorized for v2.4.0; follow the cutover checks below).
 
 ## Management revision
 
 - [x] Dedicated management/settings pages, named channel tokens, deletion, persistent ordering and statistics.
-- [x] Automatic first-report selection, floating reader preferences, 1020px/full-width control, shared page titles and aligned watchlist tabs.
+- [x] Automatic first-report selection, header-aligned reader preferences, 1020px/full-width control, shared page titles and aligned watchlist tabs.
 - [x] Isolated L2/L3, desktop/mobile visual review, final commit gates and Caddy preview.
 
 ## Production cutover
@@ -105,3 +105,7 @@ L2 passed 28 real HTTP tests and the 53-route inventory. Coverage includes full-
 L3 passed all 16 browser tests with explicit ports 17007/28787 and a verified temporary test-marked D1 store. Channels journeys exercise dedicated management, profile editing, persistent sorting, confirmation/cancellation, deletion, named tokens, clipboard examples, automatic first-report selection, Chinese font glyph rendering, Markdown safety, keyboard/focus, date filters, history restoration and width persistence. Desktop and 390px/320px reader geometry checks cover toolbar/title clearance and viewport overflow. Management/settings and watchlist headers were also visually inspected on desktop and mobile.
 
 Implementation commit: `7fe7bd7`. Its pre-commit lint, strict types, all four coverage floors and staged secret scan passed. The test servers, verified temporary test store and task-owned panes were removed. The daily Mock stack was restarted with migration 0004, and Google Chrome opened `https://xray.dev.hexly.ai/channels`. A read-only Caddy smoke check confirmed management, automatic selection of the first report and channel settings with no page errors or mutation requests. Production remains unchanged until the cutover above.
+
+### Visual refinement
+
+The header icon row, bright statistics and Lucide accents passed all 16 isolated L3 tests on 2026-09-22. Checks include font family/size limits and persistence, full-width persistence, mobile return navigation, and consuming Tooltip Escape before the reader shortcut. A read-only Chrome preview through Caddy verified light/dark surfaces and 1440px/320px layouts with no page errors, horizontal overflow or API mutations. The management metrics remain aligned when their labels wrap.

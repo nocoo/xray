@@ -74,3 +74,9 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 - **What:** A new DELETE-then-PUT rejection test returned 501, and the reader history test restored the wrong report position after automatic first-report selection.
 - **Why:** The raw HTTP helper wrote a DELETE body without Content-Length, leaving bytes to corrupt the next request on its reused connection. The reader test waited for a Markdown heading shared by both reports, then scrolled the previous article while the requested article was still loading.
 - **Follow-up:** Frame every provided raw HTTP body using its UTF-8 byte length. Wait for the selected article's unique title and completed loading state before scrolling. Correct stale Settings-token and unscoped New channel selectors. All 28 L2 and 16 L3 tests subsequently passed; no authorization or reading-restoration assertions were weakened.
+
+## 2026-09-22: Closing confirmation matched the next test click
+
+- **What:** The first visual-refinement L3 run passed 15 tests; channel deletion timed out even though the channel had been deleted.
+- **Why:** After cancelling, the test immediately located a global button named Delete channel while the closing confirmation still contained a button with that name. It clicked the fading confirmation action instead of reopening the dialog.
+- **Follow-up:** Wait for the confirmation to unmount and scope its opener to the main content. All 16 isolated L3 tests then passed without retries.

@@ -11,7 +11,18 @@ import {
 	TableHeader,
 	TableRow,
 } from "@nocoo/basalt/components/table";
-import { ArrowDown, ArrowUp, BookOpen, Plus, RefreshCw, Settings2 } from "lucide-react";
+import {
+	ArrowDown,
+	ArrowUp,
+	BookOpen,
+	FileText,
+	KeyRound,
+	ListOrdered,
+	Plus,
+	Radio,
+	RefreshCw,
+	Settings,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useChannels } from "@/components/channels-context";
@@ -42,7 +53,12 @@ export function ChannelsManagePage() {
 	return (
 		<div className="space-y-4">
 			<PageHeader
-				title="Channels"
+				title={
+					<span className="flex items-center gap-2">
+						<Radio className="h-5 w-5 text-basalt-muted-foreground" aria-hidden="true" />
+						Channels
+					</span>
+				}
 				description="Organize your reports, arrange the sidebar, and manage each channel’s push tokens."
 				actions={
 					<>
@@ -66,16 +82,31 @@ export function ChannelsManagePage() {
 			/>
 			{state.error && <Banner variant="error" size="sm" description={state.error} />}
 			<StatStrip
-				className="grid-cols-3 md:grid-cols-3"
+				className="grid-cols-3 gap-2 sm:gap-3 md:grid-cols-3 [&>div]:flex [&>div]:flex-col [&>div]:bg-basalt-bright [&>div]:p-3 sm:[&>div]:p-4 [&_dd]:mt-auto [&_dd]:pt-2"
 				loading={state.catalogLoading}
 				items={[
-					{ label: "Channels", value: state.channels.length },
 					{
-						label: "Reports",
+						label: (
+							<span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
+								<Radio className="h-4 w-4" aria-hidden="true" /> Channels
+							</span>
+						),
+						value: state.channels.length,
+					},
+					{
+						label: (
+							<span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
+								<FileText className="h-4 w-4" aria-hidden="true" /> Reports
+							</span>
+						),
 						value: state.channels.reduce((total, channel) => total + channel.articleCount, 0),
 					},
 					{
-						label: "Active tokens",
+						label: (
+							<span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
+								<KeyRound className="h-4 w-4" aria-hidden="true" /> Active tokens
+							</span>
+						),
 						value: state.channels.reduce((total, channel) => total + channel.activeKeyCount, 0),
 					},
 				]}
@@ -90,7 +121,10 @@ export function ChannelsManagePage() {
 							if (channel) void navigate(`/channels/${channel.id}/settings`);
 						}}
 					>
-						<h2 className="text-base font-semibold">New channel</h2>
+						<h2 className="flex items-center gap-2 text-base font-semibold">
+							<Plus className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" /> New
+							channel
+						</h2>
 						<div className="grid items-start gap-4 md:grid-cols-[1fr_2fr]">
 							<Field label="Channel name" htmlFor="new-channel-name" required>
 								<Input
@@ -138,7 +172,10 @@ export function ChannelsManagePage() {
 			<LayerCard padding="none">
 				<LayerCard.Header className="flex flex-wrap items-center justify-between gap-3">
 					<div>
-						<h2 className="text-base font-semibold">Your channels</h2>
+						<h2 className="flex items-center gap-2 text-base font-semibold">
+							<ListOrdered className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" />{" "}
+							Your channels
+						</h2>
 						<p className="text-sm text-basalt-muted-foreground">
 							Use the arrows to set the sidebar order.
 						</p>
@@ -250,7 +287,7 @@ export function ChannelsManagePage() {
 														aria-label={`Manage ${channel.name}`}
 														title="Channel settings"
 													>
-														<Settings2 className="h-4 w-4" />
+														<Settings className="h-4 w-4" aria-hidden="true" />
 													</Link>
 												</Button>
 											</div>

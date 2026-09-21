@@ -14,7 +14,20 @@ import {
 	TableRow,
 } from "@nocoo/basalt/components/table";
 import type { Channel, ChannelKey } from "@xray/shared";
-import { ArrowLeft, BookOpen, Copy, Plus } from "lucide-react";
+import {
+	ArrowLeft,
+	BookOpen,
+	CalendarDays,
+	Clock3,
+	Copy,
+	FileText,
+	KeyRound,
+	Plus,
+	Radio,
+	Send,
+	Settings,
+	Trash2,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useChannels } from "@/components/channels-context";
@@ -97,7 +110,15 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 	return (
 		<div className="space-y-5">
 			<PageHeader
-				title={channel.name}
+				title={
+					<span className="flex items-center gap-2">
+						<Settings
+							className="h-5 w-5 shrink-0 text-basalt-muted-foreground"
+							aria-hidden="true"
+						/>
+						{channel.name}
+					</span>
+				}
 				description="Channel settings · Profile, activity, and push tokens."
 				actions={
 					<>
@@ -116,19 +137,55 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 			/>
 			{state.error && <Banner variant="error" size="sm" description={state.error} />}
 			<StatStrip
+				className="md:grid-cols-2 xl:grid-cols-4 [&>div]:bg-basalt-bright"
 				items={[
-					{ label: "Reports", value: channel.articleCount },
-					{ label: "Active tokens", value: channel.activeKeyCount },
-					{ label: "Latest report", value: channel.latestReportDate ?? "—" },
 					{
-						label: "Last received",
-						value: channel.lastReceivedAtMs
-							? new Date(channel.lastReceivedAtMs).toLocaleString()
-							: "—",
+						label: (
+							<span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
+								<FileText className="h-4 w-4" aria-hidden="true" /> Reports
+							</span>
+						),
+						value: channel.articleCount,
+					},
+					{
+						label: (
+							<span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
+								<KeyRound className="h-4 w-4" aria-hidden="true" /> Active tokens
+							</span>
+						),
+						value: channel.activeKeyCount,
+					},
+					{
+						label: (
+							<span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
+								<CalendarDays className="h-4 w-4" aria-hidden="true" /> Latest report
+							</span>
+						),
+						value: <span className="text-sm">{channel.latestReportDate ?? "—"}</span>,
+					},
+					{
+						label: (
+							<span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
+								<Clock3 className="h-4 w-4" aria-hidden="true" /> Last received
+							</span>
+						),
+						value: (
+							<span className="text-sm">
+								{channel.lastReceivedAtMs
+									? new Date(channel.lastReceivedAtMs).toLocaleString()
+									: "—"}
+							</span>
+						),
 					},
 				]}
 			/>
-			<SectionRule title="Profile">
+			<SectionRule
+				title={
+					<span className="flex items-center gap-2">
+						<Radio className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" /> Profile
+					</span>
+				}
+			>
 				<LayerCard>
 					<form
 						className="space-y-4"
@@ -176,7 +233,15 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 					</form>
 				</LayerCard>
 			</SectionRule>
-			<SectionRule title="Push tokens" hint="Each token can submit reports only to this channel.">
+			<SectionRule
+				title={
+					<span className="flex items-center gap-2">
+						<KeyRound className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" /> Push
+						tokens
+					</span>
+				}
+				hint="Each token can submit reports only to this channel."
+			>
 				<LayerCard padding="none">
 					<LayerCard.Header>
 						<form
@@ -294,7 +359,12 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 				</LayerCard>
 			</SectionRule>
 			<SectionRule
-				title="Submit a report"
+				title={
+					<span className="flex items-center gap-2">
+						<Send className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" /> Submit a
+						report
+					</span>
+				}
 				actions={
 					<Button
 						variant="outline"
@@ -334,7 +404,14 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 					)}
 				</LayerCard>
 			</SectionRule>
-			<SectionRule title="Delete channel">
+			<SectionRule
+				title={
+					<span className="flex items-center gap-2">
+						<Trash2 className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" /> Delete
+						channel
+					</span>
+				}
+			>
 				<LayerCard className="flex flex-wrap items-center justify-between gap-4">
 					<p className="text-sm text-basalt-muted-foreground">
 						Permanently delete this channel, its reports, and all of its push tokens.
