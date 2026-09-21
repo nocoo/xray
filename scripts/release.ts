@@ -281,6 +281,12 @@ function updateChangelog(newSection: string): void {
 }
 
 async function main(): Promise<void> {
+	const { packageManager } = JSON.parse(readFileSync(PACKAGE_JSON, "utf-8")) as {
+		packageManager: string;
+	};
+	if (`bun@${process.versions.bun}` !== packageManager) {
+		throw new Error(`Release requires ${packageManager}; use the declared runtime.`);
+	}
 	const rawArgs = process.argv.slice(2).filter((a) => a !== "--");
 	const isDryRun = rawArgs.includes("--dry-run");
 	const bumpArg = rawArgs.find((a) => a !== "--dry-run") ?? "patch";
@@ -336,6 +342,9 @@ async function main(): Promise<void> {
 		if (installResult.code !== 0) {
 			console.error("❌ bun install failed");
 			process.exit(1);
+		}
+		if (/", "https?:\/\//.test(readFileSync(pathResolve(PROJECT_ROOT, "bun.lock"), "utf-8"))) {
+			throw new Error("Registry URLs entered bun.lock. Normalize the lockfile before publishing.");
 		}
 	}
 

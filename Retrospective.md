@@ -80,3 +80,9 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 - **What:** The first visual-refinement L3 run passed 15 tests; channel deletion timed out even though the channel had been deleted.
 - **Why:** After cancelling, the test immediately located a global button named Delete channel while the closing confirmation still contained a button with that name. It clicked the fading confirmation action instead of reopening the dialog.
 - **Follow-up:** Wait for the confirmation to unmount and scope its opener to the main content. All 16 isolated L3 tests then passed without retries.
+
+## 2026-09-22: Release install serialized the local registry
+
+- **What:** The release script committed and pushed v2.4.0 preparation with 493 mirror tarball URLs in bun.lock. Tag publication was interrupted before the tag reached GitHub, and that commit’s CI failed before deployment. Production had not changed.
+- **Why:** The ambient Bun 1.4.2 runtime differed from the declared 1.3.14, and installation with a temporary registry wrote explicit mirror URLs. The release script committed immediately without validating the lockfile diff.
+- **Follow-up:** Restore registry-neutral entries without changing package versions or integrity values, use the declared Bun runtime, and make the release script reject runtime mismatch and registry URLs before publishing. Continue through normal hooks and exact-commit CI; no published history or tags are rewritten.
