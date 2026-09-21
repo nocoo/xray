@@ -18,7 +18,7 @@ This file is the contract; hooks, CI and config are enforcement. Raise weaker ga
 
 ## Project Invariants
 
-- Browser `xray.hexly.ai` requires Cloudflare Access; agent `xray-ingest.worker.hexly.ai` allows only live, ingest graph, ingest push and channel article submission. Agents use the ingest host; token administration stays browser-only and Bearer tokens cannot mint/revoke tokens. The canonical hostname is configured locally; production cutover requires a coordinated deployment and producer update.
+- Browser `xray.hexly.ai` requires Cloudflare Access; agent `xray-ingest.worker.hexly.ai` allows only live, ingest graph, ingest push and channel article submission. Agents use the ingest host; token administration stays browser-only and Bearer tokens cannot mint/revoke tokens. The canonical ingest hostname is live in production; producer configuration must use it.
 - Channels use one channel per key, the `articles:write` scope, immutable Markdown reports and `(channel_id, external_id)` retry deduplication. Never trust request fields for the tenant, channel or authenticated source. Channel images are external HTTPS URLs only; no upload, proxy or storage. Contract and implementation status: [Channels](docs/11-channels.md).
 - Derive tenant `user_id` from verified auth, never a client authorization field. Scope parent and child queries to that user; reject cross-user access. Preserve stable Access issuer/sub identity binding and fail closed on conflicts.
 - `AUTH_DEV_BYPASS` is the only local auth switch, valid only with `ENVIRONMENT=development|test`; production must reject it. Keep browser mutation origin checks.

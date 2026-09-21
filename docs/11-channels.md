@@ -4,7 +4,7 @@
 
 Channels collect Markdown reports from authenticated producers. Channels appear below Groups in the sidebar. A key belongs to exactly one channel; a channel can have multiple named keys. Markdown and metadata are stored in D1. Images remain HTTPS links loaded directly by the reader; there is no upload, proxy, or image storage for channel content.
 
-The browser uses Access authentication. Producers use the canonical `https://xray-ingest.worker.hexly.ai` host and Bearer authentication. This hostname change is local configuration until a separately authorized deployment switches the custom domain and producer configuration. Browser routes remain unavailable on the ingest host. Channel keys have only `articles:write`; existing watchlist keys retain their existing scopes.
+The browser uses Access authentication. Producers use the canonical `https://xray-ingest.worker.hexly.ai` host and Bearer authentication. The canonical hostname and producer configuration were switched with v2.4.0. Browser routes remain unavailable on the ingest host. Channel keys have only `articles:write`; existing watchlist keys retain their existing scopes.
 
 ## API contract
 
@@ -74,7 +74,7 @@ Keyboard: J/K and list Up/Down select articles, Enter focuses the document, Esca
 - [x] L2 real HTTP authorization, idempotency and pagination coverage (23 tests passed, 51/51 routes, local-only).
 - [x] L3 isolated browser workflow, Chinese font, responsive layout and keyboard checks (14 tests passed, including three Channels journeys).
 - [x] Review, quality gates, atomic commits and Caddy preview.
-- [ ] Production domain/migration/deployment (authorized for v2.4.0; follow the cutover checks below).
+- [x] Production domain/migrations/Worker deployment and authenticated read-only verification with v2.4.0.
 
 ## Management revision
 
@@ -84,7 +84,7 @@ Keyboard: J/K and list Up/Down select articles, Enter focuses the document, Esca
 
 ## Production cutover
 
-The local implementation does not change DNS, Cloudflare Access, remote D1 or existing producer secrets. At deployment, apply migrations `0003_channels.sql` and `0004_channel_sort_order.sql`, bind the canonical machine hostname to the production Worker, verify that it does not require an interactive Access login, and verify its certificate. Browser Access protection and the ingest route allowlist must remain enforced. Update the existing producer's `XRAY_INGEST_BASE` and scheduled invocation together with deployment; the new Worker does not retain the old hostname as a compatibility path. Verify both-host health, one authenticated ingest request and browser-only route rejection before resuming producers.
+The v2.4.0 production workflow applied `0003_channels.sql` and `0004_channel_sort_order.sql` before deploying Worker code. The canonical machine hostname has a valid TLS certificate and requires Bearer authentication without an interactive Access login. Browser Access protection and the ingest route allowlist remain enforced. The local producer’s `XRAY_INGEST_BASE` now uses the canonical hostname; its existing token and mode 0600 are unchanged. No local crontab or LaunchAgent entry references Xray. The retired ingest hostname is not a compatibility path.
 
 ## Verification
 
@@ -104,8 +104,12 @@ L2 passed 28 real HTTP tests and the 53-route inventory. Coverage includes full-
 
 L3 passed all 16 browser tests with explicit ports 17007/28787 and a verified temporary test-marked D1 store. Channels journeys exercise dedicated management, profile editing, persistent sorting, confirmation/cancellation, deletion, named tokens, clipboard examples, automatic first-report selection, Chinese font glyph rendering, Markdown safety, keyboard/focus, date filters, history restoration and width persistence. Desktop and 390px/320px reader geometry checks cover toolbar/title clearance and viewport overflow. Management/settings and watchlist headers were also visually inspected on desktop and mobile.
 
-Implementation commit: `7fe7bd7`. Its pre-commit lint, strict types, all four coverage floors and staged secret scan passed. The test servers, verified temporary test store and task-owned panes were removed. The daily Mock stack was restarted with migration 0004, and Google Chrome opened `https://xray.dev.hexly.ai/channels`. A read-only Caddy smoke check confirmed management, automatic selection of the first report and channel settings with no page errors or mutation requests. Production remains unchanged until the cutover above.
+Implementation commit: `7fe7bd7`. Its pre-commit lint, strict types, all four coverage floors and staged secret scan passed. The test servers, verified temporary test store and task-owned panes were removed. The daily Mock stack was restarted with migration 0004, and Google Chrome opened `https://xray.dev.hexly.ai/channels`. A read-only Caddy smoke check confirmed management, automatic selection of the first report and channel settings with no page errors or mutation requests. This management verification preceded the v2.4.0 cutover recorded below.
 
 ### Visual refinement
 
 The header icon row, bright statistics and Lucide accents passed all 16 isolated L3 tests on 2026-09-22. Checks include font family/size limits and persistence, full-width persistence, mobile return navigation, and consuming Tooltip Escape before the reader shortcut. A read-only Chrome preview through Caddy verified light/dark surfaces and 1440px/320px layouts with no page errors, horizontal overflow or API mutations. The management metrics remain aligned when their labels wrap.
+
+### Production verification — v2.4.0
+
+Initial production revision `064df47121ae36ac3d0a5a0928e67fb798695a61` passed [CI 35668087656](https://github.com/nocoo/xray/actions/runs/35668087656) and [deployment 35668162464](https://github.com/nocoo/xray/actions/runs/35668162464). Worker version `ec8e5733-2429-4725-b73a-9be9c375b30b` reports 2.4.0. Remote D1 lists all five migrations and no pending migrations; schema checks confirmed channels.sort_order, push_tokens.channel_id and channel_articles. Browser and ingest health checks report healthy environment and D1. The existing producer key reads all six watchlists through the new ingest hostname. Production validation performs no content mutations. The corrected release lockfile has no mirror URLs, and release preparation now rejects a mismatched Bun runtime or serialized registry URLs.
