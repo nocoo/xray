@@ -56,3 +56,9 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 
 
 26. **next-auth `auth()` middleware wrapper always sees null session under vinext** — `auth((req) => …)` calls `reqWithEnvURL()` → `new NextRequest(httpsUrl, req)`. That constructor path drops/ignores the Cookie header, so `req.auth` is always null even after a successful OAuth callback that correctly sets `__Secure-authjs.session-token`. Symptom: callback 302 → `/` → proxy 307 → `/login` with no `?error=`. `/api/xauth/session` with the same cookie returns a valid user. Fix: stop using the `auth()` wrapper in `proxy.ts`; read the JWT with `getToken({ req, secret, secureCookie })` from the original request headers.
+
+## 2026-09-22: Browser smoke used the daily development database
+
+- **What:** The initial browser test run used Playwright defaults on ports 7007/37007 and created test fixtures in the daily local database. No production test writes were performed. Eight tests passed; one stale assertion expected ingest logs before opening the Activity panel.
+- **Why:** The README test command was followed before checking the isolation restriction in the legacy project handbook.
+- **Follow-up:** Preserve that restriction in AGENTS.md; use a separate local Worker and UI with explicit Playwright URLs for subsequent runs. Correct the Activity-panel interaction. Mock preview now has its own state-mock directory; the previous daily state is preserved.

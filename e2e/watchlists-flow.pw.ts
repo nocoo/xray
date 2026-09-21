@@ -44,6 +44,7 @@ test.describe("L3 watchlists flow", () => {
 		await expect(page.getByText(/Members|Posts|Translate/i).first()).toBeVisible({
 			timeout: 15_000,
 		});
+		await page.getByRole("button", { name: "Open activity panel" }).click();
 		await expect(page.getByTestId("ingest-logs")).toBeVisible();
 	});
 });
