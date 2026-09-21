@@ -2,6 +2,63 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.4.0
+
+### Added
+- Centralize channel management
+- Add channels markdown reader
+- Add channel article ingestion api
+- Switch local mock and product data
+- Add Hexly project link and header tooltips
+
+### Changed
+- Record channel management verification
+- Record channels delivery and verification
+- Align ingest hostname with worker domain
+- Define channels implementation contract
+- Open activity panel before checking logs
+- Use caddy for local preview
+- Enforce four-metric coverage floor
+- Update wrangler
+- Update turbo
+- Update workers-types
+- Update lucide-react
+- Standardize claude handbook
+- Update @nocoo/basalt to 2.1.8
+- Align Wrangler release runtime
+- Update biome
+- Update react-router
+- Update hono
+- Align vitest 5.0.1
+- Sync locked wrangler version
+- Upgrade wrangler to 4.131.2
+- Upgrade turbo to 2.10.13
+- Upgrade lucide react to 1.46.0
+- Upgrade workers types to 5.20260914.1
+- Upgrade happy dom to 20.14.5
+- Upgrade wrangler to 4.131.1
+- Upgrade lucide react to 1.45.0
+- Upgrade workers types to 5.20260911.1
+- Upgrade biome to 2.5.13
+- Upgrade tailwind-merge to 3.7.0
+- Upgrade react-dom types
+- Upgrade react-dom to 19.3.0
+- Upgrade happy-dom to 20.14.3
+- Upgrade @types/react to 19.3.0
+- Pin base-ci to ad43150
+- Pin base-ci to verified sha
+- Migrate workflows to base-ci
+
+### Fixed
+- Refine channel surfaces and reader controls
+- Disable worker default and preview urls
+- Complete shared header content
+- Collect workspace coverage reports
+- Add release proof permissions
+
+### Removed
+- Drop unused ci secrets inherit
+
 ## v2.3.5
 
 ### Changed
