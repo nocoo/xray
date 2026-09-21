@@ -40,6 +40,7 @@ This file is the contract; hooks, CI and config are enforcement. Raise weaker ga
 - Start the full local stack with `bun run dev` from the repository root.
 - Open **https://xray.dev.hexly.ai** in Google Chrome for local preview and acceptance. Always use this Caddy HTTPS address instead of localhost or a raw port.
 - Caddy proxies to Vite on port 7007; Vite proxies `/api` to the local Worker on port 37007. Keep HMR on the Caddy hostname.
+- Local preview starts in Mock mode with seeded data in `packages/worker/.wrangler/state-mock`. The header can switch to Product through the local development proxy; `bun run login:product` authenticates with Cloudflare Access. Product operations use the signed-in production identity and can change live data. Keep its credentials server-side, and never target Product in automated tests.
 - Maintain project instructions only in `AGENTS.md`; do not recreate a legacy handbook or alias.
 
 ## Commands
@@ -85,7 +86,7 @@ Hooks are check-only. No `--no-verify`, disabled gates, autofix gates or reduced
 
 ## Resources / Isolation
 
-Daily dev: UI 7007 behind `xray.dev.hexly.ai`, Worker 37007, `.wrangler/state`. L2: Worker 18787, fixed `.wrangler/state-l2` in the Worker tree.
+Daily dev: UI 7007 behind `xray.dev.hexly.ai`, Worker 37007, `.wrangler/state-mock`. L2: Worker 18787, fixed `.wrangler/state-l2` in the Worker tree.
 The architecture reserves L3 Worker 28787/state-l3, but current Playwright defaults still target UI 7007/Worker 37007; isolated L3 setup is required before use.
 Use local Wrangler/Miniflare and a fresh per-run SQLite directory, validate local/test context and `_test_marker` before fixtures/cleanup. No remote `-test` deployments or production/daily-dev stores in E2E.
 Existing L2 names such as `xray-db-test` are local bindings; serialize current fixed-path runs until per-run isolation is implemented.

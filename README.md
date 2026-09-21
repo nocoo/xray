@@ -63,7 +63,15 @@ bun run dev
 | 本地 Worker | `http://127.0.0.1:37007` |
 | 存活检查 | `http://127.0.0.1:37007/api/live` |
 
-本地环境使用 `dev@xray.local` 身份，不需要配置 Access。Vite 的热更新配置使用 `https://xray.dev.hexly.ai`；需要该开发域名和热更新时，按[架构文档](docs/02-architecture.md)配置 Caddy。
+本地预览统一使用 **https://xray.dev.hexly.ai**（Caddy HTTPS，支持热更新）。启动后默认显示 Mock 数据，使用独立的 `.wrangler/state-mock` 数据库；示例数据重复启动不会覆盖已有编辑。
+
+右上角可以切换 **Mock / Product**，选择在当前标签页保留；切换会回到首页并清空页面状态。Mock 使用 `dev@xray.local` 本地身份。Product 通过本地开发代理连接 `https://xray.hexly.ai`，使用当前 Access 用户的线上权限，**编辑、删除、翻译等操作会影响生产数据**。先安装 `cloudflared` 并运行：
+
+```bash
+bun run login:product
+```
+
+完成浏览器中的 Cloudflare Access 登录后选择 Product；登录过期时重新运行命令并重试。凭据只由本地服务读取，不发送到前端，也不写入项目环境文件。自动化测试不得使用 Product。生产构建不包含模式切换或开发代理。Caddy 配置见[架构文档](docs/02-architecture.md)。
 
 保存 AI key 或 zhe.to webhook 前，需要在 `packages/worker/.dev.vars` 设置 `XRAY_SECRETS_KEK`：32 字节 ASCII 字符串，或解码后为 32 字节的 Base64。其他可选配置见 [.env.example](.env.example)。普通列表操作不依赖这些集成密钥。
 
@@ -94,7 +102,7 @@ legacy/v1/         旧版 vinext 应用
 | Worker HTTP 集成测试 | `bun run --filter @xray/worker test:e2e` |
 | 浏览器端到端测试 | `bun run test:l3` |
 
-HTTP 测试会启动本地 Worker 和独立的测试 D1；运行前需要取消 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`CF_API_TOKEN` 环境变量。浏览器测试先执行 `bunx playwright install chromium`，并在另一终端保持 `bun run dev` 运行；测试会在本地开发数据库中创建数据。
+HTTP 测试会启动本地 Worker 和独立的测试 D1；运行前需要取消 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`CF_API_TOKEN` 环境变量。浏览器测试先执行 `bunx playwright install chromium`，再启动独立的本地测试 UI 与 Worker，通过 `PLAYWRIGHT_BROWSER_URL`、`PLAYWRIGHT_WORKER_URL` 和 `PLAYWRIGHT_INGEST_URL` 显式指定地址；不得使用日常 Mock 数据库或 Product 模式。隔离约束见 [AGENTS.md](AGENTS.md)。
 
 ## 技术栈
 

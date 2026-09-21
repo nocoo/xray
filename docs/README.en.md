@@ -84,6 +84,12 @@ e2e/               Browser end-to-end tests
 legacy/v1/         Previous vinext application
 ```
 
+## Local data modes
+
+Start `bun run dev` and open **https://xray.dev.hexly.ai** through Caddy. The header defaults to **Mock**, backed by a separately seeded local database in `packages/worker/.wrangler/state-mock`. Repeated startup preserves existing edits.
+
+Select **Product** to connect the local UI to the production API. First run `bun run login:product` with `cloudflared` installed and finish Cloudflare Access sign-in. Credentials stay in the local server and cloudflared cache. Product operations use your production permissions and can change live data. Tests must never select Product against the real service. Switching reloads the dashboard; the selection persists within the current tab. Production builds do not include this development switch or proxy.
+
 ## Tests
 
 Install dependencies and run `bun run build:shared`, then execute these commands from the repository root:
@@ -94,7 +100,7 @@ Install dependencies and run `bun run build:shared`, then execute these commands
 | Worker HTTP integration tests | `bun run --filter @xray/worker test:e2e` |
 | Browser end-to-end tests | `bun run test:l3` |
 
-HTTP tests start a local Worker with a separate test D1 database. Unset `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `CF_API_TOKEN` before running them. For browser tests, run `bunx playwright install chromium` and keep `bun run dev` running in another terminal. Browser tests create data in the local development database.
+HTTP tests start a local Worker with a separate test D1 database. Unset `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `CF_API_TOKEN` before running them. For browser tests, run `bunx playwright install chromium` and start a separate local test UI and Worker. Set `PLAYWRIGHT_BROWSER_URL`, `PLAYWRIGHT_WORKER_URL`, and `PLAYWRIGHT_INGEST_URL` explicitly. Never use the daily Mock database or the live Product mode for automated tests; see [AGENTS.md](../AGENTS.md).
 
 ## Stack
 

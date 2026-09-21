@@ -2,12 +2,13 @@ import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { productAccess, productProxy } from "./dev/product-proxy.ts";
 
 const rootDir = import.meta.dirname;
 const DEV_HOST = "xray.dev.hexly.ai";
 
 export default defineConfig({
-	plugins: [react(), tailwindcss()],
+	plugins: [productAccess(), react(), tailwindcss()],
 	resolve: {
 		alias: {
 			"@": resolve(rootDir, "./src"),
@@ -18,7 +19,7 @@ export default defineConfig({
 		emptyOutDir: true,
 	},
 	server: {
-		host: "0.0.0.0",
+		host: "127.0.0.1",
 		port: 7007,
 		strictPort: true,
 		// Caddy terminates TLS for https://xray.dev.hexly.ai → :7007
@@ -30,6 +31,7 @@ export default defineConfig({
 			clientPort: 443,
 		},
 		proxy: {
+			"/__product/api/": productProxy,
 			"/api": {
 				target: "http://127.0.0.1:37007",
 				// Keep browser Host (xray.dev.hexly.ai) so worker host/origin checks match Caddy.

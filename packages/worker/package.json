@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "wrangler dev --env development --port 37007 --ip 127.0.0.1",
+		"dev": "wrangler dev --local --env development --port 37007 --ip 127.0.0.1 --persist-to .wrangler/state-mock",
 		"build": "wrangler deploy --dry-run --outdir=dist --env production",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",

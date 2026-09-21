@@ -1,3 +1,5 @@
+import { apiPath } from "@/lib/data-mode";
+
 export class ApiError extends Error {
 	constructor(
 		readonly status: number,
@@ -25,7 +27,7 @@ async function parseError(res: Response): Promise<string> {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
 	let res: Response;
 	try {
-		res = await fetch(path, {
+		res = await fetch(apiPath(path), {
 			credentials: "same-origin",
 			headers: {
 				Accept: "application/json",

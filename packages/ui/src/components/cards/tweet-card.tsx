@@ -38,6 +38,7 @@ import { ExpandableText } from "@/components/expandable-text";
 import { XVerified } from "@/components/icons/x-verified";
 import { SourceChip } from "@/components/source-chip";
 import { useNow } from "@/hooks/use-now";
+import { apiPath } from "@/lib/data-mode";
 import { POST_TEXT_CLAMP_LINES, QUOTED_TEXT_CLAMP_LINES } from "@/lib/expandable-text";
 import { readTranslateRow } from "@/lib/translate-result";
 import type { Tweet, TweetMedia } from "@/lib/tweet-types";
@@ -167,7 +168,7 @@ export const TweetCard = memo(function TweetCard({
 		setTranslating(true);
 		setTranslateError(null);
 		try {
-			const res = await fetch(`/api/watchlists/${watchlistId}/translate`, {
+			const res = await fetch(apiPath(`/api/watchlists/${watchlistId}/translate`), {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				credentials: "same-origin",
@@ -217,7 +218,7 @@ export const TweetCard = memo(function TweetCard({
 		setZhetoStatus("saving");
 		try {
 			const note = `@${tweet.author.username}: ${tweet.text.slice(0, 200)}`;
-			const res = await fetch("/api/integrations/zheto/save", {
+			const res = await fetch(apiPath("/api/integrations/zheto/save"), {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ url: tweet.url, note }),
@@ -668,7 +669,7 @@ function proxyUrl(url: string): string {
 	try {
 		const host = new URL(url).hostname.toLowerCase();
 		if (TWIMG_HOSTS.has(host)) {
-			return `/api/media/proxy?url=${encodeURIComponent(url)}`;
+			return apiPath(`/api/media/proxy?url=${encodeURIComponent(url)}`);
 		}
 	} catch {
 		return url;

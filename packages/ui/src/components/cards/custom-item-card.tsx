@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ExpandableText } from "@/components/expandable-text";
 import { SourceChip } from "@/components/source-chip";
 import { useNow } from "@/hooks/use-now";
+import { apiPath } from "@/lib/data-mode";
 import { POST_TEXT_CLAMP_LINES } from "@/lib/expandable-text";
 import { readTranslateRow } from "@/lib/translate-result";
 import { cn, formatTimeAgo } from "@/lib/utils";
@@ -80,7 +81,7 @@ export function CustomItemCard({
 		setTranslating(true);
 		setTranslateError(null);
 		try {
-			const res = await fetch(`/api/watchlists/${watchlistId}/translate`, {
+			const res = await fetch(apiPath(`/api/watchlists/${watchlistId}/translate`), {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				credentials: "same-origin",
