@@ -1,6 +1,6 @@
 # Retrospective
 
-Historical incident narratives, including the retired v1 Next.js/vinext runtime. These are not current architecture instructions; use [CLAUDE.md](CLAUDE.md) for the active contract. Route cross-project lessons to global rules/nmem and deterministic checks to tests/hooks.
+Historical incident narratives, including the retired v1 Next.js/vinext runtime. These are not current architecture instructions; use [AGENTS.md](AGENTS.md) for the active contract. Route cross-project lessons to global rules/nmem and deterministic checks to tests/hooks.
 
 ## Undated — migrated from the previous handbook
 
@@ -62,3 +62,9 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 - **What:** The initial browser test run used Playwright defaults on ports 7007/37007 and created test fixtures in the daily local database. No production test writes were performed. Eight tests passed; one stale assertion expected ingest logs before opening the Activity panel.
 - **Why:** The README test command was followed before checking the isolation restriction in the legacy project handbook.
 - **Follow-up:** Preserve that restriction in AGENTS.md; use a separate local Worker and UI with explicit Playwright URLs for subsequent runs. Correct the Activity-panel interaction. Mock preview now has its own state-mock directory; the previous daily state is preserved.
+
+## 2026-09-22: Integration verification overlapped source edits
+
+- **What:** Channels browser verification observed a blank page while UI edits were still triggering HMR. A later L2 run returned 503 from an existing AI route while backend formatting was underway. All test mutations remained in isolated local databases.
+- **Why:** The coordinator started acceptance runs before every contributor had handed off stable files. Hot reload was a plausible source of the transient failures; the failures were not treated as proof of a product defect or as successful verification.
+- **Follow-up:** Wait for explicit stable handoffs before the final integration run. After edits stopped, all 14 L3 tests and all 23 L2 tests passed without weakening assertions. The test servers, marked temporary D1 store and task-owned panes were cleaned up.

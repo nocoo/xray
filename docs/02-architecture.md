@@ -28,11 +28,15 @@ xray/
 | Hostname | CF Access | Traffic |
 |----------|-----------|---------|
 | **`xray.hexly.ai`** (prod browser) | **Required** (Google IdP) | SPA + browser `/api/*` |
-| **`xray-ingest.worker.hexly.ai`** (prod agents) | **Bypass** | Bearer agent: graph read + push write + live |
+| **`xray-ingest.worker.hexly.ai`** (prod agents) | **No interactive Access login** | Bearer agent: graph, watchlist push, channel articles; public live |
 | **`xray-staging.hexly.ai`** (pre-cutover smoke) | **Same Access app/AUD as prod browser** (R6-01) | SPA + browser APIs |
-| **`xray-ingest-staging.worker.hexly.ai`** | **Bypass** (same as prod ingest) | graph + push + live |
+| **`xray-ingest-staging.worker.hexly.ai`** | **No interactive Access login** | Same restricted agent routes |
 | **`xray.dev.hexly.ai`** (local Caddy) | `AUTH_DEV_BYPASS` | local |
 | Local wrangler | `AUTH_DEV_BYPASS` | L2/L3 |
+
+The canonical ingest hostname is configured in the repository; production cutover must coordinate custom-domain binding and existing producer configuration. See [Channels](11-channels.md#production-cutover).
+
+Channel keys extend the existing hashed-token store with a required channel binding and the `articles:write` scope. They cannot read the watchlist graph or submit watchlist items. Browser-only channel routes manage names and keys and read reports. Articles live in their own D1 table, ordered by report date rather than ingestion time, with immutable `(channel_id, external_id)` deduplication. The UI renders stored Markdown and loads HTTPS image links directly; no image storage or server-side image fetching is involved. The full DTO and route matrix is in [Channels](11-channels.md).
 
 **Access AUD**: single browser Access application covers `xray.hexly.ai` + `xray-staging.hexly.ai` (one `CF_ACCESS_AUD`). Do **not** create a second Access app for staging unless docs and env add `CF_ACCESS_AUD_STAGING` — MVP uses one AUD.
 

@@ -14,12 +14,13 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 | 08 | [Decisions log](08-open-questions.md) | Closed decisions |
 | 09 | [Local producer (twitter-cli)](09-local-producer-twitter-cli.md) | Local fetch → cache → canonical → ingest push |
 | 10 | [Refresh schedule (60m epoch)](10-refresh-schedule.md) | Pace handles across 60 minutes; 429 defer; incremental |
+| 11 | [Channels](11-channels.md) | Channel-bound producer keys, Markdown reports and split reader |
 
 ## Locked constraints
 
 1. **Stack**: TypeScript 7, Biome, Vite SPA + Hono Worker (`../bat`), CF Workers + D1.
 2. **Auth**: **Cloudflare Access** (Google IdP) on browser host `xray.hexly.ai`; Worker trusts Access JWT (`ALLOWED_EMAILS` optional extra filter).
-3. **Ingest host**: `xray-ingest.worker.hexly.ai` — Access bypass; Bearer agent auth for `GET /api/v1/ingest/graph` + `POST /api/v1/ingest/push` (XR-01 / XR-29).
+3. **Ingest host**: `xray-ingest.worker.hexly.ai` — Bearer agent auth for graph, watchlist push and channel article submission. Browser management routes remain unavailable here. The new hostname is configured locally; production cutover is a separate deployment step.
 4. **UI/CSS**: full visual retain.
 5. **Ingest**: **push-first**, versioned canonical body. No CF Cron auto-refresh.
 6. **Sources**: typed (`x.com` | `custom`); mix timeline; source-aware members.
