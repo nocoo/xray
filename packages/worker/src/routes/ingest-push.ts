@@ -9,6 +9,7 @@ import {
 	type SourceType,
 } from "@xray/shared";
 import type { Context } from "hono";
+import { readBoundedBody } from "../lib/http.js";
 import { requirePushToken, touchPushToken } from "../lib/push-token-auth.js";
 import { insertItemIgnore } from "../repos/items.js";
 import { getWindowHours } from "../repos/settings.js";
@@ -31,37 +32,12 @@ export async function ingestPushRoute(c: Context<AppEnv>) {
 	if (auth instanceof Response) return auth;
 	const row = { id: auth.tokenId, user_id: auth.user.id };
 
-	const reader = c.req.raw.body?.getReader();
-	if (!reader) return c.json({ ok: false, error: "empty body" }, 400);
-	const chunks: Uint8Array[] = [];
-	let total = 0;
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) break;
-		if (value) {
-			total += value.byteLength;
-			if (total > MAX_BODY_BYTES) {
-				try {
-					await reader.cancel();
-				} catch {
-					/* ignore */
-				}
-				return c.json({ ok: false, error: "payload too large" }, 413);
-			}
-			chunks.push(value);
-		}
-	}
-	const merged = new Uint8Array(total);
-	let off = 0;
-	for (const ch of chunks) {
-		merged.set(ch, off);
-		off += ch.byteLength;
-	}
-	const rawText = new TextDecoder().decode(merged);
+	const bodyText = await readBoundedBody(c, MAX_BODY_BYTES);
+	if (!bodyText.ok) return c.json({ ok: false, error: bodyText.error }, bodyText.status);
 
 	let parsedJson: unknown;
 	try {
-		parsedJson = JSON.parse(rawText);
+		parsedJson = JSON.parse(bodyText.text);
 	} catch {
 		return c.json({ ok: false, error: "invalid JSON" }, 400);
 	}

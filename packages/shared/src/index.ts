@@ -14,6 +14,26 @@ export {
 	resolveAuthorId,
 	resolveAuthorUsername,
 } from "./canonical-item.js";
+// --- Channels (docs/11-channels.md) ---
+export type {
+	ArticleInput,
+	ArticlePage,
+	ArticlePageQuery,
+	ArticleParseFail,
+	Channel,
+	ChannelArticle,
+	ChannelArticleSummary,
+	ChannelKey,
+	ParsedArticle,
+} from "./channels.js";
+export {
+	ARTICLE_LIMITS,
+	ARTICLE_PAGE_DEFAULT_LIMIT,
+	ARTICLE_PAGE_MAX_LIMIT,
+	isValidReportDate,
+	parseArticleInput,
+	parseArticlePageQuery,
+} from "./channels.js";
 export { normalizeHandle } from "./handle.js";
 export type { NavGroupDef, NavItemDef } from "./nav.js";
 export { V2_NAV_GROUPS, V2_NAV_LABELS } from "./nav.js";

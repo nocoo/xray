@@ -21,6 +21,11 @@ describe("classifyHost", () => {
 		expect(isIngestAllowedPath("GET", "/api/live")).toBe(true);
 		expect(isIngestAllowedPath("GET", "/api/v1/ingest/graph")).toBe(true);
 		expect(isIngestAllowedPath("POST", "/api/v1/ingest/push")).toBe(true);
+		expect(isIngestAllowedPath("POST", "/api/v1/ingest/articles")).toBe(true);
+		expect(isIngestAllowedPath("GET", "/api/v1/ingest/articles")).toBe(false);
+		expect(isIngestAllowedPath("GET", "/api/channels")).toBe(false);
+		expect(isIngestAllowedPath("GET", "/api/channels/1/articles")).toBe(false);
+		expect(isIngestAllowedPath("POST", "/api/channels/1/keys")).toBe(false);
 		expect(isIngestAllowedPath("GET", "/api/me")).toBe(false);
 		expect(isIngestAllowedPath("GET", "/")).toBe(false);
 	});

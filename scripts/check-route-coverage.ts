@@ -71,8 +71,8 @@ function discoverE2ERequests(): Route[] {
 			requests.push({ method, path: normaliseRequestPath(rawPath) });
 		}
 
-		// jsonFetch("/api/...") or jsonFetch<T>("/api/...", { method: "POST" })
-		const jsonFetchRe = /jsonFetch(?:\s*<[^>]*>)?\(\s*[`"']([^`"']+)[`"']\s*(?:,\s*\{([^}]*)\})?/gs;
+		const jsonFetchRe =
+			/(?:jsonFetch|rawHttp)(?:\s*<[^>]*>)?\(\s*[`"']([^`"']+)[`"']\s*(?:,\s*\{([^}]*)\})?/gs;
 		for (const m of src.matchAll(jsonFetchRe)) {
 			const rawPath = m[1];
 			const opts = m[2] ?? "";

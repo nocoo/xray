@@ -1,8 +1,12 @@
 import { describe, expect, test } from "vitest";
 import {
+	CHANNEL_KEY_SCOPES,
+	createChannelKey,
 	createPushToken,
 	findActiveTokenByHash,
+	listChannelKeys,
 	listPushTokens,
+	revokeChannelKey,
 	revokePushToken,
 	touchPushToken,
 } from "./push-tokens.js";
@@ -28,21 +32,25 @@ function memDb() {
 					return null;
 				},
 				async all<T>() {
-					const [userId] = binds as [string];
+					const [userId, channelId] = binds as [string, number?];
+					if (sql.includes("channel_id = ?")) {
+						return {
+							results: rows.filter(
+								(r) =>
+									r.user_id === userId && r.channel_id === channelId && r.revoked_at_ms == null,
+							) as T[],
+						};
+					}
 					return {
-						results: rows.filter((r) => r.user_id === userId && r.revoked_at_ms == null) as T[],
+						results: rows.filter(
+							(r) => r.user_id === userId && r.revoked_at_ms == null && r.channel_id == null,
+						) as T[],
 					};
 				},
 				async run() {
 					if (sql.includes("INSERT INTO push_tokens")) {
-						const [user_id, token_prefix, token_hash, label, scopes, created_at_ms] = binds as [
-							string,
-							string,
-							string,
-							string,
-							string,
-							number,
-						];
+						const [user_id, token_prefix, token_hash, label, scopes, created_at_ms, channel_id] =
+							binds as [string, string, string, string, string, number, number | null];
 						const id = seq++;
 						rows.push({
 							id,
@@ -54,6 +62,7 @@ function memDb() {
 							created_at_ms,
 							last_used_at_ms: null,
 							revoked_at_ms: null,
+							channel_id: channel_id ?? null,
 						});
 						return { meta: { changes: 1, last_row_id: id } };
 					}
@@ -90,4 +99,50 @@ describe("push-tokens repo", () => {
 		expect(await revokePushToken(db, "u1", t.id)).toBe(true);
 		expect(await listPushTokens(db, "u1")).toHaveLength(0);
 	});
+
+	test("channel keys are excluded from watchlist token list and scoped to their channel", async () => {
+		const db = memDb();
+		await createPushToken(db, "u1", "watchlist", "aaaa1111", "hash-wl");
+		const key = await createChannelKey(db, "u1", 3, "Research Agent", "bbbb2222", "hash-ch");
+		expect(key).toMatchObject({ channelId: 3, label: "Research Agent", tokenPrefix: "bbbb2222" });
+		expect(JSON.parse(String(await tokenScopes(db, "hash-ch")))).toEqual([...CHANNEL_KEY_SCOPES]);
+		const listed = await listPushTokens(db, "u1");
+		expect(listed).toHaveLength(1);
+		expect(listed[0]?.label).toBe("watchlist");
+		const keys = await listChannelKeys(db, "u1", 3);
+		expect(keys).toHaveLength(1);
+		expect(keys[0]).toMatchObject({ id: key.id, channelId: 3, label: "Research Agent" });
+		expect(await listChannelKeys(db, "u1", 4)).toHaveLength(0);
+		expect(await listChannelKeys(db, "u2", 3)).toHaveLength(0);
+		expect(await revokeChannelKey(db, "u1", 3, key.id)).toBe(true);
+		expect(await revokeChannelKey(db, "u1", 3, key.id)).toBe(false);
+		expect(await revokeChannelKey(db, "u1", 4, key.id + 1)).toBe(false);
+		expect(await listChannelKeys(db, "u1", 3)).toHaveLength(0);
+	});
+
+	test("degraded D1 responses fall back safely", async () => {
+		const nullResults = {
+			prepare() {
+				const stmt = {
+					bind() {
+						return stmt;
+					},
+					async all<T>() {
+						return { results: null as T[] };
+					},
+					async run() {
+						return { meta: {} };
+					},
+				};
+				return stmt;
+			},
+		} as unknown as D1Database;
+		expect(await listChannelKeys(nullResults, "u1", 1)).toEqual([]);
+		expect(await revokeChannelKey(nullResults, "u1", 1, 2)).toBe(false);
+	});
 });
+
+async function tokenScopes(db: D1Database, hash: string): Promise<string> {
+	const row = await findActiveTokenByHash(db, hash);
+	return (row as { scopes: string }).scopes;
+}

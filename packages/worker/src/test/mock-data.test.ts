@@ -17,5 +17,21 @@ test("mock seed populates both sources and preserves edits on repeated startup",
 		.prepare("SELECT DISTINCT source_type FROM items ORDER BY source_type")
 		.all();
 	expect(sources.results).toEqual([{ source_type: "custom" }, { source_type: "x.com" }]);
+	expect(await db.prepare("SELECT COUNT(*) AS count FROM channels").first()).toEqual({ count: 2 });
+	expect(await db.prepare("SELECT COUNT(*) AS count FROM channel_articles").first()).toEqual({
+		count: 7,
+	});
+	expect(
+		await db
+			.prepare(
+				"SELECT COUNT(*) AS count FROM push_tokens WHERE channel_id IS NOT NULL AND revoked_at_ms IS NULL",
+			)
+			.first(),
+	).toEqual({ count: 0 });
+	await db.prepare("UPDATE channels SET name = 'Personal notes' WHERE id = 1").run();
+	await db.exec(seed);
+	expect(await db.prepare("SELECT name FROM channels WHERE id = 1").first()).toEqual({
+		name: "Personal notes",
+	});
 	expect((await db.prepare("PRAGMA foreign_key_check").all()).results).toEqual([]);
 });

@@ -358,6 +358,34 @@ describe("accessAuth JWT path", () => {
 		});
 		expect(res.status).toBe(200);
 	});
+
+	test("articles agent path: ingest/local proceed, browser host 404", async () => {
+		const app = makeApp({ AUTH_DEV_BYPASS: "true", ENVIRONMENT: "development" });
+		app.post("/api/v1/ingest/articles", (c) => c.json({ ok: true }));
+		for (const host of [
+			"xray-ingest.worker.hexly.ai",
+			"xray-ingest-staging.worker.hexly.ai",
+			"localhost",
+		]) {
+			const res = await app.request("/api/v1/ingest/articles", {
+				method: "POST",
+				headers: { host },
+			});
+			expect(res.status, host).toBe(200);
+		}
+		expect(
+			(
+				await app.request("/api/v1/ingest/articles", {
+					method: "POST",
+					headers: { host: "xray.hexly.ai" },
+				})
+			).status,
+		).toBe(404);
+		expect(
+			(await app.request("/api/channels", { headers: { host: "xray-ingest.worker.hexly.ai" } }))
+				.status,
+		).toBe(404);
+	});
 });
 
 describe("accessAuth real jose/JWKS path (S23R3-01)", () => {

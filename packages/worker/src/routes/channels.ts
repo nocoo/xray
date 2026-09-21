@@ -1,0 +1,130 @@
+import { parseArticlePageQuery } from "@xray/shared";
+import type { Context } from "hono";
+import { jsonErr, jsonOk, parseChannelBody, parseIdParam, requireUser } from "../lib/http.js";
+import { mintPushToken } from "../lib/push-token-crypto.js";
+import {
+	createChannel,
+	getChannel,
+	getChannelArticle,
+	listChannelArticles,
+	listChannels,
+	updateChannel,
+} from "../repos/channels.js";
+import { createChannelKey, listChannelKeys, revokeChannelKey } from "../repos/push-tokens.js";
+import type { AppEnv } from "../types.js";
+
+const MAX_LABEL = 64;
+
+function parseKeyLabel(raw: unknown): { ok: true; label: string } | { ok: false; error: string } {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+		return { ok: false, error: "invalid body" };
+	}
+	const label = (raw as { label?: unknown }).label;
+	if (typeof label !== "string" || !label.trim()) {
+		return { ok: false, error: "label required" };
+	}
+	return { ok: true, label: label.trim().slice(0, MAX_LABEL) };
+}
+
+export async function listChannelsRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	return jsonOk(c, await listChannels(c.env.DB, user.id));
+}
+
+export async function createChannelRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	const parsed = parseChannelBody(await c.req.json().catch(() => null), "create");
+	if (!parsed.ok) return jsonErr(c, parsed.error, 400);
+	return jsonOk(
+		c,
+		await createChannel(c.env.DB, user.id, {
+			name: parsed.value.name as string,
+			description: parsed.value.description,
+		}),
+		201,
+	);
+}
+
+export async function patchChannelRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	const id = parseIdParam(c.req.param("id"));
+	if (!id) return jsonErr(c, "invalid id", 400);
+	const parsed = parseChannelBody(await c.req.json().catch(() => null), "patch");
+	if (!parsed.ok) return jsonErr(c, parsed.error, 400);
+	const data = await updateChannel(c.env.DB, user.id, id, parsed.value);
+	if (!data) return jsonErr(c, "Not found", 404);
+	return jsonOk(c, data);
+}
+
+export async function listChannelArticlesRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	const id = parseIdParam(c.req.param("id"));
+	if (!id) return jsonErr(c, "invalid id", 400);
+	const parsed = parseArticlePageQuerySafe(c);
+	if (!parsed.ok) return jsonErr(c, parsed.error, 400);
+	if (!(await getChannel(c.env.DB, user.id, id))) return jsonErr(c, "Not found", 404);
+	const page = await listChannelArticles(c.env.DB, user.id, id, parsed.value);
+	if (!page) return jsonErr(c, "invalid before", 400);
+	return jsonOk(c, page);
+}
+
+export async function getChannelArticleRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	const id = parseIdParam(c.req.param("id"));
+	const articleId = parseIdParam(c.req.param("articleId"));
+	if (!id || !articleId) return jsonErr(c, "invalid id", 400);
+	const data = await getChannelArticle(c.env.DB, user.id, id, articleId);
+	if (!data) return jsonErr(c, "Not found", 404);
+	return jsonOk(c, data);
+}
+
+export async function listChannelKeysRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	const id = parseIdParam(c.req.param("id"));
+	if (!id) return jsonErr(c, "invalid id", 400);
+	if (!(await getChannel(c.env.DB, user.id, id))) return jsonErr(c, "Not found", 404);
+	return jsonOk(c, await listChannelKeys(c.env.DB, user.id, id));
+}
+
+export async function createChannelKeyRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	const id = parseIdParam(c.req.param("id"));
+	if (!id) return jsonErr(c, "invalid id", 400);
+	if (!(await getChannel(c.env.DB, user.id, id))) return jsonErr(c, "Not found", 404);
+	const parsed = parseKeyLabel(await c.req.json().catch(() => null));
+	if (!parsed.ok) return jsonErr(c, parsed.error, 400);
+	const minted = await mintPushToken();
+	const key = await createChannelKey(
+		c.env.DB,
+		user.id,
+		id,
+		parsed.label,
+		minted.tokenPrefix,
+		minted.tokenHash,
+	);
+	return jsonOk(c, { ...key, token: minted.plaintext }, 201);
+}
+
+export async function revokeChannelKeyRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	const id = parseIdParam(c.req.param("id"));
+	const keyId = parseIdParam(c.req.param("keyId"));
+	if (!id || !keyId) return jsonErr(c, "invalid id", 400);
+	if (!(await getChannel(c.env.DB, user.id, id))) return jsonErr(c, "Not found", 404);
+	const ok = await revokeChannelKey(c.env.DB, user.id, id, keyId);
+	if (!ok) return jsonErr(c, "Not found", 404);
+	return jsonOk(c, { revoked: true });
+}
+
+function parseArticlePageQuerySafe(c: Context<AppEnv>): ReturnType<typeof parseArticlePageQuery> {
+	const q = c.req.query();
+	return parseArticlePageQuery({ date: q.date, before: q.before, limit: q.limit });
+}

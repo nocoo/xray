@@ -5,6 +5,16 @@ import { accessAuth } from "./middleware/access-auth.js";
 import { observability } from "./middleware/observability.js";
 import { originCheck } from "./middleware/origin-check.js";
 import { getAiConfigRoute, putAiConfigRoute, testAiConfigRoute } from "./routes/ai.js";
+import {
+	createChannelKeyRoute,
+	createChannelRoute,
+	getChannelArticleRoute,
+	listChannelArticlesRoute,
+	listChannelKeysRoute,
+	listChannelsRoute,
+	patchChannelRoute,
+	revokeChannelKeyRoute,
+} from "./routes/channels.js";
 import { getDashboardRoute } from "./routes/dashboard.js";
 import {
 	addGroupMemberRoute,
@@ -18,6 +28,7 @@ import {
 	listGroupsRoute,
 	patchGroupRoute,
 } from "./routes/groups.js";
+import { ingestArticlesRoute } from "./routes/ingest-articles.js";
 import { ingestGraphRoute } from "./routes/ingest-graph.js";
 import { listWatchlistIngestLogsRoute } from "./routes/ingest-logs.js";
 import { ingestPushRoute } from "./routes/ingest-push.js";
@@ -123,8 +134,18 @@ app.get("/api/push-tokens", listTokensRoute);
 app.post("/api/push-tokens", createTokenRoute);
 app.delete("/api/push-tokens/:id", revokeTokenRoute);
 
+app.get("/api/channels", listChannelsRoute);
+app.post("/api/channels", createChannelRoute);
+app.patch("/api/channels/:id", patchChannelRoute);
+app.get("/api/channels/:id/articles", listChannelArticlesRoute);
+app.get("/api/channels/:id/articles/:articleId", getChannelArticleRoute);
+app.get("/api/channels/:id/keys", listChannelKeysRoute);
+app.post("/api/channels/:id/keys", createChannelKeyRoute);
+app.delete("/api/channels/:id/keys/:keyId", revokeChannelKeyRoute);
+
 app.get("/api/v1/ingest/graph", ingestGraphRoute);
 app.post("/api/v1/ingest/push", ingestPushRoute);
+app.post("/api/v1/ingest/articles", ingestArticlesRoute);
 
 // Browser/local SPA via ASSETS binding
 app.all("*", async (c) => {

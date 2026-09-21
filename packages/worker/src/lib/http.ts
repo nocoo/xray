@@ -264,3 +264,64 @@ export function parseTagBody(raw: unknown): ParseOk<{ name: string; color: strin
 		value: { name: name.value, color: color.value || "hsl(210, 70%, 45%)" },
 	};
 }
+
+export function parseChannelBody(
+	raw: unknown,
+	mode: "create" | "patch",
+): ParseOk<{ name?: string; description?: string | null }> | ParseFail {
+	const o = asObject(raw);
+	if (!o) return { ok: false, error: "invalid body" };
+	const name = optString(o.name, "name", MAX_NAME);
+	if (!name.ok) return name;
+	const description = optString(o.description, "description", MAX_DESC, {
+		allowNull: true,
+		allowEmpty: true,
+	});
+	if (!description.ok) return description;
+	if (mode === "create") {
+		if (!name.value) return { ok: false, error: "name required" };
+		return {
+			ok: true,
+			value: { name: name.value, description: description.value ?? null },
+		};
+	}
+	if (name.value === undefined && description.value === undefined) {
+		return { ok: false, error: "empty update" };
+	}
+	return {
+		ok: true,
+		value: { name: name.value ?? undefined, description: description.value },
+	};
+}
+
+/** Stream a request body with a hard byte cap (agent JSON ingestion). */
+export async function readBoundedBody(
+	c: Context<AppEnv>,
+	maxBytes: number,
+): Promise<{ ok: true; text: string } | { ok: false; status: 400 | 413; error: string }> {
+	const reader = c.req.raw.body?.getReader();
+	if (!reader) return { ok: false, status: 400, error: "empty body" };
+	const chunks: Uint8Array[] = [];
+	let total = 0;
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		total += value.byteLength;
+		if (total > maxBytes) {
+			try {
+				await reader.cancel();
+			} catch {
+				/* ignore */
+			}
+			return { ok: false, status: 413, error: "payload too large" };
+		}
+		chunks.push(value);
+	}
+	const merged = new Uint8Array(total);
+	let off = 0;
+	for (const ch of chunks) {
+		merged.set(ch, off);
+		off += ch.byteLength;
+	}
+	return { ok: true, text: new TextDecoder().decode(merged) };
+}

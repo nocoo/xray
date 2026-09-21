@@ -10,6 +10,9 @@ export type PushTokenAuthOk = {
 	user: AuthUser;
 	tokenId: number;
 	scopes: string[];
+	/** Channel binding for articles:write keys; null for watchlist tokens */
+	channelId: number | null;
+	label: string;
 };
 
 export type PushTokenAuthErr = {
@@ -64,7 +67,14 @@ export async function authenticatePushToken(
 	};
 	c.set("authUser", user);
 
-	return { ok: true, user, tokenId: row.id, scopes };
+	return {
+		ok: true,
+		user,
+		tokenId: row.id,
+		scopes,
+		channelId: row.channel_id ?? null,
+		label: row.label,
+	};
 }
 
 export async function requirePushToken(
