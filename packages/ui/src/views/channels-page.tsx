@@ -1,13 +1,4 @@
-import {
-	Badge,
-	Button,
-	ConfirmDialog,
-	LayerCard,
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetTitle,
-} from "@nocoo/basalt";
+import { Badge, Button, ConfirmDialog, LayerCard } from "@nocoo/basalt";
 import { Banner } from "@nocoo/basalt/components/banner";
 import {
 	Dialog,
@@ -38,7 +29,7 @@ import {
 	TriangleAlert,
 	Type,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { ArticleEditor } from "@/components/article-editor";
 import { ArticleFiltersBar } from "@/components/article-filters-bar";
@@ -83,9 +74,9 @@ export function ChannelsPage() {
 	const [deleting, setDeleting] = useState(false);
 	const pageRef = useRef<HTMLElement>(null);
 	const linksButton = useRef<HTMLButtonElement>(null);
-	const [wideReader, setWideReader] = useState(false);
+	const [stackedLinks, setStackedLinks] = useState(false);
+	const linksId = useId();
 	const [showLinks, setShowLinks] = useState(true);
-	const [linksOpen, setLinksOpen] = useState(false);
 	const editButton = useRef<HTMLButtonElement>(null);
 	const list = useRef<HTMLElement>(null);
 	const documentRef = useRef<HTMLDivElement>(null);
@@ -96,18 +87,14 @@ export function ChannelsPage() {
 	const article =
 		state.article?.channelId === channelId && state.article.id === articleId ? state.article : null;
 	const links = useMemo(() => extractArticleLinks(article?.markdown ?? ""), [article?.markdown]);
-	const inlineLinks = wideReader && !preferences.fullWidth;
-	const showInlineLinks = Boolean(article && inlineLinks && showLinks && links.length > 0);
+	const hasLinks = Boolean(article && links.length > 0);
 	useEffect(() => {
 		const observer = new ResizeObserver(([entry]) =>
-			setWideReader(entry.contentRect.width >= 1024),
+			setStackedLinks(entry.contentRect.width <= 560),
 		);
 		if (pageRef.current) observer.observe(pageRef.current);
 		return () => observer.disconnect();
 	}, []);
-	useEffect(() => {
-		if (inlineLinks) setLinksOpen(false);
-	}, [inlineLinks]);
 	const matchingList = state.channelId === channelId && state.filterQuery === filterQuery;
 	const listLoading = state.loading || !matchingList;
 	const emptyList = !listLoading && state.items.length === 0;
@@ -142,7 +129,6 @@ export function ChannelsPage() {
 		void vm.selectArticle(channelId, articleId);
 		setEditing(false);
 		setDeleting(false);
-		setLinksOpen(false);
 		return () => {
 			void vm.selectArticle(0, 0);
 		};
@@ -246,6 +232,20 @@ export function ChannelsPage() {
 		setPreferences(next);
 		writeReaderValue(sessionStorage, `${scope}:preferences`, JSON.stringify(next));
 	}
+
+	const linksPanel = article && hasLinks && (
+		<ArticleLinksPanel
+			key={`${channelId}/${articleId}`}
+			id={linksId}
+			article={article}
+			links={links}
+			open={showLinks}
+			onClose={() => {
+				setShowLinks(false);
+				linksButton.current?.focus({ preventScroll: true });
+			}}
+		/>
+	);
 
 	return (
 		<section
@@ -388,9 +388,10 @@ export function ChannelsPage() {
 										size="icon"
 										className="h-8 w-8"
 										aria-label="Related links"
-										aria-expanded={inlineLinks ? showInlineLinks : linksOpen}
+										aria-expanded={hasLinks && showLinks}
+										aria-controls={hasLinks ? linksId : undefined}
 										disabled={!article || links.length === 0}
-										onClick={() => (inlineLinks ? setShowLinks(!showLinks) : setLinksOpen(true))}
+										onClick={() => setShowLinks(!showLinks)}
 									>
 										<Link2 className="h-4 w-4" aria-hidden="true" />
 									</Button>
@@ -416,7 +417,7 @@ export function ChannelsPage() {
 			<div
 				className="channel-panes"
 				data-reading={Boolean(articleId && !mobileList)}
-				data-links={showInlineLinks}
+				data-has-links={hasLinks && !stackedLinks}
 			>
 				<LayerCard outlined padding="none" className="channel-list-column channel-side-panel">
 					<div className="channel-panel-heading">
@@ -616,48 +617,12 @@ export function ChannelsPage() {
 									}
 								/>
 							)}
+							{stackedLinks && linksPanel}
 						</div>
 					</LayerCard.Well>
 				</LayerCard>
-				{article && showInlineLinks && (
-					<LayerCard
-						outlined
-						padding="none"
-						className="channel-related-links channel-side-panel"
-						role="complementary"
-						aria-label="Related article links"
-					>
-						<ArticleLinksPanel
-							className="channel-links-stack"
-							key={`${channelId}/${articleId}`}
-							article={article}
-							links={links}
-						/>
-					</LayerCard>
-				)}
+				{!stackedLinks && linksPanel}
 			</div>
-			{article && (
-				<Sheet open={linksOpen && !inlineLinks} onOpenChange={setLinksOpen}>
-					<SheetContent
-						side="right"
-						className="w-[calc(var(--spacing)*115.2)] max-w-[calc(100vw-1rem)]"
-						onCloseAutoFocus={(event) => {
-							event.preventDefault();
-							linksButton.current?.focus();
-						}}
-					>
-						<SheetTitle>Related links</SheetTitle>
-						<SheetDescription>Sources and references from this report.</SheetDescription>
-						<div className="channel-related-links min-h-0 overflow-y-auto">
-							<ArticleLinksPanel
-								key={`${channelId}/${articleId}`}
-								article={article}
-								links={links}
-							/>
-						</div>
-					</SheetContent>
-				</Sheet>
-			)}
 			{article && (
 				<>
 					<Dialog

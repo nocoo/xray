@@ -10,6 +10,7 @@ afterEach(() => {
 	vi.resetAllMocks();
 	vi.unstubAllGlobals();
 });
+const panelProps = { id: "article-links", open: true, onClose: vi.fn() };
 const links: ArticleLink[] = [{ url: "https://example.com/report", label: "Source report" }];
 const article: ChannelArticle = {
 	id: 2,
@@ -56,7 +57,7 @@ function observers() {
 test("bare cards are usable before visibility; visible metadata enriches them and broken images disappear", async () => {
 	const watching = observers();
 	vi.mocked(fetchArticleLinkPreview).mockResolvedValue(preview);
-	const view = render(<ArticleLinksPanel article={article} links={links} />);
+	const view = render(<ArticleLinksPanel {...panelProps} article={article} links={links} />);
 	expect(screen.getByRole("region", { name: "Related links" })).toBeTruthy();
 	const bare = screen.getByRole("link", { name: "Source report (opens in a new tab)" });
 	expect(bare.getAttribute("href")).toBe(links[0].url);
@@ -73,6 +74,14 @@ test("bare cards are usable before visibility; visible metadata enriches them an
 	expect(view.container.querySelector("img")).toBeNull();
 	expect(screen.getByText("A short description")).toBeTruthy();
 	expect(watching[0].disconnect).toHaveBeenCalled();
+	fireEvent.click(screen.getByRole("button", { name: "Close related links" }));
+	expect(panelProps.onClose).toHaveBeenCalledOnce();
+	view.rerender(<ArticleLinksPanel {...panelProps} article={article} links={links} open={false} />);
+	expect(screen.queryByRole("complementary")).toBeNull();
+	expect(view.container.querySelector("#article-links")?.hasAttribute("inert")).toBe(true);
+	view.rerender(<ArticleLinksPanel {...panelProps} article={article} links={links} />);
+	expect(screen.getByRole("link", { name: "Metadata title (opens in a new tab)" })).toBeTruthy();
+	expect(fetchArticleLinkPreview).toHaveBeenCalledOnce();
 });
 
 test("unavailable previews retain all links; insecure images are never rendered", async () => {
@@ -81,7 +90,7 @@ test("unavailable previews retain all links; insecure images are never rendered"
 		.mockRejectedValueOnce(new Error("Blocked"))
 		.mockResolvedValueOnce({ ...preview, title: null, imageUrl: "http://example.com/unsafe.jpg" });
 	const more = [...links, { url: "https://other.example/", label: "" }];
-	const view = render(<ArticleLinksPanel article={article} links={more} />);
+	const view = render(<ArticleLinksPanel {...panelProps} article={article} links={more} />);
 	await waitFor(() => expect(fetchArticleLinkPreview).toHaveBeenCalledTimes(2));
 	expect(screen.getAllByRole("listitem")).toHaveLength(2);
 	expect(screen.getByRole("link", { name: "Source report (opens in a new tab)" })).toBeTruthy();
@@ -99,9 +108,11 @@ test("changing articles aborts visible work and unmount disconnects observers an
 		signals.push(signal);
 		return new Promise(() => {});
 	});
-	const view = render(<ArticleLinksPanel article={article} links={links} />);
+	const view = render(<ArticleLinksPanel {...panelProps} article={article} links={links} />);
 	watching[0].show();
-	view.rerender(<ArticleLinksPanel article={{ ...article, id: 3 }} links={links} />);
+	view.rerender(
+		<ArticleLinksPanel {...panelProps} article={{ ...article, id: 3 }} links={links} />,
+	);
 	expect(signals[0].aborted).toBe(true);
 	watching[watching.length - 1].show();
 	expect(signals).toHaveLength(2);
@@ -111,7 +122,7 @@ test("changing articles aborts visible work and unmount disconnects observers an
 });
 
 test("empty supplied links render an accessible empty state without fetching", () => {
-	render(<ArticleLinksPanel article={article} links={[]} />);
+	render(<ArticleLinksPanel {...panelProps} article={article} links={[]} />);
 	expect(screen.getByText("No related links in this report.")).toBeTruthy();
 	expect(fetchArticleLinkPreview).not.toHaveBeenCalled();
 });

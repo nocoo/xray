@@ -1,6 +1,6 @@
-import { Badge, LayerCard } from "@nocoo/basalt";
+import { Badge, Button, LayerCard } from "@nocoo/basalt";
 import type { ArticleLink, ChannelArticle } from "@xray/shared";
-import { ArrowUpRight, Link2 } from "lucide-react";
+import { ArrowUpRight, Link2, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { fetchArticleLinkPreview } from "@/api/article-links";
 import {
@@ -86,11 +86,15 @@ function LinkCard({ link, vm }: { link: ArticleLinkState; vm: ArticleLinksVm }) 
 export function ArticleLinksPanel({
 	article,
 	links: extractedLinks,
-	className,
+	id,
+	open,
+	onClose,
 }: {
 	article: ChannelArticle;
 	links?: ArticleLink[];
-	className?: string;
+	id: string;
+	open: boolean;
+	onClose: () => void;
 }) {
 	const vm = useMemo(() => createArticleLinksVm(fetchArticleLinkPreview), []);
 	const state = useVm(vm);
@@ -109,29 +113,60 @@ export function ArticleLinksPanel({
 		return vm.cancel;
 	}, [vm, article.id, article.channelId, article.markdown, extractedLinks]);
 	return (
-		<section aria-labelledby={titleId} className={`min-w-0 ${className ?? ""}`}>
-			<div className="channel-panel-heading">
-				<h2 id={titleId} className="inline-flex items-center gap-2 text-sm font-semibold">
-					<Link2 className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" />
-					Related links
-				</h2>
-				<Badge
-					variant="secondary"
-					className="h-6 min-w-7 justify-center border-basalt-border/40 px-2 py-0 tabular-nums text-basalt-muted-foreground"
+		<div
+			id={id}
+			className="channel-links-region"
+			data-open={open}
+			aria-hidden={!open}
+			inert={!open}
+		>
+			<div className="channel-links-clip">
+				<LayerCard
+					outlined
+					padding="none"
+					className="channel-related-links channel-side-panel ring-inset"
+					role="complementary"
+					aria-label="Related article links"
 				>
-					{links.length}
-					<span className="sr-only"> related links</span>
-				</Badge>
+					<section aria-labelledby={titleId} className="channel-links-stack min-w-0">
+						<div className="channel-panel-heading">
+							<h2 id={titleId} className="inline-flex items-center gap-2 text-sm font-semibold">
+								<Link2 className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" />
+								Related links
+							</h2>
+							<div className="flex items-center gap-2">
+								<Badge
+									variant="secondary"
+									className="h-6 min-w-7 justify-center border-basalt-border/40 px-2 py-0 tabular-nums text-basalt-muted-foreground"
+								>
+									{links.length}
+									<span className="sr-only"> related links</span>
+								</Badge>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-6 w-6"
+									aria-label="Close related links"
+									onClick={onClose}
+								>
+									<X className="h-3.5 w-3.5" aria-hidden="true" />
+								</Button>
+							</div>
+						</div>
+						{links.length ? (
+							<ul aria-label="Related links" className="channel-links-list space-y-3 p-3">
+								{links.map((link) => (
+									<LinkCard key={`${state.revision}/${link.url}`} link={link} vm={vm} />
+								))}
+							</ul>
+						) : (
+							<p className="p-3 text-sm text-basalt-muted-foreground">
+								No related links in this report.
+							</p>
+						)}
+					</section>
+				</LayerCard>
 			</div>
-			{links.length ? (
-				<ul aria-label="Related links" className="channel-links-list space-y-3 p-3">
-					{links.map((link) => (
-						<LinkCard key={`${state.revision}/${link.url}`} link={link} vm={vm} />
-					))}
-				</ul>
-			) : (
-				<p className="p-3 text-sm text-basalt-muted-foreground">No related links in this report.</p>
-			)}
-		</section>
+		</div>
 	);
 }

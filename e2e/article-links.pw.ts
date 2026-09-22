@@ -8,7 +8,7 @@ test.beforeAll(() => {
 	}
 });
 
-test("related previews integrate with reading width, tags, keyboard, and mobile sheets", async ({ page, request }) => {
+test("related previews stay beside the reader and expand inline on mobile", async ({ page, request }) => {
 	await page.setViewportSize({ width: 1660, height: 1000 });
 	const created = await request.post(`${WORKER}/api/channels`, { headers: browserApiHeaders, data: { name: `Reader links ${Date.now()}` } });
 	const channel = (await created.json()).data;
@@ -49,7 +49,7 @@ test("related previews integrate with reading width, tags, keyboard, and mobile 
 	expect(geometry.ordered).toBe(true);
 	expect(geometry.width).toBeGreaterThan(500);
 	expect(geometry.background).toBe("rgb(255, 255, 255)");
-	for (const width of [1440, 1366]) {
+	for (const width of [1440, 1366, 1280]) {
 		await page.setViewportSize({ width, height: 1000 });
 		await expect(aside).toBeVisible();
 		await expect.poll(() => page.locator(".channel-panes").evaluate(panes => {
@@ -86,27 +86,67 @@ test("related previews integrate with reading width, tags, keyboard, and mobile 
 			&& value('.channel-header button', "backgroundColor") < 50;
 	})).toBe(true);
 	await page.screenshot({ path: "/tmp/xray-related-links-dark.png", fullPage: true, animations: "disabled" });
-	await page.getByRole("button", { name: "Related links", exact: true }).click();
-	await expect(aside).toHaveCount(0);
-	await page.getByRole("button", { name: "Related links", exact: true }).click();
-	await expect(aside).toBeVisible();
-	await page.getByRole("button", { name: "Use full reading width", exact: true }).click();
-	await expect(aside).toHaveCount(0);
-	await expect.poll(async () => (await content.boundingBox())!.width).toBeGreaterThan(geometry.width);
 	const openLinks = page.getByRole("button", { name: "Related links", exact: true });
-	await openLinks.click();
-	const sheet = page.getByRole("dialog", { name: "Related links", exact: true });
-	await expect(sheet).toBeVisible();
-	await expect(sheet.getByRole("listitem")).toHaveCount(3);
-	await page.keyboard.press("Escape");
-	await expect(sheet).toHaveCount(0);
+	const region = page.locator(".channel-links-region");
+	await expect(openLinks).toHaveAttribute("aria-expanded", "true");
+	expect(await openLinks.getAttribute("aria-controls")).toBe(await region.getAttribute("id"));
+	const expandedWidth = (await content.boundingBox())!.width;
+	const previewsBeforeClose = previewed.length;
+	await aside.getByRole("button", { name: "Close related links" }).click();
 	await expect(openLinks).toBeFocused();
+	await expect(openLinks).toHaveAttribute("aria-expanded", "false");
+	await expect(region).toHaveAttribute("inert", "");
+	expect(await region.evaluate(node => node.getAnimations().some(animation => (animation as CSSTransition).transitionProperty === "width"))).toBe(true);
+	await expect(aside).toHaveCount(0);
+	await expect.poll(async () => (await region.boundingBox())!.width).toBe(0);
+	await expect.poll(async () => (await content.boundingBox())!.width).toBeGreaterThan(expandedWidth);
+	await openLinks.click();
+	await expect(aside).toBeVisible();
+	await expect.poll(async () => (await content.boundingBox())!.width).toBe(expandedWidth);
+	expect(previewed).toHaveLength(previewsBeforeClose);
+	await page.setViewportSize({ width: 2400, height: 1000 });
+	const prose = page.locator(".channel-prose");
+	const limitedWidth = (await prose.boundingBox())!.width;
+	await page.getByRole("button", { name: "Use full reading width", exact: true }).click();
+	await expect(aside).toBeVisible();
+	await expect.poll(async () => (await prose.boundingBox())!.width).toBeGreaterThan(limitedWidth);
+	await expect(openLinks).toHaveAttribute("aria-expanded", "true");
+	await page.setViewportSize({ width: 1024, height: 1000 });
+	await expect(page.getByRole("button", { name: "Back to reports", exact: true })).toBeVisible();
+	await expect.poll(() => page.locator(".channel-panes").evaluate(panes => {
+		const reader = panes.querySelector(".channel-reading-panel")!.getBoundingClientRect();
+		const links = panes.querySelector(".channel-related-links")!.getBoundingClientRect();
+		return reader.width >= 440 && reader.right <= links.left && reader.top === links.top
+			&& document.documentElement.scrollWidth <= innerWidth;
+	})).toBe(true);
+	await page.getByRole("button", { name: "Back to reports", exact: true }).click();
+	await expect(aside).not.toBeVisible();
+	await page.getByRole("button", { name: /研发观察：让阅读回到内容/ }).click();
+	await expect(aside).toBeVisible();
 	await page.setViewportSize({ width: 320, height: 844 });
-	await openLinks.click();
-	await expect(sheet).toBeVisible();
+	await expect(content.locator(".channel-links-region[data-open='true']")).toHaveCount(1);
+	await expect(aside).toBeVisible();
+	await expect(page.getByRole("dialog", { name: "Related links", exact: true })).toHaveCount(0);
+	await expect.poll(() => content.evaluate(document => {
+		const article = document.querySelector("article")!.getBoundingClientRect();
+		const links = document.querySelector(".channel-related-links")!.getBoundingClientRect();
+		return links.top >= article.bottom && links.left >= article.left && links.right <= article.right;
+	})).toBe(true);
+	await aside.getByRole("heading", { name: "Related links", exact: true }).scrollIntoViewIfNeeded();
 	await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-	await page.screenshot({ path: "/tmp/xray-related-links-mobile.png", fullPage: true });
-	await page.keyboard.press("Escape");
-	await expect(content.getByRole("heading", { name: "研发观察：让阅读回到内容", exact: true })).toBeVisible();
+	await page.screenshot({ path: "/tmp/xray-related-links-mobile.png" });
+	await aside.getByRole("button", { name: "Close related links" }).click();
+	expect(await region.evaluate(node => node.getAnimations().some(animation => (animation as CSSTransition).transitionProperty === "grid-template-rows"))).toBe(true);
 	await expect(openLinks).toBeFocused();
+	await expect.poll(async () => (await region.boundingBox())!.height).toBe(0);
+	await openLinks.click();
+	await expect(aside).toBeVisible();
+	await page.emulateMedia({ reducedMotion: "reduce" });
+	await openLinks.click();
+	await expect.poll(async () => (await region.boundingBox())!.height).toBe(0);
+	expect(await region.evaluate(node => node.getAnimations({ subtree: true }).length)).toBe(0);
+	await page.reload();
+	await expect(content.locator(".channel-links-region[data-open='true']")).toHaveCount(1);
+	await expect(aside).toBeVisible();
+	await expect(openLinks).toHaveAttribute("aria-expanded", "true");
 });
