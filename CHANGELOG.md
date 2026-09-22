@@ -2,6 +2,11 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.5.1
+
+### Fixed
+- Show reader links and centered empty states
+
 ## v2.5.0
 
 ### Added

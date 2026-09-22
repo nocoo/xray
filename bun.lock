@@ -16,7 +16,7 @@
     },
     "packages/shared": {
       "name": "@xray/shared",
-      "version": "2.5.0",
+      "version": "2.5.1",
       "dependencies": {
         "remark-gfm": "4.0.1",
         "remark-parse": "11.0.0",
@@ -31,7 +31,7 @@
     },
     "packages/ui": {
       "name": "@xray/ui",
-      "version": "2.5.0",
+      "version": "2.5.1",
       "dependencies": {
         "@nocoo/basalt": "2.1.8",
         "@xray/shared": "workspace:*",
@@ -61,7 +61,7 @@
     },
     "packages/worker": {
       "name": "@xray/worker",
-      "version": "2.5.0",
+      "version": "2.5.1",
       "dependencies": {
         "@xray/shared": "workspace:*",
         "entities": "7.0.1",
