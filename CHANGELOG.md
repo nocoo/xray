@@ -2,6 +2,11 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.5.2
+
+### Fixed
+- Keep related links beside the reader
+
 ## v2.5.1
 
 ### Fixed
