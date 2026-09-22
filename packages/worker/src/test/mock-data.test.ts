@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
+import { parseCanonicalItem } from "@xray/shared";
 import { expect, test } from "vitest";
 import { createSqliteD1 } from "./sqlite-d1";
 
@@ -9,6 +10,11 @@ async function snapshot(db: D1Database) {
 	const tables = [
 		"users",
 		"watchlists",
+		"watchlist_members",
+		"watchlist_member_tags",
+		"groups",
+		"group_members",
+		"ingest_logs",
 		"items",
 		"channels",
 		"tags",
@@ -29,7 +35,7 @@ test("mock catalog covers 14 channels, 45 tags and 140 varied reports with safe 
 	await db.exec(seed);
 	for (const [table, count] of [
 		["users", 1],
-		["items", 28],
+		["items", 236],
 		["channels", 14],
 		["tags", 45],
 		["channel_articles", 140],
@@ -222,4 +228,141 @@ test("D1 import stays below 90 KiB total and 64 KiB per SQLite-parsed statement"
 	} finally {
 		db.close();
 	}
+});
+
+test("watchlist and group catalogs cover both source types, copy overlap and varied timeline payloads", async () => {
+	const db = createSqliteD1();
+	await db.exec(seed);
+	for (const [table, count] of [
+		["watchlists", 13],
+		["watchlist_members", 108],
+		["groups", 13],
+		["group_members", 106],
+		["items", 236],
+		["ingest_logs", 59],
+	] as const) {
+		expect(await db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).first()).toEqual({ count });
+	}
+	for (const [parent, child, key] of [
+		["watchlists", "watchlist_members", "watchlist_id"],
+		["watchlists", "items", "watchlist_id"],
+		["groups", "group_members", "group_id"],
+	]) {
+		expect(
+			(
+				await db
+					.prepare(
+						`SELECT p.id FROM ${parent} p LEFT JOIN ${child} c ON c.${key}=p.id GROUP BY p.id HAVING COUNT(c.id)<8 OR COUNT(DISTINCT c.source_type)<2`,
+					)
+					.all()
+			).results,
+		).toEqual([]);
+	}
+	expect(
+		await db
+			.prepare(
+				"SELECT COUNT(*) AS count FROM watchlists WHERE id BETWEEN 960003 AND 960013 AND translate_enabled=0",
+			)
+			.first(),
+	).toEqual({ count: 11 });
+	expect(
+		await db
+			.prepare(
+				"SELECT COUNT(*) AS count FROM group_members g JOIN watchlist_members w ON w.user_id=g.user_id AND w.source_type=g.source_type AND w.handle=g.handle WHERE g.id>=9600000",
+			)
+			.first(),
+	).toEqual({ count: 78 });
+	expect(
+		(
+			await db
+				.prepare(
+					"SELECT m.id FROM watchlist_members m LEFT JOIN watchlist_member_tags t ON t.member_id=m.id WHERE m.id>=9600000 GROUP BY m.id HAVING COUNT(t.tag_id)=0",
+				)
+				.all()
+		).results.length,
+	).toBeGreaterThan(0);
+	expect(
+		(
+			await db
+				.prepare(
+					"SELECT member_id FROM watchlist_member_tags GROUP BY member_id HAVING COUNT(*)>=3",
+				)
+				.all()
+		).results.length,
+	).toBeGreaterThan(0);
+	const rows = (
+		await db
+			.prepare(
+				"SELECT payload_json,ai_status,translated_text,summary_text,translation_error FROM items WHERE id>=9700000",
+			)
+			.all<{
+				payload_json: string;
+				ai_status: string;
+				translated_text: string | null;
+				summary_text: string | null;
+				translation_error: string | null;
+			}>()
+	).results;
+	expect(rows).toHaveLength(208);
+	const statuses = new Set<string>();
+	const references = new Set<string>();
+	const media = new Set<string>();
+	let customLinks = 0,
+		longItems = 0,
+		reposts = 0;
+	for (const row of rows) {
+		statuses.add(row.ai_status);
+		const parsed = parseCanonicalItem(JSON.parse(row.payload_json));
+		expect(parsed.ok).toBe(true);
+		if (!parsed.ok) throw new Error(parsed.message);
+		const item = parsed.value;
+		if (item.source_type === "custom") {
+			if (item.body.url) customLinks++;
+			if (item.body.text.length > 700) longItems++;
+		} else {
+			for (const reference of item.body.tweet.referenced_tweets ?? [])
+				references.add(reference.type);
+			for (const attachment of item.body.includes?.media ?? []) media.add(attachment.type);
+			if (item.meta?.is_retweet === true) reposts++;
+		}
+		if (row.ai_status === "succeeded") {
+			expect(row.translated_text).toBeTruthy();
+			expect(row.summary_text).toBeTruthy();
+		} else {
+			expect(row.translated_text).toBeNull();
+			expect(row.summary_text).toBeNull();
+		}
+		expect(row.translation_error !== null).toBe(row.ai_status === "failed");
+	}
+	expect([...statuses].sort()).toEqual(["failed", "not_requested", "pending", "succeeded"]);
+	expect([...references].sort()).toEqual(["quoted", "replied_to"]);
+	expect([...media].sort()).toEqual(["animated_gif", "photo", "video"]);
+	expect(customLinks).toBe(104);
+	expect(longItems).toBe(26);
+	expect(reposts).toBe(26);
+	expect(
+		(
+			await db
+				.prepare("SELECT id FROM ingest_logs WHERE attempted<>accepted+deduped+rejected")
+				.all()
+		).results,
+	).toEqual([]);
+	expect(
+		(await db.prepare("SELECT DISTINCT rejected FROM ingest_logs ORDER BY rejected").all()).results,
+	).toEqual([{ rejected: 0 }, { rejected: 1 }]);
+});
+
+test("watchlist expansion preserves existing preferences, members and user-authored content", async () => {
+	const db = createSqliteD1();
+	await db.exec(seed);
+	await db.exec(`
+ UPDATE watchlists SET name='My custom topic',translate_enabled=1 WHERE id=960003;
+ UPDATE watchlist_members SET display_name='My source name',note='Personal note' WHERE id=9600030;
+ UPDATE groups SET name='My source collection',description='Personal group' WHERE id=960003;
+ UPDATE group_members SET display_name='My group source' WHERE id=9600030;
+ UPDATE items SET text='My corrected text',payload_json='{}' WHERE id=9700300;
+ `);
+	const before = await snapshot(db);
+	await db.exec(seed);
+	expect(await snapshot(db)).toEqual(before);
 });

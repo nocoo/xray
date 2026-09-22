@@ -826,3 +826,133 @@ JOIN formats f ON f.format_id=r.format_id
 JOIN phases p ON p.phase=r.phase
 JOIN push_tokens k ON k.id=r.key_id AND k.token_hash='mock-only:not-a-sha256:' || r.key_id
 WHERE k.user_id='xray-mock-user';
+
+WITH topics(id,name,topic,icon) AS (VALUES
+ (960003,'AI 实验室 · 关注','代理评测与工具调用','sparkles'),
+ (960004,'前端工程 · 关注','交互与浏览器边界','code'),
+ (960005,'数据与存储 · 关注','查询与数据一致性','database'),
+ (960006,'云端运行 · 关注','运行时与可观测性','cloud'),
+ (960007,'安全与隐私 · 关注','权限与凭据边界','shield'),
+ (960008,'无障碍实践 · 关注','键盘与读屏体验','eye'),
+ (960009,'产品访谈 · 关注','真实任务与用户反馈','users'),
+ (960010,'阅读写作 · 关注','笔记与资料回访','book-open'),
+ (960011,'发布复盘 · 关注','交付验证与事故复盘','rocket'),
+ (960012,'设计系统 · 关注','控件与视觉层级','palette'),
+ (960013,'灵感备忘 · 关注','原型与小实验','lightbulb')
+)
+INSERT OR IGNORE INTO watchlists (id,user_id,name,description,icon,translate_enabled,created_at_ms)
+SELECT id,'xray-mock-user',name,'Mock catalog v3 · ' || topic,icon,0,unixepoch()*1000 FROM topics;
+
+WITH targets AS (
+ SELECT *,CASE id WHEN 1 THEN 1 WHEN 2 THEN 2 ELSE id-960000 END AS idx
+ FROM watchlists WHERE user_id='xray-mock-user' AND
+ ((id=1 AND name='AI & Engineering') OR (id=2 AND name='Design & Reading') OR
+ (id BETWEEN 960003 AND 960013 AND description LIKE 'Mock catalog v3 · %'))
+), roles(slot,handle,label) AS (VALUES
+ (0,'builder','实践者'),(1,'reader','阅读员'),(2,'writer','记录员'),(3,'curator','资料整理员'),
+ (4,'notes','研究札记'),(5,'digest','每周摘要'),(6,'lab','实验台'),(7,'review','回访记录')
+)
+INSERT OR IGNORE INTO watchlist_members
+ (id,user_id,watchlist_id,source_type,handle,display_name,note,added_at_ms)
+SELECT 9600000+idx*10+slot,user_id,id,CASE WHEN slot<4 THEN 'x.com' ELSE 'custom' END,
+ 'mx' || printf('%02d',idx) || '_' || handle,
+ 'Mock · ' || replace(name,' · 关注','') || ' · ' || label,
+ 'Mock catalog v3 · Fictional source; no live collection credentials.',(unixepoch()-slot*86400)*1000
+FROM targets CROSS JOIN roles;
+
+INSERT OR IGNORE INTO groups (id,user_id,name,description,icon,created_at_ms)
+SELECT CASE w.id WHEN 1 THEN 1 WHEN 2 THEN 960002 ELSE w.id END,w.user_id,
+ replace(w.name,' · 关注','') || ' · 来源库','Mock catalog v3 · Fictional sources for copy and dedup review.',
+ w.icon,unixepoch()*1000
+FROM watchlists w WHERE w.user_id='xray-mock-user' AND EXISTS
+ (SELECT 1 FROM watchlist_members m WHERE m.watchlist_id=w.id AND m.note='Mock catalog v3 · Fictional source; no live collection credentials.');
+
+INSERT OR IGNORE INTO group_members (id,user_id,group_id,source_type,handle,display_name,added_at_ms)
+SELECT m.id,m.user_id,g.id,m.source_type,
+ CASE WHEN m.id%10<6 THEN m.handle ELSE m.handle || '_group' END,
+ m.display_name || CASE WHEN m.id%10<6 THEN '' ELSE ' · 候选来源' END,m.added_at_ms
+FROM watchlist_members m JOIN groups g
+ ON g.id=CASE m.watchlist_id WHEN 1 THEN 1 WHEN 2 THEN 960002 ELSE m.watchlist_id END AND g.user_id=m.user_id
+WHERE m.note='Mock catalog v3 · Fictional source; no live collection credentials.'
+ AND ((g.id=1 AND g.name='Builders') OR g.description='Mock catalog v3 · Fictional sources for copy and dedup review.');
+
+WITH labels(slot,name) AS (VALUES (1,'深度阅读'),(2,'研发'),(2,'开源'),(2,'长期跟踪'),
+ (4,'每周观察'),(5,'待验证'),(5,'优先关注'),(7,'文档'))
+INSERT OR IGNORE INTO watchlist_member_tags (member_id,tag_id)
+SELECT m.id,t.id FROM watchlist_members m JOIN labels l ON m.id%10=l.slot
+JOIN tags t ON t.user_id=m.user_id AND t.name=l.name
+WHERE m.note='Mock catalog v3 · Fictional source; no live collection credentials.';
+
+WITH numbers(n) AS (VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15)),
+observations(slot,title,body) AS (VALUES
+ (0,'先完成一个真实任务','Start with one concrete task. Keep the original input and the observed result together before deciding what to change.'),
+ (1,'引用的上下文','A useful quote preserves the question it answered. Read the original source before repeating a conclusion.'),
+ (2,'回复中的边界','The happy path is only one sample. Ask what happens when the user cancels, the network stalls, or the input is empty.'),
+ (3,'转发与证据','Sharing the original work is better than copying its headline. Credit the author and keep a note about why it matters.'),
+ (4,'图像里的信息','A screenshot can reveal alignment and density problems that a checklist misses. Text should still explain the finding.'),
+ (5,'动态交互记录','Watch the complete transition: the trigger, the pending state, and the focus destination after the operation ends.'),
+ (6,'实验结果回访','An experiment is useful when someone else can repeat it. Record the conditions and distinguish observations from assumptions.'),
+ (7,'长篇观察与复盘','Small decisions accumulate. A clear interface is often the result of removing interruptions, preserving context, and making recovery predictable.')
+), samples AS (
+ SELECT 9700000+(CASE w.id WHEN 1 THEN 1 WHEN 2 THEN 2 ELSE w.id-960000 END)*100+n AS item_id,
+ n,m.id AS member_id,m.user_id,w.id AS watchlist_id,m.source_type,m.handle,m.display_name,
+ replace(w.name,' · 关注','') AS topic,o.title,o.body,
+ (unixepoch()-n*21600)*1000 AS ts,
+ CASE (n+w.id)%4 WHEN 0 THEN 'not_requested' WHEN 1 THEN 'pending' WHEN 2 THEN 'succeeded' ELSE 'failed' END AS ai,
+ 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=960&q=80' AS photo
+ FROM watchlists w CROSS JOIN numbers JOIN observations o ON o.slot=n%8
+ JOIN watchlist_members m ON m.watchlist_id=w.id AND m.id%10=n%8
+ WHERE m.note='Mock catalog v3 · Fictional source; no live collection credentials.' AND w.user_id=m.user_id
+), content AS (
+ SELECT *,topic || ' · ' || title || char(10) || char(10) || body ||
+ CASE WHEN n%8=7 THEN char(10) || char(10) ||
+ 'A good review begins with the task rather than the screen. Who is trying to finish the work, what do they already know, and what would make the next step obvious? These questions often explain more than a larger collection of controls.' || char(10) || char(10) ||
+ 'Keep the source material beside your interpretation. When a detail is uncertain, write down the uncertainty instead of turning it into a confident claim. Later readers should be able to tell which parts were observed and which parts still need a test.' || char(10) || char(10) ||
+ 'After changing the design, repeat the original task. Include a slow network, a long name, and a keyboard-only attempt. A successful click is not the whole story; recovery and the final focus position are part of the result.' ELSE '' END AS text,
+ 'mock-timeline-v3-' || watchlist_id || '-' || n AS external_id,
+ strftime('%Y-%m-%dT%H:%M:%SZ',ts/1000,'unixepoch') AS iso,
+ CASE WHEN n%8=6 THEN photo WHEN n%8=5 THEN 'https://github.com/tw93/Kami' ELSE 'https://developers.cloudflare.com/workers/' END AS source_url
+ FROM samples
+), payloads AS (
+ SELECT *,json_object('source_type',source_type,'external_id',external_id,'created_at',iso,
+ 'author',json_object('id','mock-author-' || member_id,'username',handle,'display_name',display_name),
+ 'meta',json(CASE WHEN source_type='x.com' AND n%8=3 THEN json_object('is_retweet',json('true'),'retweeted_by',handle) ELSE '{}' END),
+ 'body',json(CASE WHEN source_type='custom' THEN
+ json_object('kind','custom','title',topic || ' · ' || title,'text',text,'url',source_url,
+ 'tags',json(CASE WHEN n%8=4 THEN '[]' ELSE '["Mock","Reading"]' END))
+ ELSE json_object('kind','x.post','tweet',json_patch(
+ json_object('id','mock-tweet-' || item_id,'text',text,'author_id','mock-author-' || member_id,'created_at',iso,'lang','en',
+ 'public_metrics',json_object('like_count',n*7,'retweet_count',n%5,'reply_count',n%4,'quote_count',n%3,'bookmark_count',n*2,'impression_count',100+n*101),
+ 'entities',json_object('urls',json_array(json_object('start',0,'end',0,'url',source_url,'expanded_url',source_url)),
+ 'hashtags',json_array(json_object('start',0,'end',0,'tag','Mock')))),
+ json_patch(CASE WHEN n%8 IN (1,2) THEN json_object('referenced_tweets',json_array(json_object('type',CASE n%8 WHEN 1 THEN 'quoted' ELSE 'replied_to' END,'id','mock-parent-' || item_id))) ELSE '{}' END,
+ CASE WHEN n>=8 THEN json_object('attachments',json_object('media_keys',json_array('mock-media-' || item_id))) ELSE '{}' END)),
+ 'includes',json_object(
+ 'users',json_array(json_object('id','mock-parent-author','username','mock_peer','name','Mock · 同行观察员')),
+ 'tweets',json_array(json_object('id','mock-parent-' || item_id,'author_id','mock-parent-author','text','Keep the original question visible while reviewing the result.','created_at',iso)),
+ 'media',json(CASE WHEN n>=8 THEN json_array(json_object('media_key','mock-media-' || item_id,
+ 'type',CASE n%8 WHEN 1 THEN 'video' WHEN 2 THEN 'animated_gif' ELSE 'photo' END,
+ 'url',CASE WHEN n%8 IN (1,2) THEN 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4' ELSE photo END,
+ 'preview_image_url',photo,'width',960,'height',640)) ELSE '[]' END))) END)) AS payload
+ FROM content
+)
+INSERT OR IGNORE INTO items
+ (id,user_id,watchlist_id,source_type,external_id,member_id,author_username,title,text,created_at_ms,ingested_at_ms,
+ payload_json,ai_status,ai_status_updated_at_ms,translated_text,summary_text,translation_error,quoted_translated_text)
+SELECT item_id,user_id,watchlist_id,source_type,external_id,member_id,handle,
+ CASE WHEN source_type='custom' THEN topic || ' · ' || title END,text,ts,ts,payload,ai,ts,
+ CASE WHEN ai='succeeded' THEN topic || '：' || title || '。从一个真实任务出发，保留原始资料，记录观察到的结果，并验证取消、重试与边界条件。此翻译为预置 Mock 内容。' END,
+ CASE WHEN ai='succeeded' THEN 'Mock 摘要：' || title || '，先保存证据，再验证修改是否解决原来的问题。' END,
+ CASE WHEN ai='failed' THEN 'Mock provider timeout; no external AI request was made.' END,
+ CASE WHEN ai='succeeded' AND source_type='x.com' AND n%8=1 THEN '复核结果时，始终保留最初的问题。' END
+FROM payloads;
+
+WITH runs(n) AS (VALUES (0),(1),(2),(3)), targets AS (
+ SELECT DISTINCT w.id,w.user_id,CASE w.id WHEN 1 THEN 1 WHEN 2 THEN 2 ELSE w.id-960000 END AS idx
+ FROM watchlists w JOIN watchlist_members m ON m.watchlist_id=w.id AND m.user_id=w.user_id
+ WHERE m.note='Mock catalog v3 · Fictional source; no live collection credentials.'
+)
+INSERT OR IGNORE INTO ingest_logs (id,user_id,watchlist_id,attempted,accepted,deduped,rejected,errors_json,created_at_ms)
+SELECT 9800000+idx*10+n,user_id,id,4+n+n+n%2,4+n,n,n%2,
+ CASE WHEN n%2=1 THEN '[{"code":"mock_schema_mismatch","message":"Fixture-only rejected sample"}]' END,
+ (unixepoch()-n*86400)*1000 FROM targets CROSS JOIN runs;
