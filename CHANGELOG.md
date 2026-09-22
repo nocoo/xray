@@ -2,6 +2,11 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.5.3
+
+### Added
+- Add content loading skeletons
+
 ## v2.5.2
 
 ### Fixed
