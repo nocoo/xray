@@ -13,6 +13,7 @@ import { TagBadge } from "@nocoo/basalt/components/tag-badge";
 import type { Tag } from "@xray/shared";
 import { Plus, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import { OptionsSkeleton } from "@/components/loading-skeletons";
 import type { TagsVm } from "@/viewmodels/tags-vm";
 import { useVm } from "@/viewmodels/use-vm";
 import { TagLabels } from "./tag-labels";
@@ -93,10 +94,8 @@ export function TagAssignment({
 						</div>
 					)}
 					<div className="max-h-56 overflow-y-auto p-2">
-						{state.loading ? (
-							<p role="status" className="p-2 text-sm text-basalt-muted-foreground">
-								Loading tags…
-							</p>
+						{state.loading && !state.tags.length ? (
+							<OptionsSkeleton label="Loading tags" />
 						) : state.tags.length === 0 ? (
 							<p className="p-2 text-sm text-basalt-muted-foreground">
 								Create your first tag below.

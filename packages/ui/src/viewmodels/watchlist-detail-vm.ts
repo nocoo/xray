@@ -329,6 +329,7 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 	let translateMutationSeq = 0;
 	/** Monotonic token so late loadLogs responses cannot clobber fresher results. */
 	let logsLoadSeq = 0;
+	let loadSeq = 0;
 
 	const vm = {
 		...store,
@@ -336,18 +337,19 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 			store.setState({ activeTab: tab });
 		},
 		setSourceFilter(filter: SourceFilterValue) {
-			store.setState({ sourceFilter: filter });
+			store.setState({ sourceFilter: filter, items: [], nextCursor: null });
 			// Reload items when filter changes (View stays free of orchestration).
 			void vm.load();
 		},
 		async load(opts?: { silent?: boolean }) {
+			const seq = ++loadSeq;
 			const id = store.getState().watchlistId;
 			if (!Number.isInteger(id) || id <= 0) {
 				store.setState({ error: "invalid watchlist", loading: false });
 				return;
 			}
 			if (!opts?.silent) store.setState({ loading: true });
-			store.setState({ error: null });
+			store.setState({ error: null, loadingMore: false });
 			try {
 				const { sourceFilter } = store.getState();
 				const itemOpts =
@@ -361,6 +363,7 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 					api.fetchMembers(id),
 					api.fetchItems(id, itemOpts),
 				]);
+				if (seq !== loadSeq) return;
 				store.setState({
 					wl: w,
 					members: m,
@@ -373,6 +376,7 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 					void vm.translate();
 				}
 			} catch (e) {
+				if (seq !== loadSeq) return;
 				store.setState({ error: errMsg(e), loading: false });
 			}
 		},
@@ -442,8 +446,9 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 			});
 		},
 		async loadMore() {
-			const { nextCursor, loadingMore, sourceFilter, watchlistId: id } = store.getState();
-			if (!nextCursor || loadingMore) return;
+			const { nextCursor, loadingMore, loading, sourceFilter, watchlistId: id } = store.getState();
+			if (!nextCursor || loadingMore || loading) return;
+			const seq = loadSeq;
 			store.setState({ loadingMore: true, error: null });
 			try {
 				const itemOpts =
@@ -455,12 +460,14 @@ export function createWatchlistDetailVm(api: WatchlistDetailApi, watchlistId: nu
 								source_type: sourceFilter as SourceType,
 							};
 				const it = await api.fetchItems(id, itemOpts);
+				if (seq !== loadSeq) return;
 				store.setState({
 					items: [...store.getState().items, ...it.items],
 					nextCursor: it.next_cursor,
 					loadingMore: false,
 				});
 			} catch (e) {
+				if (seq !== loadSeq) return;
 				store.setState({ error: errMsg(e), loadingMore: false });
 			}
 		},

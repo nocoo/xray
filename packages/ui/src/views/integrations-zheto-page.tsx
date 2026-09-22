@@ -5,6 +5,7 @@ import { SensitiveInput } from "@nocoo/basalt/components/sensitive-input";
 import { useEffect, useMemo } from "react";
 import * as zhetoApi from "@/api/zheto";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
+import { FormSkeleton } from "@/components/loading-skeletons";
 import { useVm } from "@/viewmodels/use-vm";
 import { createZhetoSettingsVm } from "@/viewmodels/zheto-settings-vm";
 
@@ -28,48 +29,56 @@ export function IntegrationsZhetoPage() {
 				title="zhe.to"
 				description="Webhook URL is stored encrypted. Path token lives only inside the URL."
 			/>
-			{loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
+
 			{error && <Banner variant="error" size="sm" description={error} />}
 			{saved && <Banner variant="default" size="sm" description="Saved." />}
 			<LayerCard className="max-w-lg">
 				<LayerCard.Body className="space-y-4">
-					<p className="text-sm text-basalt-muted-foreground">
-						Status:{" "}
-						{settings?.configured ? `configured (${settings.webhookUrlMasked})` : "not configured"}
-					</p>
-					<form
-						className="space-y-3"
-						onSubmit={(ev) => {
-							ev.preventDefault();
-							void vm.save();
-						}}
-					>
-						<Field label="Webhook URL">
-							<SensitiveInput
-								value={webhookUrl}
-								onChange={(e) => vm.setWebhookUrl(e.target.value)}
-								placeholder={
-									settings?.configured
-										? "leave blank to keep"
-										: "https://zhe.to/api/link/create/<uuid>"
-								}
-								autoComplete="off"
-								revealLabel="Show webhook URL"
-								hideLabel="Hide webhook URL"
-							/>
-						</Field>
-						<Field label="Default folder (optional)">
-							<Input
-								value={folder}
-								onChange={(e) => vm.setFolder(e.target.value)}
-								placeholder="leave empty for zhe.to default"
-								maxLength={50}
-							/>
-						</Field>
-						<Button type="submit" size="sm">
-							Save
-						</Button>
-					</form>
+					{loading && !settings ? (
+						<FormSkeleton label="Loading integration settings" className="grid gap-3" />
+					) : (
+						<>
+							<p className="text-sm text-basalt-muted-foreground">
+								Status:{" "}
+								{settings?.configured
+									? `configured (${settings.webhookUrlMasked})`
+									: "not configured"}
+							</p>
+							<form
+								className="space-y-3"
+								onSubmit={(ev) => {
+									ev.preventDefault();
+									void vm.save();
+								}}
+							>
+								<Field label="Webhook URL">
+									<SensitiveInput
+										value={webhookUrl}
+										onChange={(e) => vm.setWebhookUrl(e.target.value)}
+										placeholder={
+											settings?.configured
+												? "leave blank to keep"
+												: "https://zhe.to/api/link/create/<uuid>"
+										}
+										autoComplete="off"
+										revealLabel="Show webhook URL"
+										hideLabel="Hide webhook URL"
+									/>
+								</Field>
+								<Field label="Default folder (optional)">
+									<Input
+										value={folder}
+										onChange={(e) => vm.setFolder(e.target.value)}
+										placeholder="leave empty for zhe.to default"
+										maxLength={50}
+									/>
+								</Field>
+								<Button type="submit" size="sm">
+									Save
+								</Button>
+							</form>
+						</>
+					)}
 				</LayerCard.Body>
 			</LayerCard>
 		</div>

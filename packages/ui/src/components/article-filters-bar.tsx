@@ -12,6 +12,7 @@ import { type ArticleFilters, parseArticlePageQuery } from "@xray/shared";
 import { ArrowRight, RotateCcw, Search, SlidersHorizontal, Tags } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import * as tagsApi from "@/api/tags";
+import { OptionsSkeleton } from "@/components/loading-skeletons";
 import { articleFilterQuery } from "@/lib/channel-reader";
 import { createTagsVm } from "@/viewmodels/tags-vm";
 import { useVm } from "@/viewmodels/use-vm";
@@ -156,10 +157,8 @@ export function ArticleFiltersBar({
 									className="min-w-0 max-h-48 overflow-y-auto"
 									aria-label="Available filter tags"
 								>
-									{tags.loading ? (
-										<p role="status" className="py-2 text-sm text-basalt-muted-foreground">
-											Loading tags…
-										</p>
+									{tags.loading && !tags.tags.length ? (
+										<OptionsSkeleton label="Loading filter tags" />
 									) : tags.error ? (
 										<div role="alert" className="text-sm text-basalt-destructive">
 											{tags.error}

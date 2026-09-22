@@ -3,6 +3,7 @@ import { Banner } from "@nocoo/basalt/components/banner";
 import { Dock, DockBody } from "@nocoo/basalt/components/dock";
 import { Empty } from "@nocoo/basalt/components/empty";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
+import { SkeletonLine } from "@nocoo/basalt/components/skeleton-line";
 import { Eye, Languages, Plus, RefreshCw, ScrollText, Settings, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
@@ -16,6 +17,7 @@ import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { EditMemberDialog } from "@/components/dialogs/edit-member-dialog";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { PageAside } from "@/components/layout/page-aside";
+import { CardsSkeleton, RowsSkeleton } from "@/components/loading-skeletons";
 import { PostsColumnsPages } from "@/components/posts-columns-pages";
 import { SourceFilter } from "@/components/source-filter";
 import { useRestoreDialogFocus } from "@/hooks/restore-dialog-focus";
@@ -134,7 +136,7 @@ export function WatchlistDetailPage() {
 		return () => mql.removeEventListener("change", apply);
 	}, []);
 
-	const postsFeedActive = s.activeTab === "posts" && !s.loading && s.items.length > 0;
+	const postsFeedActive = s.activeTab === "posts" && s.items.length > 0;
 	const title = s.wl?.name ?? "Watchlist";
 	const panelTitle = panel === "activity" ? "Activity" : "Settings";
 	const usePushDock = !isMobile && wideEnoughForPush;
@@ -216,13 +218,7 @@ export function WatchlistDetailPage() {
 						<div data-testid="ingest-logs">
 							{s.logsError && <Banner variant="error" size="sm" description={s.logsError} />}
 							{s.logsLoading && s.logs.length === 0 ? (
-								<p
-									role="status"
-									aria-live="polite"
-									className="p-4 text-xs text-basalt-muted-foreground"
-								>
-									Loading logs…
-								</p>
+								<RowsSkeleton label="Loading activity" count={3} />
 							) : s.logs.length === 0 ? (
 								<p className="p-4 text-xs text-basalt-muted-foreground">No pushes logged yet.</p>
 							) : (
@@ -340,11 +336,16 @@ export function WatchlistDetailPage() {
 							</>
 						}
 					/>
-					{s.loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
+
 					{s.error && <Banner variant="error" size="sm" description={s.error} />}
 
 					<TabsContent value="members">
-						{!s.loading && (
+						{s.loading && !s.wl ? (
+							<CardsSkeleton
+								label="Loading members"
+								className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
+							/>
+						) : (
 							<div>
 								{filteredMembers.length > 0 ? (
 									<div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -379,6 +380,7 @@ export function WatchlistDetailPage() {
 						value="posts"
 						className={postsFeedActive ? "flex min-h-0 flex-1 flex-col" : undefined}
 					>
+						{s.loading && !s.items.length && <CardsSkeleton label="Loading posts" feed />}
 						{!s.loading && s.items.length === 0 && (
 							<LayerCard>
 								<Empty
@@ -396,6 +398,7 @@ export function WatchlistDetailPage() {
 									setFeedEl(el);
 								}}
 								data-testid="posts-scroll"
+								aria-busy={s.loading || s.loadingMore}
 								className={cn(
 									"min-h-0 flex-1 overflow-y-auto scroll-smooth",
 									"-mx-3 -mb-3 px-3 md:-mx-5 md:-mb-5 md:px-5",
@@ -470,7 +473,10 @@ export function WatchlistDetailPage() {
 										aria-hidden
 									>
 										{s.loadingMore ? (
-											<span className="text-xs text-basalt-muted-foreground">Loading…</span>
+											<SkeletonLine
+												className="h-3 dark:bg-basalt-muted-foreground/15"
+												style={{ width: "calc(var(--spacing) * 32)" }}
+											/>
 										) : null}
 									</div>
 								) : (

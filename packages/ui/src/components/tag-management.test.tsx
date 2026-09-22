@@ -174,3 +174,24 @@ test("spectrum shows real counts and the active swatch toggles back to all tags"
 	expect(swatch.getAttribute("aria-pressed")).toBe("false");
 	expect(screen.getAllByRole("listitem")).toHaveLength(2);
 });
+
+test("initial load uses a skeleton and refresh keeps the visible collection", async () => {
+	let finish = (_tags: (typeof tag)[]) => {};
+	vi.mocked(api.fetchTags).mockImplementation(
+		() =>
+			new Promise((resolve) => {
+				finish = resolve;
+			}),
+	);
+	render(<TagsSettings />);
+	expect(screen.getByRole("status", { name: "Loading tags" })).toBeTruthy();
+	expect(screen.queryByText("No tags yet")).toBeNull();
+	finish([tag]);
+	await screen.findByText("Research");
+	expect(screen.queryByRole("status", { name: "Loading tags" })).toBeNull();
+	fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+	expect(screen.getByText("Research")).toBeTruthy();
+	expect(screen.queryByRole("status", { name: "Loading tags" })).toBeNull();
+	finish([tag, { id: 2, name: "Daily" }]);
+	await screen.findByText("Daily");
+});

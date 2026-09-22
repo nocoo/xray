@@ -19,6 +19,7 @@ import * as watchlistsApi from "@/api/watchlists";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { RenameDialog } from "@/components/dialogs/rename-dialog";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
+import { CardsSkeleton, RowsSkeleton } from "@/components/loading-skeletons";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { createGroupsVm } from "@/viewmodels/groups-vm";
 import { useVm } from "@/viewmodels/use-vm";
@@ -131,7 +132,12 @@ export function GroupsPage() {
 					</Button>
 				}
 			/>
-			{s.loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
+			{s.loading && !s.groups.length && (
+				<CardsSkeleton
+					label="Loading groups"
+					className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+				/>
+			)}
 			{s.error && <Banner variant="error" size="sm" description={s.error} />}
 			{!s.loading && s.groups.length === 0 && !s.error && (
 				<LayerCard>
@@ -233,7 +239,26 @@ export function GroupsPage() {
 						</Button>
 					</LayerCard.Header>
 					<LayerCard.Body className="space-y-4">
-						{s.members.length === 0 ? (
+						{s.membersLoading && !s.members.length ? (
+							<RowsSkeleton label="Loading members" count={3} />
+						) : s.membersError && !s.members.length ? (
+							<LayerCard.Empty
+								icon={<Users aria-hidden="true" />}
+								title="Members unavailable"
+								description="Try loading this group again."
+								action={
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => {
+											if (s.selectedId != null) void vm.loadMembers(s.selectedId);
+										}}
+									>
+										Retry members
+									</Button>
+								}
+							/>
+						) : s.members.length === 0 ? (
 							<p className="text-sm text-basalt-muted-foreground">No members in this group.</p>
 						) : (
 							<ul className="space-y-2">

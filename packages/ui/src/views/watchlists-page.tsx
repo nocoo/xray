@@ -7,6 +7,7 @@ import { Link, useSearchParams } from "react-router";
 import * as watchlistsApi from "@/api/watchlists";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
+import { CardsSkeleton } from "@/components/loading-skeletons";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { useVm } from "@/viewmodels/use-vm";
 import { createWatchlistsVm } from "@/viewmodels/watchlists-vm";
@@ -55,7 +56,7 @@ export function WatchlistsPage() {
 				}
 			/>
 
-			{loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
+			{loading && !watchlists.length && <CardsSkeleton label="Loading watchlists" />}
 			{error && <p className="text-sm text-basalt-destructive">{error}</p>}
 
 			{!loading && watchlists.length === 0 && !error && (

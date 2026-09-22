@@ -114,3 +114,48 @@ describe("createGroupsVm", () => {
 		expect(vm.getState().selectedId).toBe(1);
 	});
 });
+
+test("member loading preserves refresh data and ignores superseded group responses", async () => {
+	const a = api();
+	const vm = createGroupsVm(a, 1);
+	await vm.loadMembers(1);
+	let finish = (_members: (typeof member)[]) => {};
+	vi.mocked(a.fetchGroupMembers).mockImplementationOnce(
+		() =>
+			new Promise((resolve) => {
+				finish = resolve;
+			}),
+	);
+	const refresh = vm.loadMembers(1);
+	expect(vm.getState()).toMatchObject({ membersLoading: true, members: [member] });
+	vm.selectGroup(1);
+	expect(vm.getState().members).toEqual([member]);
+	vm.selectGroup(2);
+	expect(vm.getState()).toMatchObject({ membersLoading: true, members: [] });
+	await vm.loadMembers(1);
+	vi.mocked(a.fetchGroupMembers).mockResolvedValueOnce([{ ...member, id: 20, groupId: 2 }]);
+	await vm.loadMembers(2);
+	finish([member]);
+	await refresh;
+	expect(vm.getState()).toMatchObject({
+		membersLoading: false,
+		members: [{ ...member, id: 20, groupId: 2 }],
+	});
+	let fail = (_error: Error) => {};
+	vi.mocked(a.fetchGroupMembers).mockImplementationOnce(
+		() =>
+			new Promise((_, reject) => {
+				fail = reject;
+			}),
+	);
+	const outdated = vm.loadMembers(2);
+	vm.selectGroup(null);
+	fail(new Error("Old request failed"));
+	await outdated;
+	expect(vm.getState()).toMatchObject({
+		membersLoading: false,
+		members: [],
+		membersError: null,
+		error: null,
+	});
+});

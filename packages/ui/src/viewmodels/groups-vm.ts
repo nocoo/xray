@@ -24,6 +24,8 @@ export type GroupsState = {
 	watchlists: Watchlist[];
 	selectedId: number | null;
 	members: GroupMember[];
+	membersLoading: boolean;
+	membersError: string | null;
 	loading: boolean;
 	error: string | null;
 	importText: string;
@@ -39,6 +41,8 @@ export function createGroupsVm(api: GroupsApi, initialSelectedId: number | null 
 		watchlists: [],
 		selectedId: initialSelectedId,
 		members: [],
+		membersLoading: false,
+		membersError: null,
 		loading: false,
 		error: null,
 		importText: "",
@@ -48,10 +52,18 @@ export function createGroupsVm(api: GroupsApi, initialSelectedId: number | null 
 		copyBusy: false,
 	});
 
+	let membersLoadSeq = 0;
 	const vm = {
 		...store,
 		selectGroup(id: number | null) {
-			store.setState({ selectedId: id, members: id == null ? [] : store.getState().members });
+			if (id === store.getState().selectedId) return;
+			membersLoadSeq++;
+			store.setState({
+				selectedId: id,
+				members: [],
+				membersLoading: id != null,
+				membersError: null,
+			});
 		},
 		setImportText(text: string) {
 			store.setState({ importText: text });
@@ -69,11 +81,16 @@ export function createGroupsVm(api: GroupsApi, initialSelectedId: number | null 
 			}
 		},
 		async loadMembers(id: number) {
+			if (id !== store.getState().selectedId) return;
+			const seq = ++membersLoadSeq;
+			store.setState({ membersLoading: true, membersError: null, error: null });
 			try {
 				const members = await api.fetchGroupMembers(id);
-				store.setState({ members });
+				if (seq !== membersLoadSeq) return;
+				store.setState({ members, membersLoading: false });
 			} catch (e) {
-				store.setState({ error: errMsg(e) });
+				if (seq !== membersLoadSeq) return;
+				store.setState({ membersError: errMsg(e), error: errMsg(e), membersLoading: false });
 			}
 		},
 		async deleteGroup(g: Group) {

@@ -19,7 +19,6 @@ import {
 	Inbox,
 	Link2,
 	ListFilter,
-	LoaderCircle,
 	Maximize2,
 	Pencil,
 	Radio,
@@ -38,6 +37,7 @@ import { ChannelMarkdown } from "@/components/channel-markdown";
 import { useChannels } from "@/components/channels-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { HeaderTooltip } from "@/components/layout/header-links";
+import { ArticleSkeleton, RowsSkeleton } from "@/components/loading-skeletons";
 import { TagLabels } from "@/components/tag-labels";
 import { useAuthUser } from "@/hooks/me-context";
 import { restoreReadingPosition } from "@/hooks/reading-position";
@@ -447,6 +447,7 @@ export function ChannelsPage() {
 						className="channel-list"
 						ref={list}
 						aria-label="Articles"
+						aria-busy={listLoading}
 						tabIndex={-1}
 						onScroll={(e) => {
 							if (!state.loading && matchingList)
@@ -477,51 +478,48 @@ export function ChannelsPage() {
 								</span>
 							</Button>
 						))}
-						{listLoading ? (
-							<p role="status" className="p-3 text-sm">
-								Loading reports…
-							</p>
-						) : (
-							state.items.length === 0 && (
-								<LayerCard.Empty
-									className="channel-empty"
-									role="status"
-									icon={
-										state.error ? (
-											<TriangleAlert aria-hidden="true" />
-										) : filterQuery ? (
-											<SearchX aria-hidden="true" />
-										) : (
-											<Inbox aria-hidden="true" />
-										)
-									}
-									title={
-										state.error
-											? "Reports unavailable"
-											: filterQuery
-												? "No matching reports"
-												: "No reports yet"
-									}
-									description={
-										state.error
-											? "Please try loading this channel again."
-											: filterQuery
-												? "Try another keyword, date range, or tag."
-												: "New reports will appear here when they arrive."
-									}
-									action={
-										state.error ? (
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => void vm.loadArticles(channelId, filterQuery)}
-											>
-												Retry reports
-											</Button>
-										) : undefined
-									}
-								/>
-							)
+						{listLoading && (!matchingList || !state.items.length) && (
+							<RowsSkeleton label="Loading reports" />
+						)}
+						{!listLoading && state.items.length === 0 && (
+							<LayerCard.Empty
+								className="channel-empty"
+								role="status"
+								icon={
+									state.error ? (
+										<TriangleAlert aria-hidden="true" />
+									) : filterQuery ? (
+										<SearchX aria-hidden="true" />
+									) : (
+										<Inbox aria-hidden="true" />
+									)
+								}
+								title={
+									state.error
+										? "Reports unavailable"
+										: filterQuery
+											? "No matching reports"
+											: "No reports yet"
+								}
+								description={
+									state.error
+										? "Please try loading this channel again."
+										: filterQuery
+											? "Try another keyword, date range, or tag."
+											: "New reports will appear here when they arrive."
+								}
+								action={
+									state.error ? (
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => void vm.loadArticles(channelId, filterQuery)}
+										>
+											Retry reports
+										</Button>
+									) : undefined
+								}
+							/>
 						)}
 						{matchingList && state.nextCursor !== null && (
 							<Button
@@ -544,7 +542,7 @@ export function ChannelsPage() {
 							tabIndex={-1}
 							className="channel-document"
 							data-full-width={preferences.fullWidth}
-							aria-busy={state.articleLoading}
+							aria-busy={state.articleLoading || (!article && listLoading)}
 						>
 							{article ? (
 								<article
@@ -567,14 +565,14 @@ export function ChannelsPage() {
 									</header>
 									<ChannelMarkdown markdown={article.markdown} />
 								</article>
+							) : state.articleLoading || listLoading ? (
+								<ArticleSkeleton />
 							) : (
 								<LayerCard.Empty
 									className="channel-empty"
 									role="status"
 									icon={
-										state.articleLoading || listLoading ? (
-											<LoaderCircle aria-hidden="true" className="animate-spin" />
-										) : state.error ? (
+										state.error ? (
 											<TriangleAlert aria-hidden="true" />
 										) : emptyList && filterQuery ? (
 											<SearchX aria-hidden="true" />
@@ -583,26 +581,22 @@ export function ChannelsPage() {
 										)
 									}
 									title={
-										state.articleLoading || listLoading
-											? "Loading report…"
-											: state.error
-												? "Report unavailable"
-												: emptyList
-													? filterQuery
-														? "No matching reports"
-														: "Ready for your first report"
-													: "Select a report"
+										state.error
+											? "Report unavailable"
+											: emptyList
+												? filterQuery
+													? "No matching reports"
+													: "Ready for your first report"
+												: "Select a report"
 									}
 									description={
-										state.articleLoading || listLoading
-											? "Fetching the latest content."
-											: state.error
-												? "Please try loading this report again."
-												: emptyList
-													? filterQuery
-														? "Adjust the filters to find something to read."
-														: "Once a report arrives, it opens here for reading."
-													: "Choose a report from the list to start reading."
+										state.error
+											? "Please try loading this report again."
+											: emptyList
+												? filterQuery
+													? "Adjust the filters to find something to read."
+													: "Once a report arrives, it opens here for reading."
+												: "Choose a report from the list to start reading."
 									}
 									action={
 										state.error && articleId ? (

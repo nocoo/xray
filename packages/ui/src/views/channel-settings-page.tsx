@@ -42,6 +42,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import * as tagsApi from "@/api/tags";
 import { useChannels } from "@/components/channels-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
+import { FormSkeleton, TableSkeleton } from "@/components/loading-skeletons";
 import { TagAssignment } from "@/components/tag-assignment";
 import {
 	channelRequest,
@@ -88,7 +89,7 @@ export function ChannelSettingsPage() {
 				{state.error && <Banner role="alert" variant="error" size="sm" description={state.error} />}
 				<LayerCard>
 					{state.catalogLoading ? (
-						<LayerCard.Loading />
+						<FormSkeleton label="Loading channel settings" paragraphs={1} />
 					) : (
 						<LayerCard.Empty
 							title="Channel not found"
@@ -416,8 +417,16 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 							</DialogContent>
 						</Dialog>
 					</LayerCard.Header>
-					{state.keysLoading || !managing ? (
-						<LayerCard.Loading label="Loading push tokens" />
+					{(state.keysLoading && !keys.length) || !managing ? (
+						<TableSkeleton
+							label="Loading push tokens"
+							columns={[
+								{ label: "Name", className: "px-4 w-full" },
+								{ label: "Created", className: "px-4 hidden md:table-cell" },
+								{ label: "Last used", className: "px-4 hidden sm:table-cell" },
+								{ label: "Actions", className: "px-4 text-right" },
+							]}
+						/>
 					) : keys.length ? (
 						<Table aria-label="Push tokens">
 							<TableHeader>

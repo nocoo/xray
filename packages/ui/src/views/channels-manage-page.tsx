@@ -36,6 +36,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useChannels } from "@/components/channels-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
+import { TableSkeleton } from "@/components/loading-skeletons";
 import { TagLabels } from "@/components/tag-labels";
 import { useVm } from "@/viewmodels/use-vm";
 
@@ -101,8 +102,8 @@ export function ChannelsManagePage() {
 				/>
 				{!creating && state.error && <Banner variant="error" size="sm" description={state.error} />}
 				<StatStrip
-					className="grid-cols-3 gap-2 sm:gap-3 md:grid-cols-3 [&>div]:flex [&>div]:flex-col [&>div]:bg-basalt-bright [&>div]:p-3 sm:[&>div]:p-4 [&_dd]:mt-auto [&_dd]:pt-2"
-					loading={state.catalogLoading}
+					className="dark:[&_.bg-basalt-muted]:bg-basalt-muted-foreground/15 grid-cols-3 gap-2 sm:gap-3 md:grid-cols-3 [&>div]:flex [&>div]:flex-col [&>div]:bg-basalt-bright [&>div]:p-3 sm:[&>div]:p-4 [&_dd]:mt-auto [&_dd]:pt-2"
+					loading={state.catalogLoading && !state.channels.length}
 					items={[
 						{
 							label: (
@@ -209,7 +210,16 @@ export function ChannelsManagePage() {
 						/>
 					</LayerCard.Header>
 					{state.catalogLoading && !state.channels.length ? (
-						<LayerCard.Loading label="Loading channels" />
+						<TableSkeleton
+							label="Loading channels"
+							columns={[
+								{ label: "Channel", className: "px-4 w-full" },
+								{ label: "Reports", className: "px-4 hidden md:table-cell" },
+								{ label: "Tokens", className: "px-4 hidden lg:table-cell" },
+								{ label: "Latest report", className: "px-4 hidden xl:table-cell" },
+								{ label: "Actions", className: "px-4 text-right" },
+							]}
+						/>
 					) : !channels.length ? (
 						<LayerCard.Empty
 							title={query ? "No matching channels" : "No channels yet"}

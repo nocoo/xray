@@ -910,3 +910,69 @@ describe("createWatchlistDetailVm", () => {
 		await vi.waitFor(() => expect(api.translateWatchlist).toHaveBeenCalledWith(3, { limit: 20 }));
 	});
 });
+
+test("refresh retains the feed while source changes discard stale loads and pagination", async () => {
+	const api = {
+		fetchWatchlist: vi.fn().mockResolvedValue({ ...wl, translateEnabled: false }),
+		fetchMembers: vi.fn().mockResolvedValue([member]),
+		fetchItems: vi.fn().mockResolvedValue({ items: [item], next_cursor: "next" }),
+		fetchWatchlistIngestLogs: vi.fn().mockResolvedValue([]),
+		deleteMember: vi.fn(),
+		updateWatchlist: vi.fn(),
+		translateWatchlist: vi.fn(),
+	};
+	const vm = createWatchlistDetailVm(api, 3);
+	await vm.load();
+	let finishPage = (_page: { items: TimelineItem[]; next_cursor: string | null }) => {};
+	api.fetchItems.mockImplementationOnce(
+		() =>
+			new Promise((resolve) => {
+				finishPage = resolve;
+			}),
+	);
+	const page = vm.loadMore();
+	let failRefresh = (_error: Error) => {};
+	api.fetchItems.mockImplementationOnce(
+		() =>
+			new Promise((_, reject) => {
+				failRefresh = reject;
+			}),
+	);
+	const refresh = vm.load();
+	expect(vm.getState()).toMatchObject({ loading: true, items: [item] });
+	await vm.loadMore();
+	const custom = { ...item, id: 100, sourceType: "custom" };
+	api.fetchItems.mockResolvedValueOnce({ items: [custom], next_cursor: "custom-next" });
+	vm.setSourceFilter("custom");
+	expect(vm.getState()).toMatchObject({ loading: true, items: [], nextCursor: null });
+	await vi.waitFor(() => expect(vm.getState().loading).toBe(false));
+	finishPage({ items: [item], next_cursor: null });
+	failRefresh(new Error("Old feed failed"));
+	await Promise.all([page, refresh]);
+	expect(vm.getState()).toMatchObject({ items: [custom], nextCursor: "custom-next", error: null });
+	let failPage = (_error: Error) => {};
+	api.fetchItems.mockImplementationOnce(
+		() =>
+			new Promise((_, reject) => {
+				failPage = reject;
+			}),
+	);
+	const outdatedPage = vm.loadMore();
+	await vm.load();
+	failPage(new Error("Old page failed"));
+	await outdatedPage;
+	expect(vm.getState()).toMatchObject({ error: null, loadingMore: false });
+	let finishLoad = (_page: { items: TimelineItem[]; next_cursor: string | null }) => {};
+	api.fetchItems.mockImplementationOnce(
+		() =>
+			new Promise((resolve) => {
+				finishLoad = resolve;
+			}),
+	);
+	const outdatedLoad = vm.load();
+	api.fetchItems.mockResolvedValueOnce({ items: [custom], next_cursor: null });
+	await vm.load();
+	finishLoad({ items: [item], next_cursor: null });
+	await outdatedLoad;
+	expect(vm.getState().items).toEqual([custom]);
+});

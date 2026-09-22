@@ -9,6 +9,7 @@ import { IngestTrendChart, ItemsTrendChart, SourceDonut } from "@/components/das
 import { IngestTable } from "@/components/dashboard/ingest-table";
 import { ChartSkeleton, StatCard, StatSkeleton } from "@/components/dashboard/stat-card";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
+import { LoadingSkeleton, RowsSkeleton } from "@/components/loading-skeletons";
 import { formatCount } from "@/lib/utils";
 import { createDashboardVm } from "@/viewmodels/dashboard-vm";
 import { useVm } from "@/viewmodels/use-vm";
@@ -38,18 +39,29 @@ export function DashboardPage() {
 
 function DashboardSkeleton() {
 	return (
-		<div className="space-y-6">
-			<div className="grid grid-cols-2 gap-3 lg:grid-cols-5 md:gap-4">
-				{["a", "b", "c", "d", "e"].map((id) => (
-					<StatSkeleton key={id} />
-				))}
-			</div>
-			<div className="grid grid-cols-1 gap-3 lg:grid-cols-3 md:gap-4">
-				<ChartSkeleton className="lg:col-span-2" />
+		<LoadingSkeleton label="Loading dashboard" className="space-y-8">
+			<SectionRule title="Overview">
+				<div className="grid grid-cols-2 gap-3 lg:grid-cols-5 md:gap-4">
+					{["a", "b", "c", "d", "e"].map((id) => (
+						<StatSkeleton key={id} />
+					))}
+				</div>
+			</SectionRule>
+			<SectionRule title="Activity" hint="Ingest volume and source mix for the last 14 days.">
+				<div className="grid grid-cols-1 gap-3 lg:grid-cols-3 md:gap-4">
+					<ChartSkeleton className="lg:col-span-2" />
+					<ChartSkeleton />
+				</div>
+			</SectionRule>
+			<SectionRule title="Items">
 				<ChartSkeleton />
-			</div>
-			<ChartSkeleton />
-		</div>
+			</SectionRule>
+			<SectionRule title="Recent ingest">
+				<LayerCard>
+					<RowsSkeleton label="Loading recent ingest" count={3} />
+				</LayerCard>
+			</SectionRule>
+		</LoadingSkeleton>
 	);
 }
 

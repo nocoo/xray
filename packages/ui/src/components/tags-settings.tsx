@@ -17,6 +17,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@nocoo/basalt/components/select";
+import { SkeletonLine } from "@nocoo/basalt/components/skeleton-line";
 import { TAG_COLORS, TagBadge, tagColorFor } from "@nocoo/basalt/components/tag-badge";
 import type { Tag } from "@xray/shared";
 import {
@@ -31,6 +32,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as api from "@/api/tags";
+import { LoadingSkeleton } from "@/components/loading-skeletons";
 import { createTagsVm } from "@/viewmodels/tags-vm";
 import { useVm } from "@/viewmodels/use-vm";
 import { useChannels } from "./channels-context";
@@ -52,6 +54,7 @@ export function TagsSettings() {
 	useEffect(() => {
 		void vm.load();
 	}, [vm]);
+	const initialLoading = state.loading && !state.tags.length;
 	const filtering = !!query.trim() || color !== "all";
 	const filtered = state.tags
 		.filter(
@@ -170,18 +173,28 @@ export function TagsSettings() {
 									className={`h-auto min-w-0 flex-col gap-1 rounded-basalt-md px-2 py-2 sm:flex-row sm:gap-2 ${color === item ? "bg-basalt-bright ring-1 ring-basalt-ring" : "hover:bg-basalt-bright"}`}
 								>
 									<TagBadge name={TAG_COLORS[item].label} color={item} size="sm" />
-									<span className="text-sm font-semibold tabular-nums text-basalt-foreground">
-										{state.loading ? "—" : count}
+									<div className="text-sm font-semibold tabular-nums text-basalt-foreground">
+										{initialLoading ? (
+											<SkeletonLine
+												className="h-4 dark:bg-basalt-muted-foreground/15"
+												style={{ width: "calc(var(--spacing) * 4)" }}
+											/>
+										) : (
+											count
+										)}
 										<span className="sr-only"> tags</span>
-									</span>
+									</div>
 								</Button>
 							);
 						})}
 					</fieldset>
 					<div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2">
-						<p role="status" className="text-sm text-basalt-muted-foreground">
-							{state.loading ? (
-								"Loading your collection…"
+						<div role="status" className="text-sm text-basalt-muted-foreground">
+							{initialLoading ? (
+								<SkeletonLine
+									className="h-4 dark:bg-basalt-muted-foreground/15"
+									style={{ width: "calc(var(--spacing) * 24)" }}
+								/>
 							) : (
 								<>
 									<span className="font-medium text-basalt-foreground">
@@ -190,7 +203,7 @@ export function TagsSettings() {
 									{state.tags.length === 1 ? "tag" : "tags"}
 								</>
 							)}
-						</p>
+						</div>
 						{filtering ? (
 							<Button size="sm" variant="ghost" className="h-7 px-2" onClick={clearFilters}>
 								<X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -203,8 +216,30 @@ export function TagsSettings() {
 						)}
 					</div>
 				</LayerCard.Header>
-				{state.loading ? (
-					<LayerCard.Loading label="Loading tags" />
+				{initialLoading ? (
+					<LoadingSkeleton
+						label="Loading tags"
+						className="grid grid-cols-1 gap-3 px-4 pb-4 lg:grid-cols-2"
+					>
+						{[1, 2, 3, 4, 5, 6, 7, 8].map((id) => (
+							<LayerCard.Well
+								key={id}
+								className="flex items-center justify-between gap-3 rounded-basalt-md p-3"
+							>
+								<SkeletonLine className="h-6 rounded-full" minWidth={25} maxWidth={45} />
+								<div className="flex shrink-0 gap-1">
+									<SkeletonLine
+										className="h-8 rounded-basalt-md"
+										style={{ width: "calc(var(--spacing) * 16)" }}
+									/>
+									<SkeletonLine
+										className="h-8 rounded-basalt-md"
+										style={{ width: "calc(var(--spacing) * 8)" }}
+									/>
+								</div>
+							</LayerCard.Well>
+						))}
+					</LoadingSkeleton>
 				) : state.error && state.tags.length === 0 ? (
 					<LayerCard.Empty
 						className="py-8"

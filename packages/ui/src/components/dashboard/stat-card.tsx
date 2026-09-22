@@ -1,4 +1,5 @@
 import { LayerCard } from "@nocoo/basalt";
+import { SkeletonLine } from "@nocoo/basalt/components/skeleton-line";
 import { useId } from "react";
 
 export function Sparkline({ data }: { data: number[] }) {
@@ -73,12 +74,12 @@ export function StatCard({
 
 export function StatSkeleton() {
 	return (
-		<LayerCard className="animate-pulse">
+		<LayerCard className="bg-basalt-bright">
 			<div className="flex items-center justify-between">
-				<div className="h-3 w-16 rounded bg-basalt-background" />
-				<div className="h-4 w-4 rounded bg-basalt-background" />
+				<SkeletonLine className="h-3" minWidth={30} maxWidth={50} />
+				<SkeletonLine className="h-4" style={{ width: "calc(var(--spacing) * 4)" }} />
 			</div>
-			<div className="mt-3 h-7 w-20 rounded bg-basalt-background" />
+			<SkeletonLine className="mt-2 h-7 md:h-8" minWidth={35} maxWidth={55} />
 		</LayerCard>
 	);
 }
@@ -87,10 +88,10 @@ export function ChartSkeleton({ className }: { className?: string }) {
 	return (
 		<LayerCard className={className}>
 			<LayerCard.Header>
-				<div className="h-4 w-24 animate-pulse rounded bg-basalt-background" />
+				<SkeletonLine className="h-4" minWidth={20} maxWidth={40} />
 			</LayerCard.Header>
 			<LayerCard.Body>
-				<div className="h-[200px] w-full animate-pulse rounded bg-basalt-background" />
+				<SkeletonLine className="h-50 rounded-basalt-md" minWidth={100} maxWidth={100} />
 			</LayerCard.Body>
 		</LayerCard>
 	);
