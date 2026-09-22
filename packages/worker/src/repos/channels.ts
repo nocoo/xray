@@ -8,6 +8,7 @@ import type {
 } from "@xray/shared";
 
 export type ChannelRow = {
+	tags_json?: string;
 	id: number;
 	user_id: string;
 	name: string;
@@ -23,6 +24,7 @@ export type ChannelRow = {
 function toChannelDto(row: ChannelRow): Channel {
 	return {
 		id: row.id,
+		tags: JSON.parse(row.tags_json ?? "[]"),
 		name: row.name,
 		description: row.description,
 		createdAtMs: row.created_at_ms,
@@ -68,6 +70,8 @@ function toArticleDto(row: ArticleRow): ChannelArticle {
 }
 
 const CHANNEL_SELECT = `SELECT c.*,
+ (SELECT json_group_array(json_object('id', t.id, 'name', t.name)) FROM channel_tags ct
+ JOIN tags t ON t.id = ct.tag_id WHERE ct.channel_id = c.id AND t.user_id = c.user_id) AS tags_json,
   (SELECT COUNT(*) FROM channel_articles a
    WHERE a.channel_id = c.id AND a.user_id = c.user_id) AS article_count,
   (SELECT COUNT(*) FROM push_tokens k
@@ -300,4 +304,41 @@ export async function ingestChannelArticle(
 		return { status: "conflict" };
 	}
 	return { status: "duplicate", article: toArticleDto(existing) };
+}
+
+export async function updateChannelArticle(
+	db: D1Database,
+	userId: string,
+	channelId: number,
+	articleId: number,
+	input: ParsedArticle,
+): Promise<ChannelArticle | null> {
+	const row = await db
+		.prepare(`UPDATE channel_articles SET title = ?, report_date = ?, markdown = ?, summary = ?, author = ?
+ WHERE id = ? AND channel_id = ? AND user_id = ? RETURNING *`)
+		.bind(
+			input.title,
+			input.reportDate,
+			input.markdown,
+			input.summary,
+			input.author,
+			articleId,
+			channelId,
+			userId,
+		)
+		.first<ArticleRow>();
+	return row ? toArticleDto(row) : null;
+}
+
+export async function deleteChannelArticle(
+	db: D1Database,
+	userId: string,
+	channelId: number,
+	articleId: number,
+): Promise<boolean> {
+	const result = await db
+		.prepare("DELETE FROM channel_articles WHERE id = ? AND channel_id = ? AND user_id = ?")
+		.bind(articleId, channelId, userId)
+		.run();
+	return result.meta.changes > 0;
 }

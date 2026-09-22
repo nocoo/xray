@@ -25,6 +25,7 @@ export type {
 	ChannelArticleSummary,
 	ChannelKey,
 	ParsedArticle,
+	Tag,
 } from "./channels.js";
 export {
 	ARTICLE_LIMITS,

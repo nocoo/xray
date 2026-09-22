@@ -131,13 +131,16 @@ export async function listChannelKeys(
 ): Promise<ChannelKey[]> {
 	const { results } = await db
 		.prepare(
-			`SELECT id, channel_id, label, token_prefix, created_at_ms, last_used_at_ms
+			`SELECT id, channel_id, label, token_prefix, created_at_ms, last_used_at_ms,
+ (SELECT json_group_array(json_object('id', t.id, 'name', t.name)) FROM channel_key_tags kt
+ JOIN tags t ON t.id = kt.tag_id WHERE kt.key_id = push_tokens.id AND t.user_id = push_tokens.user_id) AS tags_json
 			 FROM push_tokens
 			 WHERE user_id = ? AND channel_id = ? AND revoked_at_ms IS NULL
 			 ORDER BY id ASC`,
 		)
 		.bind(userId, channelId)
 		.all<{
+			tags_json?: string;
 			id: number;
 			channel_id: number;
 			label: string;
@@ -147,6 +150,7 @@ export async function listChannelKeys(
 		}>();
 	return (results ?? []).map((r) => ({
 		id: r.id,
+		tags: JSON.parse(r.tags_json ?? "[]"),
 		channelId: r.channel_id,
 		label: r.label,
 		tokenPrefix: r.token_prefix,
@@ -175,6 +179,7 @@ export async function createChannelKey(
 	);
 	return {
 		id: dto.id,
+		tags: [],
 		channelId,
 		label: dto.label,
 		tokenPrefix: dto.tokenPrefix,

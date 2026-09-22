@@ -27,6 +27,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useChannels } from "@/components/channels-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
+import { TagLabels } from "@/components/tag-labels";
 import { useVm } from "@/viewmodels/use-vm";
 
 export function ChannelsManagePage() {
@@ -223,6 +224,7 @@ export function ChannelsManagePage() {
 											>
 												{channel.name}
 											</Link>
+											<TagLabels tags={channel.tags} />
 											{channel.description && (
 												<p
 													className="mt-1 truncate text-xs text-basalt-muted-foreground"

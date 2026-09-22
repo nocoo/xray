@@ -1,4 +1,5 @@
 import { Button, LayerCard } from "@nocoo/basalt";
+import { TagBadge } from "@nocoo/basalt/components/tag-badge";
 import { Pencil, RefreshCw, Trash2, Users } from "lucide-react";
 import { memo } from "react";
 import { XVerified } from "@/components/icons/x-verified";
@@ -107,16 +108,10 @@ export const MemberCard = memo(function MemberCard({
 				{member.tags.length > 0 && (
 					<div className="mt-1.5 flex flex-wrap gap-1">
 						{member.tags.slice(0, 4).map((t) => (
-							<span
-								key={t.id}
-								className="rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none text-white"
-								style={{ backgroundColor: t.color }}
-							>
-								{t.name}
-							</span>
+							<TagBadge key={t.id} name={t.name} size="sm" className="[overflow-wrap:anywhere]" />
 						))}
 						{member.tags.length > 4 && (
-							<span className="text-[10px] text-basalt-muted-foreground">
+							<span className="text-xs text-basalt-muted-foreground">
 								+{member.tags.length - 4}
 							</span>
 						)}

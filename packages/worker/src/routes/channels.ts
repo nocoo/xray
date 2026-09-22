@@ -1,16 +1,25 @@
-import { parseArticlePageQuery } from "@xray/shared";
+import { parseArticleInput, parseArticlePageQuery } from "@xray/shared";
 import type { Context } from "hono";
-import { jsonErr, jsonOk, parseChannelBody, parseIdParam, requireUser } from "../lib/http.js";
+import {
+	jsonErr,
+	jsonOk,
+	parseChannelBody,
+	parseIdParam,
+	readBoundedBody,
+	requireUser,
+} from "../lib/http.js";
 import { mintPushToken } from "../lib/push-token-crypto.js";
 import {
 	createChannel,
 	deleteChannel,
+	deleteChannelArticle,
 	getChannel,
 	getChannelArticle,
 	listChannelArticles,
 	listChannels,
 	orderChannels,
 	updateChannel,
+	updateChannelArticle,
 } from "../repos/channels.js";
 import { createChannelKey, listChannelKeys, revokeChannelKey } from "../repos/push-tokens.js";
 import type { AppEnv } from "../types.js";
@@ -157,4 +166,46 @@ export async function revokeChannelKeyRoute(c: Context<AppEnv>) {
 function parseArticlePageQuerySafe(c: Context<AppEnv>): ReturnType<typeof parseArticlePageQuery> {
 	const q = c.req.query();
 	return parseArticlePageQuery({ date: q.date, before: q.before, limit: q.limit });
+}
+
+export async function patchChannelArticleRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	const id = parseIdParam(c.req.param("id"));
+	const articleId = parseIdParam(c.req.param("articleId"));
+	if (!id || !articleId) return jsonErr(c, "invalid id", 400);
+	const body = await readBoundedBody(c, 1_048_576);
+	if (!body.ok) return jsonErr(c, body.error, body.status);
+	let raw: unknown;
+	try {
+		raw = JSON.parse(body.text);
+	} catch {
+		return jsonErr(c, "invalid JSON", 400);
+	}
+	if (
+		!raw ||
+		typeof raw !== "object" ||
+		Array.isArray(raw) ||
+		Object.keys(raw).some(
+			(k) => !["title", "report_date", "markdown", "summary", "author"].includes(k),
+		)
+	)
+		return jsonErr(c, "invalid article fields", 400);
+	const existing = await getChannelArticle(c.env.DB, user.id, id, articleId);
+	if (!existing) return jsonErr(c, "Not found", 404);
+	const parsed = parseArticleInput({ ...raw, external_id: existing.externalId });
+	if (!parsed.ok) return jsonErr(c, parsed.error, parsed.status);
+	const updated = await updateChannelArticle(c.env.DB, user.id, id, articleId, parsed.value);
+	return updated ? jsonOk(c, updated) : jsonErr(c, "Not found", 404);
+}
+
+export async function deleteChannelArticleRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	const id = parseIdParam(c.req.param("id"));
+	const articleId = parseIdParam(c.req.param("articleId"));
+	if (!id || !articleId) return jsonErr(c, "invalid id", 400);
+	return (await deleteChannelArticle(c.env.DB, user.id, id, articleId))
+		? jsonOk(c, { deleted: true })
+		: jsonErr(c, "Not found", 404);
 }

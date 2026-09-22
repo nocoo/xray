@@ -18,6 +18,12 @@ test("channel API uses tenant browser client, serialized bodies and date/cursor 
 	await api.fetchArticles(4);
 	await api.fetchArticles(4, "2026-09-22", 19);
 	await api.fetchArticle(4, 19);
+	await api.updateArticle(4, 19, {
+		title: "Edited",
+		report_date: "2026-09-22",
+		markdown: "Updated",
+	});
+	await api.deleteArticle(4, 19);
 	await api.fetchChannelKeys(4);
 	await api.createChannelKey(4, "Agent");
 	await api.revokeChannelKey(4, 2);
@@ -30,6 +36,12 @@ test("channel API uses tenant browser client, serialized bodies and date/cursor 
 		["/api/channels/4/articles?", "GET", undefined],
 		["/api/channels/4/articles?date=2026-09-22&before=19", "GET", undefined],
 		["/api/channels/4/articles/19", "GET", undefined],
+		[
+			"/api/channels/4/articles/19",
+			"PATCH",
+			JSON.stringify({ title: "Edited", report_date: "2026-09-22", markdown: "Updated" }),
+		],
+		["/api/channels/4/articles/19", "DELETE", undefined],
 		["/api/channels/4/keys", "GET", undefined],
 		["/api/channels/4/keys", "POST", '{"label":"Agent"}'],
 		["/api/channels/4/keys/2", "DELETE", undefined],

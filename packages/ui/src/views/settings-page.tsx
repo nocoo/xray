@@ -8,6 +8,7 @@ import { useEffect, useMemo } from "react";
 import * as aiApi from "@/api/ai";
 import * as settingsApi from "@/api/settings";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
+import { TagsSettings } from "@/components/tags-settings";
 import { createAiSettingsVm } from "@/viewmodels/ai-settings-vm";
 import { createSettingsVm } from "@/viewmodels/settings-vm";
 import { useVm } from "@/viewmodels/use-vm";
@@ -31,7 +32,7 @@ export function SettingsPage() {
 
 	return (
 		<div className="space-y-4">
-			<PageHeader title="Settings" description="Account preferences and AI configuration." />
+			<PageHeader title="Settings" description="Account preferences, tags, and AI configuration." />
 
 			<SectionRule id="account" title="Account" hint="Signed-in user and ingest lookback window.">
 				{account.loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
@@ -67,6 +68,8 @@ export function SettingsPage() {
 					</LayerCard.Body>
 				</LayerCard>
 			</SectionRule>
+
+			<TagsSettings />
 
 			<SectionRule
 				id="ai"

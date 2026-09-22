@@ -63,6 +63,9 @@ describe("channels repo", () => {
 				"utf8",
 			),
 		);
+		await db.exec(
+			readFileSync(new URL("../../migrations/0005_channel_tags.sql", import.meta.url), "utf8"),
+		);
 		expect((await listChannels(db, U1)).map((c) => [c.id, c.sortOrder])).toEqual([
 			[2, 0],
 			[9, 1],

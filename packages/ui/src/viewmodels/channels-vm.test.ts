@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from "vitest";
 import { createChannelsVm } from "./channels-vm";
 
 const channel: Channel = {
+	tags: [],
 	id: 1,
 	name: "Research",
 	description: null,
@@ -26,6 +27,7 @@ const article: ChannelArticle = {
 	markdown: "## Hello",
 };
 const key: ChannelKey = {
+	tags: [],
 	id: 3,
 	channelId: 1,
 	label: "Agent",
@@ -42,6 +44,8 @@ function setup() {
 		reorderChannels: vi.fn().mockResolvedValue([channel]),
 		fetchArticles: vi.fn().mockResolvedValue({ items: [article], nextCursor: 2 }),
 		fetchArticle: vi.fn().mockResolvedValue(article),
+		updateArticle: vi.fn().mockResolvedValue({ ...article, title: "Edited" }),
+		deleteArticle: vi.fn().mockResolvedValue({ deleted: true }),
 		fetchChannelKeys: vi.fn().mockResolvedValue([key]),
 		createChannelKey: vi.fn().mockResolvedValue({ ...key, id: 4, token: "one-time" }),
 		revokeChannelKey: vi.fn().mockResolvedValue({ revoked: true }),
@@ -441,3 +445,59 @@ test.each(["createKey", "revoke"] as const)(
 		expect(vm.getState()).toMatchObject({ error: "current mutation", busy: false });
 	},
 );
+
+const editInput = { title: "Edited", report_date: "2026-09-22", markdown: "# Updated" };
+
+test("article edits and deletion refresh list, statistics and detail; failures preserve the article", async () => {
+	const { vm, api } = setup();
+	await vm.loadArticles(1, "");
+	await vm.selectArticle(1, 2);
+	expect(await vm.editArticle(1, 2, editInput)).toBe(true);
+	expect(api.updateArticle).toHaveBeenCalledWith(1, 2, editInput);
+	expect(vm.getState().article?.title).toBe("Edited");
+	expect(api.fetchArticles).toHaveBeenCalledTimes(2);
+	expect(api.fetchChannels).toHaveBeenCalledTimes(1);
+	api.updateArticle.mockRejectedValueOnce(Error("save failed"));
+	expect(await vm.editArticle(1, 2, editInput)).toBeUndefined();
+	expect(vm.getState()).toMatchObject({
+		busy: false,
+		error: "save failed",
+		article: { title: "Edited" },
+	});
+	api.deleteArticle.mockRejectedValueOnce(Error("delete failed"));
+	expect(await vm.removeArticle(1, 2)).toBeUndefined();
+	expect(vm.getState().article?.title).toBe("Edited");
+	api.fetchArticles.mockResolvedValue({ items: [], nextCursor: null });
+	expect(await vm.removeArticle(1, 2)).toBe(true);
+	expect(api.deleteArticle).toHaveBeenCalledWith(1, 2);
+	expect(vm.getState()).toMatchObject({ article: null, items: [], error: null });
+});
+
+test("late article mutations cannot replace detail or navigate after switching channel", async () => {
+	for (const operation of ["edit", "delete"] as const) {
+		for (const fail of [false, true]) {
+			const { vm, api } = setup();
+			await vm.loadArticles(1, "");
+			await vm.selectArticle(1, 2);
+			const slow = deferred<ChannelArticle | { deleted: true }>();
+			if (operation === "edit") api.updateArticle.mockReturnValueOnce(slow.promise);
+			else api.deleteArticle.mockReturnValueOnce(slow.promise);
+			const changing =
+				operation === "edit" ? vm.editArticle(1, 2, editInput) : vm.removeArticle(1, 2);
+			const next = { ...article, channelId: 9, id: 99 };
+			api.fetchArticle.mockResolvedValueOnce(next);
+			await vm.loadArticles(9, "");
+			await vm.selectArticle(9, 99);
+			if (fail) slow.reject(Error("stale failure"));
+			else slow.resolve(operation === "edit" ? { ...article, title: "Edited" } : { deleted: true });
+			expect(await changing).toBe(false);
+			expect(vm.getState()).toMatchObject({
+				article: next,
+				channelId: 9,
+				error: null,
+				busy: false,
+			});
+			expect(api.fetchArticles).toHaveBeenCalledTimes(2);
+		}
+	}
+});

@@ -1,5 +1,6 @@
 import { Button } from "@nocoo/basalt";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
+import { TagBadge } from "@nocoo/basalt/components/tag-badge";
 import {
 	AArrowDown,
 	AArrowUp,
@@ -7,12 +8,15 @@ import {
 	CalendarDays,
 	Columns2,
 	Maximize2,
+	Pencil,
 	Radio,
 	Settings,
+	Trash2,
 	Type,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { ArticleEditor } from "@/components/article-editor";
 import { ChannelMarkdown } from "@/components/channel-markdown";
 import { useChannels } from "@/components/channels-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
@@ -48,6 +52,8 @@ export function ChannelsPage() {
 		readPreferences(sessionStorage, `${scope}:preferences`),
 	);
 	const [mobileList, setMobileList] = useState(false);
+	const [editing, setEditing] = useState(false);
+	const [deleting, setDeleting] = useState(false);
 	const list = useRef<HTMLElement>(null);
 	const documentRef = useRef<HTMLDivElement>(null);
 	const focusListSelection = useRef(false);
@@ -81,8 +87,16 @@ export function ChannelsPage() {
 	}, [vm, state, channelId, articleId, date, navigate]);
 	useEffect(() => {
 		void vm.selectArticle(channelId, articleId);
+		setEditing(false);
+		setDeleting(false);
 		setMobileList(false);
+		return () => {
+			void vm.selectArticle(0, 0);
+		};
 	}, [vm, channelId, articleId]);
+	useLayoutEffect(() => {
+		if ((editing || deleting) && documentRef.current) documentRef.current.scrollTop = 0;
+	}, [editing, deleting]);
 	useLayoutEffect(() => {
 		if (state.loading || !list.current || state.channelId !== channelId || state.date !== date)
 			return;
@@ -111,7 +125,7 @@ export function ChannelsPage() {
 	}, [articleId, state.items]);
 	useEffect(() => {
 		function keydown(event: KeyboardEvent) {
-			if (event.defaultPrevented) return;
+			if (event.defaultPrevented || editing || deleting || state.busy) return;
 			const target = event.target instanceof Element ? event.target : null;
 			const blocked = Boolean(
 				document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]') ||
@@ -148,7 +162,19 @@ export function ChannelsPage() {
 		}
 		window.addEventListener("keydown", keydown);
 		return () => window.removeEventListener("keydown", keydown);
-	}, [article, articleId, channelId, date, navigate, matchingList, state.loading, state.items]);
+	}, [
+		article,
+		articleId,
+		channelId,
+		date,
+		navigate,
+		matchingList,
+		state.loading,
+		state.items,
+		editing,
+		deleting,
+		state.busy,
+	]);
 	function select(id: number) {
 		setMobileList(false);
 		void navigate(articlePath(channelId, id, date));
@@ -171,6 +197,39 @@ export function ChannelsPage() {
 					description={channel?.description || "Published reports, ready to read."}
 					actions={
 						<>
+							{channel && channel.tags.length > 0 && (
+								<div className="flex max-w-xs flex-wrap justify-end gap-1">
+									{channel.tags.map((tag) => (
+										<TagBadge key={tag.id} name={tag.name} size="sm" />
+									))}
+								</div>
+							)}
+							<div className="flex items-center gap-2">
+								<HeaderTooltip label="Edit article">
+									<Button
+										variant="outline"
+										size="icon"
+										className="h-8 w-8"
+										aria-label="Edit article"
+										disabled={!article || state.articleLoading || state.busy || editing || deleting}
+										onClick={() => setEditing(true)}
+									>
+										<Pencil aria-hidden="true" className="h-4 w-4" />
+									</Button>
+								</HeaderTooltip>
+								<HeaderTooltip label="Delete article">
+									<Button
+										variant="outline"
+										size="icon"
+										className="h-8 w-8 text-basalt-destructive"
+										aria-label="Delete article"
+										disabled={!article || state.articleLoading || state.busy || editing || deleting}
+										onClick={() => setDeleting(true)}
+									>
+										<Trash2 aria-hidden="true" className="h-4 w-4" />
+									</Button>
+								</HeaderTooltip>
+							</div>
 							{articleId > 0 && !mobileList && (
 								<HeaderTooltip label="Back to reports">
 									<Button
@@ -187,78 +246,82 @@ export function ChannelsPage() {
 									</Button>
 								</HeaderTooltip>
 							)}
-							<fieldset
-								className="flex min-w-0 items-center gap-2"
-								aria-label="Reading preferences"
-							>
-								<HeaderTooltip label={preferences.sans ? "Use serif font" : "Use sans-serif font"}>
-									<Button
-										variant="outline"
-										size="icon"
-										className="h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
-										aria-label="Use sans-serif font"
-										aria-pressed={preferences.sans}
-										onClick={() => changePreferences({ ...preferences, sans: !preferences.sans })}
-									>
-										<Type aria-hidden="true" className="h-4 w-4" />
-									</Button>
-								</HeaderTooltip>
-								<HeaderTooltip label={`Decrease font size · ${preferences.size}px`}>
-									<Button
-										variant="outline"
-										size="icon"
-										className="h-8 w-8"
-										aria-label="Decrease font size"
-										disabled={preferences.size <= 16}
-										onClick={() =>
-											changePreferences({ ...preferences, size: preferences.size - 2 })
-										}
-									>
-										<AArrowDown aria-hidden="true" className="h-4 w-4" />
-									</Button>
-								</HeaderTooltip>
-								<HeaderTooltip label={`Increase font size · ${preferences.size}px`}>
-									<Button
-										variant="outline"
-										size="icon"
-										className="h-8 w-8"
-										aria-label="Increase font size"
-										disabled={preferences.size >= 22}
-										onClick={() =>
-											changePreferences({ ...preferences, size: preferences.size + 2 })
-										}
-									>
-										<AArrowUp aria-hidden="true" className="h-4 w-4" />
-									</Button>
-								</HeaderTooltip>
-								<HeaderTooltip
-									label={preferences.fullWidth ? "Use readable width" : "Use full width"}
+							<div className="flex items-center gap-2">
+								<fieldset
+									className="flex min-w-0 items-center gap-2"
+									aria-label="Reading preferences"
 								>
-									<Button
-										variant="outline"
-										size="icon"
-										className="h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
-										aria-label="Use full reading width"
-										aria-pressed={preferences.fullWidth}
-										onClick={() =>
-											changePreferences({ ...preferences, fullWidth: !preferences.fullWidth })
-										}
+									<HeaderTooltip
+										label={preferences.sans ? "Use serif font" : "Use sans-serif font"}
 									>
-										{preferences.fullWidth ? (
-											<Columns2 aria-hidden="true" className="h-4 w-4" />
-										) : (
-											<Maximize2 aria-hidden="true" className="h-4 w-4" />
-										)}
+										<Button
+											variant="outline"
+											size="icon"
+											className="h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
+											aria-label="Use sans-serif font"
+											aria-pressed={preferences.sans}
+											onClick={() => changePreferences({ ...preferences, sans: !preferences.sans })}
+										>
+											<Type aria-hidden="true" className="h-4 w-4" />
+										</Button>
+									</HeaderTooltip>
+									<HeaderTooltip label={`Decrease font size · ${preferences.size}px`}>
+										<Button
+											variant="outline"
+											size="icon"
+											className="h-8 w-8"
+											aria-label="Decrease font size"
+											disabled={preferences.size <= 16}
+											onClick={() =>
+												changePreferences({ ...preferences, size: preferences.size - 2 })
+											}
+										>
+											<AArrowDown aria-hidden="true" className="h-4 w-4" />
+										</Button>
+									</HeaderTooltip>
+									<HeaderTooltip label={`Increase font size · ${preferences.size}px`}>
+										<Button
+											variant="outline"
+											size="icon"
+											className="h-8 w-8"
+											aria-label="Increase font size"
+											disabled={preferences.size >= 22}
+											onClick={() =>
+												changePreferences({ ...preferences, size: preferences.size + 2 })
+											}
+										>
+											<AArrowUp aria-hidden="true" className="h-4 w-4" />
+										</Button>
+									</HeaderTooltip>
+									<HeaderTooltip
+										label={preferences.fullWidth ? "Use readable width" : "Use full width"}
+									>
+										<Button
+											variant="outline"
+											size="icon"
+											className="h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
+											aria-label="Use full reading width"
+											aria-pressed={preferences.fullWidth}
+											onClick={() =>
+												changePreferences({ ...preferences, fullWidth: !preferences.fullWidth })
+											}
+										>
+											{preferences.fullWidth ? (
+												<Columns2 aria-hidden="true" className="h-4 w-4" />
+											) : (
+												<Maximize2 aria-hidden="true" className="h-4 w-4" />
+											)}
+										</Button>
+									</HeaderTooltip>
+								</fieldset>
+								<HeaderTooltip label="Manage channel">
+									<Button variant="outline" size="icon" className="h-8 w-8" asChild>
+										<Link to={`/channels/${channelId}/settings`} aria-label="Manage channel">
+											<Settings aria-hidden="true" className="h-4 w-4" />
+										</Link>
 									</Button>
 								</HeaderTooltip>
-							</fieldset>
-							<HeaderTooltip label="Manage channel">
-								<Button variant="outline" size="icon" className="h-8 w-8" asChild>
-									<Link to={`/channels/${channelId}/settings`} aria-label="Manage channel">
-										<Settings aria-hidden="true" className="h-4 w-4" />
-									</Link>
-								</Button>
-							</HeaderTooltip>
+							</div>
 						</>
 					}
 				/>
@@ -286,6 +349,7 @@ export function ChannelsPage() {
 							ref={item.id === articleId ? selectedButton : undefined}
 							variant="ghost"
 							className="channel-list-item"
+							disabled={editing || deleting || state.busy}
 							aria-current={item.id === articleId ? "true" : undefined}
 							onClick={() => select(item.id)}
 						>
@@ -333,7 +397,55 @@ export function ChannelsPage() {
 						data-full-width={preferences.fullWidth}
 						aria-busy={state.articleLoading}
 					>
-						{article ? (
+						{article && deleting && (
+							<section
+								aria-label="Confirm article deletion"
+								className="m-4 rounded-lg border border-basalt-border bg-basalt-secondary p-4 font-sans text-sm"
+							>
+								<h2 className="font-semibold">Delete “{article.title}”?</h2>
+								<p className="mt-1 text-basalt-muted-foreground">
+									This permanently removes the article. Its producer can submit it again.
+								</p>
+								<div className="mt-3 flex justify-end gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										disabled={state.busy}
+										onClick={() => setDeleting(false)}
+									>
+										Cancel
+									</Button>
+									<Button
+										variant="destructive"
+										size="sm"
+										disabled={state.busy}
+										onClick={async () => {
+											const sourceUrl = window.location.href;
+											if (
+												(await vm.removeArticle(channelId, articleId)) &&
+												window.location.href === sourceUrl
+											) {
+												setDeleting(false);
+												void navigate(articlePath(channelId, 0, date), { replace: true });
+											}
+										}}
+									>
+										Confirm delete
+									</Button>
+								</div>
+							</section>
+						)}
+						{article && editing ? (
+							<ArticleEditor
+								key={article.id}
+								article={article}
+								busy={state.busy}
+								onCancel={() => setEditing(false)}
+								onSave={async (input) => {
+									if (await vm.editArticle(channelId, articleId, input)) setEditing(false);
+								}}
+							/>
+						) : article ? (
 							<article
 								className={`channel-prose${preferences.sans ? " channel-sans" : ""}`}
 								style={{ fontSize: preferences.size }}

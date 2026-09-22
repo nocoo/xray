@@ -86,3 +86,9 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 - **What:** The release script committed and pushed v2.4.0 preparation with 493 mirror tarball URLs in bun.lock. Tag publication was interrupted before the tag reached GitHub, and that commit’s CI failed before deployment. Production had not changed.
 - **Why:** The ambient Bun 1.4.2 runtime differed from the declared 1.3.14, and installation with a temporary registry wrote explicit mirror URLs. The release script committed immediately without validating the lockfile diff.
 - **Follow-up:** Restore registry-neutral entries without changing package versions or integrity values, use the declared Bun runtime, and make the release script reject runtime mismatch and registry URLs before publishing. Continue through normal hooks and exact-commit CI; no published history or tags are rewritten.
+
+## 2026-09-22: Pending article deletion competed with navigation
+
+- **What:** Isolated browser acceptance found that finishing an article deletion could return the reader after the user had selected channel settings. No production data was touched.
+- **Why:** The shared ViewModel outlived the page. Unmount invalidation alone did not cover the interval between the browser URL changing and React committing the new route.
+- **Follow-up:** Invalidate article requests when leaving the reader and compare the current URL with the operation's source URL before navigating after deletion. Keep the delayed-delete browser regression, which exercises leaving before the response completes. Await persisted checkbox state explicitly in tag tests because assignments complete asynchronously.

@@ -10,6 +10,7 @@ import {
 } from "@nocoo/basalt";
 import { Banner } from "@nocoo/basalt/components/banner";
 import { InputArea } from "@nocoo/basalt/components/input-area";
+import { TagBadge } from "@nocoo/basalt/components/tag-badge";
 import { ToggleGroup, ToggleGroupItem } from "@nocoo/basalt/components/toggle-group";
 import { Pencil } from "lucide-react";
 import { useEffect, useId, useState } from "react";
@@ -107,7 +108,7 @@ export function EditMemberDialog({
 								>
 									{tags.map((tag) => (
 										<ToggleGroupItem key={tag.id} value={String(tag.id)}>
-											{tag.name}
+											<TagBadge name={tag.name} size="sm" className="[overflow-wrap:anywhere]" />
 										</ToggleGroupItem>
 									))}
 								</ToggleGroup>

@@ -1,6 +1,9 @@
 /** Channels: Markdown report contracts (docs/11-channels.md). */
 
+export type Tag = { id: number; name: string };
+
 export type Channel = {
+	tags: Tag[];
 	id: number;
 	name: string;
 	description: string | null;
@@ -13,6 +16,7 @@ export type Channel = {
 };
 
 export type ChannelKey = {
+	tags: Tag[];
 	id: number;
 	channelId: number;
 	label: string;

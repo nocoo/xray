@@ -1,4 +1,10 @@
-import type { Channel, ChannelArticle, ChannelArticleSummary, ChannelKey } from "@xray/shared";
+import type {
+	ArticleInput,
+	Channel,
+	ChannelArticle,
+	ChannelArticleSummary,
+	ChannelKey,
+} from "@xray/shared";
 import type * as channelsApi from "@/api/channels";
 import { createStore, errMsg } from "./store";
 
@@ -106,6 +112,44 @@ export function createChannelsVm(api: typeof channelsApi) {
 			} catch (e) {
 				if (request === articleRequest) store.setState({ articleLoading: false, error: errMsg(e) });
 			}
+		},
+		editArticle(channelId: number, articleId: number, input: Omit<ArticleInput, "external_id">) {
+			const request = articleRequest;
+			return mutate(async () => {
+				let article: ChannelArticle;
+				try {
+					article = await api.updateArticle(channelId, articleId, input);
+				} catch (error) {
+					if (request === articleRequest) throw error;
+					return false;
+				}
+				if (request === articleRequest) store.setState({ article, articleLoading: false });
+				await vm.refreshReports(channelId);
+				return request === articleRequest;
+			});
+		},
+		removeArticle(channelId: number, articleId: number) {
+			const request = articleRequest;
+			return mutate(async () => {
+				try {
+					await api.deleteArticle(channelId, articleId);
+				} catch (error) {
+					if (request === articleRequest) throw error;
+					return false;
+				}
+				if (request === articleRequest) store.setState({ article: null, articleLoading: false });
+				await vm.refreshReports(channelId);
+				return request === articleRequest;
+			});
+		},
+		async refreshReports(channelId: number) {
+			const current = store.getState();
+			await Promise.all([
+				vm.loadChannels(),
+				...(current.channelId === channelId
+					? [vm.loadArticles(channelId, current.date, false, current.pageCount)]
+					: []),
+			]);
 		},
 		create(name: string, description: string) {
 			return mutate(async () => {

@@ -1,4 +1,4 @@
-import type { ArticlePage, Channel, ChannelArticle, ChannelKey } from "@xray/shared";
+import type { ArticleInput, ArticlePage, Channel, ChannelArticle, ChannelKey } from "@xray/shared";
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "./client";
 
 export const fetchChannels = () => apiGet<Channel[]>("/api/channels");
@@ -16,6 +16,13 @@ export function fetchArticles(id: number, date = "", before: number | null = nul
 }
 export const fetchArticle = (id: number, articleId: number) =>
 	apiGet<ChannelArticle>(`/api/channels/${id}/articles/${articleId}`);
+export const updateArticle = (
+	id: number,
+	articleId: number,
+	input: Omit<ArticleInput, "external_id">,
+) => apiPatch<ChannelArticle>(`/api/channels/${id}/articles/${articleId}`, input);
+export const deleteArticle = (id: number, articleId: number) =>
+	apiDelete<{ deleted: true }>(`/api/channels/${id}/articles/${articleId}`);
 export const fetchChannelKeys = (id: number) => apiGet<ChannelKey[]>(`/api/channels/${id}/keys`);
 export const createChannelKey = (id: number, label: string) =>
 	apiPost<ChannelKey & { token: string }>(`/api/channels/${id}/keys`, { label });

@@ -11,7 +11,11 @@ export function jsonOk<T>(c: Context<AppEnv>, data: T, status: 200 | 201 = 200) 
 	return c.json({ success: true, data }, status);
 }
 
-export function jsonErr(c: Context<AppEnv>, error: string, status: 400 | 403 | 404 | 409 | 500) {
+export function jsonErr(
+	c: Context<AppEnv>,
+	error: string,
+	status: 400 | 403 | 404 | 409 | 413 | 500,
+) {
 	return c.json({ success: false, error }, status);
 }
 
@@ -254,7 +258,7 @@ export function parseMemberPatchBody(raw: unknown):
 export function parseTagBody(raw: unknown): ParseOk<{ name: string; color: string }> | ParseFail {
 	const o = asObject(raw);
 	if (!o) return { ok: false, error: "invalid body" };
-	const name = optString(o.name, "name", MAX_NAME);
+	const name = optString(o.name, "name", 64);
 	if (!name.ok) return name;
 	if (!name.value) return { ok: false, error: "name required" };
 	const color = optString(o.color, "color", 64, { allowEmpty: true });

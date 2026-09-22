@@ -28,10 +28,12 @@ import {
 	Settings,
 	Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import * as tagsApi from "@/api/tags";
 import { useChannels } from "@/components/channels-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
+import { TagAssignment } from "@/components/tag-assignment";
 import {
 	channelRequest,
 	copyChannelText,
@@ -39,6 +41,7 @@ import {
 	reportExample,
 } from "@/lib/channel-reader";
 import { getDataMode } from "@/lib/data-mode";
+import { createTagsVm } from "@/viewmodels/tags-vm";
 import { useVm } from "@/viewmodels/use-vm";
 
 export function ChannelSettingsPage() {
@@ -90,6 +93,10 @@ export function ChannelSettingsPage() {
 }
 
 function ChannelSettings({ channel }: { channel: Channel }) {
+	const tagsVm = useMemo(() => createTagsVm(tagsApi), []);
+	useEffect(() => {
+		void tagsVm.load();
+	}, [tagsVm]);
 	const vm = useChannels();
 	const state = useVm(vm);
 	const navigate = useNavigate();
@@ -233,6 +240,24 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 					</form>
 				</LayerCard>
 			</SectionRule>
+			<SectionRule title="Tags">
+				<LayerCard>
+					<TagAssignment
+						vm={tagsVm}
+						tags={channel.tags}
+						channelId={channel.id}
+						label="channel"
+						onChange={(tags) => {
+							vm.setState((s) => ({
+								channels: s.channels.map((item) =>
+									item.id === channel.id ? { ...item, tags } : item,
+								),
+							}));
+							void vm.loadChannels();
+						}}
+					/>
+				</LayerCard>
+			</SectionRule>
 			<SectionRule
 				title={
 					<span className="flex items-center gap-2">
@@ -318,35 +343,56 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 							</TableHeader>
 							<TableBody>
 								{keys.map((key) => (
-									<TableRow key={key.id}>
-										<TableCell className="w-full max-w-0">
-											<p className="truncate font-medium" title={key.label}>
-												{key.label}
-											</p>
-											<p className="mt-1 truncate font-mono text-xs text-basalt-muted-foreground">
-												{key.tokenPrefix}…
-											</p>
-										</TableCell>
-										<TableCell className="hidden whitespace-nowrap text-basalt-muted-foreground md:table-cell">
-											{new Date(key.createdAtMs).toLocaleDateString()}
-										</TableCell>
-										<TableCell className="hidden whitespace-nowrap text-basalt-muted-foreground sm:table-cell">
-											{key.lastUsedAtMs
-												? new Date(key.lastUsedAtMs).toLocaleString()
-												: "Never used"}
-										</TableCell>
-										<TableCell className="text-right">
-											<Button
-												variant="outline"
-												size="sm"
-												aria-label={`Revoke ${key.label}`}
-												disabled={state.busy}
-												onClick={() => setRevoking(key)}
-											>
-												Revoke
-											</Button>
-										</TableCell>
-									</TableRow>
+									<Fragment key={key.id}>
+										<TableRow className="border-b-0">
+											<TableCell className="w-full max-w-0">
+												<p className="truncate font-medium" title={key.label}>
+													{key.label}
+												</p>
+												<p className="mt-1 truncate font-mono text-xs text-basalt-muted-foreground">
+													{key.tokenPrefix}…
+												</p>
+											</TableCell>
+											<TableCell className="hidden whitespace-nowrap text-basalt-muted-foreground md:table-cell">
+												{new Date(key.createdAtMs).toLocaleDateString()}
+											</TableCell>
+											<TableCell className="hidden whitespace-nowrap text-basalt-muted-foreground sm:table-cell">
+												{key.lastUsedAtMs
+													? new Date(key.lastUsedAtMs).toLocaleString()
+													: "Never used"}
+											</TableCell>
+											<TableCell className="text-right">
+												<Button
+													variant="outline"
+													size="sm"
+													aria-label={`Revoke ${key.label}`}
+													disabled={state.busy}
+													onClick={() => setRevoking(key)}
+												>
+													Revoke
+												</Button>
+											</TableCell>
+										</TableRow>
+										<TableRow>
+											<TableCell colSpan={4} className="pt-0">
+												<TagAssignment
+													vm={tagsVm}
+													tags={key.tags}
+													channelId={channel.id}
+													keyId={key.id}
+													label={key.label}
+													onChange={(tags) => {
+														vm.setState((s) => ({
+															keys: s.keys.map((item) =>
+																item.id === key.id ? { ...item, tags } : item,
+															),
+														}));
+														void vm.loadChannels();
+													}}
+												/>
+											</TableCell>
+										</TableRow>
+									</Fragment>
 								))}
 							</TableBody>
 						</Table>

@@ -382,3 +382,187 @@ test("loaded history and reading positions survive reload and browser navigation
 	await page.goForward();
 	await expect(content.getByRole("heading", { name: "Historical report 01", exact: true })).toBeVisible();
 });
+
+test("article actions edit inline, retain failed drafts and select the next report after deletion", async ({ page, request }) => {
+	const created = await request.post(`${WORKER}/api/channels`, { headers: browserApiHeaders, data: { name: `Article edits ${Date.now()}` } });
+	const channel = (await created.json()).data;
+	const issued = await request.post(`${WORKER}/api/channels/${channel.id}/keys`, { headers: browserApiHeaders, data: { label: "Editing producer" } });
+	const key = (await issued.json()).data;
+	const ids: number[] = [];
+	for (const date of ["2026-09-21", "2026-09-22"]) {
+		const response = await request.post(`${INGEST}/api/v1/ingest/articles`, {
+			headers: { host: "xray-ingest.worker.hexly.ai", authorization: `Bearer ${key.token}` },
+			data: { external_id: date, title: `Original ${date}`, report_date: date, markdown: "## Original body" },
+		});
+		expect(response.status()).toBe(201);
+		ids.push((await response.json()).id);
+	}
+	await page.goto(`${BROWSER}/channels/${channel.id}`);
+	const content = page.getByRole("document", { name: "Article content" });
+	const edit = page.locator(".channel-header").getByRole("button", { name: "Edit article", exact: true });
+	const remove = page.locator(".channel-header").getByRole("button", { name: "Delete article", exact: true });
+	await expect(page).toHaveURL(new RegExp(`/articles/${ids[1]}$`));
+	await edit.click();
+	await expect(page.getByRole("dialog")).toHaveCount(0);
+	await page.getByLabel("Article title", { exact: true }).fill("Unsaved title");
+	await content.getByRole("button", { name: "Cancel", exact: true }).click();
+	await expect(content.getByRole("heading", { name: "Original 2026-09-22", exact: true })).toBeVisible();
+	await edit.click();
+	await page.getByLabel("Article title", { exact: true }).fill("Edited 中文日报");
+	await page.getByLabel("Markdown", { exact: true }).fill("## 修改后的内容\n\n**保存后的正文**");
+	await page.getByLabel("Report date", { exact: true }).fill("2026-09-23");
+	const target = `**/api/channels/${channel.id}/articles/${ids[1]}`;
+	await page.route(target, async route => {
+		if (route.request().method() === "PATCH") await route.fulfill({ status: 503, json: { error: "Try again" } });
+		else await route.continue();
+	});
+	await content.getByRole("button", { name: "Save article", exact: true }).click();
+	await expect(page.getByRole("alert")).toContainText("Worker unreachable");
+	await expect(page.getByLabel("Article title", { exact: true })).toHaveValue("Edited 中文日报");
+	await page.unroute(target);
+	await content.getByRole("button", { name: "Save article", exact: true }).click();
+	await expect(content.getByRole("heading", { name: "修改后的内容", exact: true })).toBeVisible();
+	await expect(page.getByRole("region", { name: "Articles", exact: true }).getByRole("button").first()).toContainText("Edited 中文日报");
+	await page.reload();
+	await expect(content.getByRole("heading", { name: "Edited 中文日报", exact: true })).toBeVisible();
+	await remove.click();
+	const confirmation = page.getByRole("region", { name: "Confirm article deletion", exact: true });
+	await expect(page.getByRole("alertdialog")).toHaveCount(0);
+	await confirmation.getByRole("button", { name: "Cancel", exact: true }).click();
+	await expect(confirmation).toHaveCount(0);
+	await expect(content.getByRole("heading", { name: "Edited 中文日报", exact: true })).toBeVisible();
+	await remove.click();
+	await confirmation.getByRole("button", { name: "Confirm delete", exact: true }).click();
+	await expect(page).toHaveURL(new RegExp(`/articles/${ids[0]}$`));
+	await expect(content.getByRole("heading", { name: "Original 2026-09-21", exact: true })).toBeVisible();
+	await remove.click();
+	await confirmation.getByRole("button", { name: "Confirm delete", exact: true }).click();
+	await expect(page).toHaveURL(new RegExp(`/channels/${channel.id}$`));
+	await expect(page.getByText("No reports for this date.", { exact: true })).toBeVisible();
+	await expect(edit).toBeDisabled();
+	await expect(remove).toBeDisabled();
+	const channels = await request.get(`${WORKER}/api/channels`, { headers: browserApiHeaders });
+	expect((await channels.json()).data.find((item: { id: number }) => item.id === channel.id).articleCount).toBe(0);
+});
+
+test("tags are managed in Settings and created inline for channels and tokens with stable colors", async ({ page, request }) => {
+	const suffix = Date.now();
+	const sharedTag = `研究 ${suffix}`;
+	const renamedTag = `研发 ${suffix}`;
+	const channelTag = `日报 ${suffix}`;
+	const tokenTag = `自动化 ${suffix}`;
+	await page.goto(`${BROWSER}/settings`);
+	await page.getByRole("button", { name: "New tag", exact: true }).click();
+	await page.getByLabel("New tag name", { exact: true }).fill(sharedTag);
+	await page.getByRole("button", { name: "Create tag", exact: true }).click();
+	await expect(page.getByLabel("New tag name", { exact: true })).toHaveValue("");
+	const badge = (name: string) => page.locator("[data-tag-color]").filter({ hasText: name });
+	const color = await badge(sharedTag).getAttribute("data-tag-color");
+	expect(color).toMatch(/^(slate|blue|violet|teal|amber|rose)$/);
+	await page.getByLabel("New tag name", { exact: true }).fill(sharedTag);
+	await page.getByRole("button", { name: "Create tag", exact: true }).click();
+	await expect(page.getByRole("alert")).toContainText("tag exists");
+
+	const created = await request.post(`${WORKER}/api/channels`, { headers: browserApiHeaders, data: { name: `Tagged ${suffix}` } });
+	const channel = (await created.json()).data;
+	await page.goto(`${BROWSER}/channels/${channel.id}/settings`);
+	await page.getByRole("button", { name: "Edit channel tags", exact: true }).click();
+	await page.getByRole("checkbox", { name: sharedTag, exact: true }).click();
+	await expect(page.getByRole("checkbox", { name: sharedTag, exact: true })).toBeChecked();
+	await page.getByLabel("New tag for channel", { exact: true }).fill(channelTag);
+	await page.getByRole("button", { name: "Create & assign", exact: true }).click();
+	await expect(page.getByRole("checkbox", { name: channelTag, exact: true })).toBeChecked();
+	await page.getByRole("button", { name: "Edit channel tags", exact: true }).click();
+	await expect(badge(sharedTag)).toHaveAttribute("data-tag-color", color!);
+
+	await page.getByLabel("Token name", { exact: true }).fill("Tagged producer");
+	await page.getByRole("button", { name: "Create token", exact: true }).click();
+	const token = await page.getByLabel("API key", { exact: true }).inputValue();
+	await page.getByRole("button", { name: "Edit Tagged producer tags", exact: true }).click();
+	await page.getByRole("checkbox", { name: sharedTag, exact: true }).click();
+	await expect(page.getByRole("checkbox", { name: sharedTag, exact: true })).toBeChecked();
+	await page.getByLabel("New tag for Tagged producer", { exact: true }).fill(tokenTag);
+	await page.getByRole("button", { name: "Create & assign", exact: true }).click();
+	await expect(page.getByRole("checkbox", { name: tokenTag, exact: true })).toBeChecked();
+	await page.getByRole("button", { name: "Edit Tagged producer tags", exact: true }).click();
+	await expect(page.getByLabel("API key", { exact: true })).toHaveValue(token);
+	await expect(page.getByRole("dialog")).toHaveCount(0);
+	await page.reload();
+	await expect(badge(sharedTag)).toHaveCount(2);
+	for (const node of await badge(sharedTag).all()) await expect(node).toHaveAttribute("data-tag-color", color!);
+	await expect(badge(channelTag)).toBeVisible();
+	await expect(badge(tokenTag)).toBeVisible();
+	await page.screenshot({ path: "/tmp/xray-tags-settings-desktop.png", fullPage: true });
+	await page.setViewportSize({ width: 320, height: 844 });
+	await page.getByRole("button", { name: "Edit Tagged producer tags", exact: true }).click();
+	await expect.poll(() => page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth)).toBe(true);
+	await page.screenshot({ path: "/tmp/xray-tags-settings-mobile.png", fullPage: true });
+	await page.setViewportSize({ width: 1440, height: 1000 });
+
+	await page.goto(`${BROWSER}/settings`);
+	await page.getByRole("button", { name: `Rename ${sharedTag}`, exact: true }).click();
+	await page.getByRole("textbox", { name: `Rename ${sharedTag}`, exact: true }).fill(renamedTag);
+	await page.getByRole("textbox", { name: `Rename ${sharedTag}`, exact: true }).locator("..").getByRole("button", { name: "Save", exact: true }).click();
+	await expect(badge(renamedTag)).toBeVisible();
+	const renamedColor = await badge(renamedTag).getAttribute("data-tag-color");
+	await page.goto(`${BROWSER}/channels/${channel.id}/settings`);
+	await expect(badge(renamedTag)).toHaveCount(2);
+	for (const node of await badge(renamedTag).all()) await expect(node).toHaveAttribute("data-tag-color", renamedColor!);
+	await expect(badge(sharedTag)).toHaveCount(0);
+	await page.goto(`${BROWSER}/settings`);
+	await page.getByRole("button", { name: `Delete ${renamedTag}`, exact: true }).click();
+	const confirmation = page.getByRole("group", { name: `Confirm deleting ${renamedTag}`, exact: true });
+	await confirmation.getByRole("button", { name: "Cancel", exact: true }).click();
+	await expect(confirmation).toHaveCount(0);
+	await page.getByRole("button", { name: `Delete ${renamedTag}`, exact: true }).click();
+	await confirmation.getByRole("button", { name: "Delete tag", exact: true }).click();
+	await expect(badge(renamedTag)).toHaveCount(0);
+	await page.goto(`${BROWSER}/channels/${channel.id}/settings`);
+	await expect(badge(renamedTag)).toHaveCount(0);
+	await expect(badge(channelTag)).toBeVisible();
+	await expect(badge(tokenTag)).toBeVisible();
+	await expect(page.getByRole("button", { name: "Revoke Tagged producer", exact: true })).toBeVisible();
+	const submitted = await request.post(`${INGEST}/api/v1/ingest/articles`, {
+		headers: { host: "xray-ingest.worker.hexly.ai", authorization: `Bearer ${token}` },
+		data: { external_id: "tagged-report", title: "Tagged report", report_date: "2026-09-22", markdown: "# Tag assignment preserves the token" },
+	});
+	expect(submitted.status()).toBe(201);
+	await page.goto(`${BROWSER}/channels/${channel.id}`);
+	await expect(page.locator(".channel-header [data-tag-color]").filter({ hasText: channelTag })).toBeVisible();
+	await expect(page.getByRole("document", { name: "Article content" }).getByRole("heading", { name: "Tagged report", exact: true })).toBeVisible();
+});
+
+test("leaving a pending article deletion does not pull navigation back to the reader", async ({ page, request }) => {
+	const created = await request.post(`${WORKER}/api/channels`, { headers: browserApiHeaders, data: { name: `Pending delete ${Date.now()}` } });
+	const channel = (await created.json()).data;
+	const issued = await request.post(`${WORKER}/api/channels/${channel.id}/keys`, { headers: browserApiHeaders, data: { label: "Delete navigation producer" } });
+	const key = (await issued.json()).data;
+	const submitted = await request.post(`${INGEST}/api/v1/ingest/articles`, {
+		headers: { host: "xray-ingest.worker.hexly.ai", authorization: `Bearer ${key.token}` },
+		data: { external_id: "pending", title: "Pending deletion", report_date: "2026-09-22", markdown: "# Pending" },
+	});
+	const article = await submitted.json();
+	await page.goto(`${BROWSER}/channels/${channel.id}`);
+	await expect(page.getByRole("document", { name: "Article content" }).getByRole("heading", { name: "Pending", exact: true })).toBeVisible();
+	let release!: () => void;
+	const pending = new Promise<void>(resolve => { release = resolve; });
+	await page.route(`**/api/channels/${channel.id}/articles/${article.id}`, async route => {
+		if (route.request().method() === "DELETE") await pending;
+		await route.continue();
+	});
+	await page.getByRole("button", { name: "Delete article", exact: true }).click();
+	const deleting = page.waitForRequest(req => req.method() === "DELETE");
+	await page.getByRole("button", { name: "Confirm delete", exact: true }).click();
+	await deleting;
+	await page.getByRole("link", { name: "Manage channel", exact: true }).click();
+	await expect(page).toHaveURL(new RegExp(`/channels/${channel.id}/settings$`));
+	const refreshed = page.waitForResponse(res => res.url().endsWith("/api/channels") && res.ok());
+	release();
+	await refreshed;
+	await expect.poll(async () => {
+		const result = await request.get(`${WORKER}/api/channels/${channel.id}/articles/${article.id}`, { headers: browserApiHeaders });
+		return result.status();
+	}).toBe(404);
+	await expect(page).toHaveURL(new RegExp(`/channels/${channel.id}/settings$`));
+	await expect(page.getByLabel("Channel name", { exact: true })).toBeVisible();
+});

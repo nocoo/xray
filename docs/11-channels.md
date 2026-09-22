@@ -19,18 +19,27 @@ Browser responses use the existing `{ success: true, data: ... }` envelope. Iden
 | PATCH | `/api/channels/:id` | `{ name, description? }` / `Channel` |
 | GET | `/api/channels/:id/articles` | Query `date=YYYY-MM-DD`, `before=<article id>`, `limit` (default 30, max 100); `ArticlePage` |
 | GET | `/api/channels/:id/articles/:articleId` | `ChannelArticle` |
+| PATCH | `/api/channels/:id/articles/:articleId` | `{ title, report_date, markdown, summary?, author? }` / `ChannelArticle`; source and external ID stay fixed |
+| DELETE | `/api/channels/:id/articles/:articleId` | `{ deleted: true }` |
 | GET | `/api/channels/:id/keys` | `ChannelKey[]`, active keys only |
 | POST | `/api/channels/:id/keys` | `{ label }` / `ChannelKey & { token: string }` |
 | DELETE | `/api/channels/:id/keys/:keyId` | `{ revoked: true }` |
+| GET / POST | `/api/tags` | List / create `{ name }`; shared tenant tag catalog |
+| PATCH / DELETE | `/api/tags/:id` | Rename `{ name }` / delete associations without removing resources |
+| PUT | `/api/channels/:id/tags` | `{ tagIds: number[] }` / `Tag[]` |
+| PUT | `/api/channels/:id/keys/:keyId/tags` | `{ tagIds: number[] }` / `Tag[]` |
 | POST | `/api/v1/ingest/articles` | `ArticleInput` / `{ id, channelId, url, duplicate }`; 201 new, 200 duplicate, 409 conflicting content |
 
 ```ts
+type Tag = { id: number; name: string };
 type Channel = {
+  tags: Tag[];
   id: number; name: string; description: string | null;
   createdAtMs: number; articleCount: number; sortOrder: number;
   activeKeyCount: number; latestReportDate: string | null; lastReceivedAtMs: number | null;
 };
 type ChannelKey = {
+  tags: Tag[];
   id: number; channelId: number; label: string; tokenPrefix: string;
   createdAtMs: number; lastUsedAtMs: number | null;
 };
@@ -53,7 +62,17 @@ The key, not request fields, determines the tenant and channel. Capture the sour
 
 `/channels` is the management page, linked immediately above Settings. Dynamic reading links remain below Groups. The page provides creation, search, report/token totals, latest report dates, and keyboard-accessible up/down ordering. Sort order is stored per tenant and applied to the sidebar. New channels append to the end; full-set ordering and its response run in a single D1 transaction, rejecting stale or cross-tenant sets without partial writes.
 
-`/channels/:channelId/settings` contains the editable name/description, channel statistics, multiple named push tokens, copyable submission examples and individual revocation. Deleting a channel requires confirmation and cascades its reports and keys; revoking a key keeps existing reports. Global Settings contains account and AI configuration. Existing watchlist producer tokens retain their browser-authenticated API and scopes, with no global token UI.
+`/channels/:channelId/settings` contains the editable name/description, channel statistics, multiple named push tokens, copyable submission examples and individual revocation. Deleting a channel requires confirmation and cascades its reports and keys; revoking a key keeps existing reports. Global Settings contains account, shared tag management, and AI configuration. Existing watchlist producer tokens retain their browser-authenticated API and scopes, with no global token UI.
+
+## Tags and report editing
+
+Settings provides inline tag creation, renaming and deletion. Tag names are trimmed, unique per tenant, and limited to 64 characters. Channels and individual active tokens each support up to 20 tags. Their plus controls expand inline selection and creation, with no new modal. Tag creation and assignment are separate requests: if assignment fails, the created tag remains available for selection. Deleting a tag removes its channel, token and watchlist-member associations but keeps all resources.
+
+Tags use the installed Basalt `TagBadge` FNV-1a name hash and its slate, blue, violet, teal, amber and rose palette. The trimmed name is the hash key; renaming can change the color. All matching labels use the same light/dark palette. No manual color picker is offered in this feature.
+
+Migration `0005_channel_tags.sql` adds indexed join tables. Association replacement validates the resource and every tag against the authenticated tenant in the same D1 batch. Invalid sets leave prior associations intact. Browser routes alone can administer tags or reports; ingest keys gain no management permissions.
+
+Reader PageHeader actions include outlined edit/delete icons for the selected article. Editing expands a Markdown form in the reading pane; cancellation leaves the stored article untouched and save errors preserve the draft. Deletion uses inline confirmation, refreshes statistics and selects the first remaining report. List shortcuts pause during editing or confirmation. Title, report date, Markdown, summary and author are editable; source, external ID and receipt time stay fixed. Producer retries still compare against stored content and cannot overwrite browser edits. Physical deletion releases the external ID, so a producer can submit that report again.
 
 ## Reader
 
@@ -113,3 +132,11 @@ The header icon row, bright statistics and Lucide accents passed all 16 isolated
 ### Production verification — v2.4.0
 
 Initial production revision `064df47121ae36ac3d0a5a0928e67fb798695a61` passed [CI 35668087656](https://github.com/nocoo/xray/actions/runs/35668087656) and [deployment 35668162464](https://github.com/nocoo/xray/actions/runs/35668162464). Worker version `ec8e5733-2429-4725-b73a-9be9c375b30b` reports 2.4.0. Remote D1 lists all five migrations and no pending migrations; schema checks confirmed channels.sort_order, push_tokens.channel_id and channel_articles. Browser and ingest health checks report healthy environment and D1. The existing producer key reads all six watchlists through the new ingest hostname. Production validation performs no content mutations. The corrected release lockfile has no mirror URLs, and release preparation now rejects a mismatched Bun runtime or serialized registry URLs.
+
+### Local tags and article management — 2026-09-22
+
+Implemented browser-only inline article editing/deletion, Settings tag CRUD, channel/key assignments, inline tag creation and deterministic Basalt name colors. Watchlist member badges use the same palette. Token tag editors span the table width on narrow screens. Pending deletion respects navigation away from the reader.
+
+Validation: 684 unit tests (shared 167, Worker 357, UI 160), unchanged coverage scope and all four metrics above 95%; shared S98.26/B96.16/F100/L99.17, Worker S98.54/B95.67/F97.01/L99.69, UI S99.58/B97.26/F99.59/L99.87. L2 passed 30 real HTTP tests with 59/59 routes covered. The final isolated L3 run passed all 19 tests with two workers and no retries; the delayed-deletion navigation regression also passed three consecutive runs. Strict types, lint and production bundle checks passed, with the existing bundle-size warning.
+
+Migration 0005 is applied to the local Mock store only. A read-only Caddy preview verified Settings, the reader, and the inline editor at desktop and 320px widths, without script errors or mutation requests. This revision does not publish a release or change production D1/Worker.

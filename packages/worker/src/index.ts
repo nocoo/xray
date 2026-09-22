@@ -8,12 +8,14 @@ import { getAiConfigRoute, putAiConfigRoute, testAiConfigRoute } from "./routes/
 import {
 	createChannelKeyRoute,
 	createChannelRoute,
+	deleteChannelArticleRoute,
 	deleteChannelRoute,
 	getChannelArticleRoute,
 	listChannelArticlesRoute,
 	listChannelKeysRoute,
 	listChannelsRoute,
 	orderChannelsRoute,
+	patchChannelArticleRoute,
 	patchChannelRoute,
 	revokeChannelKeyRoute,
 } from "./routes/channels.js";
@@ -39,6 +41,7 @@ import { liveRoute } from "./routes/live.js";
 import { meRoute } from "./routes/me.js";
 import { mediaProxyRoute } from "./routes/media-proxy.js";
 import { getSettingsRoute, patchSettingsRoute } from "./routes/settings.js";
+import { deleteTagRoute, patchTagRoute, putChannelTagsRoute } from "./routes/tags.js";
 import { createTokenRoute, listTokensRoute, revokeTokenRoute } from "./routes/tokens.js";
 import { translateWatchlistRoute } from "./routes/translate.js";
 import {
@@ -106,6 +109,12 @@ app.delete("/api/items/:itemId", deleteItemRoute);
 
 app.get("/api/tags", listTagsRoute);
 app.post("/api/tags", createTagRoute);
+app.patch("/api/tags/:id", patchTagRoute);
+app.delete("/api/tags/:id", deleteTagRoute);
+app.put("/api/channels/:id/tags", putChannelTagsRoute);
+app.put("/api/channels/:id/keys/:keyId/tags", putChannelTagsRoute);
+app.patch("/api/channels/:id/articles/:articleId", patchChannelArticleRoute);
+app.delete("/api/channels/:id/articles/:articleId", deleteChannelArticleRoute);
 
 app.get("/api/groups", listGroupsRoute);
 app.post("/api/groups", createGroupRoute);
