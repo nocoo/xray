@@ -2,6 +2,16 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.5.0
+
+### Added
+- Refine channel reader and settings
+- Expand mock watchlists and groups
+- Expand mock channel and tag scenarios
+- Add article source preview panels
+- Redesign the tag management catalog
+- Refine channel tags and content surfaces
+
 ## v2.4.1
 
 ### Added
