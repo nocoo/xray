@@ -52,8 +52,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 	return json as T;
 }
 
-export function apiGet<T>(path: string): Promise<T> {
-	return request<T>(path);
+export function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
+	return request<T>(path, signal ? { signal } : undefined);
 }
 
 export function apiPost<T>(path: string, body?: unknown): Promise<T> {

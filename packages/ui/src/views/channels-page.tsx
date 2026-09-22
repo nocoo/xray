@@ -1,4 +1,12 @@
-import { Button, ConfirmDialog, LayerCard } from "@nocoo/basalt";
+import {
+	Button,
+	ConfirmDialog,
+	LayerCard,
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetTitle,
+} from "@nocoo/basalt";
 import { Banner } from "@nocoo/basalt/components/banner";
 import {
 	Dialog,
@@ -9,12 +17,14 @@ import {
 } from "@nocoo/basalt/components/dialog";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { TagBadge } from "@nocoo/basalt/components/tag-badge";
+import { extractArticleLinks } from "@xray/shared";
 import {
 	AArrowDown,
 	AArrowUp,
 	ArrowLeft,
 	CalendarDays,
 	Columns2,
+	Link2,
 	Maximize2,
 	Pencil,
 	Radio,
@@ -22,9 +32,10 @@ import {
 	Trash2,
 	Type,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { ArticleEditor } from "@/components/article-editor";
+import { ArticleLinksPanel } from "@/components/article-links-panel";
 import { ChannelMarkdown } from "@/components/channel-markdown";
 import { useChannels } from "@/components/channels-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
@@ -63,6 +74,11 @@ export function ChannelsPage() {
 	const [mobileList, setMobileList] = useState(false);
 	const [editing, setEditing] = useState(false);
 	const [deleting, setDeleting] = useState(false);
+	const pageRef = useRef<HTMLElement>(null);
+	const linksButton = useRef<HTMLButtonElement>(null);
+	const [wideReader, setWideReader] = useState(false);
+	const [showLinks, setShowLinks] = useState(true);
+	const [linksOpen, setLinksOpen] = useState(false);
 	const editButton = useRef<HTMLButtonElement>(null);
 	const list = useRef<HTMLElement>(null);
 	const documentRef = useRef<HTMLDivElement>(null);
@@ -72,6 +88,18 @@ export function ChannelsPage() {
 	const channel = state.channels.find((c) => c.id === channelId);
 	const article =
 		state.article?.channelId === channelId && state.article.id === articleId ? state.article : null;
+	const links = useMemo(() => extractArticleLinks(article?.markdown ?? ""), [article?.markdown]);
+	const inlineLinks = wideReader && !preferences.fullWidth;
+	useEffect(() => {
+		const observer = new ResizeObserver(([entry]) =>
+			setWideReader(entry.contentRect.width >= 1120),
+		);
+		if (pageRef.current) observer.observe(pageRef.current);
+		return () => observer.disconnect();
+	}, []);
+	useEffect(() => {
+		if (inlineLinks) setLinksOpen(false);
+	}, [inlineLinks]);
 	const matchingList = state.channelId === channelId && state.date === date;
 	const listKey = `${scope}:list:${channelId}:${date}`;
 	const positionKey = `${scope}:article:${article?.channelId}:${article?.id}`;
@@ -99,6 +127,7 @@ export function ChannelsPage() {
 		void vm.selectArticle(channelId, articleId);
 		setEditing(false);
 		setDeleting(false);
+		setLinksOpen(false);
 		setMobileList(false);
 		return () => {
 			void vm.selectArticle(0, 0);
@@ -137,7 +166,7 @@ export function ChannelsPage() {
 			const blocked = Boolean(
 				document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]') ||
 					target?.closest(
-						'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"]',
+						'.channel-related-links, input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"]',
 					),
 			);
 			const inList = Boolean(list.current?.contains(target));
@@ -192,7 +221,11 @@ export function ChannelsPage() {
 	}
 
 	return (
-		<section className="channel-page" data-reading={Boolean(articleId && !mobileList)}>
+		<section
+			ref={pageRef}
+			className="channel-page"
+			data-reading={Boolean(articleId && !mobileList)}
+		>
 			<div className="channel-header">
 				<PageHeader
 					title={
@@ -328,6 +361,20 @@ export function ChannelsPage() {
 										</Button>
 									</HeaderTooltip>
 								</fieldset>
+								<HeaderTooltip label="Related links">
+									<Button
+										ref={linksButton}
+										variant="outline"
+										size="icon"
+										className="h-8 w-8"
+										aria-label="Related links"
+										aria-expanded={inlineLinks ? showLinks && links.length > 0 : linksOpen}
+										disabled={!article || links.length === 0}
+										onClick={() => (inlineLinks ? setShowLinks(!showLinks) : setLinksOpen(true))}
+									>
+										<Link2 className="h-4 w-4" aria-hidden="true" />
+									</Button>
+								</HeaderTooltip>
 								<HeaderTooltip label="Manage channel">
 									<Button variant="outline" size="icon" className="h-8 w-8" asChild>
 										<Link to={`/channels/${channelId}/settings`} aria-label="Manage channel">
@@ -444,7 +491,34 @@ export function ChannelsPage() {
 						)}
 					</div>
 				</LayerCard.Well>
+				{article && inlineLinks && showLinks && links.length > 0 && (
+					<aside className="channel-related-links" aria-label="Related article links">
+						<ArticleLinksPanel key={`${channelId}/${articleId}`} article={article} links={links} />
+					</aside>
+				)}
 			</LayerCard>
+			{article && (
+				<Sheet open={linksOpen && !inlineLinks} onOpenChange={setLinksOpen}>
+					<SheetContent
+						side="right"
+						className="w-96 max-w-[calc(100vw-1rem)]"
+						onCloseAutoFocus={(event) => {
+							event.preventDefault();
+							linksButton.current?.focus();
+						}}
+					>
+						<SheetTitle>Related links</SheetTitle>
+						<SheetDescription>Sources and references from this report.</SheetDescription>
+						<div className="channel-related-links min-h-0 overflow-y-auto">
+							<ArticleLinksPanel
+								key={`${channelId}/${articleId}`}
+								article={article}
+								links={links}
+							/>
+						</div>
+					</SheetContent>
+				</Sheet>
+			)}
 			{article && (
 				<>
 					<Dialog

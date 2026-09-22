@@ -17,7 +17,13 @@
     "packages/shared": {
       "name": "@xray/shared",
       "version": "2.4.1",
+      "dependencies": {
+        "remark-gfm": "4.0.1",
+        "remark-parse": "11.0.0",
+        "unified": "11.0.5",
+      },
       "devDependencies": {
+        "@types/mdast": "4.0.4",
         "@vitest/coverage-v8": "5.0.1",
         "typescript": "^7.0.2",
         "vitest": "5.0.1",
@@ -58,6 +64,7 @@
       "version": "2.4.1",
       "dependencies": {
         "@xray/shared": "workspace:*",
+        "entities": "7.0.1",
         "hono": "4.13.8",
         "jose": "6.2.12",
       },

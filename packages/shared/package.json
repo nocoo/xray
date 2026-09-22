@@ -20,6 +20,12 @@
 	"devDependencies": {
 		"@vitest/coverage-v8": "5.0.1",
 		"typescript": "^7.0.2",
-		"vitest": "5.0.1"
+		"vitest": "5.0.1",
+		"@types/mdast": "4.0.4"
+	},
+	"dependencies": {
+		"remark-gfm": "4.0.1",
+		"remark-parse": "11.0.0",
+		"unified": "11.0.5"
 	}
 }

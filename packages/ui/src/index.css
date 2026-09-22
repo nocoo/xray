@@ -158,6 +158,15 @@ nav[aria-label="Breadcrumb"] + svg {
 	min-height: 0;
 	flex-direction: column;
 }
+.channel-panes > .channel-related-links {
+	background: hsl(var(--basalt-card));
+	width: calc(var(--spacing) * 72);
+	flex-shrink: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: calc(var(--spacing) * 4);
+	border-left: 1px solid hsl(var(--basalt-border));
+}
 .channel-document {
 	flex: 1;
 	min-height: 0;

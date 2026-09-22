@@ -1,0 +1,133 @@
+import { LayerCard } from "@nocoo/basalt";
+import type { ArticleLink, ChannelArticle } from "@xray/shared";
+import { ArrowUpRight, Link2 } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { fetchArticleLinkPreview } from "@/api/article-links";
+import {
+	type ArticleLinkState,
+	type ArticleLinksVm,
+	createArticleLinksVm,
+} from "@/viewmodels/article-links-vm";
+import { useVm } from "@/viewmodels/use-vm";
+
+function previewImage(url: string | null | undefined) {
+	if (!url) return null;
+	try {
+		return new URL(url).protocol === "https:" ? url : null;
+	} catch {
+		return null;
+	}
+}
+
+function LinkCard({ link, vm }: { link: ArticleLinkState; vm: ArticleLinksVm }) {
+	const element = useRef<HTMLLIElement>(null);
+	const [failedImage, setFailedImage] = useState<string | null>(null);
+	const image = previewImage(link.preview?.imageUrl);
+	const hostname = new URL(link.url).hostname;
+	const title = link.preview?.title || link.label || link.url;
+	useEffect(() => {
+		if (typeof IntersectionObserver === "undefined") {
+			vm.request(link.url);
+			return;
+		}
+		const observer = new IntersectionObserver((entries) => {
+			if (entries.some((entry) => entry.isIntersecting)) {
+				observer.disconnect();
+				vm.request(link.url);
+			}
+		});
+		if (element.current) observer.observe(element.current);
+		return () => observer.disconnect();
+	}, [link.url, vm]);
+	return (
+		<li ref={element} className="min-w-0">
+			<LayerCard padding="none" className="bg-basalt-secondary">
+				<a
+					href={link.url}
+					target="_blank"
+					rel="noopener noreferrer"
+					className="group block min-w-0 rounded-basalt-lg outline-none transition-colors hover:bg-basalt-secondary/80 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-basalt-ring"
+					aria-label={`${title} (opens in a new tab)`}
+				>
+					<div className="space-y-2 border-l-2 border-basalt-border p-4">
+						<div className="flex min-w-0 items-center gap-2 text-xs text-basalt-muted-foreground">
+							<Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+							<span className="min-w-0 truncate">
+								{link.preview?.siteName ? `${link.preview.siteName} · ${hostname}` : hostname}
+							</span>
+							<ArrowUpRight className="ml-auto h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+						</div>
+						<p className="line-clamp-3 text-sm font-medium leading-snug [overflow-wrap:anywhere] group-hover:underline">
+							{title}
+						</p>
+						{link.preview?.description && (
+							<p className="line-clamp-3 text-xs leading-relaxed text-basalt-muted-foreground [overflow-wrap:anywhere]">
+								{link.preview.description}
+							</p>
+						)}
+						{image && image !== failedImage && (
+							<img
+								src={image}
+								alt=""
+								loading="lazy"
+								decoding="async"
+								referrerPolicy="no-referrer"
+								className="mt-3 aspect-video w-full rounded-basalt-md bg-basalt-secondary object-cover"
+								onError={() => setFailedImage(image)}
+							/>
+						)}
+					</div>
+				</a>
+			</LayerCard>
+		</li>
+	);
+}
+
+export function ArticleLinksPanel({
+	article,
+	links: extractedLinks,
+	className,
+}: {
+	article: ChannelArticle;
+	links?: ArticleLink[];
+	className?: string;
+}) {
+	const vm = useMemo(() => createArticleLinksVm(fetchArticleLinkPreview), []);
+	const state = useVm(vm);
+	const titleId = useId();
+	const links =
+		state.article?.id === article.id &&
+		state.article.channelId === article.channelId &&
+		state.article.markdown === article.markdown
+			? state.links
+			: [];
+	useEffect(() => {
+		vm.setArticle(
+			{ id: article.id, channelId: article.channelId, markdown: article.markdown },
+			extractedLinks,
+		);
+		return vm.cancel;
+	}, [vm, article.id, article.channelId, article.markdown, extractedLinks]);
+	return (
+		<section aria-labelledby={titleId} className={`min-w-0 space-y-3 ${className ?? ""}`}>
+			<div className="flex items-center justify-between gap-3">
+				<h2 id={titleId} className="text-sm font-semibold">
+					Related links
+				</h2>
+				<span className="text-xs tabular-nums text-basalt-muted-foreground">
+					{links.length}
+					<span className="sr-only"> related links</span>
+				</span>
+			</div>
+			{links.length ? (
+				<ul aria-label="Related links" className="space-y-3">
+					{links.map((link) => (
+						<LinkCard key={`${state.revision}/${link.url}`} link={link} vm={vm} />
+					))}
+				</ul>
+			) : (
+				<p className="text-sm text-basalt-muted-foreground">No related links in this report.</p>
+			)}
+		</section>
+	);
+}

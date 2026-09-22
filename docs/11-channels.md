@@ -19,6 +19,7 @@ Browser responses use the existing `{ success: true, data: ... }` envelope. Iden
 | PATCH | `/api/channels/:id` | `{ name, description? }` / `Channel` |
 | GET | `/api/channels/:id/articles` | Query `date=YYYY-MM-DD`, `before=<article id>`, `limit` (default 30, max 100); `ArticlePage` |
 | GET | `/api/channels/:id/articles/:articleId` | `ChannelArticle` |
+| GET | `/api/channels/:id/articles/:articleId/link-preview` | Query `url`, a link in the stored report / `LinkPreview` |
 | PATCH | `/api/channels/:id/articles/:articleId` | `{ title, report_date, markdown, summary?, author? }` / `ChannelArticle`; source and external ID stay fixed |
 | DELETE | `/api/channels/:id/articles/:articleId` | `{ deleted: true }` |
 | GET | `/api/channels/:id/keys` | `ChannelKey[]`, active keys only |
@@ -50,7 +51,7 @@ type ArticleInput = {
 type ChannelArticleSummary = {
   id: number; channelId: number; externalId: string; title: string;
   reportDate: string; summary: string | null; author: string | null;
-  sourceLabel: string; createdAtMs: number;
+  sourceLabel: string; createdAtMs: number; tags: Tag[];
 };
 type ChannelArticle = ChannelArticleSummary & { markdown: string };
 type ArticlePage = { items: ChannelArticleSummary[]; nextCursor: number | null };
@@ -68,7 +69,7 @@ Primary report bodies use `LayerCard.Well` at the brightest surface level (white
 
 ## Tags and report editing
 
-The Tags page provides searchable tag management with Basalt creation/rename dialogs and deletion confirmation. Tag names are trimmed, unique per tenant, and limited to 64 characters. Channels and individual active tokens each support up to 20 tags. Their plus controls open a compact Basalt Popover for selection and creation. Tag creation and assignment are separate requests: if assignment fails, the created tag remains available for selection. Deleting a tag removes its channel, token and watchlist-member associations but keeps all resources.
+The Tags page provides a bright responsive catalog, name search and sorting, six palette filters with real counts, and Basalt creation/rename dialogs and deletion confirmation. Long names truncate within the catalog and remain fully editable in the dialog. Tag names are trimmed, unique per tenant, and limited to 64 characters. Channels and individual active tokens each support up to 20 tags. Their plus controls open a compact Basalt Popover for selection and creation. Tag creation and assignment are separate requests: if assignment fails, the created tag remains available for selection. Deleting a tag removes its channel, token and watchlist-member associations but keeps all resources.
 
 Tags use the installed Basalt `TagBadge` FNV-1a name hash and its slate, blue, violet, teal, amber and rose palette. The trimmed name is the hash key; renaming can change the color. All matching labels use the same light/dark palette. No manual color picker is offered in this feature.
 
@@ -87,6 +88,16 @@ Use Basalt controls and existing theme tokens. Render GFM with `react-markdown` 
 Typography follows Kami and GeekHub: Chinese `TsangerJinKai02`, English Charter, 18px body, 1.65 line height, maximum prose width 1020px, or full available width. Interface text stays sans serif; code stays monospace. Reuse GeekHub's local WOFF2 subsets and preserve its font notice; these font assets are not MIT licensed. Provide serif/sans, size and width preferences. PageHeader places outlined Lucide controls for font, size, width and channel settings in one row at the top right; the reader has no floating toolbar or date picker. Keep the title and byline compact without reserved toolbar clearance. PageHeader supplies the page title and subtitle. Channel management and settings use the brightest Basalt surface for statistics and restrained Lucide accents for titles, metrics and sections.
 
 Keyboard: J/K and list Up/Down select articles, Enter focuses the document, Escape returns focus to the list (and returns to it on mobile). Preserve native document scrolling. Ignore input fields, contenteditable, IME composition, modifier combinations, dialogs and menus. Background UI updates preserve selection and scroll.
+
+## Related links
+
+The reader extracts unique HTTP(S) links from its GFM syntax tree, including autolinks and reference links. Fragment-only differences collapse to one source; code and standalone image URLs are excluded. A named link supplies the card label. Browser-authenticated preview requests must name an existing article owned by the current tenant and a URL still present in its Markdown. Ingest tokens cannot access this route.
+
+Cards show the source hostname, title, description and external image from Open Graph or Twitter metadata, with HTML title/description fallbacks. Metadata is plain text. Images load directly from HTTPS origins with no referrer, upload, storage or image proxy. Unavailable previews retain the original link and label. The UI lazily requests visible cards, limits concurrent requests to three, and cancels stale requests when the article changes.
+
+The Worker fetches public HTTPS pages only, rejects credentials, nonstandard ports, IP literals and local/reserved hostnames, and checks public A/AAAA answers before each hop. It follows at most three redirects, allows five seconds for the fetch pipeline, and bounds HTML to 512 KiB. DNS validation complements Cloudflare Workers public egress isolation; this code does not pin DNS addresses and must not be moved to a private-network runtime without equivalent egress controls. Cache API entries use a tenant-and-URL hash with a 15-minute TTL; browser responses remain private/no-store. No D1 migration is required.
+
+At content widths of at least 1120px, standard reading width displays a secondary right-hand column. The header link icon can hide/show it. Full-width reading and narrow screens use a right-hand Basalt Sheet, preserving the document width and restoring focus on close. Reader shortcuts do not intercept interactions inside the related-links panel.
 
 ## Delivery checklist
 

@@ -1,3 +1,5 @@
+export type { ArticleLink, LinkPreview } from "./article-links.js";
+export { extractArticleLinks } from "./article-links.js";
 export type {
 	CanonicalAuthor,
 	CanonicalCustomItem,

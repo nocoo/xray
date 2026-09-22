@@ -15,6 +15,10 @@ import {
 } from "./helpers.js";
 
 describe("L2 real HTTP — all API routes", () => {
+	test("GET /api/channels/:id/articles/:articleId/link-preview", async () => {
+		expect((await jsonFetch("/api/channels/0/articles/0/link-preview")).status).toBe(400);
+	});
+
 	test("GET /api/live", async () => {
 		const res = await fetch(`${BASE}/api/live`);
 		expect(res.status).toBe(200);
