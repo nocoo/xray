@@ -22,15 +22,20 @@ import {
 	AArrowDown,
 	AArrowUp,
 	ArrowLeft,
+	BookOpen,
 	CalendarDays,
 	Columns2,
+	Inbox,
 	Link2,
 	ListFilter,
+	LoaderCircle,
 	Maximize2,
 	Pencil,
 	Radio,
+	SearchX,
 	Settings,
 	Trash2,
+	TriangleAlert,
 	Type,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -92,9 +97,10 @@ export function ChannelsPage() {
 		state.article?.channelId === channelId && state.article.id === articleId ? state.article : null;
 	const links = useMemo(() => extractArticleLinks(article?.markdown ?? ""), [article?.markdown]);
 	const inlineLinks = wideReader && !preferences.fullWidth;
+	const showInlineLinks = Boolean(article && inlineLinks && showLinks && links.length > 0);
 	useEffect(() => {
 		const observer = new ResizeObserver(([entry]) =>
-			setWideReader(entry.contentRect.width >= 1180),
+			setWideReader(entry.contentRect.width >= 1024),
 		);
 		if (pageRef.current) observer.observe(pageRef.current);
 		return () => observer.disconnect();
@@ -103,6 +109,8 @@ export function ChannelsPage() {
 		if (inlineLinks) setLinksOpen(false);
 	}, [inlineLinks]);
 	const matchingList = state.channelId === channelId && state.filterQuery === filterQuery;
+	const listLoading = state.loading || !matchingList;
+	const emptyList = !listLoading && state.items.length === 0;
 	const listKey = `${scope}:list:${channelId}:${filterQuery}`;
 	const positionKey = `${scope}:article:${article?.channelId}:${article?.id}`;
 
@@ -373,14 +381,14 @@ export function ChannelsPage() {
 										</Button>
 									</HeaderTooltip>
 								</fieldset>
-								<HeaderTooltip label="Related links">
+								<HeaderTooltip label={`Related links (${links.length})`}>
 									<Button
 										ref={linksButton}
 										variant="outline"
 										size="icon"
 										className="h-8 w-8"
 										aria-label="Related links"
-										aria-expanded={inlineLinks ? showLinks && links.length > 0 : linksOpen}
+										aria-expanded={inlineLinks ? showInlineLinks : linksOpen}
 										disabled={!article || links.length === 0}
 										onClick={() => (inlineLinks ? setShowLinks(!showLinks) : setLinksOpen(true))}
 									>
@@ -405,7 +413,11 @@ export function ChannelsPage() {
 				</p>
 			)}
 
-			<div className="channel-panes" data-reading={Boolean(articleId && !mobileList)}>
+			<div
+				className="channel-panes"
+				data-reading={Boolean(articleId && !mobileList)}
+				data-links={showInlineLinks}
+			>
 				<LayerCard outlined padding="none" className="channel-list-column channel-side-panel">
 					<div className="channel-panel-heading">
 						<h2 className="inline-flex items-center gap-2 text-sm font-semibold">
@@ -464,15 +476,50 @@ export function ChannelsPage() {
 								</span>
 							</Button>
 						))}
-						{state.loading || !matchingList ? (
+						{listLoading ? (
 							<p role="status" className="p-3 text-sm">
 								Loading reports…
 							</p>
 						) : (
 							state.items.length === 0 && (
-								<p className="p-3 text-sm text-basalt-muted-foreground">
-									No reports match these filters.
-								</p>
+								<LayerCard.Empty
+									className="channel-empty"
+									role="status"
+									icon={
+										state.error ? (
+											<TriangleAlert aria-hidden="true" />
+										) : filterQuery ? (
+											<SearchX aria-hidden="true" />
+										) : (
+											<Inbox aria-hidden="true" />
+										)
+									}
+									title={
+										state.error
+											? "Reports unavailable"
+											: filterQuery
+												? "No matching reports"
+												: "No reports yet"
+									}
+									description={
+										state.error
+											? "Please try loading this channel again."
+											: filterQuery
+												? "Try another keyword, date range, or tag."
+												: "New reports will appear here when they arrive."
+									}
+									action={
+										state.error ? (
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => void vm.loadArticles(channelId, filterQuery)}
+											>
+												Retry reports
+											</Button>
+										) : undefined
+									}
+								/>
 							)
 						)}
 						{matchingList && state.nextCursor !== null && (
@@ -520,14 +567,59 @@ export function ChannelsPage() {
 									<ChannelMarkdown markdown={article.markdown} />
 								</article>
 							) : (
-								<p className="p-4 text-sm text-basalt-muted-foreground">
-									{state.articleLoading ? "Loading report…" : "Select a report to start reading."}
-								</p>
+								<LayerCard.Empty
+									className="channel-empty"
+									role="status"
+									icon={
+										state.articleLoading || listLoading ? (
+											<LoaderCircle aria-hidden="true" className="animate-spin" />
+										) : state.error ? (
+											<TriangleAlert aria-hidden="true" />
+										) : emptyList && filterQuery ? (
+											<SearchX aria-hidden="true" />
+										) : (
+											<BookOpen aria-hidden="true" />
+										)
+									}
+									title={
+										state.articleLoading || listLoading
+											? "Loading report…"
+											: state.error
+												? "Report unavailable"
+												: emptyList
+													? filterQuery
+														? "No matching reports"
+														: "Ready for your first report"
+													: "Select a report"
+									}
+									description={
+										state.articleLoading || listLoading
+											? "Fetching the latest content."
+											: state.error
+												? "Please try loading this report again."
+												: emptyList
+													? filterQuery
+														? "Adjust the filters to find something to read."
+														: "Once a report arrives, it opens here for reading."
+													: "Choose a report from the list to start reading."
+									}
+									action={
+										state.error && articleId ? (
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => void vm.selectArticle(channelId, articleId)}
+											>
+												Retry report
+											</Button>
+										) : undefined
+									}
+								/>
 							)}
 						</div>
 					</LayerCard.Well>
 				</LayerCard>
-				{article && inlineLinks && showLinks && links.length > 0 && (
+				{article && showInlineLinks && (
 					<LayerCard
 						outlined
 						padding="none"

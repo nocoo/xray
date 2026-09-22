@@ -49,6 +49,21 @@ test("related previews integrate with reading width, tags, keyboard, and mobile 
 	expect(geometry.ordered).toBe(true);
 	expect(geometry.width).toBeGreaterThan(500);
 	expect(geometry.background).toBe("rgb(255, 255, 255)");
+	for (const width of [1440, 1366]) {
+		await page.setViewportSize({ width, height: 1000 });
+		await expect(aside).toBeVisible();
+		await expect.poll(() => page.locator(".channel-panes").evaluate(panes => {
+			const list = panes.querySelector(".channel-list-column")!.getBoundingClientRect();
+			const reader = panes.querySelector(".channel-reading-panel")!.getBoundingClientRect();
+			const links = panes.querySelector(".channel-related-links")!.getBoundingClientRect();
+			const headings = [...panes.querySelectorAll(".channel-panel-heading")].map(node => node.getBoundingClientRect());
+			return Math.abs(list.width - links.width) < 1 && reader.width >= 440
+				&& list.top === reader.top && reader.top === links.top
+				&& headings[0].height === headings[1].height
+				&& document.documentElement.scrollWidth <= innerWidth;
+		})).toBe(true);
+	}
+	await page.setViewportSize({ width: 1660, height: 1000 });
 	await aside.getByRole("link").first().focus();
 	await page.keyboard.press("j");
 	await expect(page).toHaveURL(new RegExp(`/articles/${id}$`));

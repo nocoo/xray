@@ -252,7 +252,9 @@ test("server filters find unloaded reports and preserve combined filters through
 			articleHeader.getByRole("heading", { name: "Cohort report 33", exact: true }),
 		).toBeVisible();
 		await search(page, "missing phrase xyz");
-		await expect(list.getByText("No reports match these filters.", { exact: true })).toBeVisible();
+		await expect(list.getByText("No matching reports", { exact: true })).toBeVisible();
+		await expect(list.getByRole("status").locator("svg")).toBeVisible();
+		await expect(page.getByRole("document", { name: "Article content" }).getByText("No matching reports", { exact: true })).toBeVisible();
 		await page.getByRole("button", { name: "Clear filters", exact: true }).click();
 		await expect(page).toHaveURL(
 			(url) =>
@@ -276,6 +278,7 @@ test("320px filter and calendar overlays fit and text input isolates reader shor
 		await page.setViewportSize({ width: 320, height: 800 });
 		await page.goto(`${BROWSER}/channels/${data.channelId}`);
 		await page.getByRole("button", { name: "Back to reports", exact: true }).click();
+		await expect(page.locator('.channel-list-item[aria-current="true"]')).toBeFocused();
 		const selected = page.url();
 		const input = page.getByRole("textbox", { name: "Search reports", exact: true });
 		await input.focus();

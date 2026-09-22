@@ -298,7 +298,26 @@ test("channel management edits profiles, persists ordering and confirms deletion
 
 	await page.getByRole("link", { name: `Read ${renamed}`, exact: true }).click();
 	await expect(page).toHaveURL(new RegExp(`/channels/${channelIds[0]}$`));
-	await expect(page.getByText("No reports match these filters.", { exact: true })).toBeVisible();
+	await expect(page.getByText("No reports yet", { exact: true })).toBeVisible();
+	await expect(page.getByRole("document", { name: "Article content" }).getByText("Ready for your first report", { exact: true })).toBeVisible();
+	for (const selector of [".channel-list", ".channel-document"]) {
+		await expect(page.locator(selector).getByRole("status").locator("svg")).toBeVisible();
+		expect(await page.locator(selector).evaluate(panel => {
+			const box = panel.getBoundingClientRect();
+			const children = [...panel.querySelector(".channel-empty")!.children].map(node => node.getBoundingClientRect());
+			const top = Math.min(...children.map(rect => rect.top));
+			const bottom = Math.max(...children.map(rect => rect.bottom));
+			return Math.abs((top + bottom) / 2 - (box.top + box.bottom) / 2);
+		})).toBeLessThan(2);
+	}
+	await page.screenshot({ path: "/tmp/xray-channel-empty-desktop.png", fullPage: true });
+	const emptyListRoute = `**/api/channels/${channelIds[0]}/articles*`;
+	await page.route(emptyListRoute, route => route.fulfill({ status: 503, json: { error: "Try again" } }));
+	await page.reload();
+	await expect(page.getByText("Reports unavailable", { exact: true })).toBeVisible();
+	await page.unroute(emptyListRoute);
+	await page.getByRole("button", { name: "Retry reports", exact: true }).click();
+	await expect(page.getByText("No reports yet", { exact: true })).toBeVisible();
 	await expect(page.getByText("Updated channel description", { exact: true })).toBeVisible();
 	await page.getByRole("link", { name: "Manage channel", exact: true }).click();
 	await page.locator("#main-content").getByRole("button", { name: "Delete channel", exact: true }).click();
@@ -430,11 +449,18 @@ test("article dialogs retain failed drafts and select the next report after dele
 		expect(response.status()).toBe(201);
 		ids.push((await response.json()).id);
 	}
+	const target = `**/api/channels/${channel.id}/articles/${ids[1]}`;
+	await page.route(target, route => route.fulfill({ status: 503, json: { error: "Try again" } }));
 	await page.goto(`${BROWSER}/channels/${channel.id}`);
 	const content = page.getByRole("document", { name: "Article content" });
 	const edit = page.locator(".channel-header").getByRole("button", { name: "Edit article", exact: true });
 	const remove = page.locator(".channel-header").getByRole("button", { name: "Delete article", exact: true });
 	await expect(page).toHaveURL(new RegExp(`/articles/${ids[1]}$`));
+	await expect(content.getByText("Report unavailable", { exact: true })).toBeVisible();
+	await expect(edit).toBeDisabled();
+	await page.unroute(target);
+	await content.getByRole("button", { name: "Retry report", exact: true }).click();
+	await expect(content.getByRole("heading", { name: "Original 2026-09-22", exact: true })).toBeVisible();
 	await edit.click();
 	const editor = page.getByRole("dialog", { name: "Edit article", exact: true });
 	await expect(editor).toBeVisible();
@@ -447,7 +473,6 @@ test("article dialogs retain failed drafts and select the next report after dele
 	await page.getByLabel("Article title", { exact: true }).fill("Edited 中文日报");
 	await page.getByLabel("Markdown", { exact: true }).fill("## 修改后的内容\n\n**保存后的正文**");
 	await page.getByLabel("Report date", { exact: true }).fill("2026-09-23");
-	const target = `**/api/channels/${channel.id}/articles/${ids[1]}`;
 	await page.route(target, async route => {
 		if (route.request().method() === "PATCH") await route.fulfill({ status: 503, json: { error: "Try again" } });
 		else await route.continue();
@@ -495,7 +520,7 @@ test("article dialogs retain failed drafts and select the next report after dele
 	await remove.click();
 	await confirmation.getByRole("button", { name: "Delete article", exact: true }).click();
 	await expect(page).toHaveURL(new RegExp(`/channels/${channel.id}$`));
-	await expect(page.getByText("No reports match these filters.", { exact: true })).toBeVisible();
+	await expect(page.getByText("No reports yet", { exact: true })).toBeVisible();
 	await expect(edit).toBeDisabled();
 	await expect(remove).toBeDisabled();
 	const channels = await request.get(`${WORKER}/api/channels`, { headers: browserApiHeaders });

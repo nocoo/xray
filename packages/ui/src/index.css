@@ -136,6 +136,28 @@ nav[aria-label="Breadcrumb"] + svg {
 	gap: calc(var(--spacing) * 3);
 	padding: 1px;
 }
+.channel-panes[data-links="true"] {
+	--channel-side-width: clamp(
+		calc(var(--spacing) * 60),
+		calc((100% - var(--spacing) * 118) / 2),
+		calc(var(--spacing) * 72 * 1.2)
+	);
+}
+.channel-empty {
+	min-height: 100%;
+	justify-content: center;
+}
+.channel-empty > div:first-child {
+	margin-bottom: calc(var(--spacing) * 2);
+	border-radius: var(--radius-basalt-lg);
+	background: hsl(var(--basalt-accent) / 0.6);
+	padding: calc(var(--spacing) * 4);
+	box-shadow: 0 0 0 1px hsl(var(--basalt-border) / 0.4);
+}
+.channel-empty > p {
+	max-width: 32ch;
+	text-wrap: balance;
+}
 .channel-list-column {
 	width: var(--channel-side-width);
 	flex-shrink: 0;
