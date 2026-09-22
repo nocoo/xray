@@ -2,6 +2,11 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.4.1
+
+### Added
+- Add article editing and channel tags
+
 ## v2.4.0
 
 ### Added
