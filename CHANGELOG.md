@@ -7,6 +7,9 @@ All notable changes to X-Ray are documented in this file.
 ### Added
 - Add article editing and channel tags
 
+### Fixed
+- Synchronize workspace versions in the release lockfile
+
 ## v2.4.0
 
 ### Added

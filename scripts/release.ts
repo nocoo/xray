@@ -30,6 +30,7 @@ interface VersionTarget {
 
 const VERSION_TARGETS: VersionTarget[] = [
 	{ path: "package.json", pattern: "json-version" },
+	{ path: "bun.lock", pattern: "json-version" },
 	{ path: "packages/shared/package.json", pattern: "json-version" },
 	{ path: "packages/ui/package.json", pattern: "json-version" },
 	{ path: "packages/worker/package.json", pattern: "json-version" },
@@ -171,7 +172,7 @@ function updateVersionInFile(
 			console.error(`  ✗ ${target.path} — pattern not found: ${pattern}`);
 			return false;
 		}
-		updated = content.replace(pattern, `"version": "${newVersion}"`);
+		updated = content.replaceAll(pattern, `"version": "${newVersion}"`);
 	} else {
 		const escaped = oldVersion.replace(/\./g, "\\.");
 		const re = new RegExp(`"${escaped}"`, "g");
@@ -393,7 +394,7 @@ async function main(): Promise<void> {
 		console.info("✅ No stale version references in source.");
 	}
 
-	const filesToStage = [...VERSION_TARGETS.map((t) => t.path), "bun.lock", "CHANGELOG.md"];
+	const filesToStage = [...VERSION_TARGETS.map((t) => t.path), "CHANGELOG.md"];
 
 	if (isDryRun) {
 		console.info("[dry-run] Would commit, push, tag, release.");

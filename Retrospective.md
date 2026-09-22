@@ -92,3 +92,9 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 - **What:** Isolated browser acceptance found that finishing an article deletion could return the reader after the user had selected channel settings. No production data was touched.
 - **Why:** The shared ViewModel outlived the page. Unmount invalidation alone did not cover the interval between the browser URL changing and React committing the new route.
 - **Follow-up:** Invalidate article requests when leaving the reader and compare the current URL with the operation's source URL before navigating after deletion. Keep the delayed-delete browser regression, which exercises leaving before the response completes. Await persisted checkbox state explicitly in tag tests because assignments complete asynchronously.
+
+## 2026-09-22: Release installation retained workspace versions
+
+- **What:** Patch release preparation updated manifests to 2.4.1, but Bun 1.3.14 retained 2.4.0 in the lockfile's workspace metadata. Publication was stopped before any push. A lockfile-only install also retained those versions and serialized the local mirror URLs; that local output was discarded.
+- **Why:** An unchanged dependency graph lets Bun reuse workspace metadata. A successful install does not prove first-party version consistency.
+- **Follow-up:** Include bun.lock in the explicit release version targets and update all matching version fields before installation. Preserve dependency resolutions and integrity values, verify the frozen install, and continue through normal hooks before publishing.
