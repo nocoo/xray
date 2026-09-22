@@ -240,7 +240,7 @@ export function GroupsPage() {
 								{s.members.map((m) => (
 									<li
 										key={m.id}
-										className="flex items-center justify-between rounded-md bg-basalt-control px-3 py-2 text-sm"
+										className="flex items-center justify-between rounded-md bg-basalt-bright px-3 py-2 text-sm"
 									>
 										<span>
 											<span className="text-basalt-muted-foreground">{m.sourceType}</span> · @

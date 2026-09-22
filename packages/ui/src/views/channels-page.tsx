@@ -1,4 +1,12 @@
-import { Button } from "@nocoo/basalt";
+import { Button, ConfirmDialog, LayerCard } from "@nocoo/basalt";
+import { Banner } from "@nocoo/basalt/components/banner";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@nocoo/basalt/components/dialog";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { TagBadge } from "@nocoo/basalt/components/tag-badge";
 import {
@@ -21,6 +29,7 @@ import { ChannelMarkdown } from "@/components/channel-markdown";
 import { useChannels } from "@/components/channels-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { HeaderTooltip } from "@/components/layout/header-links";
+import { TagLabels } from "@/components/tag-labels";
 import { useAuthUser } from "@/hooks/me-context";
 import { restoreReadingPosition } from "@/hooks/reading-position";
 import {
@@ -54,6 +63,7 @@ export function ChannelsPage() {
 	const [mobileList, setMobileList] = useState(false);
 	const [editing, setEditing] = useState(false);
 	const [deleting, setDeleting] = useState(false);
+	const editButton = useRef<HTMLButtonElement>(null);
 	const list = useRef<HTMLElement>(null);
 	const documentRef = useRef<HTMLDivElement>(null);
 	const focusListSelection = useRef(false);
@@ -94,9 +104,6 @@ export function ChannelsPage() {
 			void vm.selectArticle(0, 0);
 		};
 	}, [vm, channelId, articleId]);
-	useLayoutEffect(() => {
-		if ((editing || deleting) && documentRef.current) documentRef.current.scrollTop = 0;
-	}, [editing, deleting]);
 	useLayoutEffect(() => {
 		if (state.loading || !list.current || state.channelId !== channelId || state.date !== date)
 			return;
@@ -212,7 +219,11 @@ export function ChannelsPage() {
 										className="h-8 w-8"
 										aria-label="Edit article"
 										disabled={!article || state.articleLoading || state.busy || editing || deleting}
-										onClick={() => setEditing(true)}
+										ref={editButton}
+										onClick={() => {
+											vm.setState({ error: null });
+											setEditing(true);
+										}}
 									>
 										<Pencil aria-hidden="true" className="h-4 w-4" />
 									</Button>
@@ -224,7 +235,10 @@ export function ChannelsPage() {
 										className="h-8 w-8 text-basalt-destructive"
 										aria-label="Delete article"
 										disabled={!article || state.articleLoading || state.busy || editing || deleting}
-										onClick={() => setDeleting(true)}
+										onClick={() => {
+											vm.setState({ error: null });
+											setDeleting(true);
+										}}
 									>
 										<Trash2 aria-hidden="true" className="h-4 w-4" />
 									</Button>
@@ -326,13 +340,17 @@ export function ChannelsPage() {
 					}
 				/>
 			</div>
-			{state.error && (
+			{state.error && !editing && !deleting && (
 				<p role="alert" className="px-3 py-2 text-sm text-basalt-destructive">
 					{state.error}
 				</p>
 			)}
 
-			<div className="channel-panes" data-reading={Boolean(articleId && !mobileList)}>
+			<LayerCard
+				padding="none"
+				className="channel-panes"
+				data-reading={Boolean(articleId && !mobileList)}
+			>
 				<section
 					className="channel-list"
 					ref={list}
@@ -359,6 +377,7 @@ export function ChannelsPage() {
 									{item.reportDate} · {item.sourceLabel}
 								</span>
 								<span className="whitespace-normal font-medium">{item.title}</span>
+								<TagLabels tags={item.tags} />
 								{item.summary && (
 									<span className="line-clamp-2 whitespace-normal text-sm font-normal text-basalt-muted-foreground">
 										{item.summary}
@@ -387,7 +406,7 @@ export function ChannelsPage() {
 						</Button>
 					)}
 				</section>
-				<div className="channel-detail">
+				<LayerCard.Well className="channel-detail p-0">
 					<div
 						ref={documentRef}
 						role="document"
@@ -397,62 +416,15 @@ export function ChannelsPage() {
 						data-full-width={preferences.fullWidth}
 						aria-busy={state.articleLoading}
 					>
-						{article && deleting && (
-							<section
-								aria-label="Confirm article deletion"
-								className="m-4 rounded-lg border border-basalt-border bg-basalt-secondary p-4 font-sans text-sm"
-							>
-								<h2 className="font-semibold">Delete “{article.title}”?</h2>
-								<p className="mt-1 text-basalt-muted-foreground">
-									This permanently removes the article. Its producer can submit it again.
-								</p>
-								<div className="mt-3 flex justify-end gap-2">
-									<Button
-										variant="outline"
-										size="sm"
-										disabled={state.busy}
-										onClick={() => setDeleting(false)}
-									>
-										Cancel
-									</Button>
-									<Button
-										variant="destructive"
-										size="sm"
-										disabled={state.busy}
-										onClick={async () => {
-											const sourceUrl = window.location.href;
-											if (
-												(await vm.removeArticle(channelId, articleId)) &&
-												window.location.href === sourceUrl
-											) {
-												setDeleting(false);
-												void navigate(articlePath(channelId, 0, date), { replace: true });
-											}
-										}}
-									>
-										Confirm delete
-									</Button>
-								</div>
-							</section>
-						)}
-						{article && editing ? (
-							<ArticleEditor
-								key={article.id}
-								article={article}
-								busy={state.busy}
-								onCancel={() => setEditing(false)}
-								onSave={async (input) => {
-									if (await vm.editArticle(channelId, articleId, input)) setEditing(false);
-								}}
-							/>
-						) : article ? (
+						{article ? (
 							<article
 								className={`channel-prose${preferences.sans ? " channel-sans" : ""}`}
 								style={{ fontSize: preferences.size }}
 							>
-								<header className="mb-5 font-sans">
-									<h1 className="text-xl font-semibold">{article.title}</h1>
-									<p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-basalt-muted-foreground">
+								<header className="mb-6 space-y-3 font-sans">
+									<h1 className="text-xl font-semibold leading-snug">{article.title}</h1>
+									<TagLabels tags={article.tags} />
+									<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-basalt-muted-foreground">
 										<span className="inline-flex items-center gap-1.5">
 											<CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
 											{article.reportDate}
@@ -461,7 +433,7 @@ export function ChannelsPage() {
 											{article.author ? `${article.author} · ` : ""}
 											{article.sourceLabel}
 										</span>
-									</p>
+									</div>
 								</header>
 								<ChannelMarkdown markdown={article.markdown} />
 							</article>
@@ -471,8 +443,83 @@ export function ChannelsPage() {
 							</p>
 						)}
 					</div>
-				</div>
-			</div>
+				</LayerCard.Well>
+			</LayerCard>
+			{article && (
+				<>
+					<Dialog
+						open={editing}
+						onOpenChange={(open) => {
+							if (!state.busy) setEditing(open);
+						}}
+					>
+						<DialogContent
+							size="xl"
+							disablePointerDismissal
+							onCloseAutoFocus={(event) => {
+								event.preventDefault();
+								editButton.current?.focus();
+							}}
+						>
+							<DialogHeader>
+								<DialogTitle>Edit article</DialogTitle>
+								<DialogDescription>
+									Update the report details and Markdown content.
+								</DialogDescription>
+							</DialogHeader>
+							{state.error && (
+								<Banner
+									role="alert"
+									variant="error"
+									size="sm"
+									className="mt-4"
+									description={state.error}
+								/>
+							)}
+							<ArticleEditor
+								key={article.id}
+								article={article}
+								busy={state.busy}
+								onCancel={() => setEditing(false)}
+								onSave={async (input) => {
+									if (await vm.editArticle(channelId, articleId, input)) setEditing(false);
+								}}
+							/>
+						</DialogContent>
+					</Dialog>
+					<ConfirmDialog
+						open={deleting}
+						onOpenChange={setDeleting}
+						title="Delete article?"
+						description={
+							<>
+								<span>
+									Delete “{article.title}”? This permanently removes the article. Its producer can
+									submit it again.
+								</span>
+								{state.error && (
+									<span role="alert" className="mt-2 block text-basalt-destructive">
+										{state.error}
+									</span>
+								)}
+							</>
+						}
+						confirmLabel="Delete article"
+						variant="destructive"
+						loading={state.busy}
+						onConfirm={async () => {
+							const sourceUrl = window.location.href;
+							if (
+								(await vm.removeArticle(channelId, articleId)) &&
+								window.location.href === sourceUrl
+							) {
+								setDeleting(false);
+								void navigate(articlePath(channelId, 0, date), { replace: true });
+							}
+						}}
+					/>
+				</>
+			)}
 		</section>
 	);
 }

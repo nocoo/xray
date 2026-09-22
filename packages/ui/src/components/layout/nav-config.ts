@@ -6,6 +6,7 @@ import {
 	type LucideIcon,
 	Radio,
 	Settings,
+	Tag,
 	Users,
 } from "lucide-react";
 
@@ -16,6 +17,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
 	Users,
 	Link: LinkIcon,
 	Settings,
+	Tag,
 };
 
 export type UiNavItem = {

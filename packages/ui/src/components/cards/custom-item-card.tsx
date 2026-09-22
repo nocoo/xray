@@ -146,7 +146,7 @@ export function CustomItemCard({
 			outlined
 			className="relative animate-fade-up"
 		>
-			<LayerCard.Body className="relative flex flex-col gap-3">
+			<LayerCard.Well className="relative flex flex-col gap-3">
 				<div className="absolute top-4 right-4 flex items-center gap-1">
 					<SourceChip sourceType={sourceType} />
 				</div>
@@ -171,20 +171,20 @@ export function CustomItemCard({
 				>
 					{displayBody}
 				</ExpandableText>
-			</LayerCard.Body>
+			</LayerCard.Well>
 
 			{showInsight && (
-				<LayerCard.Well className="bg-gradient-to-r from-violet-50/80 via-fuchsia-50/50 to-amber-50/40 px-4 py-2.5 dark:from-violet-950/30 dark:via-fuchsia-950/20 dark:to-amber-950/10">
+				<LayerCard.Body className="px-4 py-3">
 					<div className="flex gap-2">
 						<MessageSquareQuote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500 dark:text-violet-400" />
 						<div className="min-w-0 flex-1">
-							<span className="text-[10px] font-semibold tracking-wider text-violet-600/80 uppercase dark:text-violet-400/80">
+							<span className="text-xs font-semibold tracking-wider text-violet-600/80 uppercase dark:text-violet-400/80">
 								AI Insight
 							</span>
 							<p className="mt-0.5 text-sm leading-relaxed text-foreground/80">{summaryText}</p>
 						</div>
 					</div>
-				</LayerCard.Well>
+				</LayerCard.Body>
 			)}
 
 			{translateError && !hasTranslation && (

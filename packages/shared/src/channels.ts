@@ -35,6 +35,7 @@ export type ArticleInput = {
 };
 
 export type ChannelArticleSummary = {
+	tags: Tag[];
 	id: number;
 	channelId: number;
 	externalId: string;

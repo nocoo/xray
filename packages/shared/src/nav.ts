@@ -48,6 +48,7 @@ export const V2_NAV_GROUPS: readonly NavGroupDef[] = [
 		defaultOpen: true,
 		items: [
 			{ href: "/channels", label: "Channels", icon: "Radio" },
+			{ href: "/tags", label: "Tags", icon: "Tag" },
 			{ href: "/settings", label: "Settings", icon: "Settings" },
 		],
 	},

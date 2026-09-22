@@ -10,6 +10,11 @@ describe("nav-config", () => {
 		);
 		expect(groups.find((g) => g.label === "Watchlists")?.dynamic).toBe("watchlists");
 		expect(groups.find((g) => g.label === "Groups")?.dynamic).toBe("groups");
+		expect(groups.find((g) => g.label === "Settings")?.items.map((item) => item.href)).toEqual([
+			"/channels",
+			"/tags",
+			"/settings",
+		]);
 		expect(labels).not.toContain("Explore");
 		expect(labels).not.toContain("Usage");
 	});

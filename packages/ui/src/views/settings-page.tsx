@@ -8,7 +8,6 @@ import { useEffect, useMemo } from "react";
 import * as aiApi from "@/api/ai";
 import * as settingsApi from "@/api/settings";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
-import { TagsSettings } from "@/components/tags-settings";
 import { createAiSettingsVm } from "@/viewmodels/ai-settings-vm";
 import { createSettingsVm } from "@/viewmodels/settings-vm";
 import { useVm } from "@/viewmodels/use-vm";
@@ -31,22 +30,22 @@ export function SettingsPage() {
 	}, [accountVm, aiVm]);
 
 	return (
-		<div className="space-y-4">
-			<PageHeader title="Settings" description="Account preferences, tags, and AI configuration." />
+		<div className="min-w-0 space-y-6">
+			<PageHeader title="Settings" description="Account preferences and AI configuration." />
 
 			<SectionRule id="account" title="Account" hint="Signed-in user and ingest lookback window.">
 				{account.loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
 				{account.error && <Banner variant="error" size="sm" description={account.error} />}
 				{account.saved && <Banner variant="default" size="sm" description="Saved." />}
-				<LayerCard>
+				<LayerCard padding="none">
 					<LayerCard.Body className="space-y-4">
 						{account.email && (
-							<p className="text-sm text-basalt-muted-foreground">
+							<p className="text-sm text-basalt-muted-foreground [overflow-wrap:anywhere]">
 								Signed in as <span className="text-basalt-foreground">{account.email}</span>
 							</p>
 						)}
 						<form
-							className="space-y-3"
+							className="grid min-w-0 gap-4 sm:grid-cols-2"
 							onSubmit={(ev) => {
 								ev.preventDefault();
 								void accountVm.save();
@@ -61,26 +60,26 @@ export function SettingsPage() {
 									onChange={(e) => accountVm.setWindowHours(Number(e.target.value))}
 								/>
 							</Field>
-							<Button type="submit" size="sm">
-								Save window
-							</Button>
+							<div className="flex justify-end border-t border-basalt-border pt-4 sm:col-span-2">
+								<Button type="submit" size="sm" disabled={account.loading}>
+									Save window
+								</Button>
+							</div>
 						</form>
 					</LayerCard.Body>
 				</LayerCard>
 			</SectionRule>
 
-			<TagsSettings />
-
 			<SectionRule
 				id="ai"
 				title="AI"
-				hint="Provider keys are encrypted at rest (AES-GCM). Plaintext is never echoed back."
+				hint="Configure your provider, model, and prompts for manual AI actions."
 			>
 				{ai.loading && <p className="text-sm text-basalt-muted-foreground">Loading…</p>}
-				<LayerCard>
+				<LayerCard padding="none">
 					<LayerCard.Body>
 						<form
-							className="space-y-3"
+							className="grid min-w-0 gap-4 sm:grid-cols-2"
 							onSubmit={(ev) => {
 								ev.preventDefault();
 								void aiVm.save();
@@ -118,22 +117,22 @@ export function SettingsPage() {
 									hideLabel="Hide API key"
 								/>
 							</Field>
-							<Field label="Translation prompt">
+							<Field label="Translation prompt" className="min-w-0 sm:col-span-2">
 								<InputArea
 									rows={3}
 									value={ai.translationPrompt}
 									onChange={(e) => aiVm.patchForm({ translationPrompt: e.target.value })}
 								/>
 							</Field>
-							<Field label="Summary prompt (optional)">
+							<Field label="Summary prompt (optional)" className="min-w-0 sm:col-span-2">
 								<InputArea
 									rows={2}
 									value={ai.summaryPrompt}
 									onChange={(e) => aiVm.patchForm({ summaryPrompt: e.target.value })}
-									placeholder="If set, translate batch also writes summary_text"
+									placeholder="Instructions for summarizing each translated item"
 								/>
 							</Field>
-							<div className="flex flex-wrap items-center gap-2 pt-1">
+							<div className="flex flex-wrap items-center justify-end gap-2 border-t border-basalt-border pt-4 sm:col-span-2">
 								<Button type="submit" size="sm" loading={ai.saving}>
 									{ai.saving ? "Saving…" : "Save"}
 								</Button>
@@ -149,7 +148,7 @@ export function SettingsPage() {
 								</Button>
 							</div>
 							{(ai.testMsg || ai.error || ai.saved) && (
-								<div className="space-y-1.5" role="status" aria-live="polite">
+								<div className="space-y-1.5 sm:col-span-2" role="status" aria-live="polite">
 									{ai.testMsg && (
 										<Banner
 											variant={

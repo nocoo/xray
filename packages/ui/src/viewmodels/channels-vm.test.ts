@@ -15,6 +15,7 @@ const channel: Channel = {
 	lastReceivedAtMs: 1,
 };
 const article: ChannelArticle = {
+	tags: [],
 	id: 2,
 	channelId: 1,
 	externalId: "daily",

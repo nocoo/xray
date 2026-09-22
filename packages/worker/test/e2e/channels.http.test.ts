@@ -1,4 +1,4 @@
-import type { Channel, ChannelArticle } from "@xray/shared";
+import type { ArticlePage, Channel, ChannelArticle, Tag } from "@xray/shared";
 import { describe, expect, test } from "vitest";
 import { dataOf, ingestHeaders, jsonFetch, mintToken, rawHttp } from "./helpers.js";
 
@@ -469,4 +469,100 @@ describe('browser tags and article mutations', () => {
  expect((await jsonFetch(`/api/channels/${channel.id}/articles/${id}`,{method:'DELETE'})).status).toBe(200);
  expect((await submit(key.token,input)).status).toBe(201);
  });
+});
+
+
+describe("merged article tags over HTTP", () => {
+	test("live union has list/detail/edit parity and retains revoked source tags", async () => {
+		const channel = await createChannel();
+		const key = await createKey(channel.id);
+		const suffix = crypto.randomUUID();
+		async function tag(name: string, actor = "a") {
+			const response = await jsonFetch("/api/tags", {
+				method: "POST",
+				headers: { "x-test-actor": actor },
+				body: JSON.stringify({ name: `${name} ${suffix}` }),
+			});
+			expect(response.status).toBe(201);
+			const { id, name: savedName } = dataOf<Tag>(response.body);
+			return { id, name: savedName };
+		}
+		const tokenOnly = await tag("Alpha");
+		const channelOnly = await tag("Beta");
+		const shared = await tag("Gamma");
+		const foreign = await tag("Foreign", "b");
+		const channelTagsPath = `/api/channels/${channel.id}/tags`;
+		const keyTagsPath = `/api/channels/${channel.id}/keys/${key.id}/tags`;
+		async function replace(path: string, tags: Tag[]) {
+			return jsonFetch(path, {
+				method: "PUT",
+				body: JSON.stringify({ tagIds: tags.map((t) => t.id) }),
+			});
+		}
+		expect((await replace(channelTagsPath, [shared, channelOnly])).status).toBe(200);
+		expect((await replace(keyTagsPath, [shared, tokenOnly])).status).toBe(200);
+		for (const path of [channelTagsPath, keyTagsPath])
+			expect((await replace(path, [shared, foreign])).status).toBe(400);
+		const input = article();
+		const submitted = await submit(key.token, input);
+		expect(submitted.status).toBe(201);
+		const { id } = dataOf<{ id: number }>(JSON.parse(submitted.text));
+		const articlePath = `/api/channels/${channel.id}/articles/${id}`;
+		async function assertTags(tags: Tag[]) {
+			const detail = await jsonFetch(articlePath);
+			expect(detail.status).toBe(200);
+			const full = dataOf<ChannelArticle>(detail.body);
+			expect(full.tags).toEqual(tags);
+			const list = await jsonFetch(`/api/channels/${channel.id}/articles`);
+			expect(list.status).toBe(200);
+			const { markdown: _, ...summary } = full;
+			expect(dataOf<ArticlePage>(list.body).items).toEqual([summary]);
+			for (const body of [detail.body, list.body]) {
+				const serialized = JSON.stringify(body);
+				expect(serialized).not.toContain(key.token);
+				expect(serialized).not.toContain("token_hash");
+				expect(serialized).not.toContain(foreign.name);
+			}
+		}
+		const merged = [tokenOnly, channelOnly, shared];
+		await assertTags(merged);
+		expect((await submit(key.token, input)).status).toBe(200);
+		for (const path of [articlePath, `/api/channels/${channel.id}/articles`])
+			expect((await jsonFetch(path, { headers: { "x-test-actor": "b" } })).status).toBe(404);
+		const patch = { title: "Edited", report_date: input.report_date, markdown: "Edited body" };
+		const edited = await jsonFetch(articlePath, { method: "PATCH", body: JSON.stringify(patch) });
+		expect(edited.status).toBe(200);
+		expect(dataOf<ChannelArticle>(edited.body)).toMatchObject({
+			tags: merged,
+			externalId: input.external_id,
+			sourceLabel: "Research Agent",
+		});
+		await assertTags(merged);
+		expect((await replace(channelTagsPath, [])).status).toBe(200);
+		await assertTags([tokenOnly, shared]);
+		expect((await replace(keyTagsPath, [])).status).toBe(200);
+		await assertTags([]);
+		expect((await replace(channelTagsPath, [channelOnly])).status).toBe(200);
+		await assertTags([channelOnly]);
+		expect((await replace(keyTagsPath, [tokenOnly])).status).toBe(200);
+		expect(
+			(await jsonFetch(`/api/channels/${channel.id}/keys/${key.id}`, { method: "DELETE" })).status,
+		).toBe(200);
+		expect((await submit(key.token, article())).status).toBe(401);
+		await assertTags([tokenOnly, channelOnly]);
+		const renamed = { ...tokenOnly, name: `Zulu ${suffix}` };
+		expect(
+			(
+				await jsonFetch(`/api/tags/${tokenOnly.id}`, {
+					method: "PATCH",
+					body: JSON.stringify({ name: renamed.name }),
+				})
+			).status,
+		).toBe(200);
+		await assertTags([channelOnly, renamed]);
+		expect((await jsonFetch(`/api/tags/${tokenOnly.id}`, { method: "DELETE" })).status).toBe(200);
+		await assertTags([channelOnly]);
+		expect((await jsonFetch(`/api/tags/${channelOnly.id}`, { method: "DELETE" })).status).toBe(200);
+		await assertTags([]);
+	});
 });

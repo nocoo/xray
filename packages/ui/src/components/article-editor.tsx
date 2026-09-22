@@ -1,7 +1,8 @@
 import { Button, Field, Input } from "@nocoo/basalt";
+import { DialogFooter } from "@nocoo/basalt/components/dialog";
 import { InputArea } from "@nocoo/basalt/components/input-area";
 import { ARTICLE_LIMITS, type ArticleInput, type ChannelArticle } from "@xray/shared";
-import { Save, X } from "lucide-react";
+import { Save } from "lucide-react";
 import { useState } from "react";
 
 export function ArticleEditor({
@@ -24,7 +25,7 @@ export function ArticleEditor({
 	});
 	return (
 		<form
-			className="mx-auto max-w-6xl p-4 font-sans"
+			className="mt-5 min-w-0 font-sans"
 			aria-label="Edit article"
 			onSubmit={(event) => {
 				event.preventDefault();
@@ -32,17 +33,6 @@ export function ArticleEditor({
 			}}
 		>
 			<fieldset disabled={busy} className="min-w-0 space-y-4">
-				<div className="flex flex-wrap items-center justify-between gap-3">
-					<h2 className="text-lg font-semibold">Edit article</h2>
-					<div className="flex items-center gap-2">
-						<Button size="sm" variant="outline" onClick={onCancel}>
-							<X className="h-4 w-4" /> Cancel
-						</Button>
-						<Button size="sm" type="submit">
-							<Save className="h-4 w-4" /> Save article
-						</Button>
-					</div>
-				</div>
 				<Field label="Article title" required>
 					<Input
 						autoFocus
@@ -84,13 +74,25 @@ export function ArticleEditor({
 				>
 					<InputArea
 						required
-						rows={18}
+						rows={10}
 						className="font-mono text-sm"
 						value={draft.markdown}
 						onChange={(e) => setDraft({ ...draft, markdown: e.target.value })}
 					/>
 				</Field>
 			</fieldset>
+			<DialogFooter>
+				<Button variant="outline" disabled={busy} onClick={onCancel}>
+					Cancel
+				</Button>
+				<Button
+					type="submit"
+					loading={busy}
+					disabled={!draft.title.trim() || !draft.markdown.trim()}
+				>
+					<Save className="h-4 w-4" /> Save article
+				</Button>
+			</DialogFooter>
 		</form>
 	);
 }

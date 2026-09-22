@@ -52,7 +52,7 @@ export function StatCard({
 }) {
 	return (
 		<LayerCard
-			className="animate-fade-up"
+			className="animate-fade-up bg-basalt-bright"
 			style={{ animationDelay: `calc(var(--motion-stagger, 60ms) * ${index})` }}
 			data-testid="stat-card"
 			data-stat-label={label}

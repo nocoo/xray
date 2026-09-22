@@ -12,8 +12,11 @@ import {
 	listChannels,
 	orderChannels,
 	updateChannel,
+	updateChannelArticle,
 } from "./channels.js";
-import { createChannelKey } from "./push-tokens.js";
+import { createChannelKey, revokeChannelKey } from "./push-tokens.js";
+
+import { createTag, deleteTag, renameTag, replaceChannelTags } from "./tags.js";
 
 const U1 = "user-1";
 const U2 = "user-2";
@@ -45,6 +48,103 @@ async function seedChannelKey(db: D1Database, userId = U1, label = "Research Age
 	return { channel, key };
 }
 describe("channels repo", () => {
+	test("article tags merge live channel and source tags, deduplicate and survive edits and revocation", async () => {
+		const db = testDb();
+		const { channel, key } = await seedChannelKey(db);
+		const source = { keyId: key.id, label: key.label };
+		const tokenTag = await createTag(db, U1, "alpha", "");
+		const channelTag = await createTag(db, U1, "Alpha", "");
+		const sharedTag = await createTag(db, U1, "Zulu", "");
+		const tag = ({ id, name }: { id: number; name: string }) => ({ id, name });
+		await replaceChannelTags(db, U1, channel.id, [sharedTag.id, channelTag.id]);
+		await replaceChannelTags(db, U1, channel.id, [sharedTag.id, tokenTag.id], key.id);
+		const created = await ingestChannelArticle(db, U1, channel.id, source, article());
+		if (created.status !== "created") throw new Error("expected created article");
+		const id = created.article.id;
+		const assertTags = async (expected: { id: number; name: string }[]) => {
+			const detail = await getChannelArticle(db, U1, channel.id, id);
+			expect(detail?.tags).toEqual(expected);
+			const page = await listChannelArticles(db, U1, channel.id, {
+				date: null,
+				before: null,
+				limit: 30,
+			});
+			if (!detail) throw new Error("expected article detail");
+			const { markdown: _, ...summary } = detail;
+			expect(page?.items).toEqual([summary]);
+			expect(JSON.stringify(detail)).not.toContain("hash-");
+			expect(detail).not.toHaveProperty("source_key_id");
+		};
+		const merged = [tokenTag, channelTag, sharedTag].map(tag);
+		expect(created.article.tags).toEqual(merged);
+		expect(await ingestChannelArticle(db, U1, channel.id, source, article())).toMatchObject({
+			status: "duplicate",
+			article: { tags: merged },
+		});
+		await assertTags(merged);
+		expect(
+			await updateChannelArticle(db, U1, channel.id, id, article({ title: "Edited" })),
+		).toMatchObject({ tags: merged, title: "Edited" });
+		expect(await updateChannelArticle(db, U2, channel.id, id, article())).toBeNull();
+		await replaceChannelTags(db, U1, channel.id, []);
+		await assertTags([tokenTag, sharedTag].map(tag));
+		await replaceChannelTags(db, U1, channel.id, [], key.id);
+		await assertTags([]);
+		await replaceChannelTags(db, U1, channel.id, [channelTag.id]);
+		await assertTags([tag(channelTag)]);
+		await replaceChannelTags(db, U1, channel.id, [tokenTag.id], key.id);
+		expect(await revokeChannelKey(db, U1, channel.id, key.id)).toBe(true);
+		await assertTags([tokenTag, channelTag].map(tag));
+		await renameTag(db, U1, tokenTag.id, "ZZ renamed");
+		await assertTags([tag(channelTag), { id: tokenTag.id, name: "ZZ renamed" }]);
+		await deleteTag(db, U1, tokenTag.id);
+		await assertTags([tag(channelTag)]);
+		await deleteTag(db, U1, channelTag.id);
+		await assertTags([]);
+	});
+
+	test("article tags reject foreign tags and mismatched source tenant or channel", async () => {
+		const db = testDb();
+		const { channel, key } = await seedChannelKey(db);
+		const other = await seedChannelKey(db, U2, "Other");
+		const ownTag = await createTag(db, U1, "Own", "");
+		const foreignTag = await createTag(db, U2, "Foreign", "");
+		await db.exec(`INSERT INTO channel_tags VALUES (${channel.id}, ${foreignTag.id});
+   INSERT INTO channel_key_tags VALUES (${key.id}, ${foreignTag.id}), (${other.key.id}, ${ownTag.id});`);
+		const created = await ingestChannelArticle(
+			db,
+			U1,
+			channel.id,
+			{ keyId: key.id, label: key.label },
+			article(),
+		);
+		if (created.status !== "created") throw new Error("expected created article");
+		const id = created.article.id;
+		expect(created.article.tags).toEqual([]);
+		expect(await getChannelArticle(db, U2, channel.id, id)).toBeNull();
+		expect(
+			(await listChannelArticles(db, U2, channel.id, { date: null, before: null, limit: 30 }))
+				?.items,
+		).toEqual([]);
+		await db
+			.prepare("UPDATE channel_articles SET source_key_id = ? WHERE id = ?")
+			.bind(other.key.id, id)
+			.run();
+		expect((await getChannelArticle(db, U1, channel.id, id))?.tags).toEqual([]);
+		await db
+			.prepare("UPDATE push_tokens SET user_id = ? WHERE id = ?")
+			.bind(U1, other.key.id)
+			.run();
+		expect((await getChannelArticle(db, U1, channel.id, id))?.tags).toEqual([]);
+		await db
+			.prepare("UPDATE push_tokens SET channel_id = ? WHERE id = ?")
+			.bind(channel.id, other.key.id)
+			.run();
+		expect((await getChannelArticle(db, U1, channel.id, id))?.tags).toEqual([
+			{ id: ownTag.id, name: ownTag.name },
+		]);
+	});
+
 	test("migration preserves per-tenant ID order and appends new channels", async () => {
 		const db = createSqliteD1({ migrate: false });
 		for (const name of [
@@ -452,6 +552,7 @@ describe("channels repo", () => {
 					summary: undefined,
 					author: undefined,
 					markdown: "## 今日进展\n\n中文与 English。",
+					tags_json: "[]",
 					source_key_id: 1,
 					source_label: "Research Agent",
 					created_at_ms: 1,

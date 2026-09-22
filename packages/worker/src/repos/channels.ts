@@ -37,6 +37,7 @@ function toChannelDto(row: ChannelRow): Channel {
 }
 
 export type ArticleRow = {
+	tags_json: string;
 	id: number;
 	user_id: string;
 	channel_id: number;
@@ -53,6 +54,7 @@ export type ArticleRow = {
 
 function toSummaryDto(row: ArticleRow): ChannelArticleSummary {
 	return {
+		tags: JSON.parse(row.tags_json),
 		id: row.id,
 		channelId: row.channel_id,
 		externalId: row.external_id,
@@ -171,6 +173,21 @@ export async function orderChannels(
 
 const ARTICLE_COLS = `id, channel_id, external_id, title, report_date, summary, author, source_label, created_at_ms`;
 
+const ARTICLE_TAGS = `(SELECT json_group_array(json_object('id', t.id, 'name', t.name))
+ FROM (
+  SELECT t.id, t.name FROM channel_tags ct
+  JOIN channels c ON c.id = ct.channel_id
+  JOIN tags t ON t.id = ct.tag_id AND t.user_id = c.user_id
+  WHERE c.id = a.channel_id AND c.user_id = a.user_id
+  UNION
+  SELECT t.id, t.name FROM channel_key_tags kt
+  JOIN push_tokens k ON k.id = kt.key_id
+  JOIN channels c ON c.id = k.channel_id AND c.user_id = k.user_id
+  JOIN tags t ON t.id = kt.tag_id AND t.user_id = k.user_id
+  WHERE k.id = a.source_key_id AND k.channel_id = a.channel_id AND k.user_id = a.user_id
+  ORDER BY t.name COLLATE NOCASE, t.id
+ ) t) AS tags_json`;
+
 /**
  * Date-aware cursor pagination. Sort: report_date DESC, id DESC.
  * Returns null when the `before` cursor is unknown/stale.
@@ -206,7 +223,7 @@ export async function listChannelArticles(
 	}
 	const { results } = await db
 		.prepare(
-			`SELECT ${ARTICLE_COLS} FROM channel_articles
+			`SELECT ${ARTICLE_COLS}, ${ARTICLE_TAGS} FROM channel_articles a
 			 WHERE ${conds.join(" AND ")}
 			 ORDER BY report_date DESC, id DESC
 			 LIMIT ?`,
@@ -230,7 +247,7 @@ export async function getChannelArticle(
 ): Promise<ChannelArticle | null> {
 	const row = await db
 		.prepare(
-			`SELECT * FROM channel_articles
+			`SELECT a.*, ${ARTICLE_TAGS} FROM channel_articles a
 			 WHERE id = ? AND channel_id = ? AND user_id = ? LIMIT 1`,
 		)
 		.bind(articleId, channelId, userId)
@@ -287,7 +304,7 @@ export async function ingestChannelArticle(
 
 	const existing = await db
 		.prepare(
-			`SELECT * FROM channel_articles
+			`SELECT a.*, ${ARTICLE_TAGS} FROM channel_articles a
 			 WHERE channel_id = ? AND external_id = ? AND user_id = ? LIMIT 1`,
 		)
 		.bind(channelId, input.externalId, userId)
@@ -315,7 +332,7 @@ export async function updateChannelArticle(
 ): Promise<ChannelArticle | null> {
 	const row = await db
 		.prepare(`UPDATE channel_articles SET title = ?, report_date = ?, markdown = ?, summary = ?, author = ?
- WHERE id = ? AND channel_id = ? AND user_id = ? RETURNING *`)
+ WHERE id = ? AND channel_id = ? AND user_id = ? RETURNING id`)
 		.bind(
 			input.title,
 			input.reportDate,
@@ -326,8 +343,8 @@ export async function updateChannelArticle(
 			channelId,
 			userId,
 		)
-		.first<ArticleRow>();
-	return row ? toArticleDto(row) : null;
+		.first<{ id: number }>();
+	return row ? getChannelArticle(db, userId, channelId, articleId) : null;
 }
 
 export async function deleteChannelArticle(

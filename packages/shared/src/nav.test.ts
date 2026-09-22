@@ -21,7 +21,7 @@ describe("V2_NAV", () => {
 		expect(V2_NAV_GROUPS.find((g) => g.label === "Channels")?.dynamic).toBe("channels");
 		expect(
 			V2_NAV_GROUPS.find((g) => g.label === "Settings")?.items.map((item) => item.label),
-		).toEqual(["Channels", "Settings"]);
+		).toEqual(["Channels", "Tags", "Settings"]);
 		expect(V2_NAV_GROUPS.map((g) => g.label)).toEqual([
 			"Dashboard",
 			"Watchlists",

@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { BROWSER, browserApiHeaders, INGEST, WORKER } from "./helpers";
 
 test.beforeAll(() => {
@@ -44,6 +44,15 @@ async function expectReaderChrome(page: Page) {
 	), { message: "Reader must not overflow the viewport horizontally" }).toBe(true);
 }
 
+async function expectOverlayFits(page: Page, overlay: Locator) {
+	await expect(overlay).toBeVisible();
+	await expect.poll(() => page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth)).toBe(true);
+	await expect.poll(() => overlay.evaluate(node => {
+		const rect = node.getBoundingClientRect();
+		return rect.left >= 0 && rect.right <= innerWidth && node.scrollWidth <= node.clientWidth;
+	})).toBe(true);
+}
+
 const reportBody = [
 	"## 今日进展",
 	"中文长文阅读需要稳定的字体与行距。报告保留原始 Markdown，方便团队集中查看每日进展。English stays readable alongside 中文。",
@@ -69,8 +78,10 @@ test("channel creation, one-time key, delivery, reader navigation and revocation
 	await expect(page.locator("header[aria-labelledby]").getByRole("heading", { name, exact: true })).toBeVisible();
 	await expect(page.getByText("Channel settings · Profile, activity, and push tokens.", { exact: true })).toBeVisible();
 	await expect(page.getByRole("heading", { name: "Push tokens", exact: true })).toBeVisible();
-	await page.getByLabel("Token name", { exact: true }).fill("Fundly Agent");
 	await page.getByRole("button", { name: "Create token", exact: true }).click();
+	const tokenDialog = page.getByRole("dialog", { name: "Create push token", exact: true });
+	await tokenDialog.getByLabel("Token name", { exact: true }).fill("Fundly Agent");
+	await tokenDialog.getByRole("button", { name: "Create token", exact: true }).click();
 	const keyField = page.getByLabel("API key", { exact: true });
 	await expect(keyField).toBeVisible();
 	const token = await keyField.inputValue();
@@ -78,6 +89,9 @@ test("channel creation, one-time key, delivery, reader navigation and revocation
 	await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
 	await page.getByRole("button", { name: "Copy key", exact: true }).click();
 	await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(token);
+	await page.getByRole("dialog", { name: "Token created", exact: true }).getByRole("button", { name: "Done", exact: true }).click();
+	await expect(page.getByRole("button", { name: "Create token", exact: true })).toBeFocused();
+	await expect(keyField).toHaveCount(0);
 	await page.getByRole("button", { name: "Copy example", exact: true }).click();
 	await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain("external_id");
 	const example = await page.evaluate(() => navigator.clipboard.readText());
@@ -85,7 +99,8 @@ test("channel creation, one-time key, delivery, reader navigation and revocation
 	expect(example).toContain("cat > report.json");
 	expect(example).toContain("curl '");
 	expect(example).toContain("/api/v1/ingest/articles");
-	expect(example.includes(`Authorization: Bearer ${token}`)).toBe(true);
+	expect(example).toContain("Authorization: Bearer YOUR_CHANNEL_TOKEN");
+	expect(example.includes(token)).toBe(false);
 	expect(example).toContain("--data @report.json");
 	const ids: number[] = [];
 	for (const [index, date] of ["2026-09-21", "2026-09-22"].entries()) {
@@ -233,10 +248,26 @@ test("channel management edits profiles, persists ordering and confirms deletion
 	const links = await sidebar.getByRole("link").evaluateAll(nodes => nodes.map(node => node.getAttribute("href")));
 	expect(links.indexOf("/channels")).toBeLessThan(links.indexOf("/settings"));
 	await page.locator("#main-content").getByRole("button", { name: "New channel", exact: true }).click();
-	await expect(page.getByLabel("Channel name", { exact: true })).toBeVisible();
-	await expect(page.getByRole("dialog")).toHaveCount(0);
-	await expect(page.locator("#main-content").getByRole("button", { name: "New channel", exact: true })).toBeDisabled();
-	await page.getByRole("button", { name: "Cancel", exact: true }).click();
+	const createDialog = page.getByRole("dialog", { name: "New channel", exact: true });
+	await expect(createDialog).toBeVisible();
+	await createDialog.getByLabel("Channel name", { exact: true }).fill(`${prefix} draft`);
+	await createDialog.getByLabel(/^Description\s*\(optional\)$/).fill("Retained description");
+	await page.route("**/api/channels", async route => {
+		if (route.request().method() === "POST") await route.fulfill({ status: 503, json: { error: "Try again" } });
+		else await route.continue();
+	});
+	await createDialog.getByRole("button", { name: "Create channel", exact: true }).click();
+	await expect(createDialog.getByRole("alert")).toContainText("Worker unreachable");
+	await expect(createDialog.getByLabel("Channel name", { exact: true })).toHaveValue(`${prefix} draft`);
+	await expect(createDialog.getByLabel(/^Description\s*\(optional\)$/)).toHaveValue("Retained description");
+	await page.setViewportSize({ width: 320, height: 844 });
+	await expectOverlayFits(page, createDialog);
+	await page.screenshot({ path: "/tmp/xray-channel-create-mobile320.png", fullPage: true });
+	await createDialog.getByRole("button", { name: "Cancel", exact: true }).click();
+	await expect(createDialog).toHaveCount(0);
+	await expect(page.locator("#main-content").getByRole("button", { name: "New channel", exact: true })).toBeFocused();
+	await page.unroute("**/api/channels");
+	await page.setViewportSize({ width: 1440, height: 1000 });
 	await expect(page.getByLabel("Channel name", { exact: true })).toHaveCount(0);
 
 	await page.getByRole("link", { name: `Manage ${prefix} A`, exact: true }).click();
@@ -344,6 +375,8 @@ test("global settings retains account and AI without push-token controls", async
 	await expect(page.getByRole("heading", { name: "Push tokens", exact: true })).toHaveCount(0);
 	await expect(page.getByRole("button", { name: /^(New token|Create token|Revoke.*)$/ })).toHaveCount(0);
 	await expect(page.getByLabel("Token name", { exact: true })).toHaveCount(0);
+	await expect(page.getByRole("button", { name: "New tag", exact: true })).toHaveCount(0);
+	await expect(page.getByTestId("app-sidebar").getByRole("link", { name: "Tags", exact: true })).toHaveAttribute("href", "/tags");
 });
 
 test("loaded history and reading positions survive reload and browser navigation", async ({ page, request }) => {
@@ -383,7 +416,7 @@ test("loaded history and reading positions survive reload and browser navigation
 	await expect(content.getByRole("heading", { name: "Historical report 01", exact: true })).toBeVisible();
 });
 
-test("article actions edit inline, retain failed drafts and select the next report after deletion", async ({ page, request }) => {
+test("article dialogs retain failed drafts and select the next report after deletion", async ({ page, request }) => {
 	const created = await request.post(`${WORKER}/api/channels`, { headers: browserApiHeaders, data: { name: `Article edits ${Date.now()}` } });
 	const channel = (await created.json()).data;
 	const issued = await request.post(`${WORKER}/api/channels/${channel.id}/keys`, { headers: browserApiHeaders, data: { label: "Editing producer" } });
@@ -403,9 +436,12 @@ test("article actions edit inline, retain failed drafts and select the next repo
 	const remove = page.locator(".channel-header").getByRole("button", { name: "Delete article", exact: true });
 	await expect(page).toHaveURL(new RegExp(`/articles/${ids[1]}$`));
 	await edit.click();
-	await expect(page.getByRole("dialog")).toHaveCount(0);
+	const editor = page.getByRole("dialog", { name: "Edit article", exact: true });
+	await expect(editor).toBeVisible();
 	await page.getByLabel("Article title", { exact: true }).fill("Unsaved title");
-	await content.getByRole("button", { name: "Cancel", exact: true }).click();
+	await editor.getByRole("button", { name: "Cancel", exact: true }).click();
+	await expect(editor).toHaveCount(0);
+	await expect(edit).toBeFocused();
 	await expect(content.getByRole("heading", { name: "Original 2026-09-22", exact: true })).toBeVisible();
 	await edit.click();
 	await page.getByLabel("Article title", { exact: true }).fill("Edited 中文日报");
@@ -416,27 +452,48 @@ test("article actions edit inline, retain failed drafts and select the next repo
 		if (route.request().method() === "PATCH") await route.fulfill({ status: 503, json: { error: "Try again" } });
 		else await route.continue();
 	});
-	await content.getByRole("button", { name: "Save article", exact: true }).click();
-	await expect(page.getByRole("alert")).toContainText("Worker unreachable");
-	await expect(page.getByLabel("Article title", { exact: true })).toHaveValue("Edited 中文日报");
+	await editor.getByRole("button", { name: "Save article", exact: true }).click();
+	await expect(editor.getByRole("alert")).toContainText("Worker unreachable");
+	await expect(editor.getByLabel("Article title", { exact: true })).toHaveValue("Edited 中文日报");
+	await expect(editor.getByLabel("Markdown", { exact: true })).toHaveValue("## 修改后的内容\n\n**保存后的正文**");
+	await expect(editor.getByLabel("Report date", { exact: true })).toHaveValue("2026-09-23");
+	await page.setViewportSize({ width: 320, height: 844 });
+	await expectOverlayFits(page, editor);
+	await page.screenshot({ path: "/tmp/xray-article-edit-mobile320.png", fullPage: true });
+	await page.setViewportSize({ width: 1440, height: 1000 });
 	await page.unroute(target);
-	await content.getByRole("button", { name: "Save article", exact: true }).click();
+	await editor.getByRole("button", { name: "Save article", exact: true }).click();
+	await expect(editor).toHaveCount(0);
+	await expect(edit).toBeFocused();
 	await expect(content.getByRole("heading", { name: "修改后的内容", exact: true })).toBeVisible();
 	await expect(page.getByRole("region", { name: "Articles", exact: true }).getByRole("button").first()).toContainText("Edited 中文日报");
 	await page.reload();
 	await expect(content.getByRole("heading", { name: "Edited 中文日报", exact: true })).toBeVisible();
 	await remove.click();
-	const confirmation = page.getByRole("region", { name: "Confirm article deletion", exact: true });
-	await expect(page.getByRole("alertdialog")).toHaveCount(0);
+	const confirmation = page.getByRole("alertdialog", { name: "Delete article?", exact: true });
+	await expect(confirmation).toBeVisible();
 	await confirmation.getByRole("button", { name: "Cancel", exact: true }).click();
 	await expect(confirmation).toHaveCount(0);
+	await expect(remove).toBeFocused();
 	await expect(content.getByRole("heading", { name: "Edited 中文日报", exact: true })).toBeVisible();
 	await remove.click();
-	await confirmation.getByRole("button", { name: "Confirm delete", exact: true }).click();
+	await page.route(target, async route => {
+		if (route.request().method() === "DELETE") await route.fulfill({ status: 503, json: { error: "Try again" } });
+		else await route.continue();
+	});
+	await confirmation.getByRole("button", { name: "Delete article", exact: true }).click();
+	await expect(confirmation.getByRole("alert")).toContainText("Worker unreachable");
+	await expect(confirmation).toContainText("Edited 中文日报");
+	await page.setViewportSize({ width: 320, height: 844 });
+	await expectOverlayFits(page, confirmation);
+	await page.screenshot({ path: "/tmp/xray-article-delete-mobile320.png", fullPage: true });
+	await page.setViewportSize({ width: 1440, height: 1000 });
+	await page.unroute(target);
+	await confirmation.getByRole("button", { name: "Delete article", exact: true }).click();
 	await expect(page).toHaveURL(new RegExp(`/articles/${ids[0]}$`));
 	await expect(content.getByRole("heading", { name: "Original 2026-09-21", exact: true })).toBeVisible();
 	await remove.click();
-	await confirmation.getByRole("button", { name: "Confirm delete", exact: true }).click();
+	await confirmation.getByRole("button", { name: "Delete article", exact: true }).click();
 	await expect(page).toHaveURL(new RegExp(`/channels/${channel.id}$`));
 	await expect(page.getByText("No reports for this date.", { exact: true })).toBeVisible();
 	await expect(edit).toBeDisabled();
@@ -445,47 +502,86 @@ test("article actions edit inline, retain failed drafts and select the next repo
 	expect((await channels.json()).data.find((item: { id: number }) => item.id === channel.id).articleCount).toBe(0);
 });
 
-test("tags are managed in Settings and created inline for channels and tokens with stable colors", async ({ page, request }) => {
+test("Tags page and popovers manage live deduplicated article tags with stable colors", async ({ page, request }) => {
 	const suffix = Date.now();
 	const sharedTag = `研究 ${suffix}`;
 	const renamedTag = `研发 ${suffix}`;
 	const channelTag = `日报 ${suffix}`;
 	const tokenTag = `自动化 ${suffix}`;
-	await page.goto(`${BROWSER}/settings`);
-	await page.getByRole("button", { name: "New tag", exact: true }).click();
-	await page.getByLabel("New tag name", { exact: true }).fill(sharedTag);
-	await page.getByRole("button", { name: "Create tag", exact: true }).click();
-	await expect(page.getByLabel("New tag name", { exact: true })).toHaveValue("");
 	const badge = (name: string) => page.locator("[data-tag-color]").filter({ hasText: name });
+	await page.goto(`${BROWSER}/tags`);
+	await expect(page.locator("header[aria-labelledby]").getByRole("heading", { name: "Tags", exact: true })).toBeVisible();
+	const newTag = page.getByRole("button", { name: "New tag", exact: true });
+	await newTag.click();
+	const createTag = page.getByRole("dialog", { name: "New tag", exact: true });
+	await createTag.getByLabel("New tag name", { exact: true }).fill(sharedTag);
+	await createTag.getByRole("button", { name: "Create tag", exact: true }).click();
+	await expect(createTag).toHaveCount(0);
+	await expect(newTag).toBeFocused();
 	const color = await badge(sharedTag).getAttribute("data-tag-color");
 	expect(color).toMatch(/^(slate|blue|violet|teal|amber|rose)$/);
-	await page.getByLabel("New tag name", { exact: true }).fill(sharedTag);
-	await page.getByRole("button", { name: "Create tag", exact: true }).click();
-	await expect(page.getByRole("alert")).toContainText("tag exists");
+	await newTag.click();
+	await createTag.getByLabel("New tag name", { exact: true }).fill(sharedTag);
+	await createTag.getByRole("button", { name: "Create tag", exact: true }).click();
+	await expect(createTag.getByRole("alert")).toContainText("tag exists");
+	await expect(createTag.getByLabel("New tag name", { exact: true })).toHaveValue(sharedTag);
+	await page.setViewportSize({ width: 320, height: 844 });
+	await expectOverlayFits(page, createTag);
+	await page.screenshot({ path: "/tmp/xray-tag-create-mobile320.png", fullPage: true });
+	await createTag.getByRole("button", { name: "Cancel", exact: true }).click();
+	await expect(newTag).toBeFocused();
+	await page.setViewportSize({ width: 1440, height: 1000 });
 
 	const created = await request.post(`${WORKER}/api/channels`, { headers: browserApiHeaders, data: { name: `Tagged ${suffix}` } });
+	expect(created.status()).toBe(201);
 	const channel = (await created.json()).data;
 	await page.goto(`${BROWSER}/channels/${channel.id}/settings`);
-	await page.getByRole("button", { name: "Edit channel tags", exact: true }).click();
-	await page.getByRole("checkbox", { name: sharedTag, exact: true }).click();
-	await expect(page.getByRole("checkbox", { name: sharedTag, exact: true })).toBeChecked();
-	await page.getByLabel("New tag for channel", { exact: true }).fill(channelTag);
-	await page.getByRole("button", { name: "Create & assign", exact: true }).click();
-	await expect(page.getByRole("checkbox", { name: channelTag, exact: true })).toBeChecked();
-	await page.getByRole("button", { name: "Edit channel tags", exact: true }).click();
+	const channelPicker = page.getByRole("button", { name: "Edit channel tags", exact: true });
+	const picker = page.getByRole("dialog", { name: "Tags", exact: true });
+	await channelPicker.click();
+	await picker.getByRole("checkbox", { name: sharedTag, exact: true }).click();
+	await expect(picker.getByRole("checkbox", { name: sharedTag, exact: true })).toBeChecked();
+	await picker.getByLabel("New tag for channel", { exact: true }).fill(channelTag);
+	await picker.getByRole("button", { name: "Create & assign", exact: true }).click();
+	await expect(picker.getByRole("checkbox", { name: channelTag, exact: true })).toBeChecked();
+	await picker.getByRole("button", { name: "Close tag picker", exact: true }).click();
+	await expect(picker).toHaveCount(0);
+	await expect(channelPicker).toBeFocused();
 	await expect(badge(sharedTag)).toHaveAttribute("data-tag-color", color!);
 
-	await page.getByLabel("Token name", { exact: true }).fill("Tagged producer");
-	await page.getByRole("button", { name: "Create token", exact: true }).click();
-	const token = await page.getByLabel("API key", { exact: true }).inputValue();
-	await page.getByRole("button", { name: "Edit Tagged producer tags", exact: true }).click();
-	await page.getByRole("checkbox", { name: sharedTag, exact: true }).click();
-	await expect(page.getByRole("checkbox", { name: sharedTag, exact: true })).toBeChecked();
-	await page.getByLabel("New tag for Tagged producer", { exact: true }).fill(tokenTag);
-	await page.getByRole("button", { name: "Create & assign", exact: true }).click();
-	await expect(page.getByRole("checkbox", { name: tokenTag, exact: true })).toBeChecked();
-	await page.getByRole("button", { name: "Edit Tagged producer tags", exact: true }).click();
-	await expect(page.getByLabel("API key", { exact: true })).toHaveValue(token);
+	const newToken = page.getByRole("button", { name: "Create token", exact: true });
+	await newToken.click();
+	const tokenDialog = page.getByRole("dialog", { name: "Create push token", exact: true });
+	await tokenDialog.getByLabel("Token name", { exact: true }).fill("Tagged producer");
+	const keyPath = `**/api/channels/${channel.id}/keys`;
+	await page.route(keyPath, async route => {
+		if (route.request().method() === "POST") await route.fulfill({ status: 503, json: { error: "Try again" } });
+		else await route.continue();
+	});
+	await tokenDialog.getByRole("button", { name: "Create token", exact: true }).click();
+	await expect(tokenDialog.getByRole("alert")).toContainText("Worker unreachable");
+	await expect(tokenDialog.getByLabel("Token name", { exact: true })).toHaveValue("Tagged producer");
+	await page.setViewportSize({ width: 320, height: 844 });
+	await expectOverlayFits(page, tokenDialog);
+	await page.screenshot({ path: "/tmp/xray-token-create-mobile320.png", fullPage: true });
+	await page.setViewportSize({ width: 1440, height: 1000 });
+	await page.unroute(keyPath);
+	await tokenDialog.getByRole("button", { name: "Create token", exact: true }).click();
+	const tokenCreated = page.getByRole("dialog", { name: "Token created", exact: true });
+	const token = await tokenCreated.getByLabel("API key", { exact: true }).inputValue();
+	expect(token.startsWith("xray_pt_")).toBe(true);
+	await tokenCreated.getByRole("button", { name: "Done", exact: true }).click();
+	await expect(newToken).toBeFocused();
+	await expect(page.getByLabel("API key", { exact: true })).toHaveCount(0);
+	const tokenPicker = page.getByRole("button", { name: "Edit Tagged producer tags", exact: true });
+	await tokenPicker.click();
+	await picker.getByRole("checkbox", { name: sharedTag, exact: true }).click();
+	await expect(picker.getByRole("checkbox", { name: sharedTag, exact: true })).toBeChecked();
+	await picker.getByLabel("New tag for Tagged producer", { exact: true }).fill(tokenTag);
+	await picker.getByRole("button", { name: "Create & assign", exact: true }).click();
+	await expect(picker.getByRole("checkbox", { name: tokenTag, exact: true })).toBeChecked();
+	await picker.getByRole("button", { name: "Close tag picker", exact: true }).click();
+	await expect(tokenPicker).toBeFocused();
 	await expect(page.getByRole("dialog")).toHaveCount(0);
 	await page.reload();
 	await expect(badge(sharedTag)).toHaveCount(2);
@@ -494,42 +590,96 @@ test("tags are managed in Settings and created inline for channels and tokens wi
 	await expect(badge(tokenTag)).toBeVisible();
 	await page.screenshot({ path: "/tmp/xray-tags-settings-desktop.png", fullPage: true });
 	await page.setViewportSize({ width: 320, height: 844 });
-	await page.getByRole("button", { name: "Edit Tagged producer tags", exact: true }).click();
-	await expect.poll(() => page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth)).toBe(true);
+	await tokenPicker.click();
+	await expectOverlayFits(page, picker);
 	await page.screenshot({ path: "/tmp/xray-tags-settings-mobile.png", fullPage: true });
+	await picker.getByRole("button", { name: "Close tag picker", exact: true }).click();
+	await expect(tokenPicker).toBeFocused();
 	await page.setViewportSize({ width: 1440, height: 1000 });
 
-	await page.goto(`${BROWSER}/settings`);
-	await page.getByRole("button", { name: `Rename ${sharedTag}`, exact: true }).click();
-	await page.getByRole("textbox", { name: `Rename ${sharedTag}`, exact: true }).fill(renamedTag);
-	await page.getByRole("textbox", { name: `Rename ${sharedTag}`, exact: true }).locator("..").getByRole("button", { name: "Save", exact: true }).click();
+	const payload = { external_id: "tagged-report", title: "Tagged report", report_date: "2026-09-22", markdown: "# Tag assignment preserves the token" };
+	const submitted = await request.post(`${INGEST}/api/v1/ingest/articles`, {
+		headers: { host: "xray-ingest.worker.hexly.ai", authorization: `Bearer ${token}` }, data: payload,
+	});
+	expect(submitted.status()).toBe(201);
+	const articleId = (await submitted.json()).id;
+	const articleUrl = `${BROWSER}/channels/${channel.id}/articles/${articleId}`;
+	async function expectArticleTags(names: string[]) {
+		const header = page.getByRole("document", { name: "Article content" }).locator("article > header");
+		await expect(header.getByRole("heading", { name: "Tagged report", exact: true })).toBeVisible();
+		const listItem = page.getByRole("region", { name: "Articles", exact: true }).getByRole("button", { name: /Tagged report/ });
+		for (const scope of [header, listItem]) {
+			await expect(scope.locator("[data-tag-color]")).toHaveCount(names.length);
+			for (const name of names) await expect(scope.locator("[data-tag-color]").filter({ hasText: name })).toHaveCount(1);
+		}
+		await expect(header.locator("h1 + span [data-tag-color]")).toHaveCount(names.length);
+		await expect.poll(() => header.evaluate(node => {
+			const title = node.querySelector("h1")!.getBoundingClientRect();
+			return [...node.querySelectorAll("[data-tag-color]")].every(tag => tag.getBoundingClientRect().top >= title.bottom);
+		})).toBe(true);
+	}
+	await page.goto(articleUrl);
+	await expectArticleTags([sharedTag, channelTag, tokenTag]);
+	await expect(page.locator(".channel-header [data-tag-color]").filter({ hasText: channelTag })).toBeVisible();
+	await page.reload();
+	await expectArticleTags([sharedTag, channelTag, tokenTag]);
+	await page.setViewportSize({ width: 320, height: 844 });
+	await expectReaderChrome(page);
+	await page.screenshot({ path: "/tmp/xray-article-tags-mobile320.png", fullPage: true });
+	await page.setViewportSize({ width: 1440, height: 1000 });
+
+	await page.goto(`${BROWSER}/tags`);
+	const renameButton = page.getByRole("button", { name: `Rename ${sharedTag}`, exact: true });
+	await renameButton.click();
+	const rename = page.getByRole("dialog", { name: "Rename tag", exact: true });
+	await rename.getByRole("textbox", { name: `Rename ${sharedTag}`, exact: true }).fill(channelTag);
+	await rename.getByRole("button", { name: "Save", exact: true }).click();
+	await expect(rename.getByRole("alert")).toContainText("tag exists");
+	await expect(rename.getByRole("textbox", { name: `Rename ${sharedTag}`, exact: true })).toHaveValue(channelTag);
+	await rename.getByRole("textbox", { name: `Rename ${sharedTag}`, exact: true }).fill(renamedTag);
+	await rename.getByRole("button", { name: "Save", exact: true }).click();
+	await expect(rename).toHaveCount(0);
 	await expect(badge(renamedTag)).toBeVisible();
 	const renamedColor = await badge(renamedTag).getAttribute("data-tag-color");
 	await page.goto(`${BROWSER}/channels/${channel.id}/settings`);
 	await expect(badge(renamedTag)).toHaveCount(2);
 	for (const node of await badge(renamedTag).all()) await expect(node).toHaveAttribute("data-tag-color", renamedColor!);
 	await expect(badge(sharedTag)).toHaveCount(0);
-	await page.goto(`${BROWSER}/settings`);
-	await page.getByRole("button", { name: `Delete ${renamedTag}`, exact: true }).click();
-	const confirmation = page.getByRole("group", { name: `Confirm deleting ${renamedTag}`, exact: true });
+	await page.goto(articleUrl);
+	await page.reload();
+	await expectArticleTags([renamedTag, channelTag, tokenTag]);
+	await expect(badge(sharedTag)).toHaveCount(0);
+	for (const node of await badge(renamedTag).all()) await expect(node).toHaveAttribute("data-tag-color", renamedColor!);
+
+	await page.goto(`${BROWSER}/tags`);
+	const deleteTag = page.getByRole("button", { name: `Delete ${renamedTag}`, exact: true });
+	await deleteTag.click();
+	const confirmation = page.getByRole("alertdialog", { name: "Delete tag?", exact: true });
+	await expect(confirmation).toContainText(renamedTag);
+	await page.setViewportSize({ width: 320, height: 844 });
+	await expectOverlayFits(page, confirmation);
+	await page.screenshot({ path: "/tmp/xray-tag-delete-mobile320.png", fullPage: true });
 	await confirmation.getByRole("button", { name: "Cancel", exact: true }).click();
 	await expect(confirmation).toHaveCount(0);
-	await page.getByRole("button", { name: `Delete ${renamedTag}`, exact: true }).click();
+	await expect(deleteTag).toBeFocused();
+	await page.setViewportSize({ width: 1440, height: 1000 });
+	await deleteTag.click();
 	await confirmation.getByRole("button", { name: "Delete tag", exact: true }).click();
+	await expect(confirmation).toHaveCount(0);
 	await expect(badge(renamedTag)).toHaveCount(0);
 	await page.goto(`${BROWSER}/channels/${channel.id}/settings`);
 	await expect(badge(renamedTag)).toHaveCount(0);
 	await expect(badge(channelTag)).toBeVisible();
 	await expect(badge(tokenTag)).toBeVisible();
 	await expect(page.getByRole("button", { name: "Revoke Tagged producer", exact: true })).toBeVisible();
-	const submitted = await request.post(`${INGEST}/api/v1/ingest/articles`, {
-		headers: { host: "xray-ingest.worker.hexly.ai", authorization: `Bearer ${token}` },
-		data: { external_id: "tagged-report", title: "Tagged report", report_date: "2026-09-22", markdown: "# Tag assignment preserves the token" },
+	const retry = await request.post(`${INGEST}/api/v1/ingest/articles`, {
+		headers: { host: "xray-ingest.worker.hexly.ai", authorization: `Bearer ${token}` }, data: payload,
 	});
-	expect(submitted.status()).toBe(201);
-	await page.goto(`${BROWSER}/channels/${channel.id}`);
-	await expect(page.locator(".channel-header [data-tag-color]").filter({ hasText: channelTag })).toBeVisible();
-	await expect(page.getByRole("document", { name: "Article content" }).getByRole("heading", { name: "Tagged report", exact: true })).toBeVisible();
+	expect(retry.status()).toBe(200);
+	await page.goto(articleUrl);
+	await page.reload();
+	await expectArticleTags([channelTag, tokenTag]);
+	await expect(badge(renamedTag)).toHaveCount(0);
 });
 
 test("leaving a pending article deletion does not pull navigation back to the reader", async ({ page, request }) => {
@@ -552,9 +702,12 @@ test("leaving a pending article deletion does not pull navigation back to the re
 	});
 	await page.getByRole("button", { name: "Delete article", exact: true }).click();
 	const deleting = page.waitForRequest(req => req.method() === "DELETE");
-	await page.getByRole("button", { name: "Confirm delete", exact: true }).click();
+	await page.getByRole("alertdialog", { name: "Delete article?", exact: true }).getByRole("button", { name: "Delete article", exact: true }).click();
 	await deleting;
-	await page.getByRole("link", { name: "Manage channel", exact: true }).click();
+	await page.evaluate(path => {
+		window.history.pushState(null, "", path);
+		window.dispatchEvent(new PopStateEvent("popstate"));
+	}, `/channels/${channel.id}/settings`);
 	await expect(page).toHaveURL(new RegExp(`/channels/${channel.id}/settings$`));
 	const refreshed = page.waitForResponse(res => res.url().endsWith("/api/channels") && res.ok());
 	release();
