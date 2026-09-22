@@ -25,7 +25,7 @@ test("search distinguishes empty catalog and no matches", async () => {
 	fireEvent.change(screen.getByRole("searchbox"), { target: { value: "missing" } });
 	expect(screen.getByText("No matching tags")).toBeTruthy();
 	expect(screen.getByRole("status").textContent).toBe("0 of 1 tag");
-	fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+	fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
 	expect(screen.getByText("Research")).toBeTruthy();
 	cleanup();
 	vi.mocked(api.fetchTags).mockResolvedValue([]);
@@ -99,4 +99,78 @@ test("Escape closes the editor and returns focus to its opener", async () => {
 	await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 	await waitFor(() => expect(document.activeElement).toBe(trigger));
 	expect(api.renameTag).not.toHaveBeenCalled();
+});
+
+test("catalog sorts by name and combines palette filtering with search", async () => {
+	const tags = [
+		{ id: 1, name: "Zebra" },
+		{ id: 2, name: "Alpha" },
+		{ id: 3, name: "Beta" },
+	];
+	vi.mocked(api.fetchTags).mockResolvedValue(tags);
+	render(<TagsSettings />);
+	await screen.findByText("Alpha");
+	const names = () =>
+		screen
+			.getAllByRole("listitem")
+			.map((row) => row.querySelector("[data-tag-color]")?.textContent);
+	expect(names()).toEqual(["Alpha", "Beta", "Zebra"]);
+	fireEvent.keyDown(screen.getByRole("combobox", { name: "Sort tags" }), { key: "ArrowDown" });
+	fireEvent.click(await screen.findByRole("option", { name: "Name Z–A" }));
+	expect(names()).toEqual(["Zebra", "Beta", "Alpha"]);
+	const color = tagColorFor("Alpha");
+	fireEvent.click(screen.getByRole("button", { name: `Filter ${color} tags` }));
+	expect(
+		screen.getByRole("button", { name: `Filter ${color} tags` }).getAttribute("aria-pressed"),
+	).toBe("true");
+	expect(names()).toEqual(
+		[...tags]
+			.filter((tag) => tagColorFor(tag.name) === color)
+			.sort((a, b) => b.name.localeCompare(a.name))
+			.map((tag) => tag.name),
+	);
+	fireEvent.change(screen.getByRole("searchbox"), { target: { value: "does not exist" } });
+	expect(screen.getByText("No matching tags")).toBeTruthy();
+	fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+	expect(names()).toEqual(["Zebra", "Beta", "Alpha"]);
+	expect(document.activeElement).toBe(screen.getByRole("searchbox"));
+});
+
+test("load errors show retry instead of an empty collection; refresh preserves filters", async () => {
+	vi.mocked(api.fetchTags)
+		.mockRejectedValueOnce(new Error("Network unavailable"))
+		.mockResolvedValueOnce([tag])
+		.mockResolvedValueOnce([tag, { id: 2, name: "Daily" }]);
+	render(<TagsSettings />);
+	expect(await screen.findByText("Tags could not be loaded")).toBeTruthy();
+	expect(screen.queryByText("No tags yet")).toBeNull();
+	fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+	await screen.findByText("Research");
+	fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Research" } });
+	fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+	await waitFor(() => expect(screen.getByRole("status").textContent).toBe("1 of 2 tags"));
+	expect(screen.queryByText("Daily")).toBeNull();
+});
+
+test("spectrum shows real counts and the active swatch toggles back to all tags", async () => {
+	vi.mocked(api.fetchTags).mockResolvedValue([
+		{ id: 1, name: "Alpha" },
+		{ id: 2, name: "Beta" },
+	]);
+	render(<TagsSettings />);
+	await screen.findByText("Alpha");
+	const buttons = within(screen.getByRole("group", { name: "Filter tags by color" })).getAllByRole(
+		"button",
+	);
+	expect(buttons).toHaveLength(6);
+	const total = buttons.reduce(
+		(sum, button) => sum + Number(button.textContent?.match(/\d+/)?.[0]),
+		0,
+	);
+	expect(total).toBe(2);
+	const swatch = screen.getByRole("button", { name: `Filter ${tagColorFor("Alpha")} tags` });
+	fireEvent.click(swatch);
+	fireEvent.click(swatch);
+	expect(swatch.getAttribute("aria-pressed")).toBe("false");
+	expect(screen.getAllByRole("listitem")).toHaveLength(2);
 });

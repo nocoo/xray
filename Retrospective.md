@@ -98,3 +98,9 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 - **What:** Patch release preparation updated manifests to 2.4.1, but Bun 1.3.14 retained 2.4.0 in the lockfile's workspace metadata. Publication was stopped before any push. A lockfile-only install also retained those versions and serialized the local mirror URLs; that local output was discarded.
 - **Why:** An unchanged dependency graph lets Bun reuse workspace metadata. A successful install does not prove first-party version consistency.
 - **Follow-up:** Include bun.lock in the explicit release version targets and update all matching version fields before installation. Preserve dependency resolutions and integrity values, verify the frozen install, and continue through normal hooks before publishing.
+
+## 2026-09-22: Tag popover missed its accessible name
+
+- **What:** Isolated browser acceptance could not locate the inline tag editor as a dialog named Tags, although its visible title rendered correctly.
+- **Why:** Basalt PopoverTitle is a heading; it does not automatically connect its ID to PopoverContent.
+- **Follow-up:** Wire explicit title and description IDs with aria-labelledby and aria-describedby. The component assertion and isolated browser journey now require the accessible dialog name.

@@ -63,14 +63,16 @@ export function TagAssignment({
 				</PopoverTrigger>
 				<PopoverContent
 					align="start"
+					aria-labelledby={`${id}-title`}
+					aria-describedby={`${id}-description`}
 					collisionPadding={16}
 					arrow={false}
 					className="w-80 max-w-[calc(100vw-2rem)] p-0"
 				>
 					<div className="flex items-start justify-between gap-3 border-b border-basalt-border p-4">
 						<div className="min-w-0">
-							<PopoverTitle>Tags</PopoverTitle>
-							<PopoverDescription className="break-words">
+							<PopoverTitle id={`${id}-title`}>Tags</PopoverTitle>
+							<PopoverDescription id={`${id}-description`} className="break-words">
 								{tags.length}/20 tags · {label}
 							</PopoverDescription>
 						</div>

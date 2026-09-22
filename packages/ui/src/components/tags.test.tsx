@@ -51,7 +51,7 @@ test("assignment opens a popover, selects existing tags and creates with a name 
 	fireEvent.click(screen.getByRole("button", { name: "Create & assign" }));
 	await waitFor(() => expect(api.assignKeyTags).toHaveBeenLastCalledWith(3, 4, [1, 2]));
 	await waitFor(() => expect(screen.getByText("2/20 tags · Agent")).toBeTruthy());
-	expect(screen.getByRole("dialog")).toBeTruthy();
+	expect(screen.getByRole("dialog", { name: "Tags" })).toBeTruthy();
 	fireEvent.click(screen.getByRole("button", { name: "Close tag picker" }));
 	expect(screen.queryByRole("checkbox")).toBeNull();
 });
