@@ -165,7 +165,14 @@ export async function revokeChannelKeyRoute(c: Context<AppEnv>) {
 
 function parseArticlePageQuerySafe(c: Context<AppEnv>): ReturnType<typeof parseArticlePageQuery> {
 	const q = c.req.query();
-	return parseArticlePageQuery({ date: q.date, before: q.before, limit: q.limit });
+	return parseArticlePageQuery({
+		date_from: q.date_from,
+		date_to: q.date_to,
+		q: q.q,
+		tag_ids: q.tag_ids,
+		before: q.before,
+		limit: q.limit,
+	});
 }
 
 export async function patchChannelArticleRoute(c: Context<AppEnv>) {

@@ -173,8 +173,7 @@ export async function orderChannels(
 
 const ARTICLE_COLS = `id, channel_id, external_id, title, report_date, summary, author, source_label, created_at_ms`;
 
-const ARTICLE_TAGS = `(SELECT json_group_array(json_object('id', t.id, 'name', t.name))
- FROM (
+const ARTICLE_TAG_UNION = `
   SELECT t.id, t.name FROM channel_tags ct
   JOIN channels c ON c.id = ct.channel_id
   JOIN tags t ON t.id = ct.tag_id AND t.user_id = c.user_id
@@ -185,8 +184,9 @@ const ARTICLE_TAGS = `(SELECT json_group_array(json_object('id', t.id, 'name', t
   JOIN channels c ON c.id = k.channel_id AND c.user_id = k.user_id
   JOIN tags t ON t.id = kt.tag_id AND t.user_id = k.user_id
   WHERE k.id = a.source_key_id AND k.channel_id = a.channel_id AND k.user_id = a.user_id
-  ORDER BY t.name COLLATE NOCASE, t.id
- ) t) AS tags_json`;
+`;
+const ARTICLE_TAGS = `(SELECT json_group_array(json_object('id', t.id, 'name', t.name))
+ FROM (${ARTICLE_TAG_UNION} ORDER BY t.name COLLATE NOCASE, t.id) t) AS tags_json`;
 
 /**
  * Date-aware cursor pagination. Sort: report_date DESC, id DESC.
@@ -213,9 +213,25 @@ export async function listChannelArticles(
 
 	const conds = ["user_id = ?", "channel_id = ?"];
 	const binds: unknown[] = [userId, channelId];
-	if (query.date) {
-		conds.push("report_date = ?");
-		binds.push(query.date);
+	if (query.dateFrom) {
+		conds.push("report_date >= ?");
+		binds.push(query.dateFrom);
+	}
+	if (query.dateTo) {
+		conds.push("report_date <= ?");
+		binds.push(query.dateTo);
+	}
+	if (query.query) {
+		conds.push(
+			"(instr(lower(title), lower(?)) > 0 OR instr(lower(coalesce(summary, '')), lower(?)) > 0 OR instr(lower(markdown), lower(?)) > 0)",
+		);
+		binds.push(query.query, query.query, query.query);
+	}
+	if (query.tagIds.length) {
+		conds.push(
+			`EXISTS (SELECT 1 FROM (${ARTICLE_TAG_UNION}) matched_tag WHERE matched_tag.id IN (SELECT value FROM json_each(?)))`,
+		);
+		binds.push(JSON.stringify(query.tagIds));
 	}
 	if (cursor) {
 		conds.push("(report_date < ? OR (report_date = ? AND id < ?))");

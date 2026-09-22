@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
 	adjacentArticle,
+	articleFilterQuery,
 	articlePath,
 	ingestEndpoint,
 	initialArticle,
@@ -17,7 +18,9 @@ describe("reader contracts", () => {
 		expect(readerStorageKey("a:b", "mock")).toBe("xray:reader:a%3Ab:mock");
 		expect(readerStorageKey("a:b", "mock")).not.toBe(readerStorageKey("a:b", "product"));
 		expect(readerStorageKey("other", "mock")).not.toBe(readerStorageKey("a:b", "mock"));
-		expect(articlePath(1, 2, "2026-09-22")).toBe("/channels/1/articles/2?date=2026-09-22");
+		expect(articlePath(1, 2, "date_from=2026-09-22&tag_ids=2%2C3")).toBe(
+			"/channels/1/articles/2?date_from=2026-09-22&tag_ids=2%2C3",
+		);
 		expect(articlePath(1, null, "")).toBe("/channels/1");
 		expect(ingestEndpoint("mock")).toBe("http://localhost:37007/api/v1/ingest/articles");
 		expect(ingestEndpoint("product")).toBe(
@@ -105,8 +108,8 @@ describe("reader contracts", () => {
 
 test("copy request uses an external report file and reports clipboard failure", async () => {
 	const { channelRequest, copyChannelText, reportExample } = await import("./channel-reader");
-	expect(channelRequest("mock", "xray_pt_test")).toContain("--data @report.json");
-	expect(channelRequest("product", "xray_pt_test")).toContain("Authorization: Bearer xray_pt_test");
+	expect(channelRequest("mock")).toContain("--data @report.json");
+	expect(channelRequest("product")).toContain("Authorization: Bearer YOUR_CHANNEL_TOKEN");
 	expect(JSON.parse(reportExample)).toMatchObject({
 		report_date: "2026-09-22",
 		external_id: "daily-2026-09-22",
@@ -134,19 +137,19 @@ test("copy request uses an external report file and reports clipboard failure", 
 test("selects the first report only after the matching list loads without replacing deep links", () => {
 	const list = {
 		channelId: 1,
-		date: "2026-09-22",
+		filterQuery: "date_from=2026-09-22",
 		loading: false,
 		pageCount: 2,
 		error: null,
 		items: [{ id: 7 }, { id: 6 }],
 	};
-	expect(initialArticle(list, 1, 0, list.date)).toBe(7);
-	expect(initialArticle(list, 1, 99, list.date)).toBeUndefined();
-	expect(initialArticle(list, 0, 0, list.date)).toBeUndefined();
-	expect(initialArticle(list, 2, 0, list.date)).toBeUndefined();
-	expect(initialArticle(list, 1, 0, "2026-09-21")).toBeUndefined();
+	expect(initialArticle(list, 1, 0, list.filterQuery)).toBe(7);
+	expect(initialArticle(list, 1, 99, list.filterQuery)).toBeUndefined();
+	expect(initialArticle(list, 0, 0, list.filterQuery)).toBeUndefined();
+	expect(initialArticle(list, 2, 0, list.filterQuery)).toBeUndefined();
+	expect(initialArticle(list, 1, 0, "q=other")).toBeUndefined();
 	for (const patch of [{ loading: true }, { pageCount: 0 }, { error: "Failed" }, { items: [] }]) {
-		expect(initialArticle({ ...list, ...patch }, 1, 0, list.date)).toBeUndefined();
+		expect(initialArticle({ ...list, ...patch }, 1, 0, list.filterQuery)).toBeUndefined();
 	}
 });
 
@@ -165,4 +168,17 @@ test("persists full width alongside font preferences and rejects non-boolean wid
 		saved = JSON.stringify({ fullWidth });
 		expect(readPreferences(storage, "preferences").fullWidth).toBe(false);
 	}
+});
+
+test("serializes combined filters deterministically without empty terms", () => {
+	const filters = {
+		dateFrom: "2026-09-01",
+		dateTo: "2026-09-22",
+		query: " 中文 & review ",
+		tagIds: [9, 2, 9],
+	};
+	expect(articleFilterQuery(filters)).toBe(
+		"date_from=2026-09-01&date_to=2026-09-22&q=%E4%B8%AD%E6%96%87+%26+review&tag_ids=2%2C9",
+	);
+	expect(articleFilterQuery({ dateFrom: "", dateTo: "", query: "  ", tagIds: [] })).toBe("");
 });

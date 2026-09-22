@@ -398,10 +398,10 @@ describe("channels over real HTTP", () => {
 		expect(next.items.map((row) => row.reportDate)).toEqual(["2026-09-21", "2025-01-01"]);
 		expect(next.nextCursor).toBeNull();
 		const filtered = dataOf<Page>(
-			(await jsonFetch(`/api/channels/${channel.id}/articles?date=2026-09-22`)).body,
+			(await jsonFetch(`/api/channels/${channel.id}/articles?date_from=2026-09-22&date_to=2026-09-22`)).body,
 		);
 		expect(filtered.items).toHaveLength(2);
-		expect((await jsonFetch(`/api/channels/${channel.id}/articles?date=2026-02-30`)).status).toBe(
+		expect((await jsonFetch(`/api/channels/${channel.id}/articles?date_from=2026-02-30`)).status).toBe(
 			400,
 		);
 	});
@@ -565,4 +565,39 @@ describe("merged article tags over HTTP", () => {
 		expect((await jsonFetch(`/api/tags/${channelOnly.id}`, { method: "DELETE" })).status).toBe(200);
 		await assertTags([]);
 	});
+});
+
+test("article filters combine before pagination with tenant-safe live tag ANY matching", async () => {
+ const channel = await createChannel();
+ const key = await createKey(channel.id);
+ const tags: Tag[] = [];
+ for (const actor of ["a","a","b"] as const) {
+ const r = await jsonFetch("/api/tags",{method:"POST",headers:{"x-test-actor":actor},body:JSON.stringify({name:`Filter ${crypto.randomUUID()}`})});
+ expect(r.status).toBe(201);
+ tags.push(dataOf<Tag>(r.body));
+ }
+ const [channelTag,tokenTag,foreignTag] = tags;
+ if(!channelTag || !tokenTag || !foreignTag) throw new Error("missing tags");
+ for (const [path,tagIds] of [
+ [`/api/channels/${channel.id}/tags`,[channelTag.id]],
+ [`/api/channels/${channel.id}/keys/${key.id}/tags`,[channelTag.id,tokenTag.id]],
+ ] as const) expect((await jsonFetch(path,{method:"PUT",body:JSON.stringify({tagIds})})).status).toBe(200);
+ for(let i=0;i<5;i++) expect((await submit(key.token,{...article(crypto.randomUUID(),`2026-09-${20+i}`),markdown:i===4?"Not a match":"Literal %_ phrase 中文"})).status).toBe(201);
+ expect((await jsonFetch(`/api/channels/${channel.id}/keys/${key.id}`,{method:"DELETE"})).status).toBe(200);
+ const base = `/api/channels/${channel.id}/articles`;
+ const filters = new URLSearchParams({date_from:"2026-09-21",date_to:"2026-09-24",q:"literal %_ PHRASE",tag_ids:`${tokenTag.id},${channelTag.id},${tokenTag.id}`,limit:"2"});
+ const firstResponse = await jsonFetch(`${base}?${filters}`);
+ expect(firstResponse.status).toBe(200);
+ const first = dataOf<ArticlePage>(firstResponse.body);
+ expect(first.items.map(x=>x.reportDate)).toEqual(["2026-09-23","2026-09-22"]);
+ expect(first.nextCursor).toBe(first.items[1]?.id);
+ filters.set("before",String(first.nextCursor));
+ const next = dataOf<ArticlePage>((await jsonFetch(`${base}?${filters}`)).body);
+ expect(next.items.map(x=>x.reportDate)).toEqual(["2026-09-21"]);
+ expect(next.nextCursor).toBeNull();
+ for(const query of [`tag_ids=${foreignTag.id}`,"q=literal%20%25X","date_to=2026-09-19"]) expect(dataOf<ArticlePage>((await jsonFetch(`${base}?${query}`)).body).items).toEqual([]);
+ expect((await jsonFetch(`${base}?${filters}`,{headers:{"x-test-actor":"b"}})).status).toBe(404);
+ const other = await createChannel();
+ expect((await jsonFetch(`/api/channels/${other.id}/articles?before=${first.items[0]?.id}`)).status).toBe(400);
+ for(const query of ["date_from=2026-02-30","date_from=2026-09-22&date_to=2026-09-21","tag_ids=1,,2","tag_ids=9007199254740992",`q=${"x".repeat(201)}`,`tag_ids=${Array.from({length:21},(_,i)=>i+1).join(",")}`]) expect((await jsonFetch(`${base}?${query}`)).status).toBe(400);
 });

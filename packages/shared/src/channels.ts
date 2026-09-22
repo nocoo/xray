@@ -161,22 +161,46 @@ export function parseArticleInput(
 	};
 }
 
-export type ArticlePageQuery = {
-	date: string | null;
+export type ArticleFilters = {
+	dateFrom: string;
+	dateTo: string;
+	query: string;
+	tagIds: number[];
+};
+
+export type ArticlePageQuery = ArticleFilters & {
 	before: number | null;
 	limit: number;
 };
 
 /** Query params for GET /api/channels/:id/articles. */
 export function parseArticlePageQuery(raw: {
-	date?: string | null;
+	date_from?: string | null;
+	date_to?: string | null;
+	q?: string | null;
+	tag_ids?: string | null;
 	before?: string | null;
 	limit?: string | null;
 }): { ok: true; value: ArticlePageQuery } | { ok: false; error: string } {
-	let date: string | null = null;
-	if (raw.date != null && raw.date !== "") {
-		if (!isValidReportDate(raw.date)) return { ok: false, error: "invalid date" };
-		date = raw.date;
+	const dateFrom = raw.date_from ?? "";
+	const dateTo = raw.date_to ?? "";
+	if (dateFrom && !isValidReportDate(dateFrom)) return { ok: false, error: "invalid date_from" };
+	if (dateTo && !isValidReportDate(dateTo)) return { ok: false, error: "invalid date_to" };
+	if (dateFrom && dateTo && dateFrom > dateTo) return { ok: false, error: "invalid date range" };
+	const query = (raw.q ?? "").trim();
+	if (query.length > 200) return { ok: false, error: "q must be at most 200 characters" };
+	const ids = raw.tag_ids ?? "";
+	if (ids.length > 4096) return { ok: false, error: "tag_ids too long" };
+	const tagIds: number[] = [];
+	if (ids) {
+		for (const value of ids.split(",")) {
+			const id = Number(value);
+			if (!/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(id))
+				return { ok: false, error: "invalid tag_ids" };
+			if (!tagIds.includes(id)) tagIds.push(id);
+			if (tagIds.length > 20) return { ok: false, error: "at most 20 distinct tag_ids" };
+		}
+		tagIds.sort((a, b) => a - b);
 	}
 	let before: number | null = null;
 	if (raw.before != null && raw.before !== "") {
@@ -192,5 +216,5 @@ export function parseArticlePageQuery(raw: {
 		}
 		limit = n;
 	}
-	return { ok: true, value: { date, before, limit } };
+	return { ok: true, value: { dateFrom, dateTo, query, tagIds, before, limit } };
 }

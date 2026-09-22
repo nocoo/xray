@@ -1,4 +1,4 @@
-import { LayerCard } from "@nocoo/basalt";
+import { Badge, LayerCard } from "@nocoo/basalt";
 import type { ArticleLink, ChannelArticle } from "@xray/shared";
 import { ArrowUpRight, Link2 } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
@@ -41,7 +41,7 @@ function LinkCard({ link, vm }: { link: ArticleLinkState; vm: ArticleLinksVm }) 
 	}, [link.url, vm]);
 	return (
 		<li ref={element} className="min-w-0">
-			<LayerCard padding="none" className="bg-basalt-secondary">
+			<LayerCard.Secondary className="block rounded-basalt-lg bg-basalt-card p-0 text-basalt-foreground ring-1 ring-basalt-border/40">
 				<a
 					href={link.url}
 					target="_blank"
@@ -49,7 +49,7 @@ function LinkCard({ link, vm }: { link: ArticleLinkState; vm: ArticleLinksVm }) 
 					className="group block min-w-0 rounded-basalt-lg outline-none transition-colors hover:bg-basalt-secondary/80 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-basalt-ring"
 					aria-label={`${title} (opens in a new tab)`}
 				>
-					<div className="space-y-2 border-l-2 border-basalt-border p-4">
+					<div className="space-y-2 p-4">
 						<div className="flex min-w-0 items-center gap-2 text-xs text-basalt-muted-foreground">
 							<Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
 							<span className="min-w-0 truncate">
@@ -78,7 +78,7 @@ function LinkCard({ link, vm }: { link: ArticleLinkState; vm: ArticleLinksVm }) 
 						)}
 					</div>
 				</a>
-			</LayerCard>
+			</LayerCard.Secondary>
 		</li>
 	);
 }
@@ -109,24 +109,28 @@ export function ArticleLinksPanel({
 		return vm.cancel;
 	}, [vm, article.id, article.channelId, article.markdown, extractedLinks]);
 	return (
-		<section aria-labelledby={titleId} className={`min-w-0 space-y-3 ${className ?? ""}`}>
-			<div className="flex items-center justify-between gap-3">
-				<h2 id={titleId} className="text-sm font-semibold">
+		<section aria-labelledby={titleId} className={`min-w-0 ${className ?? ""}`}>
+			<div className="channel-panel-heading">
+				<h2 id={titleId} className="inline-flex items-center gap-2 text-sm font-semibold">
+					<Link2 className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" />
 					Related links
 				</h2>
-				<span className="text-xs tabular-nums text-basalt-muted-foreground">
+				<Badge
+					variant="secondary"
+					className="h-6 min-w-7 justify-center border-basalt-border/40 px-2 py-0 tabular-nums text-basalt-muted-foreground"
+				>
 					{links.length}
 					<span className="sr-only"> related links</span>
-				</span>
+				</Badge>
 			</div>
 			{links.length ? (
-				<ul aria-label="Related links" className="space-y-3">
+				<ul aria-label="Related links" className="channel-links-list space-y-3 p-3">
 					{links.map((link) => (
 						<LinkCard key={`${state.revision}/${link.url}`} link={link} vm={vm} />
 					))}
 				</ul>
 			) : (
-				<p className="text-sm text-basalt-muted-foreground">No related links in this report.</p>
+				<p className="p-3 text-sm text-basalt-muted-foreground">No related links in this report.</p>
 			)}
 		</section>
 	);

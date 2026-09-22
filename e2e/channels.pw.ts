@@ -199,7 +199,7 @@ test("channel creation, one-time key, delivery, reader navigation and revocation
 	await expect.poll(() => content.evaluate((node) => node.scrollTop)).toBeGreaterThan(400);
 	await page.keyboard.press("Escape");
 	await expect(page.getByRole("button", { name: /研发日报 · 2026-09-22/ })).toBeFocused();
-	await page.goto(`${BROWSER}/channels/${channelId}?date=2026-09-21`);
+	await page.goto(`${BROWSER}/channels/${channelId}?date_from=2026-09-21&date_to=2026-09-21`);
 	await expect(page.getByRole("button", { name: /研发日报 · 2026-09-22/ })).toHaveCount(0);
 	await expect(page.getByRole("button", { name: /研发日报 · 2026-09-21/ })).toBeVisible();
 	await page.getByRole("link", { name: "Manage channel", exact: true }).click();
@@ -298,7 +298,7 @@ test("channel management edits profiles, persists ordering and confirms deletion
 
 	await page.getByRole("link", { name: `Read ${renamed}`, exact: true }).click();
 	await expect(page).toHaveURL(new RegExp(`/channels/${channelIds[0]}$`));
-	await expect(page.getByText("No reports for this date.", { exact: true })).toBeVisible();
+	await expect(page.getByText("No reports match these filters.", { exact: true })).toBeVisible();
 	await expect(page.getByText("Updated channel description", { exact: true })).toBeVisible();
 	await page.getByRole("link", { name: "Manage channel", exact: true }).click();
 	await page.locator("#main-content").getByRole("button", { name: "Delete channel", exact: true }).click();
@@ -495,7 +495,7 @@ test("article dialogs retain failed drafts and select the next report after dele
 	await remove.click();
 	await confirmation.getByRole("button", { name: "Delete article", exact: true }).click();
 	await expect(page).toHaveURL(new RegExp(`/channels/${channel.id}$`));
-	await expect(page.getByText("No reports for this date.", { exact: true })).toBeVisible();
+	await expect(page.getByText("No reports match these filters.", { exact: true })).toBeVisible();
 	await expect(edit).toBeDisabled();
 	await expect(remove).toBeDisabled();
 	const channels = await request.get(`${WORKER}/api/channels`, { headers: browserApiHeaders });
@@ -608,7 +608,8 @@ test("Tags page and popovers manage live deduplicated article tags with stable c
 		const header = page.getByRole("document", { name: "Article content" }).locator("article > header");
 		await expect(header.getByRole("heading", { name: "Tagged report", exact: true })).toBeVisible();
 		const listItem = page.getByRole("region", { name: "Articles", exact: true }).getByRole("button", { name: /Tagged report/ });
-		for (const scope of [header, listItem]) {
+		await expect(listItem.locator("[data-tag-color]")).toHaveCount(0);
+		for (const scope of [header]) {
 			await expect(scope.locator("[data-tag-color]")).toHaveCount(names.length);
 			for (const name of names) await expect(scope.locator("[data-tag-color]").filter({ hasText: name })).toHaveCount(1);
 		}
@@ -620,7 +621,7 @@ test("Tags page and popovers manage live deduplicated article tags with stable c
 	}
 	await page.goto(articleUrl);
 	await expectArticleTags([sharedTag, channelTag, tokenTag]);
-	await expect(page.locator(".channel-header [data-tag-color]").filter({ hasText: channelTag })).toBeVisible();
+	await expect(page.locator(".channel-header [data-tag-color]")).toHaveCount(0);
 	await page.reload();
 	await expectArticleTags([sharedTag, channelTag, tokenTag]);
 	await page.setViewportSize({ width: 320, height: 844 });

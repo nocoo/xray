@@ -125,7 +125,7 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 		if (token && creatingToken) tokenInput.current?.focus();
 	}, [token, creatingToken]);
 	const keys = managing ? state.keys : [];
-	const request = channelRequest(getDataMode(), "YOUR_CHANNEL_TOKEN");
+	const request = channelRequest(getDataMode());
 	const changed =
 		name.trim() !== channel.name || description.trim() !== (channel.description ?? "");
 
@@ -219,7 +219,7 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 								if (await vm.update(channel.id, name, description)) setSaved(true);
 							}}
 						>
-							<div className="grid min-w-0 items-start gap-4 sm:grid-cols-2">
+							<div className="grid min-w-0 gap-4">
 								<Field label="Channel name" htmlFor="channel-name" required>
 									<Input
 										id="channel-name"
@@ -519,15 +519,19 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 					<p className="text-sm text-basalt-muted-foreground">
 						Send Markdown text and external image URLs. Each token delivers only to this channel.
 					</p>
+					<p className="text-sm text-basalt-muted-foreground">
+						Copied examples use <code className="font-mono text-xs">YOUR_CHANNEL_TOKEN</code> as a
+						placeholder. Replace it with your push token before sending.
+					</p>
 					<p className="break-all font-mono text-xs">POST {ingestEndpoint(getDataMode())}</p>
 					<div className="grid min-w-0 gap-3 xl:grid-cols-2">
-						<div className="min-w-0 space-y-2">
+						<div className="flex min-w-0 flex-col gap-2">
 							<h3 className="text-sm font-medium">1. Save as report.json</h3>
-							<CodeBlock className="text-xs">{reportExample}</CodeBlock>
+							<CodeBlock className="flex-1 text-xs">{reportExample}</CodeBlock>
 						</div>
-						<div className="min-w-0 space-y-2">
+						<div className="flex min-w-0 flex-col gap-2">
 							<h3 className="text-sm font-medium">2. Submit with your token</h3>
-							<CodeBlock className="text-xs">{request}</CodeBlock>
+							<CodeBlock className="flex-1 text-xs">{request}</CodeBlock>
 						</div>
 					</div>
 					{copyStatus && (

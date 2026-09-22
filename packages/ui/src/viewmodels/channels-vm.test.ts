@@ -81,7 +81,7 @@ describe("channels VM", () => {
 		expect(await vm.create("bad", "")).toBeUndefined();
 		expect(vm.getState()).toMatchObject({ busy: false, error: "create" });
 	});
-	test("date changes reset lists, pagination appends once and guards loading/end", async () => {
+	test("filterQuery changes reset lists, pagination appends once and guards loading/end", async () => {
 		const { vm, api } = setup();
 		await vm.loadArticles(1, "");
 		api.fetchArticles.mockResolvedValue({
@@ -96,29 +96,29 @@ describe("channels VM", () => {
 		vm.setState({ loading: true, nextCursor: 1 });
 		await vm.loadArticles(1, "", true);
 		expect(api.fetchArticles).toHaveBeenCalledTimes(2);
-		await vm.loadArticles(1, "2026-09-22");
-		expect(api.fetchArticles).toHaveBeenLastCalledWith(1, "2026-09-22", null);
+		await vm.loadArticles(1, "date_from=2026-09-22");
+		expect(api.fetchArticles).toHaveBeenLastCalledWith(1, "date_from=2026-09-22", null);
 		await vm.loadArticles(0, "");
 		expect(vm.getState()).toMatchObject({ items: [], loading: false, nextCursor: null });
 	});
-	test("late list success/failure cannot replace newer date or channel", async () => {
+	test("late list success/failure cannot replace newer filterQuery or channel", async () => {
 		const { vm, api } = setup();
 		const slow = deferred<{ items: ChannelArticle[]; nextCursor: null }>();
 		api.fetchArticles.mockReturnValueOnce(slow.promise);
-		const first = vm.loadArticles(1, "old");
-		await vm.loadArticles(2, "new");
+		const first = vm.loadArticles(1, "q=old");
+		await vm.loadArticles(2, "q=new");
 		slow.resolve({ items: [], nextCursor: null });
 		await first;
-		expect(vm.getState()).toMatchObject({ channelId: 2, date: "new", items: [article] });
+		expect(vm.getState()).toMatchObject({ channelId: 2, filterQuery: "q=new", items: [article] });
 		const failure = deferred<never>();
 		api.fetchArticles.mockReturnValueOnce(failure.promise);
-		const old = vm.loadArticles(1, "old");
-		await vm.loadArticles(2, "new");
+		const old = vm.loadArticles(1, "q=old");
+		await vm.loadArticles(2, "q=new");
 		failure.reject(Error("stale"));
 		await old;
 		expect(vm.getState().error).toBeNull();
 		api.fetchArticles.mockRejectedValue(Error("list"));
-		await vm.loadArticles(2, "new");
+		await vm.loadArticles(2, "q=new");
 		expect(vm.getState()).toMatchObject({ loading: false, error: "list", items: [article] });
 	});
 	test("navigation guards detail responses and retains readable article on errors/loading", async () => {
@@ -345,7 +345,7 @@ test("deletion clears matching reader and manager state and invalidates all thei
 	api.fetchChannelKeys.mockReturnValueOnce(keys.promise);
 	const requests = [
 		vm.loadChannels(),
-		vm.loadArticles(1, "today"),
+		vm.loadArticles(1, "q=today"),
 		vm.selectArticle(1, 2),
 		vm.manage(1),
 	];
@@ -360,7 +360,7 @@ test("deletion clears matching reader and manager state and invalidates all thei
 		channels: [other],
 		catalogLoading: false,
 		channelId: 0,
-		date: "",
+		filterQuery: "",
 		items: [],
 		pageCount: 0,
 		nextCursor: null,
@@ -377,13 +377,13 @@ test("deletion clears matching reader and manager state and invalidates all thei
 
 test("deleting an unrelated channel preserves the active reader and manager", async () => {
 	const { vm } = setup();
-	await vm.loadArticles(1, "today");
+	await vm.loadArticles(1, "q=today");
 	await vm.selectArticle(1, 2);
 	await vm.manage(1);
 	await vm.remove(9);
 	expect(vm.getState()).toMatchObject({
 		channelId: 1,
-		date: "today",
+		filterQuery: "q=today",
 		items: [article],
 		article,
 		managerId: 1,
@@ -501,4 +501,39 @@ test("late article mutations cannot replace detail or navigate after switching c
 			expect(api.fetchArticles).toHaveBeenCalledTimes(2);
 		}
 	}
+});
+
+test("combined filters stay attached to restored pages and reject load-more for a different query", async () => {
+	const { vm, api } = setup();
+	const query = "date_from=2026-09-01&date_to=2026-09-22&q=release&tag_ids=2%2C9";
+	api.fetchArticles
+		.mockResolvedValueOnce({ items: [article], nextCursor: 2 })
+		.mockResolvedValueOnce({ items: [{ ...article, id: 1 }], nextCursor: null });
+	await vm.loadArticles(1, query, false, 2);
+	expect(api.fetchArticles.mock.calls).toEqual([
+		[1, query, null],
+		[1, query, 2],
+	]);
+	expect(vm.getState()).toMatchObject({
+		filterQuery: query,
+		pageCount: 2,
+		items: [article, { ...article, id: 1 }],
+	});
+	vm.setState({ nextCursor: 1 });
+	await vm.loadArticles(1, "q=different", true);
+	expect(api.fetchArticles).toHaveBeenCalledTimes(2);
+	expect(vm.getState().filterQuery).toBe(query);
+	const slow = deferred<{ items: ChannelArticle[]; nextCursor: null }>();
+	api.fetchArticles.mockReturnValueOnce(slow.promise);
+	const previous = vm.loadArticles(1, query);
+	api.fetchArticles.mockResolvedValueOnce({ items: [], nextCursor: null });
+	await vm.loadArticles(1, "q=empty");
+	slow.resolve({ items: [article], nextCursor: null });
+	await previous;
+	expect(vm.getState()).toMatchObject({
+		filterQuery: "q=empty",
+		items: [],
+		nextCursor: null,
+		pageCount: 1,
+	});
 });

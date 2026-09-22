@@ -1,10 +1,20 @@
+import type { ArticleFilters } from "@xray/shared";
 import type { DataMode } from "./data-mode";
 
 export function ingestEndpoint(mode: DataMode) {
 	return `${mode === "mock" ? "http://localhost:37007" : "https://xray-ingest.worker.hexly.ai"}/api/v1/ingest/articles`;
 }
-export function articlePath(channelId: number, articleId: number | null, date: string) {
-	return `/channels/${channelId}${articleId ? `/articles/${articleId}` : ""}${date ? `?date=${encodeURIComponent(date)}` : ""}`;
+export function articleFilterQuery(filters: ArticleFilters) {
+	const query = new URLSearchParams();
+	if (filters.dateFrom) query.set("date_from", filters.dateFrom);
+	if (filters.dateTo) query.set("date_to", filters.dateTo);
+	if (filters.query.trim()) query.set("q", filters.query.trim());
+	if (filters.tagIds.length)
+		query.set("tag_ids", [...new Set(filters.tagIds)].sort((a, b) => a - b).join(","));
+	return query.toString();
+}
+export function articlePath(channelId: number, articleId: number | null, filterQuery: string) {
+	return `/channels/${channelId}${articleId ? `/articles/${articleId}` : ""}${filterQuery ? `?${filterQuery}` : ""}`;
 }
 export function safeMarkdownUrl(value: string, image: boolean) {
 	try {
@@ -92,9 +102,9 @@ export const reportExample = JSON.stringify(
 	null,
 	2,
 );
-export function channelRequest(mode: DataMode, token: string) {
+export function channelRequest(mode: DataMode) {
 	return `curl '${ingestEndpoint(mode)}' \\
-  -H 'Authorization: Bearer ${token}' \\
+  -H 'Authorization: Bearer YOUR_CHANNEL_TOKEN' \\
   -H 'Content-Type: application/json' \\
   --data @report.json`;
 }
@@ -114,7 +124,7 @@ export async function copyChannelText(
 export function initialArticle(
 	list: {
 		channelId: number;
-		date: string;
+		filterQuery: string;
 		loading: boolean;
 		pageCount: number;
 		error: string | null;
@@ -122,7 +132,7 @@ export function initialArticle(
 	},
 	channelId: number,
 	articleId: number,
-	date: string,
+	filterQuery: string,
 ) {
 	if (
 		!channelId ||
@@ -131,7 +141,7 @@ export function initialArticle(
 		list.error ||
 		!list.pageCount ||
 		list.channelId !== channelId ||
-		list.date !== date
+		list.filterQuery !== filterQuery
 	)
 		return undefined;
 	return list.items[0]?.id;

@@ -300,7 +300,7 @@ describe("channels browser routes", () => {
 				"/api/channels/abc",
 				{ method: "PATCH", headers: hdr(), body: JSON.stringify({ name: "x" }) },
 			],
-			[`/api/channels/${channel.id}/articles?date=2026-02-30`, { headers: hdr() }],
+			[`/api/channels/${channel.id}/articles?date_from=2026-02-30`, { headers: hdr() }],
 			[`/api/channels/${channel.id}/articles?limit=0`, { headers: hdr() }],
 			[`/api/channels/${channel.id}/articles?limit=101`, { headers: hdr() }],
 			[`/api/channels/${channel.id}/articles?before=abc`, { headers: hdr() }],
@@ -878,4 +878,33 @@ describe("channels ingest route", () => {
 			setJwtVerifierForTests(null);
 		}
 	});
+});
+
+test("article route forwards combined filters and rejects malformed bounds", async () => {
+	const env = makeEnv(createSqliteD1());
+	const channel = await createChannel(env);
+	const key = await createKey(env, channel.id);
+	await submit(env, key.token, { ...article(), markdown: "Literal %_ Search" });
+	const base = `/api/channels/${channel.id}/articles`;
+	const good = await call(
+		`${base}?date_from=2026-09-22&date_to=2026-09-22&q=literal%20%25_`,
+		{ headers: hdr() },
+		env,
+	);
+	expect(good.status).toBe(200);
+	expect(dataOf<{ items: unknown[] }>(good.body).items).toHaveLength(1);
+	for (const suffix of ["q=absent", "tag_ids=999999", "date_to=2026-09-21"]) {
+		const r = await call(`${base}?${suffix}`, { headers: hdr() }, env);
+		expect(dataOf<{ items: unknown[] }>(r.body).items).toEqual([]);
+	}
+	for (const suffix of [
+		"date_to=bad",
+		"date_from=2026-09-23&date_to=2026-09-22",
+		"tag_ids=1,,2",
+		`q=${"x".repeat(201)}`,
+		`tag_ids=${Array.from({ length: 21 }, (_, i) => i + 1).join(",")}`,
+	]) {
+		expect((await call(`${base}?${suffix}`, { headers: hdr() }, env)).status).toBe(400);
+	}
+	expect((await call(`${base}?q=Literal`, { headers: hdr("b") }, env)).status).toBe(404);
 });

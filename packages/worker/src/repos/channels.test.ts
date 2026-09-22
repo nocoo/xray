@@ -65,7 +65,10 @@ describe("channels repo", () => {
 			const detail = await getChannelArticle(db, U1, channel.id, id);
 			expect(detail?.tags).toEqual(expected);
 			const page = await listChannelArticles(db, U1, channel.id, {
-				date: null,
+				dateFrom: "",
+				dateTo: "",
+				query: "",
+				tagIds: [],
 				before: null,
 				limit: 30,
 			});
@@ -123,19 +126,51 @@ describe("channels repo", () => {
 		expect(created.article.tags).toEqual([]);
 		expect(await getChannelArticle(db, U2, channel.id, id)).toBeNull();
 		expect(
-			(await listChannelArticles(db, U2, channel.id, { date: null, before: null, limit: 30 }))
-				?.items,
+			(
+				await listChannelArticles(db, U2, channel.id, {
+					dateFrom: "",
+					dateTo: "",
+					query: "",
+					tagIds: [],
+					before: null,
+					limit: 30,
+				})
+			)?.items,
 		).toEqual([]);
 		await db
 			.prepare("UPDATE channel_articles SET source_key_id = ? WHERE id = ?")
 			.bind(other.key.id, id)
 			.run();
 		expect((await getChannelArticle(db, U1, channel.id, id))?.tags).toEqual([]);
+		expect(
+			(
+				await listChannelArticles(db, U1, channel.id, {
+					dateFrom: "",
+					dateTo: "",
+					query: "",
+					tagIds: [ownTag.id, foreignTag.id],
+					before: null,
+					limit: 30,
+				})
+			)?.items,
+		).toEqual([]);
 		await db
 			.prepare("UPDATE push_tokens SET user_id = ? WHERE id = ?")
 			.bind(U1, other.key.id)
 			.run();
 		expect((await getChannelArticle(db, U1, channel.id, id))?.tags).toEqual([]);
+		expect(
+			(
+				await listChannelArticles(db, U1, channel.id, {
+					dateFrom: "",
+					dateTo: "",
+					query: "",
+					tagIds: [ownTag.id, foreignTag.id],
+					before: null,
+					limit: 30,
+				})
+			)?.items,
+		).toEqual([]);
 		await db
 			.prepare("UPDATE push_tokens SET channel_id = ? WHERE id = ?")
 			.bind(channel.id, other.key.id)
@@ -418,7 +453,10 @@ describe("channels repo", () => {
 		expect(await listChannels(db, U2)).toHaveLength(0);
 		expect(await getChannel(db, U1, channel.id)).toMatchObject({ articleCount: 0 });
 		const page = await listChannelArticles(db, U1, channel.id, {
-			date: null,
+			dateFrom: "",
+			dateTo: "",
+			query: "",
+			tagIds: [],
 			before: null,
 			limit: 30,
 		});
@@ -441,7 +479,10 @@ describe("channels repo", () => {
 		}
 
 		const first = await listChannelArticles(db, U1, channel.id, {
-			date: null,
+			dateFrom: "",
+			dateTo: "",
+			query: "",
+			tagIds: [],
 			before: null,
 			limit: 2,
 		});
@@ -451,7 +492,10 @@ describe("channels repo", () => {
 		expect(first?.items[0]).not.toHaveProperty("markdown");
 
 		const next = await listChannelArticles(db, U1, channel.id, {
-			date: null,
+			dateFrom: "",
+			dateTo: "",
+			query: "",
+			tagIds: [],
 			before: first?.nextCursor ?? 0,
 			limit: 2,
 		});
@@ -459,14 +503,20 @@ describe("channels repo", () => {
 		expect(next?.nextCursor).toBeNull();
 
 		const filtered = await listChannelArticles(db, U1, channel.id, {
-			date: "2026-09-22",
+			dateFrom: "2026-09-22",
+			dateTo: "2026-09-22",
+			query: "",
+			tagIds: [],
 			before: null,
 			limit: 30,
 		});
 		expect(filtered?.items).toHaveLength(2);
 
 		const stale = await listChannelArticles(db, U1, channel.id, {
-			date: null,
+			dateFrom: "",
+			dateTo: "",
+			query: "",
+			tagIds: [],
 			before: 9999,
 			limit: 30,
 		});
@@ -517,11 +567,29 @@ describe("channels repo", () => {
 				],
 			],
 		});
-		expect(await listChannelArticles(page, U1, 1, { date: null, before: 5, limit: 30 })).toEqual({
+		expect(
+			await listChannelArticles(page, U1, 1, {
+				dateFrom: "",
+				dateTo: "",
+				query: "",
+				tagIds: [],
+				before: 5,
+				limit: 30,
+			}),
+		).toEqual({
 			items: [],
 			nextCursor: null,
 		});
-		expect(await listChannelArticles(page, U1, 1, { date: null, before: 5, limit: 0 })).toEqual({
+		expect(
+			await listChannelArticles(page, U1, 1, {
+				dateFrom: "",
+				dateTo: "",
+				query: "",
+				tagIds: [],
+				before: 5,
+				limit: 0,
+			}),
+		).toEqual({
 			items: [],
 			nextCursor: null,
 		});
@@ -606,3 +674,85 @@ function stubDb(script: {
 		},
 	} as unknown as D1Database;
 }
+
+test("combined article filters precede pagination and match live tenant tag union", async () => {
+	const db = testDb();
+	const { channel, key } = await seedChannelKey(db);
+	const other = await seedChannelKey(db, U2, "Foreign");
+	const second = await createChannelKey(db, U1, channel.id, "Second", "second", "second-hash");
+	const shared = await createTag(db, U1, "Shared", "");
+	const token = await createTag(db, U1, "Token", "");
+	const foreign = await createTag(db, U2, "Foreign", "");
+	await replaceChannelTags(db, U1, channel.id, [shared.id]);
+	await replaceChannelTags(db, U1, channel.id, [shared.id, token.id], key.id);
+	const ids: number[] = [];
+	for (let i = 0; i < 6; i++) {
+		const result = await ingestChannelArticle(
+			db,
+			U1,
+			channel.id,
+			{ keyId: i === 4 ? second.id : key.id, label: "Source" },
+			article({
+				externalId: `filter-${i}`,
+				reportDate: `2026-09-${20 + i}`,
+				title: i === 1 ? "Needle %_\\" : "Plain",
+				summary: i === 2 ? "NEEDLE %_\\" : null,
+				markdown: i === 3 ? "needle %_\\ 中文" : "No match",
+			}),
+		);
+		if (result.status !== "created") throw new Error("expected article");
+		ids.push(result.article.id);
+	}
+	await revokeChannelKey(db, U1, channel.id, key.id);
+	const query = {
+		dateFrom: "2026-09-21",
+		dateTo: "2026-09-23",
+		query: "needle %_\\",
+		tagIds: [token.id, shared.id],
+		before: null,
+		limit: 2,
+	};
+	const first = await listChannelArticles(db, U1, channel.id, query);
+	expect(first?.items.map((x) => x.id)).toEqual([ids[3], ids[2]]);
+	expect(first?.nextCursor).toBe(ids[2]);
+	const next = await listChannelArticles(db, U1, channel.id, {
+		...query,
+		before: first?.nextCursor ?? null,
+	});
+	expect(next?.items.map((x) => x.id)).toEqual([ids[1]]);
+	expect(next?.nextCursor).toBeNull();
+	const all = { ...query, dateFrom: "", dateTo: "", query: "", limit: 30 };
+	expect(
+		(await listChannelArticles(db, U1, channel.id, { ...all, tagIds: [token.id] }))?.items,
+	).toHaveLength(5);
+	expect(
+		(await listChannelArticles(db, U1, channel.id, { ...all, tagIds: [shared.id] }))?.items,
+	).toHaveLength(6);
+	expect(
+		(await listChannelArticles(db, U1, channel.id, { ...all, query: "中文" }))?.items.map(
+			(x) => x.id,
+		),
+	).toEqual([ids[3]]);
+	expect(
+		(await listChannelArticles(db, U1, channel.id, { ...all, query: "needle %X" }))?.items,
+	).toEqual([]);
+	await db.exec(
+		`INSERT INTO channel_tags VALUES (${channel.id},${foreign.id}); INSERT INTO channel_key_tags VALUES (${key.id},${foreign.id}), (${other.key.id},${token.id});`,
+	);
+	expect(
+		(await listChannelArticles(db, U1, channel.id, { ...all, tagIds: [foreign.id] }))?.items,
+	).toEqual([]);
+	await replaceChannelTags(db, U1, channel.id, []);
+	await db
+		.prepare("UPDATE channel_articles SET source_key_id = ? WHERE id = ?")
+		.bind(other.key.id, ids[3])
+		.run();
+	expect((await listChannelArticles(db, U1, channel.id, query))?.items.map((x) => x.id)).toEqual([
+		ids[2],
+		ids[1],
+	]);
+	expect(
+		await listChannelArticles(db, U2, other.channel.id, { ...all, before: ids[0] ?? null }),
+	).toBeNull();
+	expect((await listChannelArticles(db, U2, channel.id, all))?.items).toEqual([]);
+});

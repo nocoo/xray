@@ -18,6 +18,7 @@ export {
 } from "./canonical-item.js";
 // --- Channels (docs/11-channels.md) ---
 export type {
+	ArticleFilters,
 	ArticleInput,
 	ArticlePage,
 	ArticlePageQuery,

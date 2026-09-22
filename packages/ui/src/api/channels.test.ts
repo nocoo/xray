@@ -16,7 +16,11 @@ test("channel API uses tenant browser client, serialized bodies and date/cursor 
 	await api.deleteChannel(4);
 	await api.reorderChannels([4, 2]);
 	await api.fetchArticles(4);
-	await api.fetchArticles(4, "2026-09-22", 19);
+	await api.fetchArticles(
+		4,
+		"date_from=2026-09-21&date_to=2026-09-22&q=review&tag_ids=2%2C3&before=99&limit=1",
+		19,
+	);
 	await api.fetchArticle(4, 19);
 	await api.updateArticle(4, 19, {
 		title: "Edited",
@@ -34,7 +38,11 @@ test("channel API uses tenant browser client, serialized bodies and date/cursor 
 		["/api/channels/4", "DELETE", undefined],
 		["/api/channels/order", "PUT", '{"ids":[4,2]}'],
 		["/api/channels/4/articles?", "GET", undefined],
-		["/api/channels/4/articles?date=2026-09-22&before=19", "GET", undefined],
+		[
+			"/api/channels/4/articles?date_from=2026-09-21&date_to=2026-09-22&q=review&tag_ids=2%2C3&before=19",
+			"GET",
+			undefined,
+		],
 		["/api/channels/4/articles/19", "GET", undefined],
 		[
 			"/api/channels/4/articles/19",

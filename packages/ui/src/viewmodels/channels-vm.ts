@@ -16,7 +16,7 @@ export function createChannelsVm(api: typeof channelsApi) {
 		article: null as ChannelArticle | null,
 		nextCursor: null as number | null,
 		channelId: 0,
-		date: "",
+		filterQuery: "",
 		loading: false,
 		articleLoading: false,
 		error: null as string | null,
@@ -57,14 +57,14 @@ export function createChannelsVm(api: typeof channelsApi) {
 				if (request === catalogRequest) store.setState({ catalogLoading: false });
 			}
 		},
-		async loadArticles(channelId: number, date: string, more = false, pages = 1) {
+		async loadArticles(channelId: number, filterQuery: string, more = false, pages = 1) {
 			const previous = store.getState();
-			if (more && (previous.loading || previous.nextCursor === null)) return;
+			const same = channelId === previous.channelId && filterQuery === previous.filterQuery;
+			if (more && (!same || previous.loading || previous.nextCursor === null)) return;
 			const request = ++listRequest;
-			const same = channelId === previous.channelId && date === previous.date;
 			store.setState({
 				channelId,
-				date,
+				filterQuery,
 				loading: true,
 				error: null,
 				...(same ? {} : { items: [], nextCursor: null, pageCount: 0 }),
@@ -74,11 +74,15 @@ export function createChannelsVm(api: typeof channelsApi) {
 				return;
 			}
 			try {
-				let page = await api.fetchArticles(channelId, date, more ? previous.nextCursor : null);
+				let page = await api.fetchArticles(
+					channelId,
+					filterQuery,
+					more ? previous.nextCursor : null,
+				);
 				if (request !== listRequest) return;
 				let pageCount = more ? previous.pageCount + 1 : 1;
 				while (!more && page.nextCursor !== null && pageCount < Math.min(50, pages)) {
-					const next = await api.fetchArticles(channelId, date, page.nextCursor);
+					const next = await api.fetchArticles(channelId, filterQuery, page.nextCursor);
 					if (request !== listRequest) return;
 					page = { items: [...page.items, ...next.items], nextCursor: next.nextCursor };
 					pageCount++;
@@ -147,7 +151,7 @@ export function createChannelsVm(api: typeof channelsApi) {
 			await Promise.all([
 				vm.loadChannels(),
 				...(current.channelId === channelId
-					? [vm.loadArticles(channelId, current.date, false, current.pageCount)]
+					? [vm.loadArticles(channelId, current.filterQuery, false, current.pageCount)]
 					: []),
 			]);
 		},
@@ -183,7 +187,7 @@ export function createChannelsVm(api: typeof channelsApi) {
 					++listRequest;
 					store.setState({
 						channelId: 0,
-						date: "",
+						filterQuery: "",
 						items: [],
 						nextCursor: null,
 						pageCount: 0,

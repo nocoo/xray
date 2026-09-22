@@ -167,31 +167,57 @@ describe("parseArticlePageQuery", () => {
 	test("defaults", () => {
 		expect(parseArticlePageQuery({})).toEqual({
 			ok: true,
-			value: { date: null, before: null, limit: ARTICLE_PAGE_DEFAULT_LIMIT },
+			value: {
+				dateFrom: "",
+				dateTo: "",
+				query: "",
+				tagIds: [],
+				before: null,
+				limit: ARTICLE_PAGE_DEFAULT_LIMIT,
+			},
 		});
-		expect(parseArticlePageQuery({ date: "", before: "", limit: "" })).toEqual({
+		expect(
+			parseArticlePageQuery({
+				date_from: "",
+				date_to: "",
+				q: "",
+				tag_ids: "",
+				before: "",
+				limit: "",
+			}),
+		).toEqual({
 			ok: true,
-			value: { date: null, before: null, limit: ARTICLE_PAGE_DEFAULT_LIMIT },
+			value: {
+				dateFrom: "",
+				dateTo: "",
+				query: "",
+				tagIds: [],
+				before: null,
+				limit: ARTICLE_PAGE_DEFAULT_LIMIT,
+			},
 		});
 	});
 
 	test("valid values", () => {
-		expect(parseArticlePageQuery({ date: "2026-09-22", before: "77", limit: "100" })).toEqual({
+		expect(parseArticlePageQuery({ date_from: "2026-09-22", before: "77", limit: "100" })).toEqual({
 			ok: true,
-			value: { date: "2026-09-22", before: 77, limit: 100 },
+			value: { dateFrom: "2026-09-22", dateTo: "", query: "", tagIds: [], before: 77, limit: 100 },
 		});
 		expect(parseArticlePageQuery({ limit: "1" })).toEqual({
 			ok: true,
-			value: { date: null, before: null, limit: 1 },
+			value: { dateFrom: "", dateTo: "", query: "", tagIds: [], before: null, limit: 1 },
 		});
 	});
 
 	test("invalid values", () => {
-		expect(parseArticlePageQuery({ date: "2026-02-30" })).toEqual({
+		expect(parseArticlePageQuery({ date_from: "2026-02-30" })).toEqual({
 			ok: false,
-			error: "invalid date",
+			error: "invalid date_from",
 		});
-		expect(parseArticlePageQuery({ date: "abc" })).toEqual({ ok: false, error: "invalid date" });
+		expect(parseArticlePageQuery({ date_from: "abc" })).toEqual({
+			ok: false,
+			error: "invalid date_from",
+		});
 		expect(parseArticlePageQuery({ before: "0" }).ok).toBe(false);
 		expect(parseArticlePageQuery({ before: "-3" }).ok).toBe(false);
 		expect(parseArticlePageQuery({ before: "2.5" }).ok).toBe(false);
@@ -201,4 +227,39 @@ describe("parseArticlePageQuery", () => {
 		expect(parseArticlePageQuery({ limit: "1.5" }).ok).toBe(false);
 		expect(parseArticlePageQuery({ limit: "abc" }).ok).toBe(false);
 	});
+});
+
+test("article filters normalize bounded phrases and distinct IDs", () => {
+	expect(
+		parseArticlePageQuery({
+			date_to: "2024-02-29",
+			q: "  literal %_\\ 中文  ",
+			tag_ids: "3,1,3,2",
+		}),
+	).toMatchObject({
+		ok: true,
+		value: { dateFrom: "", dateTo: "2024-02-29", query: "literal %_\\ 中文", tagIds: [1, 2, 3] },
+	});
+	expect(
+		parseArticlePageQuery({
+			q: "x".repeat(200),
+			tag_ids: Array.from({ length: 20 }, (_, i) => i + 1).join(","),
+		}).ok,
+	).toBe(true);
+	for (const raw of [
+		{ date_to: "2025-02-29" },
+		{ date_from: "2026-09-23", date_to: "2026-09-22" },
+		{ q: "x".repeat(201) },
+		{ tag_ids: "1," },
+		{ tag_ids: "0" },
+		{ tag_ids: "-1" },
+		{ tag_ids: "1.5" },
+		{ tag_ids: "1e2" },
+		{ tag_ids: " 1" },
+		{ tag_ids: "01" },
+		{ tag_ids: "9007199254740992" },
+		{ tag_ids: Array.from({ length: 21 }, (_, i) => i + 1).join(",") },
+		{ tag_ids: "1,".repeat(2049) },
+	])
+		expect(parseArticlePageQuery(raw).ok, JSON.stringify(raw)).toBe(false);
 });

@@ -8,9 +8,10 @@ export const updateChannel = (id: number, name: string, description: string) =>
 	apiPatch<Channel>(`/api/channels/${id}`, { name, description });
 export const deleteChannel = (id: number) => apiDelete<{ deleted: true }>(`/api/channels/${id}`);
 export const reorderChannels = (ids: number[]) => apiPut<Channel[]>("/api/channels/order", { ids });
-export function fetchArticles(id: number, date = "", before: number | null = null) {
-	const query = new URLSearchParams();
-	if (date) query.set("date", date);
+export function fetchArticles(id: number, filterQuery = "", before: number | null = null) {
+	const query = new URLSearchParams(filterQuery);
+	query.delete("before");
+	query.delete("limit");
 	if (before !== null) query.set("before", String(before));
 	return apiGet<ArticlePage>(`/api/channels/${id}/articles?${query}`);
 }
