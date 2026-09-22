@@ -10,8 +10,8 @@ export function DataModeSwitch() {
 			value={getDataMode()}
 			onValueChange={selectDataMode}
 			options={[
-				{ value: "mock", label: "Mock" },
-				{ value: "product", label: "Product" },
+				{ value: "mock", label: "MOCK" },
+				{ value: "product", label: "PROD" },
 			]}
 		/>
 	);

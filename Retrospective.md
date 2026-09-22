@@ -104,3 +104,9 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 - **What:** Isolated browser acceptance could not locate the inline tag editor as a dialog named Tags, although its visible title rendered correctly.
 - **Why:** Basalt PopoverTitle is a heading; it does not automatically connect its ID to PopoverContent.
 - **Follow-up:** Wire explicit title and description IDs with aria-labelledby and aria-describedby. The component assertion and isolated browser journey now require the accessible dialog name.
+
+## 2026-09-22: Expanded Mock seed exceeded D1 statement limits
+
+- **What:** Importing the expanded local catalog through Wrangler failed with SQLITE_TOOBIG; the in-memory SQLite fixture tests had passed.
+- **Why:** More than 100 Markdown reports produced a 149 KiB SQL file. Splitting its VALUES statements was insufficient: the local D1 import also limits the complete SQL string, while Node SQLite accepts larger input.
+- **Follow-up:** Reuse Markdown sections through compact SQL data tuples, keeping all generated report text unchanged and the complete seed below 90 KiB. Check both file and statement sizes, and validate the complete idempotent seed in local D1. Existing IDs and records remain intact; production is untouched.
