@@ -69,23 +69,24 @@ osv-scanner scan --lockfile=bun.lock
 
 ## Verification
 
-6DQ = L1/L2/L3 + G1/G2 + D1 isolation. Status: `enforced`, `planned`, `manual`, `N/A`; no skipped/focused tests.
+6DQ = unified L1 (absorbing former G1) + L2/L3 + G2 + D1 isolation. Status: `enforced`, `planned`, `manual`, `N/A`; no skipped/focused tests.
 
 | Piece | Required proof and current reality | Status | Evidence / gap |
 |---|---|---|---|
-| L1 shared/UI | Statements/branches/functions/lines each ≥95% over the declared non-View scope | enforced | Package Vitest configs, `test:coverage`, pre-commit and CI |
-| L1 Worker | All four metrics ≥95% over the declared production scope | enforced | Worker config and `check-coverage.sh`; no per-package branch exception |
+| L1 — complete unified contract | All four coverage metrics ≥95% plus strict static lanes on an installed index-snapshot hook with proven rejection, under 30s | planned | Snapshot scope, rejection proof and timing are unverified; the subcheck rows below describe what is configured today |
+| L1 subcheck — shared/UI coverage | Statements/branches/functions/lines each ≥95% over the declared non-View scope | enforced | Package Vitest configs, `test:coverage`, pre-commit and CI |
+| L1 subcheck — Worker coverage | All four metrics ≥95% over the declared production scope | enforced | Worker config and `check-coverage.sh`; no per-package branch exception |
 | L2 | Real HTTP plus full endpoint/method inventory and cross-tenant/SQL assertions | enforced | Worker `test/e2e/`, `check-route-coverage.ts`; pre-push and CI |
 | L3 | Critical browser/agent journeys against an isolated local stack | planned | Specs exist, but `playwright.config.ts` has no server harness and CI has no L3 job |
-| G1 | Strict types and lint/format, zero errors/warnings | enforced | Turbo typecheck, Biome, pre-commit and CI |
+| L1 subcheck — static lanes (former G1) | Strict types and lint/format, zero errors/warnings | enforced | Turbo typecheck, Biome, pre-commit and CI; these static lanes run on the working tree, so unified L1 is not snapshot-based |
 | G2 | Dependency + secret scanners, required tools fail closed | enforced | Pre-push gitleaks + OSV and CI; pre-commit gitleaks is optional, push-ref scoping remains a gap |
 | D1 | Per-run local state with guards/marker before writes and cleanup | planned | L2 is local and checks credentials/marker, but reuses fixed state and rewrites a shared `.dev.vars`; L3 defaults use dev |
 | Build | Build shared/UI/Worker output | manual | `bun run build`; current quality/L2 CI does not enforce the complete production bundle |
 | Docs | Keep route/tenant matrices and architecture current | manual | Numbered docs and full diff review |
 
-Pre-commit runs working-tree lint, types and coverage, then optional staged gitleaks. Target: all L1/G1 on an index snapshot, <30s.
+Pre-commit runs working-tree lint, types and coverage, then optional staged gitleaks. Target: all of unified L1 on an index snapshot, <30s.
 Pre-push runs L2 then required gitleaks/OSV sequentially and scans repository history, not stdin push refs. Target: L2/G2 parallel, exact pushed refs, <3min.
-Hooks are check-only. No `--no-verify`, disabled gates, autofix gates or reduced thresholds.
+Hooks are check-only. No `--no-verify`, disabled gates, autofix gates or reduced thresholds. The owner merged former G1 into L1 on 2026-09-21; the framework keeps the 6DQ name.
 
 ## Resources / Isolation
 
