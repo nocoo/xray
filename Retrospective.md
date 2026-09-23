@@ -110,3 +110,9 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 - **What:** Importing the expanded local catalog through Wrangler failed with SQLITE_TOOBIG; the in-memory SQLite fixture tests had passed.
 - **Why:** More than 100 Markdown reports produced a 149 KiB SQL file. Splitting its VALUES statements was insufficient: the local D1 import also limits the complete SQL string, while Node SQLite accepts larger input.
 - **Follow-up:** Reuse Markdown sections through compact SQL data tuples, keeping all generated report text unchanged and the complete seed below 90 KiB. Check both file and statement sizes, and validate the complete idempotent seed in local D1. Existing IDs and records remain intact; production is untouched.
+
+## 2026-09-23: Full browser suite needs the development UI
+
+- **What:** Channel mobile regressions passed against an isolated Worker serving built assets, but the broader data-mode journey failed because the build omits the development-only Mock/Prod controls.
+- **Why:** The initial L3 harness matched the channel tests but not the full suite's development UI dependency.
+- **Follow-up:** Run the full suite through a separate Vite port proxying the isolated local test Worker, with explicit browser/worker/ingest URLs and a verified test marker. Keep production-mode smoke checks distinct; never redirect tests to daily-dev data to recover missing controls.

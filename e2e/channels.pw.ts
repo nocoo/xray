@@ -357,26 +357,22 @@ test("mobile reader contains long Markdown and blocks executable or embedded ima
 	await expect(content.getByRole("heading", { name: "今日进展" })).toBeVisible();
 	await expect(content.locator("script, img[src^='data:'], img[src^='http:'], a[href^='javascript:']")).toHaveCount(0);
 	expect(await page.evaluate(() => Reflect.get(window, "injected"))).toBeUndefined();
-	const widthToggle = page.getByRole("button", { name: "Use full reading width", exact: true });
 	for (const width of [390, 320]) {
 		await page.setViewportSize({ width, height: 844 });
 		await expectReaderChrome(page);
-		await widthToggle.click();
-		await expect(content).toHaveAttribute("data-full-width", "true");
-		await expectReaderChrome(page);
-		await widthToggle.click();
-		await expect(content).toHaveAttribute("data-full-width", "false");
+		await expect(page.getByRole("button", { name: "Use full reading width", exact: true })).toBeHidden();
+		await expect(page.getByRole("button", { name: "Use sans-serif font", exact: true })).toBeHidden();
 	}
 	await page.setViewportSize({ width: 390, height: 844 });
-	await expectReaderChrome(page);
 	await page.screenshot({ path: "/tmp/xray-channels-mobile.png", fullPage: true });
 	await page.mouse.move(0, 0);
 	await content.focus();
-	await widthToggle.focus();
-	await expect(page.getByRole("tooltip", { name: "Use full width", exact: true })).toBeVisible();
+	const sizeButton = page.getByRole("button", { name: "Increase font size", exact: true });
+	await sizeButton.focus();
+	await expect(page.getByRole("tooltip", { name: /Increase font size/ })).toBeVisible();
 	await page.keyboard.press("Escape");
 	await expect(page.getByRole("tooltip")).toHaveCount(0);
-	await expect(widthToggle).toBeFocused();
+	await expect(sizeButton).toBeFocused();
 	await expect(content).toBeVisible();
 	await page.keyboard.press("Escape");
 	await expect(page.getByRole("button", { name: /中文阅读与安全排版/ })).toBeFocused();

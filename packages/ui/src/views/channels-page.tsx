@@ -29,7 +29,14 @@ import {
 	Type,
 } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import {
+	Link,
+	useLocation,
+	useNavigate,
+	useNavigationType,
+	useParams,
+	useSearchParams,
+} from "react-router";
 import { ArticleEditor } from "@/components/article-editor";
 import { ArticleFiltersBar } from "@/components/article-filters-bar";
 import { ArticleLinksPanel } from "@/components/article-links-panel";
@@ -63,6 +70,8 @@ export function ChannelsPage() {
 	const [query] = useSearchParams();
 	const filterQuery = query.toString();
 	const navigate = useNavigate();
+	const { key: navigationKey } = useLocation();
+	const navigationType = useNavigationType();
 	const { setBreadcrumbs } = useBreadcrumbs();
 	const user = useAuthUser();
 	const scope = readerStorageKey(user.id, getDataMode());
@@ -125,6 +134,10 @@ export function ChannelsPage() {
 		void channelId;
 		setMobileList(false);
 	}, [channelId]);
+	useEffect(() => {
+		void navigationKey;
+		if (navigationType === "POP") setMobileList(false);
+	}, [navigationKey, navigationType]);
 	useEffect(() => {
 		void vm.selectArticle(channelId, articleId);
 		setEditing(false);
@@ -256,12 +269,16 @@ export function ChannelsPage() {
 			<div className="channel-header">
 				<PageHeader
 					title={
-						<span className="flex items-center gap-2">
+						<span className="channel-title flex items-center gap-2" title={channel?.name}>
 							<Radio className="h-5 w-5 shrink-0 text-basalt-muted-foreground" aria-hidden="true" />
 							{channel?.name ?? "Channel"}
 						</span>
 					}
-					description={channel?.description || "Published reports, ready to read."}
+					description={
+						<span className="channel-description" title={channel?.description ?? undefined}>
+							{channel?.description || "Published reports, ready to read."}
+						</span>
+					}
 					actions={
 						<>
 							<div className="flex items-center gap-2">
@@ -324,7 +341,7 @@ export function ChannelsPage() {
 										<Button
 											variant="outline"
 											size="icon"
-											className="h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
+											className="channel-desktop-preference h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
 											aria-label="Use sans-serif font"
 											aria-pressed={preferences.sans}
 											onClick={() => changePreferences({ ...preferences, sans: !preferences.sans })}
@@ -366,7 +383,7 @@ export function ChannelsPage() {
 										<Button
 											variant="outline"
 											size="icon"
-											className="h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
+											className="channel-desktop-preference h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
 											aria-label="Use full reading width"
 											aria-pressed={preferences.fullWidth}
 											onClick={() =>
