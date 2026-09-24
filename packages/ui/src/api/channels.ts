@@ -29,3 +29,8 @@ export const createChannelKey = (id: number, label: string) =>
 	apiPost<ChannelKey & { token: string }>(`/api/channels/${id}/keys`, { label });
 export const revokeChannelKey = (id: number, keyId: number) =>
 	apiDelete<{ revoked: true }>(`/api/channels/${id}/keys/${keyId}`);
+
+export const markArticleRead = (id: number, articleId: number) =>
+	apiPut<{ read: true }>(`/api/channels/${id}/articles/${articleId}/read`, {});
+export const markChannelRead = (id: number) =>
+	apiPut<{ read: true }>(`/api/channels/${id}/articles/read`, {});

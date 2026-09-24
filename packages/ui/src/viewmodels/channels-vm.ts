@@ -112,7 +112,15 @@ export function createChannelsVm(api: typeof channelsApi) {
 			store.setState({ articleLoading: true, error: null });
 			try {
 				const article = await api.fetchArticle(channelId, articleId);
-				if (request === articleRequest) store.setState({ article, articleLoading: false });
+				if (request !== articleRequest) return;
+				store.setState({ article, articleLoading: false });
+				if (!article.isRead) {
+					await api.markArticleRead(channelId, articleId);
+					const current = store.getState().article;
+					if (request === articleRequest && current)
+						store.setState({ article: { ...current, isRead: true } });
+					await vm.refreshReports(channelId);
+				}
 			} catch (e) {
 				if (request === articleRequest) store.setState({ articleLoading: false, error: errMsg(e) });
 			}
@@ -144,6 +152,16 @@ export function createChannelsVm(api: typeof channelsApi) {
 				if (request === articleRequest) store.setState({ article: null, articleLoading: false });
 				await vm.refreshReports(channelId);
 				return request === articleRequest;
+			});
+		},
+		markAllRead(channelId: number) {
+			return mutate(async () => {
+				await api.markChannelRead(channelId);
+				const article = store.getState().article;
+				if (article?.channelId === channelId)
+					store.setState({ article: { ...article, isRead: true } });
+				await vm.refreshReports(channelId);
+				return true;
 			});
 		},
 		async refreshReports(channelId: number) {

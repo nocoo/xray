@@ -956,3 +956,29 @@ INSERT OR IGNORE INTO ingest_logs (id,user_id,watchlist_id,attempted,accepted,de
 SELECT 9800000+idx*10+n,user_id,id,4+n+n+n%2,4+n,n,n%2,
  CASE WHEN n%2=1 THEN '[{"code":"mock_schema_mismatch","message":"Fixture-only rejected sample"}]' END,
  (unixepoch()-n*86400)*1000 FROM targets CROSS JOIN runs;
+
+INSERT OR IGNORE INTO channels (id, user_id, name, description, created_at_ms, sort_order)
+VALUES (10, 'xray-mock-user', 'Reading inbox', 'Mock reports with read and unread examples.', unixepoch() * 1000, 14);
+
+INSERT OR IGNORE INTO push_tokens
+ (id, user_id, channel_id, token_prefix, token_hash, label, scopes, created_at_ms, revoked_at_ms)
+SELECT 970010, user_id, id, 'mock_read', 'mock-only:not-a-sha256:970010', 'Mock Reading Desk',
+ '["articles:write"]', unixepoch() * 1000, unixepoch() * 1000
+FROM channels WHERE id = 10 AND user_id = 'xray-mock-user' AND name = 'Reading inbox';
+
+WITH reports(id, external_id, title, summary, is_read, age_days) AS (VALUES
+ (970101, 'mock-read-state-1', 'Designing a quieter reading inbox', 'Small unread markers keep attention on the next report.', 0, 0),
+ (970102, 'mock-read-state-2', 'Keeping reading progress across devices', 'Your account remembers the reports you have opened.', 0, 1),
+ (970103, 'mock-read-state-3', 'A report already read', 'A completed report stays in the list without an unread marker.', 1, 2),
+ (970104, 'mock-read-state-4', 'Reviewing the weekly backlog', 'Mark the entire channel as read when you finish a review.', 0, 3)
+)
+INSERT OR IGNORE INTO channel_articles
+ (id, user_id, channel_id, external_id, title, report_date, summary, author, markdown,
+ source_key_id, source_label, created_at_ms, is_read)
+SELECT r.id, k.user_id, k.channel_id, r.external_id, r.title,
+ date('now', '-' || r.age_days || ' days'), r.summary, 'Mock Editorial Desk',
+ '## ' || r.title || char(10) || char(10) || r.summary || char(10) || char(10) ||
+ 'Opening a report records it as read for this account. Refresh retrieves the latest reports while preserving your filters. The channel action marks every report as read, including reports outside the current filter or page.',
+ k.id, k.label, (unixepoch() - r.age_days * 86400) * 1000, r.is_read
+FROM reports r JOIN push_tokens k ON k.id = 970010
+WHERE k.user_id = 'xray-mock-user' AND k.token_hash = 'mock-only:not-a-sha256:970010';

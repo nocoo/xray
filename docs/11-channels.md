@@ -179,3 +179,26 @@ Validation: 809 unit tests passed (170 shared, 461 Worker, 178 UI), including na
 Date-range, keyword and multi-tag filters now run before pagination and remain in reader URLs, history and page restoration. Tags appear only under the article title. The Reports and Related links cards use equal widths, aligned rounded headings and secondary count badges around the brightest reading surface. Channel settings keep the name and multiline description in a vertical form; adjacent submission code blocks stretch to equal height. Copy example uses a fixed token placeholder and explanatory text.
 
 Validation: isolated L2 passed 34 real HTTP tests and 60/60 routes; isolated L3 passed all 22 browser journeys without retries. The new journeys cover unloaded matches, combined-filter pagination/history, source-tag unions, editing out of results, mobile focus and 320px filter/calendar containment. Desktop light/dark Caddy previews confirmed equal 345.6px side panels, identical top edges and heading heights, the brightest document surface, no page errors and no API mutations. Strict lint and production build passed; the existing Vite chunk-size warning remains. No database migration is introduced by this revision.
+
+## Reading state
+
+Articles persist `isRead` with the owning account in D1; existing and newly ingested
+reports default to unread. Reading state is shared across devices on subsequent
+loads or refreshes. A browser opening an article marks it read after loading the
+content successfully. GET requests have no read-state side effects. Editing or
+retrying ingestion preserves reading state.
+
+Browser-only, origin-protected mutations:
+
+| Method | Route | Scope |
+| --- | --- | --- |
+| PUT | `/api/channels/:id/articles/:articleId/read` | Mark one owned article read; idempotent |
+| PUT | `/api/channels/:id/articles/read` | Mark all current articles in the owned channel read, across filters and pages |
+
+Both routes derive the account from verified authentication, reject other tenants,
+and are unavailable on the ingest host. New arrivals after a bulk update remain
+unread. Channel responses expose `hasUnread`; article summaries and details expose
+`isRead`. Unread articles and sidebar channels use a glowing dot without an unread
+count. Refresh and mark-all-read actions sit above the channel list. Refresh keeps
+the current filters and loaded page depth. Local Mock channel 10 contains both read
+and unread examples; seeding never resets reading progress.

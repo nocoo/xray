@@ -14,6 +14,7 @@ import {
 	listChannelArticlesRoute,
 	listChannelKeysRoute,
 	listChannelsRoute,
+	markChannelArticlesReadRoute,
 	orderChannelsRoute,
 	patchChannelArticleRoute,
 	patchChannelRoute,
@@ -114,6 +115,8 @@ app.patch("/api/tags/:id", patchTagRoute);
 app.delete("/api/tags/:id", deleteTagRoute);
 app.put("/api/channels/:id/tags", putChannelTagsRoute);
 app.put("/api/channels/:id/keys/:keyId/tags", putChannelTagsRoute);
+app.put("/api/channels/:id/articles/read", markChannelArticlesReadRoute);
+app.put("/api/channels/:id/articles/:articleId/read", markChannelArticlesReadRoute);
 app.patch("/api/channels/:id/articles/:articleId", patchChannelArticleRoute);
 app.delete("/api/channels/:id/articles/:articleId", deleteChannelArticleRoute);
 

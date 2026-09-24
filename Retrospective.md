@@ -116,3 +116,15 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 - **What:** Channel mobile regressions passed against an isolated Worker serving built assets, but the broader data-mode journey failed because the build omits the development-only Mock/Prod controls.
 - **Why:** The initial L3 harness matched the channel tests but not the full suite's development UI dependency.
 - **Follow-up:** Run the full suite through a separate Vite port proxying the isolated local test Worker, with explicit browser/worker/ingest URLs and a verified test marker. Keep production-mode smoke checks distinct; never redirect tests to daily-dev data to recover missing controls.
+
+## 2026-09-24: Read-state tests assumed an incomplete schema and response wrapper
+
+- **What:** Focused read-state tests failed before exercising their assertions: the historical ordering test omitted the new migration, and a new route test treated the ingest response as a browser API envelope.
+- **Why:** The ordering test applies a handpicked migration sequence; ingest returns a direct object while browser APIs return `data`.
+- **Follow-up:** Apply the read-state migration before querying current repositories in the historical test, and assert the ingest status and direct response shape. Inspect manual migration fixtures and endpoint-specific response contracts when extending cross-layer tests.
+
+## 2026-09-24: A read acknowledgement must preserve concurrent edits
+
+- **What:** Review found that a delayed mark-read completion could restore the article snapshot fetched before an edit, or restore an article already deleted.
+- **Why:** The acknowledgement initially spread the captured fetch response rather than the current ViewModel state.
+- **Follow-up:** Change only the read flag on the still-selected current article. A deferred-response test now checks both editing and deletion before the acknowledgement completes.

@@ -17,6 +17,7 @@ import {
 	getChannelArticle,
 	listChannelArticles,
 	listChannels,
+	markChannelArticlesRead,
 	orderChannels,
 	updateChannel,
 	updateChannelArticle,
@@ -215,4 +216,17 @@ export async function deleteChannelArticleRoute(c: Context<AppEnv>) {
 	return (await deleteChannelArticle(c.env.DB, user.id, id, articleId))
 		? jsonOk(c, { deleted: true })
 		: jsonErr(c, "Not found", 404);
+}
+
+export async function markChannelArticlesReadRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	const id = parseIdParam(c.req.param("id"));
+	const rawArticleId = c.req.param("articleId");
+	const articleId = rawArticleId === undefined ? undefined : parseIdParam(rawArticleId);
+	if (!id || articleId === null) return jsonErr(c, "invalid id", 400);
+	if (!(await getChannel(c.env.DB, user.id, id))) return jsonErr(c, "Not found", 404);
+	const updated = await markChannelArticlesRead(c.env.DB, user.id, id, articleId);
+	if (articleId !== undefined && !updated) return jsonErr(c, "Not found", 404);
+	return jsonOk(c, { read: true });
 }

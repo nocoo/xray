@@ -15,6 +15,7 @@ import {
 	ArrowLeft,
 	BookOpen,
 	CalendarDays,
+	CheckCheck,
 	Columns2,
 	Inbox,
 	Link2,
@@ -47,6 +48,7 @@ import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { HeaderTooltip } from "@/components/layout/header-links";
 import { ArticleSkeleton, RowsSkeleton } from "@/components/loading-skeletons";
 import { TagLabels } from "@/components/tag-labels";
+import { UnreadDot } from "@/components/unread-dot";
 import { useAuthUser } from "@/hooks/me-context";
 import { restoreReadingPosition } from "@/hooks/reading-position";
 import {
@@ -444,6 +446,18 @@ export function ChannelsPage() {
 							Reports
 						</h2>
 						<div className="flex items-center gap-2">
+							<HeaderTooltip label="Mark all channel articles as read">
+								<Button
+									variant="outline"
+									size="icon"
+									className="h-8 w-8"
+									aria-label="Mark all channel articles as read"
+									disabled={!channel?.hasUnread || listLoading || state.busy || editing || deleting}
+									onClick={() => void vm.markAllRead(channelId)}
+								>
+									<CheckCheck className="h-4 w-4" aria-hidden="true" />
+								</Button>
+							</HeaderTooltip>
 							<HeaderTooltip label="Refresh articles">
 								<Button
 									variant="outline"
@@ -503,7 +517,14 @@ export function ChannelsPage() {
 										<CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
 										{item.reportDate} · {item.sourceLabel}
 									</span>
-									<span className="whitespace-normal font-medium">{item.title}</span>
+									<span className="flex items-start gap-2 whitespace-normal font-medium">
+										{!item.isRead && (
+											<span className="pt-1">
+												<UnreadDot />
+											</span>
+										)}
+										<span>{item.title}</span>
+									</span>
 									{item.summary && (
 										<span className="line-clamp-2 whitespace-normal text-sm font-normal text-basalt-muted-foreground">
 											{item.summary}

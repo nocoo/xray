@@ -201,6 +201,18 @@ describe("channels repo", () => {
 		await db.exec(
 			readFileSync(new URL("../../migrations/0005_channel_tags.sql", import.meta.url), "utf8"),
 		);
+		await db.exec(`INSERT INTO push_tokens (id,user_id,token_prefix,token_hash,label,scopes,created_at_ms,channel_id)
+        VALUES (1,'${U1}','test','historical-test','Old producer','[]',1,2);
+        INSERT INTO channel_articles (user_id,channel_id,external_id,title,report_date,markdown,source_key_id,source_label,created_at_ms)
+        VALUES ('${U1}',2,'old','Historical report','2026-09-22','Body',1,'Old producer',1);`);
+		await db.exec(
+			readFileSync(
+				new URL("../../migrations/0006_article_read_state.sql", import.meta.url),
+				"utf8",
+			),
+		);
+		expect((await getChannelArticle(db, U1, 2, 1))?.isRead).toBe(false);
+		expect((await getChannel(db, U1, 2))?.hasUnread).toBe(true);
 		expect((await listChannels(db, U1)).map((c) => [c.id, c.sortOrder])).toEqual([
 			[2, 0],
 			[9, 1],

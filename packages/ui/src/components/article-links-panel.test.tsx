@@ -13,6 +13,7 @@ afterEach(() => {
 const panelProps = { id: "article-links", open: true, onClose: vi.fn() };
 const links: ArticleLink[] = [{ url: "https://example.com/report", label: "Source report" }];
 const article: ChannelArticle = {
+	isRead: false,
 	id: 2,
 	channelId: 1,
 	markdown: "Provided links avoid a second extraction.",

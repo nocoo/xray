@@ -21,6 +21,7 @@ import { fetchGroups, type Group } from "@/api/groups";
 import { fetchWatchlists, type Watchlist } from "@/api/watchlists";
 import { useChannels } from "@/components/channels-context";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
+import { UnreadDot } from "@/components/unread-dot";
 import { useAuthUser } from "@/hooks/me-context";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/version";
@@ -100,12 +101,14 @@ function EntityNavItem({
 	icon,
 	pathname,
 	search = "",
+	unread = false,
 }: {
 	href: string;
 	name: string;
 	icon: string;
 	pathname: string;
 	search?: string;
+	unread?: boolean;
 }) {
 	const Icon = resolveIcon(icon);
 	const active = href.includes("?")
@@ -128,6 +131,7 @@ function EntityNavItem({
 				<Icon className="h-3 w-3 text-white" strokeWidth={2} />
 			</div>
 			<span className="flex-1 truncate text-left">{name}</span>
+			{unread && <UnreadDot />}
 		</Link>
 	);
 }
@@ -196,6 +200,11 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 									className={navIconClass(isActivePath(pathname, item.href), "self-center")}
 								>
 									<item.icon className="h-4 w-4" strokeWidth={1.5} />
+									{item.href === "/channels" && channels.some((channel) => channel.hasUnread) && (
+										<span className="absolute right-1 top-1">
+											<UnreadDot />
+										</span>
+									)}
 								</Link>
 							</TooltipTrigger>
 							<TooltipContent side="right" sideOffset={8}>
@@ -273,6 +282,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 										key={channel.id}
 										href={`/channels/${channel.id}`}
 										name={channel.name}
+										unread={channel.hasUnread}
 										icon="radio"
 										pathname={pathname}
 									/>

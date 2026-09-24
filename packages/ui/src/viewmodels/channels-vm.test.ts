@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from "vitest";
 import { createChannelsVm } from "./channels-vm";
 
 const channel: Channel = {
+	hasUnread: true,
 	tags: [],
 	id: 1,
 	name: "Research",
@@ -15,6 +16,7 @@ const channel: Channel = {
 	lastReceivedAtMs: 1,
 };
 const article: ChannelArticle = {
+	isRead: true,
 	tags: [],
 	id: 2,
 	channelId: 1,
@@ -38,6 +40,8 @@ const key: ChannelKey = {
 };
 function setup() {
 	const api = {
+		markArticleRead: vi.fn().mockResolvedValue({ read: true }),
+		markChannelRead: vi.fn().mockResolvedValue({ read: true }),
 		fetchChannels: vi.fn().mockResolvedValue([channel]),
 		createChannel: vi.fn().mockResolvedValue(channel),
 		updateChannel: vi.fn().mockResolvedValue({ ...channel, name: "New" }),
@@ -536,4 +540,88 @@ test("combined filters stay attached to restored pages and reject load-more for 
 		nextCursor: null,
 		pageCount: 1,
 	});
+});
+
+test("opening unread content persists only after a successful current load and refreshes channel state", async () => {
+	const { vm, api } = setup();
+	api.fetchArticle.mockResolvedValue({ ...article, isRead: false });
+	await vm.loadArticles(1, "q=daily");
+	await vm.selectArticle(1, 2);
+	expect(api.markArticleRead).toHaveBeenCalledExactlyOnceWith(1, 2);
+	expect(vm.getState().article?.isRead).toBe(true);
+	expect(api.fetchArticles).toHaveBeenLastCalledWith(1, "q=daily", null);
+	api.markArticleRead.mockRejectedValueOnce(Error("read failed"));
+	await vm.selectArticle(1, 2);
+	expect(vm.getState().article?.isRead).toBe(false);
+	expect(vm.getState().error).toBe("read failed");
+	const slow = deferred<ChannelArticle>();
+	api.fetchArticle.mockReturnValueOnce(slow.promise);
+	const old = vm.selectArticle(1, 3);
+	await vm.selectArticle(0, 0);
+	slow.resolve({ ...article, id: 3, isRead: false });
+	await old;
+	expect(api.markArticleRead).toHaveBeenCalledTimes(2);
+});
+
+test("late read completions preserve the current article; failures cannot overwrite newer navigation", async () => {
+	const { vm, api } = setup();
+	api.fetchArticle.mockResolvedValueOnce({ ...article, isRead: false });
+	const slow = deferred<{ read: true }>();
+	api.markArticleRead.mockReturnValueOnce(slow.promise);
+	const first = vm.selectArticle(1, 2);
+	await vi.waitFor(() => expect(api.markArticleRead).toHaveBeenCalled());
+	await vm.selectArticle(2, 3);
+	slow.resolve({ read: true });
+	await first;
+	expect(vm.getState().article).toEqual(article);
+	const failure = deferred<{ read: true }>();
+	api.fetchArticle.mockResolvedValueOnce({ ...article, isRead: false });
+	api.markArticleRead.mockReturnValueOnce(failure.promise);
+	const second = vm.selectArticle(1, 2);
+	await vi.waitFor(() => expect(api.markArticleRead).toHaveBeenCalledTimes(2));
+	await vm.selectArticle(0, 0);
+	failure.reject(Error("obsolete"));
+	await second;
+	expect(vm.getState().error).toBeNull();
+});
+
+test("mark all reads the whole channel despite filters and preserves other channel selection", async () => {
+	const { vm, api } = setup();
+	await vm.loadArticles(1, "q=filtered");
+	vm.setState({ article: { ...article, isRead: false } });
+	await vm.markAllRead(1);
+	expect(api.markChannelRead).toHaveBeenCalledExactlyOnceWith(1);
+	expect(vm.getState().article?.isRead).toBe(true);
+	expect(api.fetchArticles).toHaveBeenLastCalledWith(1, "q=filtered", null);
+	vm.setState({ article: { ...article, channelId: 9, isRead: false } });
+	await vm.markAllRead(1);
+	expect(vm.getState().article?.isRead).toBe(false);
+	vm.setState({ article: null });
+	api.markChannelRead.mockRejectedValueOnce(Error("bulk failed"));
+	await vm.markAllRead(1);
+	expect(vm.getState()).toMatchObject({ error: "bulk failed", busy: false });
+	await vm.markAllRead(1);
+	expect(vm.getState().article).toBeNull();
+});
+
+test("a pending read acknowledgement preserves edits and a deleted article", async () => {
+	for (const deleted of [false, true]) {
+		const { vm, api } = setup();
+		api.fetchArticle.mockResolvedValue({ ...article, isRead: false });
+		const pending = deferred<{ read: true }>();
+		api.markArticleRead.mockReturnValueOnce(pending.promise);
+		const selected = vm.selectArticle(1, 2);
+		await vi.waitFor(() => expect(api.markArticleRead).toHaveBeenCalled());
+		if (deleted) await vm.removeArticle(1, 2);
+		else
+			await vm.editArticle(1, 2, {
+				title: "Edited",
+				report_date: article.reportDate,
+				markdown: "Updated",
+			});
+		pending.resolve({ read: true });
+		await selected;
+		if (deleted) expect(vm.getState().article).toBeNull();
+		else expect(vm.getState().article).toMatchObject({ title: "Edited", isRead: true });
+	}
 });

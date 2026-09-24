@@ -601,3 +601,33 @@ test("article filters combine before pagination with tenant-safe live tag ANY ma
  expect((await jsonFetch(`/api/channels/${other.id}/articles?before=${first.items[0]?.id}`)).status).toBe(400);
  for(const query of ["date_from=2026-02-30","date_from=2026-09-22&date_to=2026-09-21","tag_ids=1,,2","tag_ids=9007199254740992",`q=${"x".repeat(201)}`,`tag_ids=${Array.from({length:21},(_,i)=>i+1).join(",")}`]) expect((await jsonFetch(`${base}?${query}`)).status).toBe(400);
 });
+
+test("read markers persist across clients and bulk read covers every page without crossing tenants", async () => {
+ const channel = await createChannel();
+ const other = await createChannel();
+ const key = await createKey(channel.id);
+ const input = article();
+ const first = await submit(key.token, input);
+ const id = dataOf<ChannelArticle>(JSON.parse(first.text)).id;
+ for(let i=0;i<32;i++) expect((await submit(key.token, article())).status).toBe(201);
+ const read = await jsonFetch(`/api/channels/${channel.id}/articles/${id}/read`, { method: "PUT" });
+ expect(read.status).toBe(200);
+ expect(dataOf<ChannelArticle>((await jsonFetch(`/api/channels/${channel.id}/articles/${id}`)).body).isRead).toBe(true);
+ expect((await submit(key.token,input)).status).toBe(200);
+ expect(dataOf<ChannelArticle>((await jsonFetch(`/api/channels/${channel.id}/articles/${id}`)).body).isRead).toBe(true);
+ expect((await listChannels()).find(c=>c.id===channel.id)?.hasUnread).toBe(true);
+ for(const path of [`/api/channels/${channel.id}/articles/${id}/read`, `/api/channels/${channel.id}/articles/read`]) {
+  expect((await jsonFetch(path,{method:"PUT",headers:{"x-test-actor":"b"}})).status).toBe(404);
+  expect((await rawHttp(path,{method:"PUT",headers:ingestHeaders(key.token)})).status).toBe(404);
+  expect((await jsonFetch(path,{method:"PUT",headers:{origin:"https://evil.example"}})).status).toBe(403);
+ }
+ expect((await jsonFetch(`/api/channels/${other.id}/articles/${id}/read`,{method:"PUT"})).status).toBe(404);
+ const bulk = await jsonFetch(`/api/channels/${channel.id}/articles/read`, { method: "PUT" });
+ expect(bulk.status).toBe(200);
+ const page = dataOf<ArticlePage>((await jsonFetch(`/api/channels/${channel.id}/articles?limit=100`)).body);
+ expect(page.items).toHaveLength(33);
+ expect(page.items.every(a=>a.isRead)).toBe(true);
+ expect((await listChannels()).find(c=>c.id===channel.id)?.hasUnread).toBe(false);
+ expect((await submit(key.token,article())).status).toBe(201);
+ expect((await listChannels()).find(c=>c.id===channel.id)?.hasUnread).toBe(true);
+});

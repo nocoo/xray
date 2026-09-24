@@ -30,16 +30,16 @@ async function snapshot(db: D1Database) {
 	);
 }
 
-test("mock catalog covers 14 channels, 45 tags and 140 varied reports with safe named sources", async () => {
+test("mock catalog covers 15 channels, 45 tags and 144 varied reports with safe named sources", async () => {
 	const db = createSqliteD1();
 	await db.exec(seed);
 	for (const [table, count] of [
 		["users", 1],
 		["items", 236],
-		["channels", 14],
+		["channels", 15],
 		["tags", 45],
-		["channel_articles", 140],
-		["push_tokens", 50],
+		["channel_articles", 144],
+		["push_tokens", 51],
 	] as const) {
 		expect(await db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).first()).toEqual({ count });
 	}
@@ -53,8 +53,9 @@ test("mock catalog covers 14 channels, 45 tags and 140 varied reports with safe 
 			)
 			.all<{ id: number; count: number }>()
 	).results;
-	expect(counts).toHaveLength(14);
-	expect(counts.every((row) => row.count >= 8)).toBe(true);
+	expect(counts).toHaveLength(15);
+	expect(counts.find((row) => row.id === 10)).toEqual({ id: 10, count: 4 });
+	expect(counts.filter((row) => row.id !== 10).every((row) => row.count >= 8)).toBe(true);
 	expect(counts[0]).toEqual({ id: 1, count: 33 });
 	expect(
 		await db
@@ -65,12 +66,12 @@ test("mock catalog covers 14 channels, 45 tags and 140 varied reports with safe 
 		await db
 			.prepare("SELECT COUNT(*) AS count FROM push_tokens WHERE revoked_at_ms IS NOT NULL")
 			.first(),
-	).toEqual({ count: 17 });
+	).toEqual({ count: 18 });
 	expect(
 		(
 			await db
 				.prepare(
-					"SELECT channel_id FROM push_tokens GROUP BY channel_id HAVING COUNT(*) < 3 OR COUNT(DISTINCT label) < 3",
+					"SELECT channel_id FROM push_tokens WHERE channel_id <> 10 GROUP BY channel_id HAVING COUNT(*) < 3 OR COUNT(DISTINCT label) < 3",
 				)
 				.all()
 		).results,
@@ -112,7 +113,7 @@ test("mock catalog covers 14 channels, 45 tags and 140 varied reports with safe 
 	).toBeGreaterThan(1);
 	expect(
 		await db.prepare("SELECT COUNT(DISTINCT markdown) AS count FROM channel_articles").first(),
-	).toEqual({ count: 134 });
+	).toEqual({ count: 138 });
 	expect((await db.prepare("PRAGMA foreign_key_check").all()).results).toEqual([]);
 	const original = await snapshot(db);
 	await db.exec(seed);
@@ -365,4 +366,28 @@ test("watchlist expansion preserves existing preferences, members and user-autho
 	const before = await snapshot(db);
 	await db.exec(seed);
 	expect(await snapshot(db)).toEqual(before);
+});
+
+test("reading fixtures include both states and repeated seeding preserves progress", async () => {
+	const db = createSqliteD1();
+	await db.exec(seed);
+	expect(
+		(
+			await db
+				.prepare(
+					"SELECT is_read, COUNT(*) AS count FROM channel_articles WHERE channel_id=10 GROUP BY is_read ORDER BY is_read",
+				)
+				.all()
+		).results,
+	).toEqual([
+		{ is_read: 0, count: 3 },
+		{ is_read: 1, count: 1 },
+	]);
+	await db.exec("UPDATE channel_articles SET is_read=1 WHERE channel_id=10");
+	await db.exec(seed);
+	expect(
+		await db
+			.prepare("SELECT COUNT(*) AS count FROM channel_articles WHERE channel_id=10 AND is_read=0")
+			.first(),
+	).toEqual({ count: 0 });
 });

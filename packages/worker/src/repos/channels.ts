@@ -8,6 +8,7 @@ import type {
 } from "@xray/shared";
 
 export type ChannelRow = {
+	has_unread: number;
 	tags_json?: string;
 	id: number;
 	user_id: string;
@@ -29,6 +30,7 @@ function toChannelDto(row: ChannelRow): Channel {
 		description: row.description,
 		createdAtMs: row.created_at_ms,
 		articleCount: row.article_count ?? 0,
+		hasUnread: Boolean(row.has_unread),
 		sortOrder: row.sort_order,
 		activeKeyCount: row.active_key_count,
 		latestReportDate: row.latest_report_date,
@@ -37,6 +39,7 @@ function toChannelDto(row: ChannelRow): Channel {
 }
 
 export type ArticleRow = {
+	is_read: number;
 	tags_json: string;
 	id: number;
 	user_id: string;
@@ -57,6 +60,7 @@ function toSummaryDto(row: ArticleRow): ChannelArticleSummary {
 		tags: JSON.parse(row.tags_json),
 		id: row.id,
 		channelId: row.channel_id,
+		isRead: Boolean(row.is_read),
 		externalId: row.external_id,
 		title: row.title,
 		reportDate: row.report_date,
@@ -72,6 +76,7 @@ function toArticleDto(row: ArticleRow): ChannelArticle {
 }
 
 const CHANNEL_SELECT = `SELECT c.*,
+ EXISTS (SELECT 1 FROM channel_articles a WHERE a.user_id = c.user_id AND a.channel_id = c.id AND a.is_read = 0) AS has_unread,
  (SELECT json_group_array(json_object('id', t.id, 'name', t.name)) FROM channel_tags ct
  JOIN tags t ON t.id = ct.tag_id WHERE ct.channel_id = c.id AND t.user_id = c.user_id) AS tags_json,
   (SELECT COUNT(*) FROM channel_articles a
@@ -171,7 +176,7 @@ export async function orderChannels(
 	return listed.results.map(toChannelDto);
 }
 
-const ARTICLE_COLS = `id, channel_id, external_id, title, report_date, summary, author, source_label, created_at_ms`;
+const ARTICLE_COLS = `is_read, id, channel_id, external_id, title, report_date, summary, author, source_label, created_at_ms`;
 
 const ARTICLE_TAG_UNION = `
   SELECT t.id, t.name FROM channel_tags ct
@@ -372,6 +377,21 @@ export async function deleteChannelArticle(
 	const result = await db
 		.prepare("DELETE FROM channel_articles WHERE id = ? AND channel_id = ? AND user_id = ?")
 		.bind(articleId, channelId, userId)
+		.run();
+	return result.meta.changes > 0;
+}
+
+export async function markChannelArticlesRead(
+	db: D1Database,
+	userId: string,
+	channelId: number,
+	articleId?: number,
+): Promise<boolean> {
+	const result = await db
+		.prepare(
+			`UPDATE channel_articles SET is_read = 1 WHERE user_id = ? AND channel_id = ?${articleId === undefined ? "" : " AND id = ?"}`,
+		)
+		.bind(userId, channelId, ...(articleId === undefined ? [] : [articleId]))
 		.run();
 	return result.meta.changes > 0;
 }

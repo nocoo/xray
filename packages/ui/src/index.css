@@ -443,3 +443,13 @@ nav[aria-label="Breadcrumb"] + svg {
 		transition: none;
 	}
 }
+
+.unread-dot {
+	display: inline-block;
+	width: 7px;
+	height: 7px;
+	flex-shrink: 0;
+	border-radius: 50%;
+	background: hsl(var(--basalt-primary));
+	box-shadow: 0 0 6px 2px hsl(var(--basalt-primary) / 0.5);
+}

@@ -3,6 +3,7 @@
 export type Tag = { id: number; name: string };
 
 export type Channel = {
+	hasUnread: boolean;
 	tags: Tag[];
 	id: number;
 	name: string;
@@ -35,6 +36,7 @@ export type ArticleInput = {
 };
 
 export type ChannelArticleSummary = {
+	isRead: boolean;
 	tags: Tag[];
 	id: number;
 	channelId: number;

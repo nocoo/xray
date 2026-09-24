@@ -58,3 +58,16 @@ test("channel API uses tenant browser client, serialized bodies and date/cursor 
 	await api.fetchChannels();
 	expect(fetch.mock.lastCall?.[0]).toBe("/__product/api/channels");
 });
+
+test("read mutations use browser PUT endpoints", async () => {
+	const fetch = vi
+		.fn()
+		.mockResolvedValue({ ok: true, json: async () => ({ data: { read: true } }) });
+	vi.stubGlobal("fetch", fetch);
+	await api.markArticleRead(4, 19);
+	await api.markChannelRead(4);
+	expect(fetch.mock.calls.map(([path, init]) => [path, init.method, init.body])).toEqual([
+		["/api/channels/4/articles/19/read", "PUT", "{}"],
+		["/api/channels/4/articles/read", "PUT", "{}"],
+	]);
+});

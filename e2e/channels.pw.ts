@@ -741,3 +741,62 @@ test("leaving a pending article deletion does not pull navigation back to the re
 	await expect(page).toHaveURL(new RegExp(`/channels/${channel.id}/settings$`));
 	await expect(page.getByLabel("Channel name", { exact: true })).toBeVisible();
 });
+
+test("read indicators persist across devices, refresh and whole-channel bulk reading", async ({ page, request, browser }, testInfo) => {
+ const response = await request.post(`${WORKER}/api/channels`, {
+  headers: browserApiHeaders, data: { name: `Reading ${Date.now()}` },
+ });
+ expect(response.status()).toBe(201);
+ const channel = (await response.json()).data;
+ const keyResponse = await request.post(`${WORKER}/api/channels/${channel.id}/keys`, {
+  headers: browserApiHeaders, data: { label: "Reading test" },
+ });
+ const { token } = (await keyResponse.json()).data;
+ const publish = async (index: number) => {
+  const result = await request.post(`${INGEST}/api/v1/ingest/articles`, {
+   headers: { host: "xray-ingest.worker.hexly.ai", authorization: `Bearer ${token}` },
+   data: { external_id: `read-${index}`, title: `Reading report ${index}`, report_date: "2026-09-24", markdown: `## Report ${index}\n\nReading test content.` },
+  });
+  expect(result.status()).toBe(201);
+  return (await result.json()).id as number;
+ };
+ const ids = [await publish(1), await publish(2), await publish(3)];
+ await page.setViewportSize({ width: 1440, height: 1000 });
+ await page.goto(`${BROWSER}/channels/${channel.id}/articles/${ids[2]}`);
+ const list = page.getByRole("region", { name: "Articles", exact: true });
+ const nav = page.locator(`[data-nav-label="${channel.name}"]`);
+ await expect(list.getByRole("img", { name: "Unread", exact: true })).toHaveCount(2);
+ await expect(nav.getByRole("img", { name: "Unread", exact: true })).toBeVisible();
+ await list.getByRole("button", { name: /Reading report 2/ }).click();
+ await expect(list.getByRole("img", { name: "Unread", exact: true })).toHaveCount(1);
+ const device = await browser.newContext();
+ const secondPage = await device.newPage();
+ await secondPage.goto(`${BROWSER}/channels/${channel.id}/articles/${ids[1]}`);
+ await expect(secondPage.getByRole("region", { name: "Articles", exact: true }).getByRole("img", { name: "Unread", exact: true })).toHaveCount(1);
+ await device.close();
+ await publish(4);
+ await page.getByRole("button", { name: "Refresh articles", exact: true }).click();
+ await expect(list.getByRole("button", { name: /Reading report 4/ })).toBeVisible();
+ await expect(list.getByRole("img", { name: "Unread", exact: true })).toHaveCount(2);
+ await page.screenshot({ path: testInfo.outputPath("read-state-light.png") });
+ await page.emulateMedia({ colorScheme: "dark" });
+ await expect(page.locator("html")).toHaveClass(/dark/);
+ await expect(list.getByRole("img", { name: "Unread", exact: true })).toHaveCount(2);
+ await page.screenshot({ path: testInfo.outputPath("read-state-dark.png") });
+ await page.getByRole("button", { name: "Collapse sidebar", exact: true }).click();
+ await expect(page.locator('[data-collapsed="true"]').getByRole("img", { name: "Unread", exact: true })).toBeVisible();
+ await page.getByRole("button", { name: "Expand sidebar", exact: true }).click();
+ await page.goto(`${BROWSER}/channels/${channel.id}/articles/${ids[1]}?q=report+2`);
+ await expect(list.getByRole("button")).toHaveCount(1);
+ await page.getByRole("button", { name: "Mark all channel articles as read", exact: true }).click();
+ await expect(nav.getByRole("img", { name: "Unread", exact: true })).toHaveCount(0);
+ const all = await request.get(`${WORKER}/api/channels/${channel.id}/articles`, { headers: browserApiHeaders });
+ expect((await all.json()).data.items.every((item: { isRead: boolean }) => item.isRead)).toBe(true);
+ await page.reload();
+ await expect(page.getByRole("button", { name: "Mark all channel articles as read", exact: true })).toBeDisabled();
+ await page.setViewportSize({ width: 390, height: 844 });
+ await page.getByRole("button", { name: "Back to reports", exact: true }).click();
+ await expect(page.getByRole("button", { name: "Refresh articles", exact: true })).toBeVisible();
+ await expect(page.getByRole("button", { name: "Mark all channel articles as read", exact: true })).toBeVisible();
+ expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

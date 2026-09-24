@@ -18,6 +18,7 @@ import {
 	listChannelArticlesRoute,
 	listChannelKeysRoute,
 	listChannelsRoute,
+	markChannelArticlesReadRoute,
 	orderChannelsRoute,
 	patchChannelRoute,
 	revokeChannelKeyRoute,
@@ -184,6 +185,7 @@ describe("channels browser routes", () => {
 		for (const [path, method] of [
 			[`/api/channels/${channel.id}`, "DELETE"],
 			["/api/channels/order", "PUT"],
+			["/api/channels/1/articles/read", "PUT"],
 		] as const) {
 			const body = JSON.stringify({ ids: [channel.id] });
 			expect((await call(path, { method, headers: ingestHdr(key.token), body }, env)).status).toBe(
@@ -423,6 +425,7 @@ describe("channels browser routes", () => {
 			["/api/channels/1", "PATCH"],
 			["/api/channels/1", "DELETE"],
 			["/api/channels/order", "PUT"],
+			["/api/channels/1/articles/read", "PUT"],
 			["/api/channels/1/articles", "GET"],
 			["/api/channels/1/articles/1", "GET"],
 			["/api/channels/1/keys", "GET"],
@@ -498,6 +501,7 @@ describe("channels browser routes", () => {
 		bare.patch("/api/channels/:id", patchChannelRoute);
 		bare.delete("/api/channels/:id", deleteChannelRoute);
 		bare.put("/api/channels/order", orderChannelsRoute);
+		bare.put("/api/channels/:id/articles/read", markChannelArticlesReadRoute);
 		bare.get("/api/channels/:id/articles", listChannelArticlesRoute);
 		bare.get("/api/channels/:id/articles/:articleId", getChannelArticleRoute);
 		bare.get("/api/channels/:id/keys", listChannelKeysRoute);
@@ -509,6 +513,7 @@ describe("channels browser routes", () => {
 			["/api/channels/1", "PATCH"],
 			["/api/channels/1", "DELETE"],
 			["/api/channels/order", "PUT"],
+			["/api/channels/1/articles/read", "PUT"],
 			["/api/channels/1/articles", "GET"],
 			["/api/channels/1/articles/1", "GET"],
 			["/api/channels/1/keys", "GET"],
@@ -907,4 +912,48 @@ test("article route forwards combined filters and rejects malformed bounds", asy
 		expect((await call(`${base}?${suffix}`, { headers: hdr() }, env)).status).toBe(400);
 	}
 	expect((await call(`${base}?q=Literal`, { headers: hdr("b") }, env)).status).toBe(404);
+});
+
+test("read state is persistent, tenant scoped, idempotent and browser only", async () => {
+	const env = makeEnv(createSqliteD1());
+	const channel = await createChannel(env);
+	const other = await createChannel(env, "Other");
+	const key = await createKey(env, channel.id);
+	const created = await submit(env, key.token, article());
+	expect(created.status).toBe(201);
+	const id = (created.body as { id: number }).id;
+	const base = `/api/channels/${channel.id}/articles`;
+	const get = () => call(`${base}/${id}`, { headers: hdr() }, env);
+	expect(dataOf(await get().then((r) => r.body))).toMatchObject({ isRead: false });
+	const put = (path: string, headers = hdr()) => call(path, { method: "PUT", headers }, env);
+	for (const path of [`${base}/read`, `${base}/${id}/read`]) {
+		expect((await put(path, hdr("b"))).status).toBe(404);
+		expect((await put(path, hdr("a", { origin: "https://evil.example" }))).status).toBe(403);
+		expect((await put(path, ingestHdr(key.token))).status).toBe(404);
+	}
+	for (const path of ["/api/channels/no/articles/read", `${base}/0/read`])
+		expect((await put(path)).status).toBe(400);
+	expect((await put(`${base}/999999/read`)).status).toBe(404);
+	expect((await put(`/api/channels/${other.id}/articles/${id}/read`)).status).toBe(404);
+	expect((await put(`${base}/${id}/read`)).status).toBe(200);
+	expect((await put(`${base}/${id}/read`)).status).toBe(200);
+	expect(dataOf((await get()).body)).toMatchObject({ isRead: true });
+	expect(
+		dataOf<{ hasUnread: boolean }[]>(
+			(await call("/api/channels", { headers: hdr() }, env)).body,
+		).find((c) => c.hasUnread),
+	).toBeUndefined();
+	await submit(env, key.token, article());
+	expect(
+		dataOf<{ hasUnread: boolean }[]>(
+			(await call("/api/channels", { headers: hdr() }, env)).body,
+		).some((c) => c.hasUnread),
+	).toBe(true);
+	expect((await put(`${base}/read`)).status).toBe(200);
+	expect((await put(`/api/channels/${other.id}/articles/read`)).status).toBe(200);
+	expect(
+		dataOf<{ items: { isRead: boolean }[] }>(
+			(await call(base, { headers: hdr() }, env)).body,
+		).items.every((a) => a.isRead),
+	).toBe(true);
 });
