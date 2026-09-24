@@ -22,6 +22,7 @@ import {
 	Maximize2,
 	Pencil,
 	Radio,
+	RefreshCw,
 	SearchX,
 	Settings,
 	Trash2,
@@ -442,14 +443,30 @@ export function ChannelsPage() {
 							<ListFilter className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" />
 							Reports
 						</h2>
-						<Badge
-							variant="secondary"
-							className="h-6 min-w-7 justify-center border-basalt-border/40 px-2 py-0 tabular-nums text-basalt-muted-foreground"
-						>
-							{matchingList ? state.items.length : 0}
-							{matchingList && state.nextCursor !== null ? "+" : ""}
-							<span className="sr-only"> reports loaded</span>
-						</Badge>
+						<div className="flex items-center gap-2">
+							<HeaderTooltip label="Refresh articles">
+								<Button
+									variant="outline"
+									size="icon"
+									className="h-8 w-8"
+									aria-label="Refresh articles"
+									disabled={
+										listLoading || state.catalogLoading || state.busy || editing || deleting
+									}
+									onClick={() => void vm.refreshReports(channelId)}
+								>
+									<RefreshCw className="h-4 w-4" aria-hidden="true" />
+								</Button>
+							</HeaderTooltip>
+							<Badge
+								variant="secondary"
+								className="h-6 min-w-7 justify-center border-basalt-border/40 px-2 py-0 tabular-nums text-basalt-muted-foreground"
+							>
+								{matchingList ? state.items.length : 0}
+								{matchingList && state.nextCursor !== null ? "+" : ""}
+								<span className="sr-only"> reports loaded</span>
+							</Badge>
+						</div>
 					</div>
 					<ArticleFiltersBar
 						key={channelId}
