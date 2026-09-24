@@ -515,16 +515,12 @@ export function ChannelsPage() {
 								<span className="flex w-full min-w-0 flex-col gap-1 text-left">
 									<span className="flex items-center gap-1.5 text-xs text-basalt-muted-foreground">
 										<CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-										{item.reportDate} · {item.sourceLabel}
+										<span className="min-w-0 flex-1 truncate">
+											{item.reportDate} · {item.sourceLabel}
+										</span>
+										{!item.isRead && <UnreadDot />}
 									</span>
-									<span className="flex items-start gap-2 whitespace-normal font-medium">
-										{!item.isRead && (
-											<span className="pt-1">
-												<UnreadDot />
-											</span>
-										)}
-										<span>{item.title}</span>
-									</span>
+									<span className="whitespace-normal font-medium">{item.title}</span>
 									{item.summary && (
 										<span className="line-clamp-2 whitespace-normal text-sm font-normal text-basalt-muted-foreground">
 											{item.summary}

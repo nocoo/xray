@@ -450,6 +450,6 @@ nav[aria-label="Breadcrumb"] + svg {
 	height: 7px;
 	flex-shrink: 0;
 	border-radius: 50%;
-	background: hsl(var(--basalt-primary));
-	box-shadow: 0 0 6px 2px hsl(var(--basalt-primary) / 0.5);
+	background: hsl(var(--basalt-heatmap-green-3));
+	box-shadow: 0 0 6px 2px hsl(var(--basalt-heatmap-green-3) / 0.5);
 }
