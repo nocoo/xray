@@ -2,6 +2,19 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.5.4
+
+### Added
+- Persist channel article reading state
+- Add channel article refresh button
+
+### Changed
+- Merge g1 into unified l1
+
+### Fixed
+- Align green unread indicators
+- Restore compact mobile channel reading
+
 ## v2.5.3
 
 ### Added
