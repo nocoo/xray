@@ -289,6 +289,8 @@ export function ChannelsPage() {
 								<CopyTextButton
 									key={`${channelId}/${articleId}`}
 									label="Copy full article"
+									iconOnly
+									className="h-8 w-8"
 									text={article ? `# ${article.title}\n\n${article.markdown}` : ""}
 									disabled={!article || state.articleLoading}
 								/>
