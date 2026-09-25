@@ -2,6 +2,16 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.5.5
+
+### Changed
+- Bump wrangler to 4.136.3 (#595)
+- Bump turbo to 2.11.3 (#594)
+- Bump workers types (#592)
+
+### Fixed
+- Render cjk markdown emphasis correctly
+
 ## v2.5.4
 
 ### Added
