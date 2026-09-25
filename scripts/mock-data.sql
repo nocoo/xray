@@ -125,6 +125,36 @@ SELECT n + 1, 'xray-mock-user', CASE WHEN n = 6 THEN 2 ELSE 1 END, 'mock-report-
   CASE WHEN n = 6 THEN 900002 ELSE 900001 END, 'Mock Research Agent', (unixepoch() - n * 86400) * 1000
 FROM reports;
 
+INSERT OR IGNORE INTO channel_articles
+  (id, user_id, channel_id, external_id, title, report_date, summary, author, markdown,
+    source_key_id, source_label, created_at_ms)
+SELECT 990101, user_id, channel_id, 'mock-cjk-emphasis', 'Markdown 强调：中文标点边界',
+  date('now'), '复现日报中的中文粗体、斜体与粗斜体，同时保留代码和转义原文。', 'Mock Editorial Desk',
+  '**采集时点：**北京时间 2026-09-25 04:44；**观察窗口：**2026-09-24 04:40—2026-09-25 04:44（北京时间）。以下仅把窗口内的新发言、合并或修复作为当日动态；更早的项目背景不冒充新消息。
+
+## 强调对照
+
+这是**本人陈述**，普通 **bold** 与 *italic*。
+
+*来源：*原始记录，***注意：***尚未复核。
+
+中文**「重点」**继续，中文*（补充）*继续。
+
+- **浏览器操控演示：**这是一条本地示例。
+- **Agent 工作流：**仅用于检查格式。
+
+## 原样显示
+
+行内代码：`**采集时点：**北京时间`
+
+```md
+*来源：*原始记录
+```
+
+转义星号：\*\*采集时点：\*\*北京时间',
+  id, label, unixepoch() * 1000
+FROM push_tokens WHERE id = 900001 AND user_id = 'xray-mock-user' AND channel_id = 1;
+
 INSERT OR IGNORE INTO channels (id, user_id, name, description, created_at_ms, sort_order)
 VALUES
   (910101, 'xray-mock-user', '产品设计观察', 'Mock · 短篇观察、设计系统与公开资料。', unixepoch() * 1000, 2),

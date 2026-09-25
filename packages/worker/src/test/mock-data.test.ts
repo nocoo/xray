@@ -30,7 +30,7 @@ async function snapshot(db: D1Database) {
 	);
 }
 
-test("mock catalog covers 15 channels, 45 tags and 144 varied reports with safe named sources", async () => {
+test("mock catalog covers 15 channels, 45 tags and 145 varied reports with safe named sources", async () => {
 	const db = createSqliteD1();
 	await db.exec(seed);
 	for (const [table, count] of [
@@ -38,7 +38,7 @@ test("mock catalog covers 15 channels, 45 tags and 144 varied reports with safe 
 		["items", 236],
 		["channels", 15],
 		["tags", 45],
-		["channel_articles", 144],
+		["channel_articles", 145],
 		["push_tokens", 51],
 	] as const) {
 		expect(await db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).first()).toEqual({ count });
@@ -56,7 +56,7 @@ test("mock catalog covers 15 channels, 45 tags and 144 varied reports with safe 
 	expect(counts).toHaveLength(15);
 	expect(counts.find((row) => row.id === 10)).toEqual({ id: 10, count: 4 });
 	expect(counts.filter((row) => row.id !== 10).every((row) => row.count >= 8)).toBe(true);
-	expect(counts[0]).toEqual({ id: 1, count: 33 });
+	expect(counts[0]).toEqual({ id: 1, count: 34 });
 	expect(
 		await db
 			.prepare("SELECT COUNT(*) AS count FROM push_tokens WHERE revoked_at_ms IS NULL")
@@ -91,7 +91,7 @@ test("mock catalog covers 15 channels, 45 tags and 144 varied reports with safe 
 				"SELECT external_id FROM channel_articles WHERE channel_id=1 ORDER BY report_date DESC,id DESC LIMIT 1",
 			)
 			.first(),
-	).toEqual({ external_id: "mock-reader-showcase-v1" });
+	).toEqual({ external_id: "mock-cjk-emphasis" });
 	expect(
 		await db.prepare("SELECT COUNT(*) AS count FROM channel_tags WHERE channel_id=910102").first(),
 	).toEqual({ count: 0 });
@@ -113,7 +113,7 @@ test("mock catalog covers 15 channels, 45 tags and 144 varied reports with safe 
 	).toBeGreaterThan(1);
 	expect(
 		await db.prepare("SELECT COUNT(DISTINCT markdown) AS count FROM channel_articles").first(),
-	).toEqual({ count: 138 });
+	).toEqual({ count: 139 });
 	expect((await db.prepare("PRAGMA foreign_key_check").all()).results).toEqual([]);
 	const original = await snapshot(db);
 	await db.exec(seed);

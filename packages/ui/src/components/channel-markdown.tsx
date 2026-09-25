@@ -1,5 +1,6 @@
 import { memo, useState } from "react";
 import Markdown, { type Components } from "react-markdown";
+import remarkCjkFriendly from "remark-cjk-friendly/parseOnly";
 import remarkGfm from "remark-gfm";
 import { safeMarkdownUrl } from "@/lib/channel-reader";
 
@@ -30,7 +31,7 @@ const components: Components = {
 		</div>
 	),
 };
-const plugins = [remarkGfm];
+const plugins = [remarkGfm, remarkCjkFriendly];
 export const ChannelMarkdown = memo(function ChannelMarkdown({ markdown }: { markdown: string }) {
 	return (
 		<Markdown

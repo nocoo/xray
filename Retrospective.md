@@ -128,3 +128,15 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 - **What:** Review found that a delayed mark-read completion could restore the article snapshot fetched before an edit, or restore an article already deleted.
 - **Why:** The acknowledgement initially spread the captured fetch response rather than the current ViewModel state.
 - **Follow-up:** Change only the read flag on the still-selected current article. A deferred-response test now checks both editing and deletion before the acknowledgement completes.
+
+## 2026-09-25: A partial dependency install broke local tool links
+
+- **What:** Adding the CJK Markdown plugin through the Microsoft mirror installed the new dependency, but missing existing package versions left Turbo unavailable and serialized mirror URLs into the lockfile.
+- **Why:** A successful metadata probe did not establish that the mirror held every pinned workspace dependency; Bun updated local links before the complete install succeeded.
+- **Follow-up:** Inspect the full install result before running tools. Restore registry-neutral lockfile URLs without changing resolutions, then complete a frozen install through the allowed Tencent mirror. Verify the dependency diff and build before committing.
+
+## 2026-09-25: New Mock report changed catalog assertions
+
+- **What:** The first commit gate rejected the CJK fixture because the seed catalog test still expected 144 reports and the previous latest article.
+- **Why:** Renderer checks covered the new example, but the seed's exact inventory assertions were overlooked.
+- **Follow-up:** Update total, per-channel and ordering expectations together whenever adding seeded reports; retain the existing idempotency and collision checks.
