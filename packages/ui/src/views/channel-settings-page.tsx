@@ -28,7 +28,6 @@ import {
 	BookOpen,
 	CalendarDays,
 	Clock3,
-	Copy,
 	FileText,
 	KeyRound,
 	Plus,
@@ -41,15 +40,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import * as tagsApi from "@/api/tags";
 import { useChannels } from "@/components/channels-context";
+import { CopyTextButton } from "@/components/copy-text-button";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { FormSkeleton, TableSkeleton } from "@/components/loading-skeletons";
 import { TagAssignment } from "@/components/tag-assignment";
-import {
-	channelRequest,
-	copyChannelText,
-	ingestEndpoint,
-	reportExample,
-} from "@/lib/channel-reader";
+import { channelRequest, ingestEndpoint, reportExample } from "@/lib/channel-reader";
 import { getDataMode } from "@/lib/data-mode";
 import { createTagsVm } from "@/viewmodels/tags-vm";
 import { useVm } from "@/viewmodels/use-vm";
@@ -117,7 +112,6 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 	const tokenInput = useRef<HTMLInputElement>(null);
 	const [label, setLabel] = useState("");
 	const [saved, setSaved] = useState(false);
-	const [copyStatus, setCopyStatus] = useState("");
 	const [revoking, setRevoking] = useState<ChannelKey | null>(null);
 	const [deleting, setDeleting] = useState(false);
 	const managing = state.managerId === channel.id;
@@ -305,7 +299,6 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 								vm.setState({ token: null, error: null });
 								if (open) {
 									setLabel("");
-									setCopyStatus("");
 								}
 							}}
 						>
@@ -345,28 +338,13 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 												onFocus={(event) => event.target.select()}
 											/>
 										</Field>
-										<Button
-											variant="outline"
-											className="w-full"
-											onClick={async () =>
-												setCopyStatus(await copyChannelText(token, navigator.clipboard))
-											}
-										>
-											<Copy className="h-4 w-4" aria-hidden="true" />
-											Copy key
-										</Button>
-										{copyStatus && (
-											<p role="status" className="text-sm text-basalt-muted-foreground">
-												{copyStatus}
-											</p>
-										)}
+										<CopyTextButton text={token} label="Copy key" className="w-full" />
 										<DialogFooter>
 											<Button
 												disabled={state.busy}
 												onClick={() => {
 													setCreatingToken(false);
 													vm.setState({ token: null });
-													setCopyStatus("");
 												}}
 											>
 												Done
@@ -508,20 +486,11 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 					</span>
 				}
 				actions={
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={async () =>
-							setCopyStatus(
-								await copyChannelText(
-									`cat > report.json <<'JSON'\n${reportExample}\nJSON\n\n${request}`,
-									navigator.clipboard,
-								),
-							)
-						}
-					>
-						<Copy className="h-4 w-4" /> Copy example
-					</Button>
+					<CopyTextButton
+						key={request}
+						label="Copy example"
+						text={`cat > report.json <<'JSON'\n${reportExample}\nJSON\n\n${request}`}
+					/>
 				}
 			>
 				<LayerCard className="space-y-3">
@@ -543,11 +512,6 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 							<CodeBlock className="flex-1 text-xs">{request}</CodeBlock>
 						</div>
 					</div>
-					{copyStatus && (
-						<p role="status" className="text-sm text-basalt-muted-foreground">
-							{copyStatus}
-						</p>
-					)}
 				</LayerCard>
 			</SectionRule>
 			<SectionRule

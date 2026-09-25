@@ -44,6 +44,7 @@ import { ArticleFiltersBar } from "@/components/article-filters-bar";
 import { ArticleLinksPanel } from "@/components/article-links-panel";
 import { ChannelMarkdown } from "@/components/channel-markdown";
 import { useChannels } from "@/components/channels-context";
+import { CopyTextButton } from "@/components/copy-text-button";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { HeaderTooltip } from "@/components/layout/header-links";
 import { ArticleSkeleton, RowsSkeleton } from "@/components/loading-skeletons";
@@ -285,6 +286,12 @@ export function ChannelsPage() {
 					actions={
 						<>
 							<div className="flex items-center gap-2">
+								<CopyTextButton
+									key={`${channelId}/${articleId}`}
+									label="Copy full article"
+									text={article ? `# ${article.title}\n\n${article.markdown}` : ""}
+									disabled={!article || state.articleLoading}
+								/>
 								<HeaderTooltip label="Edit article">
 									<Button
 										variant="outline"
