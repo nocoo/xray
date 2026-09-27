@@ -203,6 +203,25 @@ Agent → xray-ingest.worker.hexly.ai  (Bearer = user_id)
        → **no AI on ingest path** (R2-02)
 ```
 
+### Dashboard content aggregation
+
+`GET /api/dashboard` returns the shared `DashboardAggregates` contract. Every
+stored watchlist item and channel report contributes one record to `contentCount`.
+`content24h` uses the inclusive rolling 24-hour interval ending at the presentation
+time. `contentTrend` covers the current UTC date and the preceding 13 dates, fills
+missing dates with zeroes and excludes receipts after that time. Watchlists use
+`items.ingested_at_ms`; channels use `channel_articles.created_at_ms`, never the
+publication time or report date. Both query branches scope `user_id` to the verified
+owner. Retries do not add records; all-time totals count currently stored content,
+including records outside the chart window.
+
+The UI uses one Basalt stacked bar chart with Watchlists and Channels series,
+category totals, keyboard tooltips and expandable daily counts. Overview cards show
+total content, additions in 24 hours, watchlists and channels. Groups, members and
+pending AI remain visible; ingest diagnostics describe watchlist delivery separately.
+Demo/E2E retain their fixed presentation clock; arrival-time boundary tests arrange
+receipt timestamps only inside their owned disposable D1 state.
+
 ### AI execution model (XR-06, R2-02, R3-08) — locked MVP
 
 | Mode | MVP |

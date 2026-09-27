@@ -33,12 +33,42 @@ export function createDashboardVm(api: DashboardApi) {
 			const data = store.getState().data;
 			if (!data) return [];
 			return [
-				{ label: "Watchlists", value: data.watchlistCount },
-				{ label: "Groups", value: data.groupCount },
-				{ label: "Members", value: data.memberCount },
-				{ label: "Items (24h)", value: data.items24h },
-				{ label: "Pending AI", value: data.pendingAi },
-			];
+				{
+					key: "content",
+					label: "Total content",
+					value: data.contentCount,
+					subtitle: "Watchlist items + channel reports",
+				},
+				{
+					key: "recent",
+					label: "Added (24h)",
+					value: data.content24h,
+					subtitle: "Across watchlists and channels",
+				},
+				{
+					key: "watchlists",
+					label: "Watchlists",
+					value: data.watchlistCount,
+					subtitle: `Groups ${data.groupCount} · Members ${data.memberCount}`,
+				},
+				{
+					key: "channels",
+					label: "Channels",
+					value: data.channelCount,
+					subtitle: "Markdown report streams",
+				},
+			] as const;
+		},
+		activity() {
+			const points = store.getState().data?.contentTrend ?? [];
+			const watchlists = points.reduce((sum, point) => sum + point.watchlists, 0);
+			const channels = points.reduce((sum, point) => sum + point.channels, 0);
+			return {
+				points: points.map(({ date, ...counts }) => ({ x: date, ...counts })),
+				watchlists,
+				channels,
+				total: watchlists + channels,
+			};
 		},
 	};
 }

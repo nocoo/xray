@@ -166,9 +166,9 @@ describe("external response boundary", () => {
 			env,
 		);
 		expect(result.status).toBe(200);
-		const { data } = (await result.json()) as { data: { itemsTrend: { date: string }[] } };
-		expect(data.itemsTrend).toHaveLength(14);
-		expect(data.itemsTrend[0]?.date).toBe("2000-01-01");
-		expect(data.itemsTrend[13]?.date).toBe("2000-01-14");
+		const { data } = (await result.json()) as { data: { contentTrend: { date: string }[] } };
+		expect(data.contentTrend).toHaveLength(14);
+		expect(data.contentTrend[0]?.date).toBe("2000-01-01");
+		expect(data.contentTrend[13]?.date).toBe("2000-01-14");
 	});
 });

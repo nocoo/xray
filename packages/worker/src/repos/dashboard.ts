@@ -1,28 +1,14 @@
-import type { IngestLogDto } from "./ingest-logs.js";
+import type { ContentDayPoint, DashboardAggregates, DashboardLog } from "@xray/shared";
 
 export const DASHBOARD_TREND_DAYS = 14;
 
-export type ItemDayPoint = { date: string; count: number };
-export type IngestDayPoint = {
-	date: string;
-	accepted: number;
-	deduped: number;
-	rejected: number;
-};
-
-export type DashboardLog = IngestLogDto & { watchlistName: string | null };
-
-export type DashboardAggregates = {
-	watchlistCount: number;
-	groupCount: number;
-	memberCount: number;
-	items24h: number;
-	pendingAi: number;
-	bySourceType: { sourceType: string; count: number }[];
-	itemsTrend: ItemDayPoint[];
-	ingestTrend: IngestDayPoint[];
-	recentIngestLogs: DashboardLog[];
-};
+const CONTENT_SQL = `WITH content AS (
+  SELECT ingested_at_ms AS received_at_ms, 'watchlists' AS category
+  FROM items WHERE user_id = ?
+  UNION ALL
+  SELECT created_at_ms, 'channels'
+  FROM channel_articles WHERE user_id = ?
+)`;
 
 export function utcDateKey(ms: number): string {
 	return new Date(ms).toISOString().slice(0, 10);
@@ -62,6 +48,10 @@ export async function getDashboardAggregates(
 		.prepare(`SELECT COUNT(*) AS c FROM watchlists WHERE user_id = ?`)
 		.bind(userId)
 		.first<{ c: number }>();
+	const channels = await db
+		.prepare(`SELECT COUNT(*) AS c FROM channels WHERE user_id = ?`)
+		.bind(userId)
+		.first<{ c: number }>();
 	const groups = await db
 		.prepare(`SELECT COUNT(*) AS c FROM groups WHERE user_id = ?`)
 		.bind(userId)
@@ -70,10 +60,13 @@ export async function getDashboardAggregates(
 		.prepare(`SELECT COUNT(*) AS c FROM watchlist_members WHERE user_id = ?`)
 		.bind(userId)
 		.first<{ c: number }>();
-	const items24h = await db
-		.prepare(`SELECT COUNT(*) AS c FROM items WHERE user_id = ? AND ingested_at_ms >= ?`)
-		.bind(userId, since)
-		.first<{ c: number }>();
+	const content = await db
+		.prepare(`${CONTENT_SQL}
+      SELECT COUNT(*) AS total,
+             COALESCE(SUM(received_at_ms >= ? AND received_at_ms <= ?), 0) AS recent
+      FROM content`)
+		.bind(userId, userId, since, nowMs)
+		.first<{ total: number; recent: number }>();
 	const pendingAi = await db
 		.prepare(
 			`SELECT COUNT(*) AS c
@@ -85,39 +78,17 @@ export async function getDashboardAggregates(
 		)
 		.bind(userId)
 		.first<{ c: number }>();
-	const { results: bySource } = await db
-		.prepare(
-			`SELECT source_type AS sourceType, COUNT(*) AS count
-       FROM items WHERE user_id = ?
-       GROUP BY source_type`,
-		)
-		.bind(userId)
-		.all<{ sourceType: string; count: number }>();
-
-	const trendSince = nowMs - DASHBOARD_TREND_DAYS * 86_400_000;
-	const { results: itemDays } = await db
-		.prepare(
-			`SELECT strftime('%Y-%m-%d', ingested_at_ms / 1000, 'unixepoch') AS date, COUNT(*) AS count
-       FROM items
-       WHERE user_id = ? AND ingested_at_ms >= ?
-       GROUP BY date
-       ORDER BY date`,
-		)
-		.bind(userId, trendSince)
-		.all<{ date: string; count: number }>();
-	const { results: ingestDays } = await db
-		.prepare(
-			`SELECT strftime('%Y-%m-%d', created_at_ms / 1000, 'unixepoch') AS date,
-              SUM(accepted) AS accepted,
-              SUM(deduped) AS deduped,
-              SUM(rejected) AS rejected
-       FROM ingest_logs
-       WHERE user_id = ? AND created_at_ms >= ?
-       GROUP BY date
-       ORDER BY date`,
-		)
-		.bind(userId, trendSince)
-		.all<{ date: string; accepted: number; deduped: number; rejected: number }>();
+	const trendSince = Date.parse(`${eachUtcDay(nowMs, DASHBOARD_TREND_DAYS)[0]}T00:00:00Z`);
+	const { results: contentDays } = await db
+		.prepare(`${CONTENT_SQL}
+      SELECT strftime('%Y-%m-%d', received_at_ms / 1000, 'unixepoch') AS date,
+             SUM(category = 'watchlists') AS watchlists,
+             SUM(category = 'channels') AS channels
+      FROM content
+      WHERE received_at_ms >= ? AND received_at_ms <= ?
+      GROUP BY date ORDER BY date`)
+		.bind(userId, userId, trendSince, nowMs)
+		.all<ContentDayPoint>();
 
 	const { results: logRows } = await db
 		.prepare(
@@ -132,7 +103,7 @@ export async function getDashboardAggregates(
 		.bind(userId)
 		.all<{
 			id: number;
-			watchlist_id: number;
+			watchlist_id: number | null;
 			attempted: number;
 			accepted: number;
 			deduped: number;
@@ -156,30 +127,21 @@ export async function getDashboardAggregates(
 
 	return {
 		watchlistCount: Number(wl?.c ?? 0),
+		channelCount: Number(channels?.c ?? 0),
 		groupCount: Number(groups?.c ?? 0),
 		memberCount: Number(members?.c ?? 0),
-		items24h: Number(items24h?.c ?? 0),
+		contentCount: Number(content?.total ?? 0),
+		content24h: Number(content?.recent ?? 0),
 		pendingAi: Number(pendingAi?.c ?? 0),
-		bySourceType: (bySource ?? []).map((r) => ({
-			sourceType: r.sourceType,
-			count: Number(r.count),
-		})),
-		itemsTrend: fillUtcDays(
+		contentTrend: fillUtcDays(
 			nowMs,
 			DASHBOARD_TREND_DAYS,
-			(itemDays ?? []).map((r) => ({ date: r.date, count: Number(r.count) })),
-			(date) => ({ date, count: 0 }),
-		),
-		ingestTrend: fillUtcDays(
-			nowMs,
-			DASHBOARD_TREND_DAYS,
-			(ingestDays ?? []).map((r) => ({
+			(contentDays ?? []).map((r) => ({
 				date: r.date,
-				accepted: Number(r.accepted),
-				deduped: Number(r.deduped),
-				rejected: Number(r.rejected),
+				watchlists: Number(r.watchlists),
+				channels: Number(r.channels),
 			})),
-			(date) => ({ date, accepted: 0, deduped: 0, rejected: 0 }),
+			(date) => ({ date, watchlists: 0, channels: 0 }),
 		),
 		recentIngestLogs,
 	};

@@ -70,11 +70,11 @@ describe("api modules hit real client", () => {
 			watchlistCount: 0,
 			groupCount: 0,
 			memberCount: 0,
-			items24h: 0,
+			contentCount: 0,
+			content24h: 0,
+			channelCount: 0,
 			pendingAi: 0,
-			bySourceType: [],
-			itemsTrend: [],
-			ingestTrend: [],
+			contentTrend: [],
 			recentIngestLogs: [],
 		});
 		await dashboard.fetchDashboard();

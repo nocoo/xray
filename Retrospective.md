@@ -152,3 +152,13 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 - **What:** The original shared rule locked every E2E session, so the owner could not leave an interactively selected E2E instance.
 - **Why:** Locking was derived from the data mode rather than whether the launcher owned an automated test run. The owner clarified that only scripted E2E should be locked.
 - **Follow-up:** Derive the immutable lock from the trusted `automated` startup option. Cover manual startup, selection, fresh reentry, preference persistence and draft protection separately from local/hosted automated lock enforcement. Environment browser checks now use the same exact external-media fixture helper as other specs; real APIs remain intact.
+
+
+## 2026-09-27: Dashboard logs retain nullable watchlist references
+
+The first real-SQL dashboard test incorrectly inserted an orphan watchlist ID.
+The schema rejects that row and uses `ON DELETE SET NULL` when a watchlist is deleted.
+The shared dashboard DTO now models that null explicitly, and the view shows
+“Deleted watchlist” instead of a fabricated identifier. Regression setup creates
+and deletes the parent through the real schema; read deletion behavior before
+constructing historical-record fixtures.

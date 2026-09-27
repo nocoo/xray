@@ -38,6 +38,7 @@ export {
 	parseArticleInput,
 	parseArticlePageQuery,
 } from "./channels.js";
+export type { ContentDayPoint, DashboardAggregates, DashboardLog } from "./dashboard.js";
 export { normalizeHandle } from "./handle.js";
 export type { NavGroupDef, NavItemDef } from "./nav.js";
 export { V2_NAV_GROUPS, V2_NAV_LABELS } from "./nav.js";

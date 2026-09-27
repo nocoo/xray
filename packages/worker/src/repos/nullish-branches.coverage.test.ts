@@ -48,7 +48,7 @@ function mockDb(handlers: {
 }
 
 describe("nullish / edge repo branches", () => {
-	test("dashboard null counts and empty bySource", async () => {
+	test("dashboard null counts and empty content", async () => {
 		const db = mockDb({
 			first: () => null,
 			all: () => null as unknown as unknown[],
@@ -58,12 +58,12 @@ describe("nullish / edge repo branches", () => {
 		expect(d.watchlistCount).toBe(0);
 		expect(d.groupCount).toBe(0);
 		expect(d.memberCount).toBe(0);
-		expect(d.items24h).toBe(0);
+		expect(d.content24h).toBe(0);
 		expect(d.pendingAi).toBe(0);
-		expect(d.bySourceType).toEqual([]);
-		expect(d.itemsTrend).toHaveLength(14);
-		expect(d.ingestTrend).toHaveLength(14);
-		expect(d.itemsTrend.every((p) => p.count === 0)).toBe(true);
+		expect(d.channelCount).toBe(0);
+		expect(d.contentCount).toBe(0);
+		expect(d.contentTrend).toHaveLength(14);
+		expect(d.contentTrend.every((p) => p.watchlists === 0 && p.channels === 0)).toBe(true);
 		expect(d.recentIngestLogs).toEqual([]);
 	});
 

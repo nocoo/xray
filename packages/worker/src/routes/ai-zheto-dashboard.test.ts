@@ -1,7 +1,9 @@
+import type { DashboardAggregates } from "@xray/shared";
 import { Hono } from "hono";
 import { describe, expect, test } from "vitest";
 import { encryptSecret, parseKek } from "../lib/secrets-crypto.js";
 import { externalBinding } from "../test/external-binding.js";
+import { createSqliteD1 } from "../test/sqlite-d1.js";
 import type { AppEnv, AuthUser } from "../types.js";
 import { getAiConfigRoute, putAiConfigRoute } from "./ai.js";
 import { getDashboardRoute } from "./dashboard.js";
@@ -57,55 +59,10 @@ function makeDb() {
 							? ({ ...hit, member_count: 0, translate_enabled: hit.translate_enabled ?? 1 } as T)
 							: null;
 					}
-					if (up.includes("COUNT(*)") && up.includes("FROM WATCHLISTS")) {
-						const c = tables.watchlists.filter((r) => r.user_id === binds[0]).length;
-						return { c } as T;
-					}
-					if (up.includes("COUNT(*)") && up.includes("FROM GROUPS")) {
-						const c = tables.groups.filter((r) => r.user_id === binds[0]).length;
-						return { c } as T;
-					}
-					if (up.includes("COUNT(*)") && up.includes("FROM WATCHLIST_MEMBERS")) {
-						const c = tables.watchlist_members.filter((r) => r.user_id === binds[0]).length;
-						return { c } as T;
-					}
-					if (up.includes("COUNT(*)") && up.includes("INGESTED_AT_MS")) {
-						const [userId, since] = binds as [string, number];
-						const c = tables.items.filter(
-							(r) => r.user_id === userId && Number(r.ingested_at_ms) >= since,
-						).length;
-						return { c } as T;
-					}
-					if (up.includes("COUNT(*)") && up.includes("AI_STATUS")) {
-						const userId = binds[0] as string;
-						const c = tables.items.filter((i) => {
-							if (i.user_id !== userId) return false;
-							const wl = tables.watchlists.find(
-								(w) => w.id === i.watchlist_id && w.user_id === userId,
-							);
-							if (!wl || wl.translate_enabled === 0) return false;
-							return i.ai_status === "pending" || i.ai_status === "not_requested";
-						}).length;
-						return { c } as T;
-					}
 					return null;
 				},
 				async all<T>() {
 					const up = sql.toUpperCase();
-					if (up.includes("GROUP BY SOURCE_TYPE")) {
-						const userId = binds[0] as string;
-						const map = new Map<string, number>();
-						for (const i of tables.items.filter((r) => r.user_id === userId)) {
-							const st = String(i.source_type);
-							map.set(st, (map.get(st) ?? 0) + 1);
-						}
-						return {
-							results: [...map.entries()].map(([sourceType, count]) => ({
-								sourceType,
-								count,
-							})) as T[],
-						};
-					}
 					if (up.includes("RETURNING")) {
 						const claimMs = binds[0] as number;
 						const userId = binds[1] as string;
@@ -309,7 +266,7 @@ function makeDb() {
 	};
 }
 
-function app(db: ReturnType<typeof makeDb>, envExtra: Record<string, unknown> = {}) {
+function app(db: ReturnType<typeof makeDb> | D1Database, envExtra: Record<string, unknown> = {}) {
 	const h = new Hono<AppEnv>();
 	h.use("*", async (c, next) => {
 		// @ts-expect-error test env
@@ -473,32 +430,21 @@ describe("zhe.to save (shipped handlers)", () => {
 });
 
 describe("dashboard aggregates", () => {
-	test("counts match seeded rows and stay user-scoped", async () => {
-		const db = makeDb();
-		db.seedWatchlist("u1", 1);
-		db.seedWatchlist("u2", 2);
-		db._tables.groups.push({ id: 1, user_id: "u1", name: "G" });
-		db._tables.watchlist_members.push({ id: 1, user_id: "u1", watchlist_id: 1 });
-		db.seedItem("u1", 1, "a");
-		db.seedItem("u1", 1, "b");
-		db.seedItem("u2", 2, "other");
-		const a = app(db);
-		const res = await a.request("/api/dashboard");
+	test("returns the unified content contract for the authenticated owner", async () => {
+		const db = createSqliteD1();
+		await db.exec(`INSERT INTO users (id,email,created_at_ms) VALUES ('u1','one@test.local',0),('u2','two@test.local',0);
+   INSERT INTO channels (user_id,name,created_at_ms) VALUES ('u1','Reports',0),('u2','Other',0);`);
+		const res = await app(db).request("/api/dashboard?user_id=u2");
 		expect(res.status).toBe(200);
-		const data = (await res.json()) as {
-			data: {
-				watchlistCount: number;
-				groupCount: number;
-				memberCount: number;
-				items24h: number;
-				pendingAi: number;
-			};
-		};
-		expect(data.data.watchlistCount).toBe(1);
-		expect(data.data.groupCount).toBe(1);
-		expect(data.data.memberCount).toBe(1);
-		expect(data.data.items24h).toBe(2);
-		expect(data.data.pendingAi).toBe(2);
+		const { data } = (await res.json()) as { data: DashboardAggregates };
+		expect(data).toMatchObject({
+			channelCount: 1,
+			watchlistCount: 0,
+			contentCount: 0,
+			content24h: 0,
+			pendingAi: 0,
+		});
+		expect(data.contentTrend).toHaveLength(14);
 	});
 });
 

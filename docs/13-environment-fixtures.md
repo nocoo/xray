@@ -124,12 +124,12 @@ H.264/yuv420p, no audio. SVG geometry and MP4 contain no third-party source imag
 `Prepared` means a dataset or reproducible input exists. `Passed` identifies executed
 checks, with their scope stated in each cell. `Unverified` is not inferred from source
 or counts. Browser geometry/color assertions are action evidence, not human visual
-review. The complete managed L3 suite passed **25/25** on 2026-09-27; cells still
+review. The complete managed L3 suite passed **28/28** on 2026-09-27; cells still
 mark actions outside those assertions as unverified.
 
 | Feature / route | Data or reproducible scenario | Data | Action / API evidence | Visual evidence |
 |---|---|---|---|---|
-| `/` dashboard | Counts, 59 ingest logs, successful/rejected activity, fixed dates | Passed SQL totals/coherence | Passed signed browser shell and Dashboard/Watchlists rendering; aggregate correctness unverified here | Reviewed light-mode totals, source mix and anchored charts (`dashboard.png`) |
+| `/` dashboard | Watchlist items and channel reports; empty, channel-only and mixed accounts; 59 watchlist ingest logs | Passed real-SQL UTC/24-hour boundaries, tenant isolation, zero-filled days and stored-record deduplication | Passed real native submission/retry counts, both authenticated tenants, underlying D1 counts, keyboard tooltip and daily table; Dashboard L3 2/2 within the final 28/28 suite | Reviewed desktop light/dark and 320px two-series chart in `reports/dashboard/2026-09-27/`; old source-mix chart retired |
 | Account menu, `/api/me` | Signed Demo owner, other tenant, synthetic name/avatar | Prepared; profile protocol passed | Passed signed browser session; profile rendering/expiry cases unverified here | Unverified |
 | `/watchlist` list/create/edit/delete | 13 topics, varied icons, preferences; E2E watchlist input | Passed SQL relationships | Passed dialog creation, detail navigation and activity panel; edit/delete UI unverified | Unverified |
 | `/watchlist/:id` members | Both source types, missing/multiple tags, notes | Passed schema and relationships | Add/edit/remove/filter unverified | Unverified |
@@ -207,3 +207,26 @@ Checks on 2026-09-27:
   evidence is in `reports/environment-acceptance/`.
 - This is scoped visual evidence, not approval of every row, theme or interaction.
   Video playback, full accessibility, CI and real Production remain unverified.
+
+
+## Dashboard aggregation acceptance — 2026-09-27
+
+The new shared Dashboard contract counts each stored item/report once, with a
+Watchlists/Channels stacked bar chart. Installed Basalt 2.1.8 provides the chart,
+legend, tooltip and stat cards; the integration guide was read at Basalt revision
+`5dda9f8`. No dependency or database migration was required.
+
+- Full build, root lint and typecheck passed. L1 passed 912 tests: shared 171,
+  Worker 483, UI 258; all four coverage metrics in each package exceeded 95%.
+- Native L2 passed 41/41 and the route gate passed 62/62. The managed full L3
+  command `bun scripts/test-l3.ts --output=/tmp/xray-dashboard-l3-all` passed 28/28
+  in 2.7 minutes after the complete build, with exit 0 and owned-state cleanup.
+- The two Dashboard browser checks exercised real ingestion, retry deduplication,
+  native D1 counts, empty/channel-only/mixed accounts, tenant exclusion, keyboard
+  tooltips, daily totals, both themes and 320/390/768/1440px layouts. Tests arrange
+  receipt timestamps at the fixture presentation anchor only in their disposable
+  state; they do not intercept business APIs.
+- Desktop light/dark and narrow-screen screenshots were visually reviewed.
+  Captures and logs are preserved in `reports/dashboard/2026-09-27/`. This run used
+  managed local Chromium. CI, Chrome/Caddy and real Prod were not exercised for
+  this Dashboard change.

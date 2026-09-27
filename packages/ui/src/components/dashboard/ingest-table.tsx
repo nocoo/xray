@@ -57,11 +57,16 @@ export function IngestTable({ logs }: { logs: IngestLog[] }) {
 						<TableRow key={log.id}>
 							<TableCell>
 								<p className="font-medium">
-									{log.watchlistName?.trim() || `Watchlist #${log.watchlistId}`}
+									{log.watchlistName?.trim() ||
+										(log.watchlistId === null
+											? "Deleted watchlist"
+											: `Watchlist #${log.watchlistId}`)}
 								</p>
-								<p className="text-xs text-basalt-muted-foreground tabular-nums">
-									#{log.watchlistId}
-								</p>
+								{log.watchlistId !== null && (
+									<p className="text-xs text-basalt-muted-foreground tabular-nums">
+										#{log.watchlistId}
+									</p>
+								)}
 							</TableCell>
 							<TableCell>
 								<div className="flex flex-wrap gap-1.5">
