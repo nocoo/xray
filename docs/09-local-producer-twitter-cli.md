@@ -75,7 +75,7 @@ Local, script-first producer that refreshes **x.com** members on all watchlists 
 
 ## 2. twitter-cli principle (read path)
 
-Binary: `twitter` ([reference tree](../../../reference/twitter-cli) / PyPI `twitter-cli`).
+Binary: `twitter` ([PyPI package](https://pypi.org/project/twitter-cli/)).
 
 ### Auth (twitter side)
 

@@ -149,9 +149,9 @@ Executed on 2026-09-27 against the implementation worktree based on `d63f238`:
 | Check | Actual result |
 |---|---|
 | Full build | `bun run build` passed shared/UI/Worker output; Worker deploy command used local `--dry-run` only |
-| L1 | Full `bun run test:coverage`, strict lint and typecheck passed; all four package coverage metrics remain at least 95% |
+| L1 | Implementation commit `1d8358b` passed the required lint, typecheck, coverage and staged gitleaks hooks; 904 tests passed (171 shared, 253 UI, 480 Worker), with all four package coverage metrics at least 95% |
 | Latest UI regression coverage | 253 tests / 45 files passed; statements 98.84%, branches 96.63%, functions 99.01%, lines 99.45% |
-| Worker L1 | 479 tests / 60 files passed; statements 98.62%, branches 96.17%, functions 97.24%, lines 99.71%; includes nine fixture checks |
+| Worker L1 | Final hook: 480 tests / 60 files passed; statements 98.62%, branches 96.17%, functions 97.24%, lines 99.71%; includes nine fixture checks |
 | L2 | Full native suite 41 tests / 6 files passed in 26.89s with cleanup; route inventory 62/62 |
 | Isolation regressions | Six native checks passed, including concurrent runtimes/CRUD/D1, cross-run JWT denial, lock/path/symlink refusal, stale owner flags, corrupt-marker refusal and cleanup retry |
 | L3 | Full managed suite 25/25 passed in 2.4 minutes, exit 0 and cleanup; actual runner `bun scripts/test-l3.ts --output=/tmp/xray-fixture-l3-final` after a successful full build |
