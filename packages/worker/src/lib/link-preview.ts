@@ -1,6 +1,7 @@
 import type { LinkPreview } from "@xray/shared";
 import { decodeHTML, decodeHTMLAttribute } from "entities";
 import { readResponseBounded } from "./ai-endpoint.js";
+import { type ExternalEnv, externalFetch } from "./external.js";
 import { hasPublicDns, publicPreviewUrl } from "./link-preview-url.js";
 
 export const PREVIEW_MAX_BYTES = 512 * 1024;
@@ -49,15 +50,18 @@ export async function parsePreviewHtml(
 	};
 }
 
-export async function fetchLinkPreview(originalUrl: string): Promise<LinkPreview> {
+export async function fetchLinkPreview(
+	originalUrl: string,
+	env: ExternalEnv = {},
+): Promise<LinkPreview> {
 	const unavailable = unavailablePreview(originalUrl);
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), PREVIEW_TIMEOUT_MS);
 	try {
 		let current = publicPreviewUrl(originalUrl);
 		for (let hop = 0; hop <= 3; hop++) {
-			if (!current || !(await hasPublicDns(current, controller.signal))) return unavailable;
-			const response = await fetch(current, {
+			if (!current || !(await hasPublicDns(current, controller.signal, env))) return unavailable;
+			const response = await externalFetch(env, current, {
 				redirect: "manual",
 				signal: controller.signal,
 				headers: { Accept: "text/html", "User-Agent": "XRay-LinkPreview/1.0" },

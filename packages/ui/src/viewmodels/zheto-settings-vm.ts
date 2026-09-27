@@ -28,8 +28,10 @@ export function createZhetoSettingsVm(api: ZhetoSettingsApi) {
 		saved: false,
 	});
 
+	let baseline = "";
 	return {
 		...store,
+		isDirty: () => store.getState().webhookUrl !== "" || store.getState().folder !== baseline,
 		setWebhookUrl(v: string) {
 			store.setState({ webhookUrl: v, saved: false });
 		},
@@ -40,6 +42,7 @@ export function createZhetoSettingsVm(api: ZhetoSettingsApi) {
 			store.setState({ loading: true, error: null });
 			try {
 				const settings = await api.fetchZhetoSettings();
+				baseline = settings.folder ?? "";
 				store.setState({
 					settings,
 					folder: settings.folder ?? "",
@@ -57,7 +60,13 @@ export function createZhetoSettingsVm(api: ZhetoSettingsApi) {
 					webhookUrl: s.webhookUrl || undefined,
 					folder: s.folder || null,
 				});
-				store.setState({ settings, webhookUrl: "", saved: true });
+				baseline = settings.folder ?? "";
+				store.setState({
+					settings,
+					webhookUrl:
+						store.getState().webhookUrl === s.webhookUrl ? "" : store.getState().webhookUrl,
+					saved: true,
+				});
 			} catch (e) {
 				store.setState({ error: errMsg(e) });
 			}

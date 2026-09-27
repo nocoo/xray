@@ -14,18 +14,14 @@ import {
 } from "./channel-reader";
 
 describe("reader contracts", () => {
-	test("scopes state by identity and data mode, preserves date in routes, chooses issuing environment", () => {
-		expect(readerStorageKey("a:b", "mock")).toBe("xray:reader:a%3Ab:mock");
-		expect(readerStorageKey("a:b", "mock")).not.toBe(readerStorageKey("a:b", "product"));
-		expect(readerStorageKey("other", "mock")).not.toBe(readerStorageKey("a:b", "mock"));
+	test("scopes hosted reader state by identity and preserves date in routes", () => {
+		expect(readerStorageKey("a:b")).toBe("xray:reader:a%3Ab:hosted");
+		expect(readerStorageKey("other")).not.toBe(readerStorageKey("a:b"));
 		expect(articlePath(1, 2, "date_from=2026-09-22&tag_ids=2%2C3")).toBe(
 			"/channels/1/articles/2?date_from=2026-09-22&tag_ids=2%2C3",
 		);
 		expect(articlePath(1, null, "")).toBe("/channels/1");
-		expect(ingestEndpoint("mock")).toBe("http://localhost:37007/api/v1/ingest/articles");
-		expect(ingestEndpoint("product")).toBe(
-			"https://xray-ingest.worker.hexly.ai/api/v1/ingest/articles",
-		);
+		expect(ingestEndpoint()).toBe("https://xray-ingest.worker.hexly.ai/api/v1/ingest/articles");
 	});
 	test("allows only external HTTPS images and safe external links", () => {
 		for (const url of [
@@ -108,8 +104,8 @@ describe("reader contracts", () => {
 
 test("copy request uses an external report file and reports clipboard failure", async () => {
 	const { channelRequest, copyChannelText, reportExample } = await import("./channel-reader");
-	expect(channelRequest("mock")).toContain("--data @report.json");
-	expect(channelRequest("product")).toContain("Authorization: Bearer YOUR_CHANNEL_TOKEN");
+	expect(channelRequest()).toContain("--data @report.json");
+	expect(channelRequest()).toContain("Authorization: Bearer YOUR_CHANNEL_TOKEN");
 	expect(JSON.parse(reportExample)).toMatchObject({
 		report_date: "2026-09-22",
 		external_id: "daily-2026-09-22",

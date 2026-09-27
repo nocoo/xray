@@ -12,7 +12,7 @@ const preview = {
 	imageUrl: null,
 	siteName: null,
 };
-test("preview GET encodes the full URL and preserves browser credentials, mode and cancellation", async () => {
+test("preview GET encodes the full URL and preserves browser credentials and cancellation", async () => {
 	const fetch = vi
 		.fn()
 		.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: preview }) });
@@ -27,9 +27,6 @@ test("preview GET encodes the full URL and preserves browser credentials, mode a
 		headers: { Accept: "application/json" },
 		signal: controller.signal,
 	});
-	sessionStorage.setItem("xray:data-mode", "product");
-	await fetchArticleLinkPreview(4, 9, preview.url, controller.signal);
-	expect(fetch.mock.lastCall?.[0]).toContain("/__product/api/");
 	controller.abort();
 	expect(init.signal?.aborted).toBe(true);
 });

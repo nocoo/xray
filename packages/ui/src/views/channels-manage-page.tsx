@@ -38,6 +38,7 @@ import { useChannels } from "@/components/channels-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { TableSkeleton } from "@/components/loading-skeletons";
 import { TagLabels } from "@/components/tag-labels";
+import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 import { useVm } from "@/viewmodels/use-vm";
 
 export function ChannelsManagePage() {
@@ -50,6 +51,7 @@ export function ChannelsManagePage() {
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
 	const creating = search.get("new") === "1";
+	useUnsavedDraft(creating && (state.busy || name !== "" || description !== ""));
 	const channels = state.channels.filter((channel) =>
 		`${channel.name} ${channel.description ?? ""}`
 			.toLocaleLowerCase()

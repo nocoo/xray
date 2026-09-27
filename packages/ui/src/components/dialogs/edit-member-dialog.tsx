@@ -15,6 +15,7 @@ import { ToggleGroup, ToggleGroupItem } from "@nocoo/basalt/components/toggle-gr
 import { Pencil } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { fetchTags, type Member, patchMember, type Tag } from "@/api/watchlists";
+import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 
 export function EditMemberDialog({
 	open,
@@ -36,6 +37,14 @@ export function EditMemberDialog({
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [tagsError, setTagsError] = useState<string | null>(null);
+	useUnsavedDraft(
+		open &&
+			!!member &&
+			(saving ||
+				note !== (member.note ?? "") ||
+				selectedTagIds.length !== member.tags.length ||
+				selectedTagIds.some((id) => !member.tags.some((tag) => tag.id === id))),
+	);
 
 	useEffect(() => {
 		if (!open || !member) return;

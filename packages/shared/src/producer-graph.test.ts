@@ -10,12 +10,9 @@ import {
 
 describe("resolveIngestBase", () => {
 	test("cli --env wins over XRAY_INGEST_BASE", () => {
-		expect(
-			resolveIngestBase({
-				cliEnv: "dev",
-				envBase: "https://xray-ingest.worker.hexly.ai",
-			}),
-		).toBe("http://127.0.0.1:37007");
+		expect(() =>
+			resolveIngestBase({ cliEnv: "dev", envBase: "https://xray-ingest.worker.hexly.ai" }),
+		).toThrow("explicit --ingest-base");
 		expect(
 			resolveIngestBase({
 				cliEnv: "prod",
@@ -28,23 +25,24 @@ describe("resolveIngestBase", () => {
 		expect(
 			resolveIngestBase({
 				cliBase: "https://xray-ingest.worker.hexly.ai",
-				cliEnv: "dev",
+				cliEnv: "prod",
 			}),
 		).toBe("https://xray-ingest.worker.hexly.ai");
 	});
 
 	test("env var used when no --env flag", () => {
 		expect(resolveIngestBase({ envBase: "http://127.0.0.1:37007" })).toBe("http://127.0.0.1:37007");
-		expect(resolveIngestBase({ envMode: "dev" })).toBe("http://127.0.0.1:37007");
+		expect(() => resolveIngestBase({ envMode: "dev" })).toThrow("explicit --ingest-base");
+		expect(resolveIngestBase({ envMode: "prod" })).toBe("https://xray-ingest.worker.hexly.ai");
 		expect(resolveIngestBase({})).toBe("https://xray-ingest.worker.hexly.ai");
 	});
 });
 
 describe("ingestBaseForEnv", () => {
-	test("dev vs prod vs explicit cli base", () => {
-		expect(ingestBaseForEnv("dev", undefined)).toBe("http://127.0.0.1:37007");
+	test("local base must be explicit", () => {
+		expect(() => ingestBaseForEnv("dev", undefined)).toThrow("explicit --ingest-base");
 		expect(ingestBaseForEnv("prod", undefined)).toBe("https://xray-ingest.worker.hexly.ai");
-		expect(ingestBaseForEnv("dev", "https://xray-ingest.worker.hexly.ai")).toBe(
+		expect(ingestBaseForEnv(undefined, "https://xray-ingest.worker.hexly.ai")).toBe(
 			"https://xray-ingest.worker.hexly.ai",
 		);
 	});

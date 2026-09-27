@@ -17,12 +17,12 @@ describe("link preview with native workerd HTMLRewriter", () => {
 			stdin: {
 				contents: `import { parsePreviewHtml, fetchLinkPreview } from './src/lib/link-preview.ts';
      import { hasPublicDns } from './src/lib/link-preview-url.ts';
-     export default { async fetch(request) {
+     export default { async fetch(request, env) {
       const input = await request.json();
-      if (input.dns) return Response.json(await hasPublicDns(new URL(input.url), new AbortController().signal));
+      if (input.dns) return Response.json(await hasPublicDns(new URL(input.url), new AbortController().signal, env));
       const result = input.html !== undefined
        ? await parsePreviewHtml(input.html, input.pageUrl, input.url)
-       : await fetchLinkPreview(input.url);
+       : await fetchLinkPreview(input.url, env);
       return Response.json(result);
      } };`,
 				resolveDir: process.cwd(),
@@ -38,22 +38,27 @@ describe("link preview with native workerd HTMLRewriter", () => {
 				modules: true,
 				script: bundle.outputFiles[0].text,
 				compatibilityDate: "2026-09-18",
-				outboundService: async (request: Request) => {
-					const url = new URL(request.url);
-					if (url.hostname === "cloudflare-dns.com")
-						return RuntimeResponse.json({
-							Status: 0,
-							Answer:
-								url.searchParams.get("type") === "AAAA"
-									? [{ type: 28, data: "2606:4700::1111" }]
-									: [{ type: 1, data: "93.184.216.34" }],
-						});
-					if (url.pathname === "/redirect")
-						return new RuntimeResponse(null, { status: 302, headers: { location: "/page" } });
-					return new RuntimeResponse(
-						'<title>Fallback</title><meta property="og:title" content="Live OG"><meta property="og:image" content="/photo.png">',
-						{ headers: { "content-type": "text/html" } },
-					);
+				outboundService: async () => {
+					throw new Error("Unexpected public egress");
+				},
+				serviceBindings: {
+					XRAY_EXTERNAL: async (request: Request) => {
+						const url = new URL(request.url);
+						if (url.hostname === "cloudflare-dns.com")
+							return RuntimeResponse.json({
+								Status: 0,
+								Answer:
+									url.searchParams.get("type") === "AAAA"
+										? [{ type: 28, data: "2606:4700::1111" }]
+										: [{ type: 1, data: "93.184.216.34" }],
+							});
+						if (url.pathname === "/redirect")
+							return new RuntimeResponse(null, { status: 302, headers: { location: "/page" } });
+						return new RuntimeResponse(
+							'<title>Fallback</title><meta property="og:title" content="Live OG"><meta property="og:image" content="/photo.png">',
+							{ headers: { "content-type": "text/html" } },
+						);
+					},
 				},
 			}),
 		);

@@ -1,4 +1,5 @@
 import { readResponseBounded } from "./ai-endpoint.js";
+import { type ExternalEnv, externalFetch } from "./external.js";
 
 export function publicPreviewUrl(raw: string, base?: string): URL | null {
 	try {
@@ -58,13 +59,17 @@ export function isPublicAddress(address: string): boolean {
 	);
 }
 
-export async function hasPublicDns(url: URL, signal: AbortSignal): Promise<boolean> {
+export async function hasPublicDns(
+	url: URL,
+	signal: AbortSignal,
+	env: ExternalEnv = {},
+): Promise<boolean> {
 	const results = await Promise.all(
 		["A", "AAAA"].map(async (type) => {
 			const resolver = new URL("https://cloudflare-dns.com/dns-query");
 			resolver.searchParams.set("name", url.hostname);
 			resolver.searchParams.set("type", type);
-			const response = await fetch(resolver, {
+			const response = await externalFetch(env, resolver, {
 				headers: { Accept: "application/dns-json" },
 				redirect: "manual",
 				signal,

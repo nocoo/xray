@@ -1,8 +1,17 @@
 import { Hono } from "hono";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { resetAuthorProfileCache } from "../lib/author-profile.js";
+import { externalBinding } from "../test/external-binding.js";
 import type { AppEnv } from "../types.js";
 import { meRoute } from "./me.js";
+
+beforeEach(() => {
+	vi.stubGlobal("fetch", async () => Response.json({}));
+});
+afterEach(() => {
+	vi.unstubAllGlobals();
+	resetAuthorProfileCache();
+});
 
 describe("meRoute", () => {
 	test("401 when unauthenticated", async () => {
@@ -48,13 +57,12 @@ describe("meRoute", () => {
 			// @ts-expect-error test env
 			c.env = {
 				ENVIRONMENT: "test",
-				AUTHOR_PROFILE_FETCH: async () => ({
-					status: 200,
-					json: async () => ({
+				XRAY_EXTERNAL: externalBinding(async () =>
+					Response.json({
 						name: "Zheng Li",
 						avatar: "https://cdn.example/avatar-80.jpg",
 					}),
-				}),
+				),
 			};
 			c.set("authUser", {
 				id: "u1",

@@ -36,6 +36,17 @@ export type AiSettingsState = {
 	testMsg: string | null;
 };
 
+function formKey(s: AiSettingsState) {
+	return JSON.stringify([
+		s.provider,
+		s.model,
+		s.baseUrl,
+		s.apiKey,
+		s.translationPrompt,
+		s.summaryPrompt,
+	]);
+}
+
 export function createAiSettingsVm(api: AiSettingsApi) {
 	const store = createStore<AiSettingsState>({
 		cfg: null,
@@ -54,8 +65,10 @@ export function createAiSettingsVm(api: AiSettingsApi) {
 		testMsg: null,
 	});
 
+	let baseline = formKey(store.getState());
 	return {
 		...store,
+		isDirty: () => formKey(store.getState()) !== baseline,
 		patchForm(partial: Partial<AiSettingsState>) {
 			store.setState({ ...partial, saved: false });
 		},
@@ -64,6 +77,14 @@ export function createAiSettingsVm(api: AiSettingsApi) {
 			try {
 				const data = await api.fetchAiConfig();
 				if (data && "provider" in data) {
+					baseline = formKey({
+						...store.getState(),
+						...data,
+						model: data.model ?? "",
+						baseUrl: data.baseUrl ?? "",
+						translationPrompt: data.translationPrompt ?? "",
+						summaryPrompt: data.summaryPrompt ?? "",
+					});
 					store.setState({
 						cfg: data,
 						provider: data.provider,
@@ -92,7 +113,13 @@ export function createAiSettingsVm(api: AiSettingsApi) {
 					translationPrompt: s.translationPrompt || null,
 					summaryPrompt: s.summaryPrompt || null,
 				});
-				store.setState({ cfg: data, apiKey: "", saved: true, saving: false });
+				baseline = formKey({ ...s, apiKey: "" });
+				store.setState({
+					cfg: data,
+					apiKey: store.getState().apiKey === s.apiKey ? "" : store.getState().apiKey,
+					saved: true,
+					saving: false,
+				});
 			} catch (e) {
 				store.setState({ error: errMsg(e), saving: false });
 			}

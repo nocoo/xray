@@ -4,6 +4,7 @@ import app from "../index.js";
 import * as previews from "../lib/link-preview.js";
 import { createChannel, ingestChannelArticle } from "../repos/channels.js";
 import { createChannelKey } from "../repos/push-tokens.js";
+import { identityHeaders, localIdentityBindings } from "../test/signed-identity.js";
 import { createSqliteD1 } from "../test/sqlite-d1.js";
 import type { AppEnv } from "../types.js";
 import { articleLinkPreviewRoute } from "./link-preview.js";
@@ -21,7 +22,7 @@ async function setup() {
 	const env = {
 		DB,
 		ENVIRONMENT: "test",
-		AUTH_DEV_BYPASS: "true",
+		...localIdentityBindings,
 		ALLOWED_EMAILS: "dev@xray.local,dev-b@xray.local",
 	} as AppEnv["Bindings"];
 	const pending: Promise<unknown>[] = [];
@@ -43,7 +44,7 @@ async function setup() {
 		.mockResolvedValue({ ...previews.unavailablePreview(url), title: "Public title" });
 	async function call(path: string, actor = "a", host = "127.0.0.1") {
 		const response = await app.fetch(
-			new Request(`http://127.0.0.1${path}`, { headers: { host, "x-test-actor": actor } }),
+			new Request(`http://127.0.0.1${path}`, { headers: { host, ...identityHeaders(actor) } }),
 			env,
 			ctx,
 		);

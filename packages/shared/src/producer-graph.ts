@@ -79,14 +79,17 @@ export type ResolveIngestBaseInput = {
 	envMode?: string;
 };
 
-/** --ingest-base > --env > XRAY_INGEST_BASE > XRAY_ENV > prod default */
 export function resolveIngestBase(input: ResolveIngestBaseInput): string {
+	for (const mode of [input.cliEnv, input.envMode]) {
+		if (mode && mode.toLowerCase() !== "prod")
+			throw new Error(
+				"Local producers require an explicit --ingest-base from the active environment descriptor; --env only accepts prod",
+			);
+	}
 	if (input.cliBase?.trim()) return input.cliBase.trim();
 	const cliEnv = (input.cliEnv ?? "").toLowerCase();
-	if (cliEnv === "dev") return "http://127.0.0.1:37007";
 	if (cliEnv === "prod") return "https://xray-ingest.worker.hexly.ai";
 	if (input.envBase?.trim()) return input.envBase.trim();
-	if ((input.envMode ?? "").toLowerCase() === "dev") return "http://127.0.0.1:37007";
 	return "https://xray-ingest.worker.hexly.ai";
 }
 

@@ -1,36 +1,16 @@
+import { installExternalMedia } from "../fixtures/e2e";
 import { expect, test } from "@playwright/test";
 
-/**
- * Dual-host smoke (docs/06 / plan M8).
- * Defaults: browser UI http://127.0.0.1:7007, worker http://127.0.0.1:37007 with AUTH_DEV_BYPASS.
- * Override with PLAYWRIGHT_BROWSER_URL / PLAYWRIGHT_WORKER_URL / PLAYWRIGHT_INGEST_URL.
- */
-function env(name: string): string | undefined {
-	// biome-ignore lint/suspicious/noExplicitAny: process may be absent in some runners
-	const p = (globalThis as any).process as { env?: Record<string, string | undefined> } | undefined;
-	return p?.env?.[name];
-}
-const BROWSER = env("PLAYWRIGHT_BROWSER_URL") || env("PLAYWRIGHT_BASE_URL") || "http://127.0.0.1:7007";
-const WORKER = env("PLAYWRIGHT_WORKER_URL") || "http://127.0.0.1:37007";
-const INGEST = env("PLAYWRIGHT_INGEST_URL") || WORKER;
+import { BROWSER, WORKER, INGEST, browserApiHeaders, requireWorker } from "./helpers";
+import { canonicalArticle } from "../fixtures/primitives";
+
+test.beforeEach(async ({ page }) => { await installExternalMedia(page); });
 
 test.describe("dual-host smoke", () => {
-	test("browser shell authenticates (dev bypass) and shows dashboard", async ({ page }) => {
-		try {
-			const live = await page.request.get(`${WORKER}/api/live`, {
-				headers: { host: "localhost" },
-			});
-			if (!live.ok()) {
-				if (env("CI")) throw new Error("L3 CI requires worker");
-				test.skip(true, "worker not reachable — start bun run dev");
-			}
-		} catch (e) {
-			if (env("CI")) throw e instanceof Error ? e : new Error("L3 CI requires worker");
-			test.skip(true, "worker not reachable — start bun run dev");
-		}
+	test("browser shell verifies its signed identity and shows dashboard", async ({ page }) => {
+		await requireWorker(page.request);
 
 		await page.goto(BROWSER + "/");
-		// SessionGate may load /api/me via vite proxy
 		await expect(
 			page.locator("[data-basalt-surface-root]").getByRole("heading", { name: /Dashboard/i }),
 		).toBeVisible({
@@ -39,26 +19,10 @@ test.describe("dual-host smoke", () => {
 	});
 
 	test("ingest host accepts Bearer push that appears on timeline API", async ({ request }) => {
-		try {
-			const live = await request.get(`${WORKER}/api/live`, { headers: { host: "localhost" } });
-			if (!live.ok()) {
-				if (env("CI")) throw new Error("L3 CI requires worker");
-				test.skip(true, "worker not reachable");
-			}
-		} catch (e) {
-			if (env("CI")) throw e instanceof Error ? e : new Error("L3 CI requires worker");
-			test.skip(true, "worker not reachable");
-		}
-
-		// Create WL + token via browser host headers (dev bypass)
-		const browserHeaders = {
-			host: "localhost",
-			origin: "http://localhost:7007",
-			"content-type": "application/json",
-		};
+		await requireWorker(request);
 
 		const wlRes = await request.post(`${WORKER}/api/watchlists`, {
-			headers: browserHeaders,
+			headers: browserApiHeaders,
 			data: { name: `pw-smoke-${Date.now()}` },
 		});
 		expect(wlRes.ok()).toBeTruthy();
@@ -66,7 +30,7 @@ test.describe("dual-host smoke", () => {
 		const wlId = wl.data.id;
 
 		const tokRes = await request.post(`${WORKER}/api/push-tokens`, {
-			headers: browserHeaders,
+			headers: browserApiHeaders,
 			data: { label: "pw-smoke" },
 		});
 		expect(tokRes.ok()).toBeTruthy();
@@ -75,6 +39,8 @@ test.describe("dual-host smoke", () => {
 		expect(token).toMatch(/^xray_pt_/);
 
 		const externalId = `pw-${Date.now()}`;
+		const item = canonicalArticle(externalId, "playwright smoke item");
+		item.created_at = new Date().toISOString();
 		const pushRes = await request.post(`${INGEST}/api/v1/ingest/push`, {
 			headers: {
 				host: "xray-ingest.worker.hexly.ai",
@@ -83,14 +49,7 @@ test.describe("dual-host smoke", () => {
 			},
 			data: {
 				watchlist_id: wlId,
-				items: [
-					{
-						source_type: "custom",
-						external_id: externalId,
-						created_at: new Date().toISOString().replace(/\.\d{3}Z$/, ".000Z"),
-						body: { kind: "custom", text: "playwright smoke item", title: "pw" },
-					},
-				],
+				items: [item],
 			},
 		});
 		expect(pushRes.ok()).toBeTruthy();
@@ -99,7 +58,7 @@ test.describe("dual-host smoke", () => {
 		expect(pushBody.accepted).toBeGreaterThanOrEqual(1);
 
 		const itemsRes = await request.get(`${WORKER}/api/watchlists/${wlId}/items?limit=20`, {
-			headers: { host: "localhost" },
+			headers: browserApiHeaders,
 		});
 		expect(itemsRes.ok()).toBeTruthy();
 		const items = (await itemsRes.json()) as {

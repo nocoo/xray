@@ -1,8 +1,8 @@
 import type { ArticleFilters } from "@xray/shared";
-import type { DataMode } from "./data-mode";
+import { environmentScope, ingestBase } from "./environment";
 
-export function ingestEndpoint(mode: DataMode) {
-	return `${mode === "mock" ? "http://localhost:37007" : "https://xray-ingest.worker.hexly.ai"}/api/v1/ingest/articles`;
+export function ingestEndpoint() {
+	return `${ingestBase()}/api/v1/ingest/articles`;
 }
 export function articleFilterQuery(filters: ArticleFilters) {
 	const query = new URLSearchParams();
@@ -58,8 +58,8 @@ export function adjacentArticle(ids: number[], selected: number, direction: "nex
 	const index = ids.indexOf(selected);
 	return ids[Math.max(0, Math.min(ids.length - 1, index + (direction === "next" ? 1 : -1)))];
 }
-export function readerStorageKey(userId: string, mode: DataMode) {
-	return `xray:reader:${encodeURIComponent(userId)}:${mode}`;
+export function readerStorageKey(userId: string) {
+	return `xray:reader:${encodeURIComponent(userId)}:${environmentScope()}`;
 }
 export function readPosition(storage: Pick<Storage, "getItem">, key: string) {
 	try {
@@ -102,8 +102,8 @@ export const reportExample = JSON.stringify(
 	null,
 	2,
 );
-export function channelRequest(mode: DataMode) {
-	return `curl '${ingestEndpoint(mode)}' \\
+export function channelRequest() {
+	return `curl '${ingestEndpoint()}' \\
   -H 'Authorization: Bearer YOUR_CHANNEL_TOKEN' \\
   -H 'Content-Type: application/json' \\
   --data @report.json`;

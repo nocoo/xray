@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import { type ExternalEnv, externalFetch } from "../lib/external.js";
 import { jsonErr, jsonOk, requireUser } from "../lib/http.js";
 import {
 	decryptZhetoWebhookUrl,
@@ -6,12 +7,14 @@ import {
 	IntegrationValidationError,
 	upsertZhetoSettings,
 } from "../repos/integration-secrets.js";
-import type { AppEnv, ZhetoUpstream } from "../types.js";
+import type { AppEnv } from "../types.js";
 
-export type { ZhetoUpstream };
-
-export const defaultZhetoUpstream: ZhetoUpstream = async (webhookUrl, body) => {
-	const res = await fetch(webhookUrl, {
+export async function defaultZhetoUpstream(
+	webhookUrl: string,
+	body: { url: string; note?: string; folder?: string },
+	env: ExternalEnv = {},
+) {
+	const res = await externalFetch(env, webhookUrl, {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(body),
@@ -23,7 +26,7 @@ export const defaultZhetoUpstream: ZhetoUpstream = async (webhookUrl, body) => {
 		json = {};
 	}
 	return { status: res.status, json };
-};
+}
 
 export async function getZhetoSettingsRoute(c: Context<AppEnv>) {
 	const user = requireUser(c);
@@ -95,10 +98,9 @@ export async function zhetoSaveRoute(c: Context<AppEnv>) {
 	if (note) payload.note = note;
 	if (folder) payload.folder = folder;
 
-	const upstream = c.env.ZHETO_UPSTREAM ?? defaultZhetoUpstream;
 	let up: { status: number; json: Record<string, unknown> };
 	try {
-		up = await upstream(creds.webhookUrl, payload);
+		up = await defaultZhetoUpstream(creds.webhookUrl, payload, c.env);
 	} catch {
 		return c.json({ success: false, error: "upstream unreachable" }, 502);
 	}

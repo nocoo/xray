@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { afterEach, describe, expect, test } from "vitest";
+import { assertBootEnv } from "../lib/env.js";
+import { identityHeaders, localIdentityBindings } from "../test/signed-identity.js";
 import type { AppEnv } from "../types.js";
 import { accessAuth, setJwtVerifierForTests } from "./access-auth.js";
 
@@ -58,7 +60,6 @@ function makeApp(env: Partial<AppEnv["Bindings"]>) {
 	const app = new Hono<AppEnv>();
 	const full = {
 		ENVIRONMENT: "development",
-		AUTH_DEV_BYPASS: "false",
 		ALLOWED_EMAILS: "ok@xray.local,dev@xray.local",
 		CF_ACCESS_TEAM_DOMAIN: "hexly.cloudflareaccess.com",
 		CF_ACCESS_AUD: "aud-1",
@@ -68,6 +69,14 @@ function makeApp(env: Partial<AppEnv["Bindings"]>) {
 	app.use("*", async (c, next) => {
 		// @ts-expect-error test env
 		c.env = full;
+		return next();
+	});
+	app.use("*", async (c, next) => {
+		try {
+			assertBootEnv(c.env);
+		} catch {
+			return c.json({ error: "Invalid environment" }, 500);
+		}
 		return next();
 	});
 	app.use("/api/*", accessAuth);
@@ -84,7 +93,11 @@ afterEach(() => {
 
 describe("accessAuth host matrix", () => {
 	test("live public on browser and ingest", async () => {
-		const app = makeApp({ AUTH_DEV_BYPASS: "true", ENVIRONMENT: "development" });
+		const app = makeApp({
+			...localIdentityBindings,
+			ALLOWED_EMAILS: "dev@xray.local,dev-b@xray.local",
+			ENVIRONMENT: "development",
+		});
 		for (const host of ["xray.hexly.ai", "xray-ingest.worker.hexly.ai", "localhost"]) {
 			const res = await app.request("/api/live", { headers: { host } });
 			expect(res.status, host).toBe(200);
@@ -92,7 +105,11 @@ describe("accessAuth host matrix", () => {
 	});
 
 	test("ingest rejects /api/me and unknown host rejects all", async () => {
-		const app = makeApp({ AUTH_DEV_BYPASS: "true", ENVIRONMENT: "development" });
+		const app = makeApp({
+			...localIdentityBindings,
+			ALLOWED_EMAILS: "dev@xray.local,dev-b@xray.local",
+			ENVIRONMENT: "development",
+		});
 		expect(
 			(await app.request("/api/me", { headers: { host: "xray-ingest.worker.hexly.ai" } })).status,
 		).toBe(404);
@@ -101,16 +118,26 @@ describe("accessAuth host matrix", () => {
 		).toBe(404);
 	});
 
-	test("dev bypass authenticates on browser host", async () => {
-		const app = makeApp({ AUTH_DEV_BYPASS: "true", ENVIRONMENT: "development" });
-		const res = await app.request("/api/me", { headers: { host: "xray.dev.hexly.ai" } });
+	test("signed local identity authenticates on browser host", async () => {
+		const app = makeApp({
+			...localIdentityBindings,
+			ALLOWED_EMAILS: "dev@xray.local,dev-b@xray.local",
+			ENVIRONMENT: "development",
+		});
+		const res = await app.request("/api/me", {
+			headers: { host: "xray.dev.hexly.ai", ...identityHeaders() },
+		});
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as { user: { email: string } };
 		expect(body.user.email).toBe("dev@xray.local");
 	});
 
-	test("bypass rejected in production", async () => {
-		const app = makeApp({ AUTH_DEV_BYPASS: "true", ENVIRONMENT: "production" });
+	test("local JWKS rejected in production", async () => {
+		const app = makeApp({
+			...localIdentityBindings,
+			ALLOWED_EMAILS: "dev@xray.local,dev-b@xray.local",
+			ENVIRONMENT: "production",
+		});
 		const res = await app.request("/api/me", { headers: { host: "xray.hexly.ai" } });
 		expect(res.status).toBe(500);
 	});
@@ -124,7 +151,7 @@ describe("accessAuth JWT path", () => {
 			iss: "https://hexly.cloudflareaccess.com",
 			name: "Ok",
 		}));
-		const app = makeApp({ AUTH_DEV_BYPASS: "false", ENVIRONMENT: "production" });
+		const app = makeApp({ ENVIRONMENT: "production" });
 		const res = await app.request("/api/me", {
 			headers: {
 				host: "xray.hexly.ai",
@@ -137,7 +164,7 @@ describe("accessAuth JWT path", () => {
 	});
 
 	test("missing JWT → 401", async () => {
-		const app = makeApp({ AUTH_DEV_BYPASS: "false", ENVIRONMENT: "production" });
+		const app = makeApp({ ENVIRONMENT: "production" });
 		const res = await app.request("/api/me", { headers: { host: "xray.hexly.ai" } });
 		expect(res.status).toBe(401);
 	});
@@ -146,7 +173,7 @@ describe("accessAuth JWT path", () => {
 		setJwtVerifierForTests(async () => {
 			throw new Error("bad");
 		});
-		const app = makeApp({ AUTH_DEV_BYPASS: "false", ENVIRONMENT: "production" });
+		const app = makeApp({ ENVIRONMENT: "production" });
 		const res = await app.request("/api/me", {
 			headers: {
 				host: "xray.hexly.ai",
@@ -162,7 +189,7 @@ describe("accessAuth JWT path", () => {
 			sub: "sub-x",
 			iss: "https://hexly.cloudflareaccess.com",
 		}));
-		const app = makeApp({ AUTH_DEV_BYPASS: "false", ENVIRONMENT: "production" });
+		const app = makeApp({ ENVIRONMENT: "production" });
 		const res = await app.request("/api/me", {
 			headers: {
 				host: "xray.hexly.ai",
@@ -179,7 +206,6 @@ describe("accessAuth JWT path", () => {
 			iss: "https://hexly.cloudflareaccess.com",
 		}));
 		const app = makeApp({
-			AUTH_DEV_BYPASS: "false",
 			ENVIRONMENT: "production",
 			ALLOWED_EMAILS: "",
 		});
@@ -194,7 +220,6 @@ describe("accessAuth JWT path", () => {
 
 	test("missing Access config → 500", async () => {
 		const app = makeApp({
-			AUTH_DEV_BYPASS: "false",
 			ENVIRONMENT: "production",
 			CF_ACCESS_TEAM_DOMAIN: "",
 			CF_ACCESS_AUD: "",
@@ -210,7 +235,7 @@ describe("accessAuth JWT path", () => {
 
 	test("JWT missing email/sub → 403", async () => {
 		setJwtVerifierForTests(async () => ({ sub: "only-sub" }));
-		const app = makeApp({ AUTH_DEV_BYPASS: "false", ENVIRONMENT: "production" });
+		const app = makeApp({ ENVIRONMENT: "production" });
 		const res = await app.request("/api/me", {
 			headers: {
 				host: "xray.hexly.ai",
@@ -227,7 +252,7 @@ describe("accessAuth JWT path", () => {
 			iss: "https://hexly.cloudflareaccess.com",
 			picture: "https://img/x.png",
 		}));
-		const app = makeApp({ AUTH_DEV_BYPASS: "false", ENVIRONMENT: "production" });
+		const app = makeApp({ ENVIRONMENT: "production" });
 		const res = await app.request("/api/me", {
 			headers: {
 				host: "xray.hexly.ai",
@@ -256,7 +281,6 @@ describe("accessAuth JWT path", () => {
 			iss: "https://hexly.cloudflareaccess.com",
 		}));
 		const app = makeApp({
-			AUTH_DEV_BYPASS: "false",
 			ENVIRONMENT: "production",
 			DB: db,
 		});
@@ -275,7 +299,7 @@ describe("accessAuth JWT path", () => {
 			sub: "sub-img",
 			image: "https://img/from-image.png",
 		}));
-		const app = makeApp({ AUTH_DEV_BYPASS: "false", ENVIRONMENT: "production" });
+		const app = makeApp({ ENVIRONMENT: "production" });
 		const res = await app.request("/api/me", {
 			headers: {
 				host: "xray.hexly.ai",
@@ -311,7 +335,6 @@ describe("accessAuth JWT path", () => {
 			},
 		} as unknown as D1Database;
 		const app = makeApp({
-			AUTH_DEV_BYPASS: "false",
 			ENVIRONMENT: "production",
 			DB: db,
 		});
@@ -324,7 +347,7 @@ describe("accessAuth JWT path", () => {
 		expect(res.status).toBe(500);
 	});
 
-	test("dev bypass db failure → 500", async () => {
+	test("signed local identity db failure → 500", async () => {
 		const db = {
 			prepare() {
 				return {
@@ -341,16 +364,23 @@ describe("accessAuth JWT path", () => {
 			},
 		} as unknown as D1Database;
 		const app = makeApp({
-			AUTH_DEV_BYPASS: "true",
+			...localIdentityBindings,
+			ALLOWED_EMAILS: "dev@xray.local,dev-b@xray.local",
 			ENVIRONMENT: "development",
 			DB: db,
 		});
-		const res = await app.request("/api/me", { headers: { host: "localhost" } });
+		const res = await app.request("/api/me", {
+			headers: { host: "localhost", ...identityHeaders() },
+		});
 		expect(res.status).toBe(500);
 	});
 
 	test("ingest non-live allowed path proceeds (push stub)", async () => {
-		const app = makeApp({ AUTH_DEV_BYPASS: "true", ENVIRONMENT: "development" });
+		const app = makeApp({
+			...localIdentityBindings,
+			ALLOWED_EMAILS: "dev@xray.local,dev-b@xray.local",
+			ENVIRONMENT: "development",
+		});
 		app.post("/api/v1/ingest/push", (c) => c.json({ ok: true }));
 		const res = await app.request("/api/v1/ingest/push", {
 			method: "POST",
@@ -360,7 +390,11 @@ describe("accessAuth JWT path", () => {
 	});
 
 	test("articles agent path: ingest/local proceed, browser host 404", async () => {
-		const app = makeApp({ AUTH_DEV_BYPASS: "true", ENVIRONMENT: "development" });
+		const app = makeApp({
+			...localIdentityBindings,
+			ALLOWED_EMAILS: "dev@xray.local,dev-b@xray.local",
+			ENVIRONMENT: "development",
+		});
 		app.post("/api/v1/ingest/articles", (c) => c.json({ ok: true }));
 		for (const host of [
 			"xray-ingest.worker.hexly.ai",
@@ -436,7 +470,7 @@ describe("accessAuth real jose/JWKS path (S23R3-01)", () => {
 		// production jose verifier (not injectable fake)
 		setJwtVerifierForTests(null);
 
-		const app = makeApp({ AUTH_DEV_BYPASS: "false", ENVIRONMENT: "production" });
+		const app = makeApp({ ENVIRONMENT: "production" });
 		const good = await mint(pair.privateKey, {
 			sub: "sub-real",
 			issuer: iss,
@@ -494,10 +528,18 @@ describe("accessAuth real jose/JWKS path (S23R3-01)", () => {
 	});
 });
 
-test("dev bypass X-Test-Actor b is distinct user", async () => {
-	const app = makeApp({ AUTH_DEV_BYPASS: "true", ENVIRONMENT: "test" });
-	const a = await app.request("/api/me", { headers: { host: "localhost", "x-test-actor": "a" } });
-	const b = await app.request("/api/me", { headers: { host: "localhost", "x-test-actor": "b" } });
+test("signed second tenant is a distinct user", async () => {
+	const app = makeApp({
+		...localIdentityBindings,
+		ALLOWED_EMAILS: "dev@xray.local,dev-b@xray.local",
+		ENVIRONMENT: "test",
+	});
+	const a = await app.request("/api/me", {
+		headers: { host: "localhost", ...identityHeaders("a") },
+	});
+	const b = await app.request("/api/me", {
+		headers: { host: "localhost", ...identityHeaders("b") },
+	});
 	expect(a.status).toBe(200);
 	expect(b.status).toBe(200);
 	const ja = (await a.json()) as { user: { id: string; email: string } };

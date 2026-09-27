@@ -38,7 +38,7 @@ import { ExpandableText } from "@/components/expandable-text";
 import { XVerified } from "@/components/icons/x-verified";
 import { SourceChip } from "@/components/source-chip";
 import { useNow } from "@/hooks/use-now";
-import { apiPath } from "@/lib/data-mode";
+import { apiPath } from "@/lib/environment";
 import { POST_TEXT_CLAMP_LINES, QUOTED_TEXT_CLAMP_LINES } from "@/lib/expandable-text";
 import { readTranslateRow } from "@/lib/translate-result";
 import type { Tweet, TweetMedia } from "@/lib/tweet-types";

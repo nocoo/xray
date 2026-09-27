@@ -11,6 +11,7 @@ import {
 } from "@nocoo/basalt";
 import { Pencil } from "lucide-react";
 import { useEffect, useId, useState } from "react";
+import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 
 export function RenameDialog({
 	open,
@@ -31,6 +32,7 @@ export function RenameDialog({
 	const [name, setName] = useState(initialName);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	useUnsavedDraft(open && (saving || name !== initialName));
 
 	useEffect(() => {
 		if (!open) return;

@@ -62,7 +62,6 @@ import {
 	readPreferences,
 	writeReaderValue,
 } from "@/lib/channel-reader";
-import { getDataMode } from "@/lib/data-mode";
 import { useVm } from "@/viewmodels/use-vm";
 
 export function ChannelsPage() {
@@ -78,7 +77,7 @@ export function ChannelsPage() {
 	const navigationType = useNavigationType();
 	const { setBreadcrumbs } = useBreadcrumbs();
 	const user = useAuthUser();
-	const scope = readerStorageKey(user.id, getDataMode());
+	const scope = readerStorageKey(user.id);
 	const [preferences, setPreferences] = useState(() =>
 		readPreferences(sessionStorage, `${scope}:preferences`),
 	);
@@ -285,7 +284,7 @@ export function ChannelsPage() {
 					}
 					actions={
 						<>
-							<div className="flex items-center gap-2">
+							<div className="channel-action-group flex items-center gap-2">
 								<CopyTextButton
 									key={`${channelId}/${articleId}`}
 									label="Copy full article"
@@ -342,7 +341,7 @@ export function ChannelsPage() {
 									</Button>
 								</HeaderTooltip>
 							)}
-							<div className="flex items-center gap-2">
+							<div className="channel-action-group flex items-center gap-2">
 								<fieldset
 									className="flex min-w-0 items-center gap-2"
 									aria-label="Reading preferences"

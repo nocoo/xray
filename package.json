@@ -2,16 +2,14 @@
 	"name": "xray",
 	"version": "2.5.5",
 	"private": true,
+	"type": "module",
 	"packageManager": "bun@1.3.14",
 	"workspaces": [
 		"packages/*"
 	],
 	"scripts": {
 		"build:shared": "turbo run build --filter=@xray/shared",
-		"dev": "bun run db:migrate:local && bun run db:seed:mock && bun run build:shared && turbo run dev --filter=@xray/shared --filter=@xray/ui --filter=@xray/worker",
-		"login:product": "cloudflared access login https://xray.hexly.ai > /dev/null",
-		"dev:ui": "bun run build:shared && turbo run dev --filter=@xray/shared --filter=@xray/ui",
-		"dev:worker": "bun run db:migrate:local && bun run db:seed:mock && bun run build:shared && turbo run dev --filter=@xray/shared --filter=@xray/worker",
+		"dev": "bun run build:shared && bun scripts/envs.ts dev",
 		"build": "turbo run build --filter=@xray/shared --filter=@xray/ui --filter=@xray/worker",
 		"deploy": "bun run build && turbo run deploy --filter=@xray/worker",
 		"typecheck": "turbo typecheck",
@@ -24,13 +22,15 @@
 		"test:l2:unit": "bun run --filter @xray/worker test",
 		"check:wrangler-version": "bun run scripts/check-wrangler-version-sync.ts",
 		"gate:routes": "bun run scripts/check-route-coverage.ts",
-		"db:migrate:local": "cd packages/worker && bunx wrangler d1 migrations apply xray-db --local --env development --persist-to .wrangler/state-mock",
-		"db:seed:mock": "cd packages/worker && bunx wrangler d1 execute xray-db --local --env development --persist-to .wrangler/state-mock --file ../../scripts/mock-data.sql",
 		"migrate:v1": "bun run scripts/migrate-v1-to-d1.ts",
 		"refresh:watchlists": "bun run scripts/refresh-watchlists.ts",
 		"release": "bun scripts/release.ts",
-		"test:l3": "playwright test",
-		"test:ai": "bun run --filter @xray/worker test src/routes/ai-zheto-dashboard.test.ts src/lib/secrets-crypto.test.ts"
+		"test:l3": "bun run build && bun scripts/test-l3.ts",
+		"test:ai": "bun run --filter @xray/worker test src/routes/ai-zheto-dashboard.test.ts src/lib/secrets-crypto.test.ts",
+		"preview": "bun run build && bun scripts/envs.ts dev --built",
+		"login:prod": "cloudflared access login https://xray.hexly.ai > /dev/null",
+		"env:db": "bun scripts/envs.ts",
+		"capture:demo": "bun run build && bun scripts/capture-demo.ts"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.14",

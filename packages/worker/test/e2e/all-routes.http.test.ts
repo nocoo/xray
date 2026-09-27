@@ -3,15 +3,16 @@
  * Hits local wrangler via fetch (not app.request).
  */
 import { describe, expect, test } from "vitest";
+import { AI_BASE_URL, AI_MODEL, ZHETO_WEBHOOK_URL } from "../../../../fixtures/primitives.js";
 import {
 	BASE,
-	browserHeaders,
 	createGroup,
 	createWatchlist,
 	dataOf,
 	ingestHeaders,
 	jsonFetch,
 	mintToken,
+	rawHttp,
 } from "./helpers.js";
 
 describe("L2 real HTTP — all API routes", () => {
@@ -109,13 +110,10 @@ describe("L2 real HTTP — all API routes", () => {
 		}
 
 		{
-			const { status, body } = await jsonFetch(
-				`/api/watchlists/${wl.id}/members/${member.id}`,
-				{
-					method: "PATCH",
-					body: JSON.stringify({ note: "l2-note", displayName: "Alice2" }),
-				},
-			);
+			const { status, body } = await jsonFetch(`/api/watchlists/${wl.id}/members/${member.id}`, {
+				method: "PATCH",
+				body: JSON.stringify({ note: "l2-note", displayName: "Alice2" }),
+			});
 			expect(status).toBe(200);
 			expect(dataOf<{ note: string | null }>(body).note).toBe("l2-note");
 		}
@@ -159,7 +157,8 @@ describe("L2 real HTTP — all API routes", () => {
 			const page = dataOf<{ items: Array<{ id: number; externalId: string }> }>(body);
 			const hit = page.items.find((i) => i.externalId === externalId);
 			expect(hit).toBeTruthy();
-			itemId = hit!.id;
+			if (!hit) throw new Error("Ingested item missing");
+			itemId = hit.id;
 		}
 
 		{
@@ -302,8 +301,8 @@ describe("L2 real HTTP — all API routes", () => {
 				method: "PUT",
 				body: JSON.stringify({
 					provider: "openai",
-					model: "gpt-4o-mini",
-					baseUrl: "https://api.openai.com/v1",
+					model: AI_MODEL,
+					baseUrl: AI_BASE_URL,
 					apiKey: "sk-l2-test-key-not-real",
 					translationPrompt: "translate",
 				}),
@@ -314,27 +313,77 @@ describe("L2 real HTTP — all API routes", () => {
 			expect(cfg.provider).toBe("openai");
 		}
 		{
-			// Without real upstream, expect ok:false or network-shaped error — route must respond.
 			const { status, body } = await jsonFetch("/api/ai-config/test", {
 				method: "POST",
 				body: JSON.stringify({}),
 			});
 			expect(status).toBe(200);
-			expect(typeof (body as { ok?: boolean }).ok === "boolean" || "data" in (body as object)).toBe(
-				true,
-			);
+			expect(dataOf(body)).toMatchObject({
+				ok: true,
+				status: 200,
+				provider: "openai",
+				model: AI_MODEL,
+			});
 		}
 
 		const wl = await createWatchlist(`l2-tr-${Date.now()}`);
-		{
-			const { status, body } = await jsonFetch(`/api/watchlists/${wl.id}/translate`, {
-				method: "POST",
-				body: JSON.stringify({ limit: 5 }),
-			});
-			// May 200 empty or 4xx if no config path — accept handled responses
-			expect([200, 400, 404, 422, 500].includes(status)).toBe(true);
-			expect(body).toBeTruthy();
-		}
+		expect(
+			(
+				await jsonFetch(`/api/watchlists/${wl.id}`, {
+					method: "PATCH",
+					body: JSON.stringify({ translateEnabled: true }),
+				})
+			).status,
+		).toBe(200);
+		const token = await mintToken(`translation-${wl.id}`);
+		const pushed = await rawHttp("/api/v1/ingest/push", {
+			method: "POST",
+			headers: ingestHeaders(token.token),
+			body: JSON.stringify({
+				watchlist_id: wl.id,
+				items: [
+					{
+						source_type: "custom",
+						external_id: `translate-${crypto.randomUUID()}`,
+						created_at: new Date().toISOString(),
+						body: { kind: "custom", text: "Keep a source beside each observation." },
+					},
+				],
+			}),
+		});
+		expect(pushed.status).toBe(200);
+		expect(JSON.parse(pushed.text)).toMatchObject({ ok: true, accepted: 1 });
+		const before = dataOf<{ items: { aiStatus: string }[] }>(
+			(await jsonFetch(`/api/watchlists/${wl.id}/items`)).body,
+		);
+		expect(before.items[0]?.aiStatus).toBe("not_requested");
+		const { status, body } = await jsonFetch(`/api/watchlists/${wl.id}/translate`, {
+			method: "POST",
+			body: JSON.stringify({ limit: 5 }),
+		});
+		expect(status).toBe(200);
+		expect(dataOf(body)).toMatchObject({
+			timed_out: false,
+			results: [
+				{
+					ai_status: "succeeded",
+					translatedText: "将来源保留在观察记录旁，围绕一个明确问题展开实验。",
+				},
+			],
+		});
+		const after = dataOf<{ items: { aiStatus: string; translatedText: string }[] }>(
+			(await jsonFetch(`/api/watchlists/${wl.id}/items`)).body,
+		);
+		expect(after.items[0]).toMatchObject({
+			aiStatus: "succeeded",
+			translatedText: "将来源保留在观察记录旁，围绕一个明确问题展开实验。",
+		});
+		const denied = await jsonFetch("/api/ai-config/test", {
+			method: "POST",
+			body: JSON.stringify({ baseUrl: "https://api.openai.com/unconfigured" }),
+		});
+		expect(denied.status).toBe(200);
+		expect(dataOf(denied.body)).toMatchObject({ ok: false, status: 502 });
 	});
 
 	test("zheto get/put/save", async () => {
@@ -347,33 +396,31 @@ describe("L2 real HTTP — all API routes", () => {
 			const { status, body } = await jsonFetch("/api/integrations/zheto", {
 				method: "PUT",
 				body: JSON.stringify({
-					webhookUrl: "https://zhe.to/api/webhook/l2-test-token",
+					webhookUrl: ZHETO_WEBHOOK_URL,
 					folder: "l2",
 				}),
 			});
-			// 200 configured, or 400 if host policy rejects — route exercised either way
-			expect([200, 400].includes(status)).toBe(true);
-			if (status === 200) {
-				expect(dataOf<{ configured: boolean }>(body).configured).toBe(true);
-			}
+			expect(status).toBe(200);
+			expect(dataOf<{ configured: boolean }>(body).configured).toBe(true);
 		}
 		{
-			const { status } = await jsonFetch("/api/integrations/zheto/save", {
+			const { status, body } = await jsonFetch("/api/integrations/zheto/save", {
 				method: "POST",
 				body: JSON.stringify({ url: "https://example.com/l2", note: "n" }),
 			});
-			// upstream dead / not configured → 4xx/5xx still counts as route hit
-			expect([200, 400, 404, 502, 500, 503].includes(status)).toBe(true);
+			expect(status).toBe(200);
+			expect(dataOf(body)).toMatchObject({
+				shortUrl: "https://zhe.to/fixture",
+				slug: "fixture",
+				originalUrl: "https://example.com/l2",
+				isExisting: false,
+			});
 		}
 	});
 
-	test("auth failure without bypass identity on unknown host is still reachable", async () => {
-		// live is public
-		const res = await fetch(`${BASE}/api/live`, {
-			headers: { host: "evil.example" },
-		});
-		// host classification may 404 or still answer live depending on middleware order
-		expect([200, 404].includes(res.status)).toBe(true);
+	test("unsigned browser requests and unknown hosts fail closed", async () => {
+		expect((await rawHttp("/api/me", { headers: { host: "xray.dev.hexly.ai" } })).status).toBe(401);
+		expect((await rawHttp("/api/live", { headers: { host: "evil.example" } })).status).toBe(404);
 	});
 
 	test("tenant isolation: foreign watchlist id → 404", async () => {
@@ -381,6 +428,3 @@ describe("L2 real HTTP — all API routes", () => {
 		expect(status).toBe(404);
 	});
 });
-
-// Ensure helpers import stays used for typecheck of browserHeaders in isolation
-void browserHeaders;

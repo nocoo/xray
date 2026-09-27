@@ -14,7 +14,7 @@ import { useRestoreDialogFocus } from "@/hooks/restore-dialog-focus";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { documentTitle, SITE_TITLE } from "@/lib/document-title";
 import { BreadcrumbsProvider, useBreadcrumbs } from "./breadcrumbs-context";
-import { DataModeSwitch } from "./data-mode-switch";
+import { EnvironmentSwitch } from "./environment-switch";
 import { HeaderTooltip, HexlyLink } from "./header-links";
 import { PageAsideProvider, usePageAsideHost } from "./page-aside";
 import { Sidebar } from "./sidebar";
@@ -107,7 +107,7 @@ function AppShellInner({ children }: AppShellProps) {
 					title={chrome.title}
 					actions={
 						<>
-							<DataModeSwitch />
+							<EnvironmentSwitch />
 							{!isMobile && (
 								<HeaderTooltip label="GitHub repository">
 									<Button variant="ghost" size="icon" className="h-8 w-8" asChild>

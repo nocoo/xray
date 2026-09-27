@@ -1,11 +1,6 @@
 import type { Context, Next } from "hono";
-import { createRemoteJWKSet, type JWTPayload, jwtVerify } from "jose";
-import {
-	authDevBypassEnabled,
-	DEV_BYPASS_IDENTITY,
-	isDevOrTest,
-	parseAllowedEmails,
-} from "../lib/env.js";
+import { createLocalJWKSet, createRemoteJWKSet, type JWTPayload, jwtVerify } from "jose";
+import { parseAllowedEmails } from "../lib/env.js";
 import { classifyHost, isIngestAllowedPath } from "../lib/hosts.js";
 import { UserBindConflictError, upsertUserByAccess } from "../repos/users.js";
 import type { AppEnv, AuthUser } from "../types.js";
@@ -14,21 +9,41 @@ let jwksCache: ReturnType<typeof createRemoteJWKSet> | null = null;
 let jwksCacheTeamDomain: string | null = null;
 
 /** Injectable for tests (S23-05). */
-export type JwtVerifier = (token: string, teamDomain: string, aud: string) => Promise<JWTPayload>;
+export type JwtVerifier = (
+	token: string,
+	teamDomain: string,
+	aud: string,
+	localJwks?: string,
+) => Promise<JWTPayload>;
 
 async function defaultJwtVerifier(
 	token: string,
 	teamDomain: string,
 	aud: string,
+	localJwks?: string,
 ): Promise<JWTPayload> {
+	const options = { issuer: `https://${teamDomain}`, audience: aud, requiredClaims: ["exp"] };
+	if (localJwks !== undefined) {
+		const jwks = JSON.parse(localJwks);
+		if (
+			!Array.isArray(jwks?.keys) ||
+			jwks.keys.length === 0 ||
+			jwks.keys.some(
+				(key: Record<string, unknown>) =>
+					!key ||
+					!["RSA", "EC", "OKP"].includes(String(key.kty)) ||
+					["d", "p", "q", "dp", "dq", "qi", "oth", "k"].some((field) => field in key),
+			)
+		) {
+			throw new Error("Local JWKS must contain public signing keys");
+		}
+		return (await jwtVerify(token, createLocalJWKSet(jwks), options)).payload;
+	}
 	if (!(jwksCache && jwksCacheTeamDomain === teamDomain)) {
 		jwksCache = createRemoteJWKSet(new URL(`https://${teamDomain}/cdn-cgi/access/certs`));
 		jwksCacheTeamDomain = teamDomain;
 	}
-	const { payload } = await jwtVerify(token, jwksCache, {
-		issuer: `https://${teamDomain}`,
-		audience: aud,
-	});
+	const { payload } = await jwtVerify(token, jwksCache, options);
 	return payload;
 }
 
@@ -44,41 +59,6 @@ async function resolveIdentity(
 	c: Context<AppEnv>,
 ): Promise<{ ok: true; user: AuthUser } | { ok: false; status: 401 | 403 | 500; error: string }> {
 	const env = c.env;
-
-	if (authDevBypassEnabled(env)) {
-		if (!isDevOrTest(env)) {
-			return {
-				ok: false,
-				status: 500,
-				error: "AUTH_DEV_BYPASS forbidden outside development/test",
-			};
-		}
-		// L2 dual-tenant: X-Test-Actor: a|b (test/development only)
-		const actor = (c.req.header("x-test-actor") || "a").toLowerCase();
-		const identity =
-			actor === "b"
-				? {
-						email: "dev-b@xray.local",
-						name: "Dev User B",
-						image: null as string | null,
-						accessIss: DEV_BYPASS_IDENTITY.accessIss,
-						accessSub: "dev-bypass-sub-b",
-					}
-				: {
-						email: DEV_BYPASS_IDENTITY.email,
-						name: DEV_BYPASS_IDENTITY.name,
-						image: DEV_BYPASS_IDENTITY.image,
-						accessIss: DEV_BYPASS_IDENTITY.accessIss,
-						accessSub: DEV_BYPASS_IDENTITY.accessSub,
-					};
-		try {
-			const user = await upsertUserByAccess(env.DB, identity);
-			return { ok: true, user };
-		} catch (e) {
-			const msg = e instanceof Error ? e.message : String(e);
-			return { ok: false, status: 500, error: msg };
-		}
-	}
 
 	const teamDomain = env.CF_ACCESS_TEAM_DOMAIN;
 	const aud = env.CF_ACCESS_AUD;
@@ -97,7 +77,7 @@ async function resolveIdentity(
 
 	let payload: JWTPayload;
 	try {
-		payload = await jwtVerifier(jwt, teamDomain, aud);
+		payload = await jwtVerifier(jwt, teamDomain, aud, env.XRAY_LOCAL_JWKS);
 	} catch {
 		return { ok: false, status: 403, error: "Invalid Access JWT" };
 	}

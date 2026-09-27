@@ -4,6 +4,7 @@ import { InputArea } from "@nocoo/basalt/components/input-area";
 import { ARTICLE_LIMITS, type ArticleInput, type ChannelArticle } from "@xray/shared";
 import { Save } from "lucide-react";
 import { useState } from "react";
+import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 
 export function ArticleEditor({
 	article,
@@ -23,6 +24,14 @@ export function ArticleEditor({
 		summary: article.summary ?? "",
 		markdown: article.markdown,
 	});
+	useUnsavedDraft(
+		busy ||
+			draft.title !== article.title ||
+			draft.report_date !== article.reportDate ||
+			draft.author !== (article.author ?? "") ||
+			draft.summary !== (article.summary ?? "") ||
+			draft.markdown !== article.markdown,
+	);
 	return (
 		<form
 			className="mt-5 min-w-0 font-sans"

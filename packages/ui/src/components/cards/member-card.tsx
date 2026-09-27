@@ -4,7 +4,7 @@ import { Pencil, RefreshCw, Trash2, Users } from "lucide-react";
 import { memo } from "react";
 import { XVerified } from "@/components/icons/x-verified";
 import { SourceChip } from "@/components/source-chip";
-import type { MockWatchlistMember } from "@/lib/mock-data";
+import type { WatchlistMemberCard } from "@/lib/content-types";
 import { formatCount } from "@/lib/utils";
 
 export const MemberCard = memo(function MemberCard({
@@ -14,7 +14,7 @@ export const MemberCard = memo(function MemberCard({
 	onRefresh,
 	refreshing,
 }: {
-	member: MockWatchlistMember;
+	member: WatchlistMemberCard;
 	onEdit?: () => void;
 	onDelete?: () => void;
 	onRefresh?: () => void;

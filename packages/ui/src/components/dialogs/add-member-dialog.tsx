@@ -20,6 +20,7 @@ import { UserPlus } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { addGroupMember } from "@/api/groups";
 import { addMember, fetchTags, type Tag } from "@/api/watchlists";
+import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 
 export type AddMemberTarget =
 	| { kind: "watchlist"; id: number; name?: string }
@@ -46,6 +47,14 @@ export function AddMemberDialog({
 	const [tags, setTags] = useState<Tag[]>([]);
 	const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 	const [tagsError, setTagsError] = useState<string | null>(null);
+	useUnsavedDraft(
+		open &&
+			(saving ||
+				handle !== "" ||
+				note !== "" ||
+				sourceType !== "x.com" ||
+				selectedTagIds.length > 0),
+	);
 
 	useEffect(() => {
 		if (!open) return;

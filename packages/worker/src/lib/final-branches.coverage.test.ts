@@ -279,7 +279,6 @@ describe("final branch matrix", () => {
 			// @ts-expect-error test
 			c.env = {
 				ENVIRONMENT: "development",
-				AUTH_DEV_BYPASS: "false",
 				ALLOWED_EMAILS: "*",
 				CF_ACCESS_TEAM_DOMAIN: "example.cloudflareaccess.com",
 				CF_ACCESS_AUD: "aud",
@@ -800,7 +799,6 @@ describe("final branch matrix", () => {
 			// @ts-expect-error
 			c.env = {
 				ENVIRONMENT: "development",
-				AUTH_DEV_BYPASS: "false",
 				ALLOWED_EMAILS: "*",
 				CF_ACCESS_TEAM_DOMAIN: "example.cloudflareaccess.com",
 				CF_ACCESS_AUD: "aud",

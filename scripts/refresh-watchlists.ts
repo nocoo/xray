@@ -93,7 +93,7 @@ Options:
   --max N             twitter user-posts --max (default: 20; CLI may page up to N)
   --cache-dir PATH    Raw cache root (default: XRAY_CACHE_DIR or .cache/twitter-cli)
   --ingest-base URL   Override ingest host (graph + push)
-  --env prod|dev      Sugar for ingest base (dev → 127.0.0.1:37007)
+  --env prod          Select canonical production ingest; local requires --ingest-base
   --twitter-bin PATH  Default TWITTER_BIN or twitter
   --spread-window-min N  Spread starts across N minutes (default 60). See docs/10.
   --min-gap-ms N      Min gap between handle starts (default 12000)
@@ -133,11 +133,6 @@ if (refreshModeRaw !== "full" && refreshModeRaw !== "incremental") {
 }
 const refreshMode = refreshModeRaw as "full" | "incremental";
 const spreadWindowMs = noSpread ? 0 : spreadWindowMin * 60_000 || DEFAULT_SPREAD_WINDOW_MS;
-const envMode = (values.env ?? env("XRAY_ENV") ?? "prod").toLowerCase();
-if (envMode !== "prod" && envMode !== "dev") {
-	console.error(`invalid --env ${envMode} (want prod|dev)`);
-	process.exit(2);
-}
 const ingestBase = assertAllowedBaseUrl(
 	resolveIngestBase({
 		cliBase: values["ingest-base"],

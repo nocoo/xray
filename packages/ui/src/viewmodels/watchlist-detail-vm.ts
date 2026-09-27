@@ -1,9 +1,9 @@
 import type { SourceType } from "@xray/shared";
 import type { TranslateResult } from "@/api/ai";
 import type { IngestLog, Member, TimelineItem, Watchlist } from "@/api/watchlists";
+import type { WatchlistMemberCard } from "@/lib/content-types";
 import { POST_TEXT_CLAMP_LINES } from "@/lib/expandable-text";
 import { ITEMS_PAGE_LIMIT } from "@/lib/feed-columns";
-import type { MockWatchlistMember } from "@/lib/mock-data";
 import type { Tweet, TweetMedia } from "@/lib/tweet-types";
 import { createStore, errMsg } from "./store";
 
@@ -57,7 +57,7 @@ export type WatchlistDetailState = {
 	settingsError: string | null;
 };
 
-export function memberToCard(m: Member): MockWatchlistMember {
+export function memberToCard(m: Member): WatchlistMemberCard {
 	return {
 		id: m.id,
 		sourceType: m.sourceType,

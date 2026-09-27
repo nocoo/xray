@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import { readResponseBounded, resolveAiBaseUrl } from "../lib/ai-endpoint.js";
+import { externalFetch } from "../lib/external.js";
 import { jsonErr, jsonOk, requireUser } from "../lib/http.js";
 import {
 	AiConfigValidationError,
@@ -121,7 +122,7 @@ export async function testAiConfigRoute(c: Context<AppEnv>) {
 	const ac = new AbortController();
 	const timer = setTimeout(() => ac.abort(), AI_TEST_TIMEOUT_MS);
 	try {
-		const res = await fetch(base.chatCompletionsUrl, {
+		const res = await externalFetch(c.env, base.chatCompletionsUrl, {
 			method: "POST",
 			headers: {
 				"content-type": "application/json",

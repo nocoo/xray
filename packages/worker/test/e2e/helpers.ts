@@ -1,7 +1,22 @@
 import http from "node:http";
 import { expect } from "vitest";
 
-export const BASE = process.env.XRAY_L2_BASE || "http://127.0.0.1:18787";
+const runtimeBase = process.env.XRAY_L2_BASE;
+if (!runtimeBase) throw new Error("L2 requires its managed E2E runtime");
+const runtimeUrl = new URL(runtimeBase);
+if (
+	runtimeUrl.protocol !== "http:" ||
+	runtimeUrl.hostname !== "127.0.0.1" ||
+	!runtimeUrl.port ||
+	runtimeUrl.username ||
+	runtimeUrl.password ||
+	runtimeUrl.pathname !== "/" ||
+	runtimeUrl.search ||
+	runtimeUrl.hash
+) {
+	throw new Error("L2 refuses a nonlocal runtime URL");
+}
+export const BASE = runtimeUrl.origin;
 
 /** undici fetch forbids Host; use this to exercise dual-host routing. */
 export function rawHttp(
@@ -17,7 +32,9 @@ export function rawHttp(
 				path: `${url.pathname}${url.search}`,
 				method: init.method ?? "GET",
 				headers: {
-					...(init.body === undefined ? {} : { "content-length": String(Buffer.byteLength(init.body)) }),
+					...(init.body === undefined
+						? {}
+						: { "content-length": String(Buffer.byteLength(init.body)) }),
 					...init.headers,
 				},
 			},
@@ -34,23 +51,35 @@ export function rawHttp(
 				});
 			},
 		);
+		req.setTimeout(15_000, () => req.destroy(new Error("L2 HTTP request timed out")));
 		req.on("error", reject);
 		if (init.body) req.write(init.body);
 		req.end();
 	});
 }
 
-export function browserHeaders(extra?: Record<string, string>): Record<string, string> {
+export function actorHeaders(actor = "a", extra?: Record<string, string>): Record<string, string> {
+	if (actor !== "a" && actor !== "b") throw new Error("Unknown L2 actor");
+	const jwt = process.env[actor === "a" ? "XRAY_L2_JWT_A" : "XRAY_L2_JWT_B"];
+	if (!jwt) throw new Error("L2 requires signed runtime identities");
 	return {
 		host: "127.0.0.1",
 		origin: "http://localhost:7007",
 		accept: "application/json",
 		"content-type": "application/json",
+		"Cf-Access-Jwt-Assertion": jwt,
 		...extra,
 	};
 }
 
-export function ingestHeaders(token: string, extra?: Record<string, string>): Record<string, string> {
+export function browserHeaders(extra?: Record<string, string>): Record<string, string> {
+	return actorHeaders("a", extra);
+}
+
+export function ingestHeaders(
+	token: string,
+	extra?: Record<string, string>,
+): Record<string, string> {
 	return {
 		host: "xray-ingest.worker.hexly.ai",
 		authorization: `Bearer ${token}`,
@@ -66,6 +95,7 @@ export async function jsonFetch<T = unknown>(
 ): Promise<{ status: number; body: T; res: Response }> {
 	const res = await fetch(`${BASE}${path}`, {
 		...init,
+		signal: init?.signal ?? AbortSignal.timeout(15_000),
 		headers: {
 			...browserHeaders(),
 			...(init?.headers ?? {}),

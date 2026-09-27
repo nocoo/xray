@@ -6,6 +6,7 @@ import { useEffect, useMemo } from "react";
 import * as zhetoApi from "@/api/zheto";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { FormSkeleton } from "@/components/loading-skeletons";
+import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 import { useVm } from "@/viewmodels/use-vm";
 import { createZhetoSettingsVm } from "@/viewmodels/zheto-settings-vm";
 
@@ -13,6 +14,7 @@ export function IntegrationsZhetoPage() {
 	const { setBreadcrumbs } = useBreadcrumbs();
 	const vm = useMemo(() => createZhetoSettingsVm(zhetoApi), []);
 	const { settings, webhookUrl, folder, error, saved, loading } = useVm(vm);
+	useUnsavedDraft(vm.isDirty());
 
 	useEffect(() => {
 		setBreadcrumbs([{ label: "Integrations" }, { label: "zhe.to" }]);

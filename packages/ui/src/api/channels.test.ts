@@ -54,9 +54,6 @@ test("channel API uses tenant browser client, serialized bodies and date/cursor 
 		["/api/channels/4/keys", "POST", '{"label":"Agent"}'],
 		["/api/channels/4/keys/2", "DELETE", undefined],
 	]);
-	sessionStorage.setItem("xray:data-mode", "product");
-	await api.fetchChannels();
-	expect(fetch.mock.lastCall?.[0]).toBe("/__product/api/channels");
 });
 
 test("read mutations use browser PUT endpoints", async () => {

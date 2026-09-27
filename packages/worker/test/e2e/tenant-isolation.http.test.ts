@@ -1,14 +1,11 @@
 /**
  * L2 real-HTTP tenant isolation (docs/06 XR-13).
- * Dual actors via X-Test-Actor: a|b under AUTH_DEV_BYPASS + ENVIRONMENT=test.
+ * Separate signed identities use the managed local issuer and normal JWT verification.
  * Expect: cross-tenant resource access → 404; revoked token → 401.
  */
 import { describe, expect, test } from "vitest";
-import { BASE, browserHeaders, dataOf, ingestHeaders, jsonFetch } from "./helpers.js";
-
-function actorHeaders(actor: "a" | "b", extra?: Record<string, string>) {
-	return browserHeaders({ "x-test-actor": actor, ...extra });
-}
+import { ZHETO_WEBHOOK_URL } from "../../../../fixtures/primitives.js";
+import { actorHeaders, BASE, dataOf, ingestHeaders, jsonFetch } from "./helpers.js";
 
 async function createWatchlistAs(actor: "a" | "b", name: string) {
 	const { status, body } = await jsonFetch("/api/watchlists", {
@@ -49,7 +46,11 @@ describe("L2 tenant isolation (real HTTP, dual actor)", () => {
 			["PATCH", `/api/watchlists/${wlA.id}`, JSON.stringify({ name: "hijack" })],
 			["DELETE", `/api/watchlists/${wlA.id}`, undefined],
 			["GET", `/api/watchlists/${wlA.id}/members`, undefined],
-			["POST", `/api/watchlists/${wlA.id}/members`, JSON.stringify({ sourceType: "x.com", handle: "x" })],
+			[
+				"POST",
+				`/api/watchlists/${wlA.id}/members`,
+				JSON.stringify({ sourceType: "x.com", handle: "x" }),
+			],
 			["GET", `/api/watchlists/${wlA.id}/items`, undefined],
 			["GET", `/api/watchlists/${wlA.id}/ingest-logs`, undefined],
 			["POST", `/api/watchlists/${wlA.id}/translate`, JSON.stringify({ limit: 1 })],
@@ -62,9 +63,9 @@ describe("L2 tenant isolation (real HTTP, dual actor)", () => {
 			expect(res.status, `${method} ${path}`).toBe(404);
 		}
 
-		expect((await jsonFetch(`/api/watchlists/${wlA.id}`, { headers: actorHeaders("a") })).status).toBe(
-			200,
-		);
+		expect(
+			(await jsonFetch(`/api/watchlists/${wlA.id}`, { headers: actorHeaders("a") })).status,
+		).toBe(200);
 	});
 
 	test("group matrix: B cannot R/W A", async () => {
@@ -110,12 +111,11 @@ describe("L2 tenant isolation (real HTTP, dual actor)", () => {
 		expect(cfgB.model === "gpt-actor-a-only").toBe(false);
 		expect(cfgB.hasApiKey === true && cfgB.model === "gpt-actor-a-only").toBe(false);
 
-		// allowlisted local host (ZHETO_WEBHOOK_ALLOW_HOSTS in L2 global-setup)
 		const zheA = await jsonFetch("/api/integrations/zheto", {
 			method: "PUT",
 			headers: actorHeaders("a"),
 			body: JSON.stringify({
-				webhookUrl: "https://localhost/api/webhook/actor-a-secret",
+				webhookUrl: ZHETO_WEBHOOK_URL,
 				folder: "folder-a",
 			}),
 		});
@@ -130,7 +130,6 @@ describe("L2 tenant isolation (real HTTP, dual actor)", () => {
 		expect(zheBbody.configured).toBe(false);
 		expect(zheBbody.folder).toBeNull();
 	});
-
 
 	test("B cannot revoke A token; B cannot delete A item", async () => {
 		const wlA = await createWatchlistAs("a", `iso-item-${Date.now()}`);
@@ -250,4 +249,3 @@ describe("L2 tenant isolation (real HTTP, dual actor)", () => {
 		expect(bodyB.watchlists.some((w) => w.id === wlA.id)).toBe(false);
 	});
 });
-

@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { createGroup } from "@/api/groups";
 import { WatchlistIconPicker } from "@/components/watchlist-icon-picker";
+import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { resolveIcon } from "@/lib/watchlist-icons";
 
@@ -33,6 +34,7 @@ export function CreateGroupDialog({
 	const [icon, setIcon] = useState("users");
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	useUnsavedDraft(open && (saving || name !== "" || description !== "" || icon !== "users"));
 
 	useEffect(() => {
 		if (!open) return;

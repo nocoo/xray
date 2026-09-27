@@ -32,7 +32,7 @@ export async function articleLinkPreviewRoute(c: Context<AppEnv>): Promise<Respo
 		/* Cache failure must not block reading. */
 	}
 	if (cached) return jsonOk(c, await cached.json<LinkPreview>());
-	const preview = await fetchLinkPreview(normalized.href);
+	const preview = await fetchLinkPreview(normalized.href, c.env);
 	c.executionCtx.waitUntil(
 		caches.default
 			.put(

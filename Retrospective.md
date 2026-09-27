@@ -140,3 +140,9 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 - **What:** The first commit gate rejected the CJK fixture because the seed catalog test still expected 144 reports and the previous latest article.
 - **Why:** Renderer checks covered the new example, but the seed's exact inventory assertions were overlooked.
 - **Follow-up:** Update total, per-channel and ordering expectations together whenever adding seeded reports; retain the existing idempotency and collision checks.
+
+## 2026-09-27: Local environment integration exposed lifecycle assumptions
+
+- **What:** Native startup rejected fixture constants exported as Worker entrypoints. Review also found that stale caller metadata could skip a D1 cleanup marker check, a failed switch could publish its candidate early, and a streaming failure could escape the local gateway handler.
+- **Why:** Static contracts and successful request tests did not exercise workerd exports, persisted ownership metadata, partial streams or shutdown during allocation. The first browser acceptance artifacts also used Playwright's disposable output directory.
+- **Follow-up:** Keep provider exports to native entrypoints, compare persisted owner state, publish a switch only after cleanup succeeds, retain every allocated runtime until its cleanup completes, and await streaming pipelines. Native concurrent-state and gateway failure tests now cover these cases. Keep independent acceptance captures under `reports/`, outside Playwright's resettable output tree.

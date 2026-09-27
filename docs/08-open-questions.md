@@ -43,7 +43,7 @@
 | XR-18 | P2 | window priority；no null unlimited default |
 | XR-19 | P2 | `/api/v1/ingest/push` canonical only |
 | XR-20 | P2 | ai_status；logs/settings in modules |
-| XR-21 | P2 | AUTH_DEV_BYPASS only；ports locked |
+| XR-21 | P2 | **2026-08-10 historical decision:** auth bypass and fixed ports. **Superseded 2026-09-27:** Demo/E2E use signed fixture JWTs with normal verification, owned native D1 and dynamically allocated Worker/inspector ports; interactive gateway remains 7007. See [12](12-local-environments.md). |
 | XR-22 | P2 | ALLOWED_EMAILS mandatory；Origin on mutations |
 | XR-23 | P2 | M8 cutover/rollback checklist |
 | XR-24 | P2 | observability minimum |

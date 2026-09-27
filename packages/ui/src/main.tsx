@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import "./index.css";
+import { initializeEnvironment } from "./lib/environment";
 
 const root = document.getElementById("root");
 if (!root) {
@@ -20,8 +21,15 @@ document.documentElement.classList.toggle("dark", isDark);
 document.documentElement.classList.toggle("light", !isDark);
 document.documentElement.dataset.mode = isDark ? "dark" : "light";
 
-createRoot(root).render(
-	<StrictMode>
-		<App />
-	</StrictMode>,
-);
+initializeEnvironment()
+	.then(() => {
+		createRoot(root).render(
+			<StrictMode>
+				<App />
+			</StrictMode>,
+		);
+	})
+	.catch((error: unknown) => {
+		root.setAttribute("role", "alert");
+		root.textContent = error instanceof Error ? error.message : "Application initialization failed";
+	});

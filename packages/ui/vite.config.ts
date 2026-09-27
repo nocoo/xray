@@ -2,13 +2,12 @@ import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-import { productAccess, productProxy } from "./dev/product-proxy.ts";
 
 const rootDir = import.meta.dirname;
 const DEV_HOST = "xray.dev.hexly.ai";
 
 export default defineConfig({
-	plugins: [productAccess(), react(), tailwindcss()],
+	plugins: [react(), tailwindcss()],
 	resolve: {
 		alias: {
 			"@": resolve(rootDir, "./src"),
@@ -29,14 +28,6 @@ export default defineConfig({
 			protocol: "wss",
 			host: DEV_HOST,
 			clientPort: 443,
-		},
-		proxy: {
-			"/__product/api/": productProxy,
-			"/api": {
-				target: "http://127.0.0.1:37007",
-				// Keep browser Host (xray.dev.hexly.ai) so worker host/origin checks match Caddy.
-				changeOrigin: false,
-			},
 		},
 	},
 });

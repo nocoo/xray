@@ -14,6 +14,7 @@ import type { Tag } from "@xray/shared";
 import { Plus, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { OptionsSkeleton } from "@/components/loading-skeletons";
+import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 import type { TagsVm } from "@/viewmodels/tags-vm";
 import { useVm } from "@/viewmodels/use-vm";
 import { TagLabels } from "./tag-labels";
@@ -43,6 +44,7 @@ export function TagAssignment({
 	}, [vm, channelId, keyId]);
 	const [open, setOpen] = useState(false);
 	const [name, setName] = useState("");
+	useUnsavedDraft(name !== "");
 	const id = useId();
 	const ids = tags.map((tag) => tag.id);
 	return (

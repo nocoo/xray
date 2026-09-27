@@ -44,8 +44,8 @@ import { CopyTextButton } from "@/components/copy-text-button";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { FormSkeleton, TableSkeleton } from "@/components/loading-skeletons";
 import { TagAssignment } from "@/components/tag-assignment";
+import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 import { channelRequest, ingestEndpoint, reportExample } from "@/lib/channel-reader";
-import { getDataMode } from "@/lib/data-mode";
 import { createTagsVm } from "@/viewmodels/tags-vm";
 import { useVm } from "@/viewmodels/use-vm";
 
@@ -120,9 +120,10 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 		if (token && creatingToken) tokenInput.current?.focus();
 	}, [token, creatingToken]);
 	const keys = managing ? state.keys : [];
-	const request = channelRequest(getDataMode());
+	const request = channelRequest();
 	const changed =
 		name.trim() !== channel.name || description.trim() !== (channel.description ?? "");
+	useUnsavedDraft(changed || (creatingToken && (state.busy || (!token && label !== ""))));
 
 	return (
 		<div className="min-w-0 space-y-5">
@@ -501,7 +502,7 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 						Copied examples use <code className="font-mono text-xs">YOUR_CHANNEL_TOKEN</code> as a
 						placeholder. Replace it with your push token before sending.
 					</p>
-					<p className="break-all font-mono text-xs">POST {ingestEndpoint(getDataMode())}</p>
+					<p className="break-all font-mono text-xs">POST {ingestEndpoint()}</p>
 					<div className="grid min-w-0 gap-3 xl:grid-cols-2">
 						<div className="flex min-w-0 flex-col gap-2">
 							<h3 className="text-sm font-medium">1. Save as report.json</h3>

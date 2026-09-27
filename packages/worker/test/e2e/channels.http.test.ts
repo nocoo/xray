@@ -1,11 +1,11 @@
 import type { ArticlePage, Channel, ChannelArticle, Tag } from "@xray/shared";
 import { describe, expect, test } from "vitest";
-import { dataOf, ingestHeaders, jsonFetch, mintToken, rawHttp } from "./helpers.js";
+import { actorHeaders, dataOf, ingestHeaders, jsonFetch, mintToken, rawHttp } from "./helpers.js";
 
 async function createChannel(actor: "a" | "b" = "a") {
 	const response = await jsonFetch("/api/channels", {
 		method: "POST",
-		headers: { "x-test-actor": actor },
+		headers: actorHeaders(actor),
 		body: JSON.stringify({ name: `Reports ${crypto.randomUUID()}`, description: "Daily reports" }),
 	});
 	expect(response.status).toBe(201);
@@ -41,7 +41,7 @@ function submit(token: string, body: unknown) {
 }
 
 async function listChannels(actor: "a" | "b" = "a") {
-	const response = await jsonFetch("/api/channels", { headers: { "x-test-actor": actor } });
+	const response = await jsonFetch("/api/channels", { headers: actorHeaders(actor) });
 	expect(response.status).toBe(200);
 	return dataOf<Channel[]>(response.body);
 }
@@ -49,7 +49,7 @@ async function listChannels(actor: "a" | "b" = "a") {
 function reorder(ids: number[], actor: "a" | "b" = "a") {
 	return jsonFetch("/api/channels/order", {
 		method: "PUT",
-		headers: { "x-test-actor": actor },
+		headers: actorHeaders(actor),
 		body: JSON.stringify({ ids }),
 	});
 }
@@ -203,7 +203,7 @@ describe("channels over real HTTP", () => {
 			(
 				await jsonFetch(`/api/channels/${channel.id}`, {
 					method: "DELETE",
-					headers: { "x-test-actor": "b" },
+					headers: actorHeaders("b"),
 				})
 			).status,
 		).toBe(404);
@@ -323,7 +323,7 @@ describe("channels over real HTTP", () => {
 		] as const) {
 			const response = await jsonFetch(path, {
 				method,
-				headers: { "x-test-actor": "b" },
+				headers: actorHeaders("b"),
 				body: body ? JSON.stringify(body) : undefined,
 			});
 			expect(response.status, `${method} ${path}`).toBe(404);
@@ -389,8 +389,10 @@ describe("channels over real HTTP", () => {
 			(await jsonFetch(`/api/channels/${channel.id}/articles?limit=2`)).body,
 		);
 		expect(first.items.map((row) => row.reportDate)).toEqual(["2026-09-22", "2026-09-22"]);
-		expect(first.items[0].id).toBeGreaterThan(first.items[1].id);
-		expect(first.nextCursor).toBe(first.items[1].id);
+		const [newer, older] = first.items;
+		if (!newer || !older) throw new Error("First page must contain both reports");
+		expect(newer.id).toBeGreaterThan(older.id);
+		expect(first.nextCursor).toBe(older.id);
 		const next = dataOf<Page>(
 			(await jsonFetch(`/api/channels/${channel.id}/articles?limit=2&before=${first.nextCursor}`))
 				.body,
@@ -398,12 +400,16 @@ describe("channels over real HTTP", () => {
 		expect(next.items.map((row) => row.reportDate)).toEqual(["2026-09-21", "2025-01-01"]);
 		expect(next.nextCursor).toBeNull();
 		const filtered = dataOf<Page>(
-			(await jsonFetch(`/api/channels/${channel.id}/articles?date_from=2026-09-22&date_to=2026-09-22`)).body,
+			(
+				await jsonFetch(
+					`/api/channels/${channel.id}/articles?date_from=2026-09-22&date_to=2026-09-22`,
+				)
+			).body,
 		);
 		expect(filtered.items).toHaveLength(2);
-		expect((await jsonFetch(`/api/channels/${channel.id}/articles?date_from=2026-02-30`)).status).toBe(
-			400,
-		);
+		expect(
+			(await jsonFetch(`/api/channels/${channel.id}/articles?date_from=2026-02-30`)).status,
+		).toBe(400);
 	});
 
 	test("invalid payloads and oversized text never create articles", async () => {
@@ -428,49 +434,155 @@ describe("channels over real HTTP", () => {
 	});
 });
 
-describe('browser tags and article mutations', () => {
- test('central tags, atomic tenant associations and cascade only associations', async () => {
- const channel = await createChannel();
- const key = await createKey(channel.id);
- const created = await jsonFetch('/api/tags',{method:'POST',body:JSON.stringify({name:`Tag ${crypto.randomUUID()}`})});
- expect(created.status).toBe(201);
- const tag = dataOf<{id:number;name:string}>(created.body);
- const foreign = dataOf<{id:number}>((await jsonFetch('/api/tags',{method:'POST',headers:{'x-test-actor':'b'},body:JSON.stringify({name:`Foreign ${crypto.randomUUID()}`})})).body);
- const renamed = await jsonFetch(`/api/tags/${tag.id}`,{method:'PATCH',body:JSON.stringify({name:`${tag.name} renamed`})});
- expect(renamed.status).toBe(200);
- const desired = [dataOf(renamed.body)];
- expect((await jsonFetch(`/api/channels/${channel.id}/tags`,{method:'PUT',body:JSON.stringify({tagIds:[tag.id]})})).status).toBe(200);
- expect((await jsonFetch(`/api/channels/${channel.id}/keys/${key.id}/tags`,{method:'PUT',body:JSON.stringify({tagIds:[tag.id]})})).status).toBe(200);
- for (const path of [`/api/channels/${channel.id}/tags`,`/api/channels/${channel.id}/keys/${key.id}/tags`]) {
- for (const tagIds of [[tag.id,foreign.id],[tag.id,tag.id],[0],[99999999],Array.from({length:21},(_,i)=>i+1)]) expect((await jsonFetch(path,{method:'PUT',body:JSON.stringify({tagIds})})).status).toBe(400);
- expect((await jsonFetch(path,{method:'PUT',headers:{'x-test-actor':'b'},body:JSON.stringify({tagIds:[]})})).status).toBe(400);
- expect((await rawHttp(path,{method:'PUT',headers:ingestHeaders(key.token),body:JSON.stringify({tagIds:[]})})).status).toBe(404);
- }
- expect((await listChannels()).find(c=>c.id===channel.id)?.tags).toEqual(desired);
- expect(dataOf<{tags:unknown[]}[]>((await jsonFetch(`/api/channels/${channel.id}/keys`)).body)[0]?.tags).toEqual(desired);
- expect((await jsonFetch(`/api/tags/${tag.id}`,{method:'DELETE',headers:{'x-test-actor':'b'}})).status).toBe(404);
- expect((await jsonFetch(`/api/tags/${tag.id}`,{method:'DELETE'})).status).toBe(200);
- expect((await listChannels()).find(c=>c.id===channel.id)?.tags).toEqual([]);
- expect(dataOf<{tags:unknown[]}[]>((await jsonFetch(`/api/channels/${channel.id}/keys`)).body)[0]?.tags).toEqual([]);
- });
- test('browser edits preserve immutable fields and ingest retry safety; deletion releases external id',async()=>{
- const channel=await createChannel();const key=await createKey(channel.id);const input=article();
- const created=await submit(key.token,input);expect(created.status).toBe(201);
- const id=(JSON.parse(created.text) as {id:number}).id;
- const path=`/api/channels/${channel.id}/articles/${id}`;
- const patch={title:'Edited',report_date:'2026-09-21',markdown:'New body'};
- expect((await jsonFetch(`/api/channels/${channel.id}/articles/${id}`,{method:'PATCH',body:JSON.stringify(patch)})).status).toBe(200);
- expect((await jsonFetch(path,{method:'PATCH',headers:{'x-test-actor':'b'},body:JSON.stringify(patch)})).status).toBe(404);
- expect((await jsonFetch(path,{method:'PATCH',body:JSON.stringify({...patch,external_id:'changed'})})).status).toBe(400);
- expect((await submit(key.token,input)).status).toBe(409);
- expect(dataOf<ChannelArticle>((await jsonFetch(path)).body)).toMatchObject({title:'Edited',externalId:input.external_id,sourceLabel:'Research Agent'});
- for (const method of ['PATCH','DELETE']) expect((await rawHttp(path,{method,headers:ingestHeaders(key.token),body:JSON.stringify(patch)})).status).toBe(404);
- expect((await jsonFetch(path,{method:'DELETE',headers:{'x-test-actor':'b'}})).status).toBe(404);
- expect((await jsonFetch(`/api/channels/${channel.id}/articles/${id}`,{method:'DELETE'})).status).toBe(200);
- expect((await submit(key.token,input)).status).toBe(201);
- });
+describe("browser tags and article mutations", () => {
+	test("central tags, atomic tenant associations and cascade only associations", async () => {
+		const channel = await createChannel();
+		const key = await createKey(channel.id);
+		const created = await jsonFetch("/api/tags", {
+			method: "POST",
+			body: JSON.stringify({ name: `Tag ${crypto.randomUUID()}` }),
+		});
+		expect(created.status).toBe(201);
+		const tag = dataOf<{ id: number; name: string }>(created.body);
+		const foreign = dataOf<{ id: number }>(
+			(
+				await jsonFetch("/api/tags", {
+					method: "POST",
+					headers: actorHeaders("b"),
+					body: JSON.stringify({ name: `Foreign ${crypto.randomUUID()}` }),
+				})
+			).body,
+		);
+		const renamed = await jsonFetch(`/api/tags/${tag.id}`, {
+			method: "PATCH",
+			body: JSON.stringify({ name: `${tag.name} renamed` }),
+		});
+		expect(renamed.status).toBe(200);
+		const desired = [dataOf(renamed.body)];
+		expect(
+			(
+				await jsonFetch(`/api/channels/${channel.id}/tags`, {
+					method: "PUT",
+					body: JSON.stringify({ tagIds: [tag.id] }),
+				})
+			).status,
+		).toBe(200);
+		expect(
+			(
+				await jsonFetch(`/api/channels/${channel.id}/keys/${key.id}/tags`, {
+					method: "PUT",
+					body: JSON.stringify({ tagIds: [tag.id] }),
+				})
+			).status,
+		).toBe(200);
+		for (const path of [
+			`/api/channels/${channel.id}/tags`,
+			`/api/channels/${channel.id}/keys/${key.id}/tags`,
+		]) {
+			for (const tagIds of [
+				[tag.id, foreign.id],
+				[tag.id, tag.id],
+				[0],
+				[99999999],
+				Array.from({ length: 21 }, (_, i) => i + 1),
+			])
+				expect(
+					(await jsonFetch(path, { method: "PUT", body: JSON.stringify({ tagIds }) })).status,
+				).toBe(400);
+			expect(
+				(
+					await jsonFetch(path, {
+						method: "PUT",
+						headers: actorHeaders("b"),
+						body: JSON.stringify({ tagIds: [] }),
+					})
+				).status,
+			).toBe(400);
+			expect(
+				(
+					await rawHttp(path, {
+						method: "PUT",
+						headers: ingestHeaders(key.token),
+						body: JSON.stringify({ tagIds: [] }),
+					})
+				).status,
+			).toBe(404);
+		}
+		expect((await listChannels()).find((c) => c.id === channel.id)?.tags).toEqual(desired);
+		expect(
+			dataOf<{ tags: unknown[] }[]>((await jsonFetch(`/api/channels/${channel.id}/keys`)).body)[0]
+				?.tags,
+		).toEqual(desired);
+		expect(
+			(await jsonFetch(`/api/tags/${tag.id}`, { method: "DELETE", headers: actorHeaders("b") }))
+				.status,
+		).toBe(404);
+		expect((await jsonFetch(`/api/tags/${tag.id}`, { method: "DELETE" })).status).toBe(200);
+		expect((await listChannels()).find((c) => c.id === channel.id)?.tags).toEqual([]);
+		expect(
+			dataOf<{ tags: unknown[] }[]>((await jsonFetch(`/api/channels/${channel.id}/keys`)).body)[0]
+				?.tags,
+		).toEqual([]);
+	});
+	test("browser edits preserve immutable fields and ingest retry safety; deletion releases external id", async () => {
+		const channel = await createChannel();
+		const key = await createKey(channel.id);
+		const input = article();
+		const created = await submit(key.token, input);
+		expect(created.status).toBe(201);
+		const id = (JSON.parse(created.text) as { id: number }).id;
+		const path = `/api/channels/${channel.id}/articles/${id}`;
+		const patch = { title: "Edited", report_date: "2026-09-21", markdown: "New body" };
+		expect(
+			(
+				await jsonFetch(`/api/channels/${channel.id}/articles/${id}`, {
+					method: "PATCH",
+					body: JSON.stringify(patch),
+				})
+			).status,
+		).toBe(200);
+		expect(
+			(
+				await jsonFetch(path, {
+					method: "PATCH",
+					headers: actorHeaders("b"),
+					body: JSON.stringify(patch),
+				})
+			).status,
+		).toBe(404);
+		expect(
+			(
+				await jsonFetch(path, {
+					method: "PATCH",
+					body: JSON.stringify({ ...patch, external_id: "changed" }),
+				})
+			).status,
+		).toBe(400);
+		expect((await submit(key.token, input)).status).toBe(409);
+		expect(dataOf<ChannelArticle>((await jsonFetch(path)).body)).toMatchObject({
+			title: "Edited",
+			externalId: input.external_id,
+			sourceLabel: "Research Agent",
+		});
+		for (const method of ["PATCH", "DELETE"])
+			expect(
+				(
+					await rawHttp(path, {
+						method,
+						headers: ingestHeaders(key.token),
+						body: JSON.stringify(patch),
+					})
+				).status,
+			).toBe(404);
+		expect((await jsonFetch(path, { method: "DELETE", headers: actorHeaders("b") })).status).toBe(
+			404,
+		);
+		expect(
+			(await jsonFetch(`/api/channels/${channel.id}/articles/${id}`, { method: "DELETE" })).status,
+		).toBe(200);
+		expect((await submit(key.token, input)).status).toBe(201);
+	});
 });
-
 
 describe("merged article tags over HTTP", () => {
 	test("live union has list/detail/edit parity and retains revoked source tags", async () => {
@@ -480,7 +592,7 @@ describe("merged article tags over HTTP", () => {
 		async function tag(name: string, actor = "a") {
 			const response = await jsonFetch("/api/tags", {
 				method: "POST",
-				headers: { "x-test-actor": actor },
+				headers: actorHeaders(actor),
 				body: JSON.stringify({ name: `${name} ${suffix}` }),
 			});
 			expect(response.status).toBe(201);
@@ -528,7 +640,7 @@ describe("merged article tags over HTTP", () => {
 		await assertTags(merged);
 		expect((await submit(key.token, input)).status).toBe(200);
 		for (const path of [articlePath, `/api/channels/${channel.id}/articles`])
-			expect((await jsonFetch(path, { headers: { "x-test-actor": "b" } })).status).toBe(404);
+			expect((await jsonFetch(path, { headers: actorHeaders("b") })).status).toBe(404);
 		const patch = { title: "Edited", report_date: input.report_date, markdown: "Edited body" };
 		const edited = await jsonFetch(articlePath, { method: "PATCH", body: JSON.stringify(patch) });
 		expect(edited.status).toBe(200);
@@ -568,66 +680,120 @@ describe("merged article tags over HTTP", () => {
 });
 
 test("article filters combine before pagination with tenant-safe live tag ANY matching", async () => {
- const channel = await createChannel();
- const key = await createKey(channel.id);
- const tags: Tag[] = [];
- for (const actor of ["a","a","b"] as const) {
- const r = await jsonFetch("/api/tags",{method:"POST",headers:{"x-test-actor":actor},body:JSON.stringify({name:`Filter ${crypto.randomUUID()}`})});
- expect(r.status).toBe(201);
- tags.push(dataOf<Tag>(r.body));
- }
- const [channelTag,tokenTag,foreignTag] = tags;
- if(!channelTag || !tokenTag || !foreignTag) throw new Error("missing tags");
- for (const [path,tagIds] of [
- [`/api/channels/${channel.id}/tags`,[channelTag.id]],
- [`/api/channels/${channel.id}/keys/${key.id}/tags`,[channelTag.id,tokenTag.id]],
- ] as const) expect((await jsonFetch(path,{method:"PUT",body:JSON.stringify({tagIds})})).status).toBe(200);
- for(let i=0;i<5;i++) expect((await submit(key.token,{...article(crypto.randomUUID(),`2026-09-${20+i}`),markdown:i===4?"Not a match":"Literal %_ phrase 中文"})).status).toBe(201);
- expect((await jsonFetch(`/api/channels/${channel.id}/keys/${key.id}`,{method:"DELETE"})).status).toBe(200);
- const base = `/api/channels/${channel.id}/articles`;
- const filters = new URLSearchParams({date_from:"2026-09-21",date_to:"2026-09-24",q:"literal %_ PHRASE",tag_ids:`${tokenTag.id},${channelTag.id},${tokenTag.id}`,limit:"2"});
- const firstResponse = await jsonFetch(`${base}?${filters}`);
- expect(firstResponse.status).toBe(200);
- const first = dataOf<ArticlePage>(firstResponse.body);
- expect(first.items.map(x=>x.reportDate)).toEqual(["2026-09-23","2026-09-22"]);
- expect(first.nextCursor).toBe(first.items[1]?.id);
- filters.set("before",String(first.nextCursor));
- const next = dataOf<ArticlePage>((await jsonFetch(`${base}?${filters}`)).body);
- expect(next.items.map(x=>x.reportDate)).toEqual(["2026-09-21"]);
- expect(next.nextCursor).toBeNull();
- for(const query of [`tag_ids=${foreignTag.id}`,"q=literal%20%25X","date_to=2026-09-19"]) expect(dataOf<ArticlePage>((await jsonFetch(`${base}?${query}`)).body).items).toEqual([]);
- expect((await jsonFetch(`${base}?${filters}`,{headers:{"x-test-actor":"b"}})).status).toBe(404);
- const other = await createChannel();
- expect((await jsonFetch(`/api/channels/${other.id}/articles?before=${first.items[0]?.id}`)).status).toBe(400);
- for(const query of ["date_from=2026-02-30","date_from=2026-09-22&date_to=2026-09-21","tag_ids=1,,2","tag_ids=9007199254740992",`q=${"x".repeat(201)}`,`tag_ids=${Array.from({length:21},(_,i)=>i+1).join(",")}`]) expect((await jsonFetch(`${base}?${query}`)).status).toBe(400);
+	const channel = await createChannel();
+	const key = await createKey(channel.id);
+	const tags: Tag[] = [];
+	for (const actor of ["a", "a", "b"] as const) {
+		const r = await jsonFetch("/api/tags", {
+			method: "POST",
+			headers: actorHeaders(actor),
+			body: JSON.stringify({ name: `Filter ${crypto.randomUUID()}` }),
+		});
+		expect(r.status).toBe(201);
+		tags.push(dataOf<Tag>(r.body));
+	}
+	const [channelTag, tokenTag, foreignTag] = tags;
+	if (!channelTag || !tokenTag || !foreignTag) throw new Error("missing tags");
+	for (const [path, tagIds] of [
+		[`/api/channels/${channel.id}/tags`, [channelTag.id]],
+		[`/api/channels/${channel.id}/keys/${key.id}/tags`, [channelTag.id, tokenTag.id]],
+	] as const)
+		expect(
+			(await jsonFetch(path, { method: "PUT", body: JSON.stringify({ tagIds }) })).status,
+		).toBe(200);
+	for (let i = 0; i < 5; i++)
+		expect(
+			(
+				await submit(key.token, {
+					...article(crypto.randomUUID(), `2026-09-${20 + i}`),
+					markdown: i === 4 ? "Not a match" : "Literal %_ phrase 中文",
+				})
+			).status,
+		).toBe(201);
+	expect(
+		(await jsonFetch(`/api/channels/${channel.id}/keys/${key.id}`, { method: "DELETE" })).status,
+	).toBe(200);
+	const base = `/api/channels/${channel.id}/articles`;
+	const filters = new URLSearchParams({
+		date_from: "2026-09-21",
+		date_to: "2026-09-24",
+		q: "literal %_ PHRASE",
+		tag_ids: `${tokenTag.id},${channelTag.id},${tokenTag.id}`,
+		limit: "2",
+	});
+	const firstResponse = await jsonFetch(`${base}?${filters}`);
+	expect(firstResponse.status).toBe(200);
+	const first = dataOf<ArticlePage>(firstResponse.body);
+	expect(first.items.map((x) => x.reportDate)).toEqual(["2026-09-23", "2026-09-22"]);
+	expect(first.nextCursor).toBe(first.items[1]?.id);
+	filters.set("before", String(first.nextCursor));
+	const next = dataOf<ArticlePage>((await jsonFetch(`${base}?${filters}`)).body);
+	expect(next.items.map((x) => x.reportDate)).toEqual(["2026-09-21"]);
+	expect(next.nextCursor).toBeNull();
+	for (const query of [`tag_ids=${foreignTag.id}`, "q=literal%20%25X", "date_to=2026-09-19"])
+		expect(dataOf<ArticlePage>((await jsonFetch(`${base}?${query}`)).body).items).toEqual([]);
+	expect((await jsonFetch(`${base}?${filters}`, { headers: actorHeaders("b") })).status).toBe(404);
+	const other = await createChannel();
+	expect(
+		(await jsonFetch(`/api/channels/${other.id}/articles?before=${first.items[0]?.id}`)).status,
+	).toBe(400);
+	for (const query of [
+		"date_from=2026-02-30",
+		"date_from=2026-09-22&date_to=2026-09-21",
+		"tag_ids=1,,2",
+		"tag_ids=9007199254740992",
+		`q=${"x".repeat(201)}`,
+		`tag_ids=${Array.from({ length: 21 }, (_, i) => i + 1).join(",")}`,
+	])
+		expect((await jsonFetch(`${base}?${query}`)).status).toBe(400);
 });
 
 test("read markers persist across clients and bulk read covers every page without crossing tenants", async () => {
- const channel = await createChannel();
- const other = await createChannel();
- const key = await createKey(channel.id);
- const input = article();
- const first = await submit(key.token, input);
- const id = dataOf<ChannelArticle>(JSON.parse(first.text)).id;
- for(let i=0;i<32;i++) expect((await submit(key.token, article())).status).toBe(201);
- const read = await jsonFetch(`/api/channels/${channel.id}/articles/${id}/read`, { method: "PUT" });
- expect(read.status).toBe(200);
- expect(dataOf<ChannelArticle>((await jsonFetch(`/api/channels/${channel.id}/articles/${id}`)).body).isRead).toBe(true);
- expect((await submit(key.token,input)).status).toBe(200);
- expect(dataOf<ChannelArticle>((await jsonFetch(`/api/channels/${channel.id}/articles/${id}`)).body).isRead).toBe(true);
- expect((await listChannels()).find(c=>c.id===channel.id)?.hasUnread).toBe(true);
- for(const path of [`/api/channels/${channel.id}/articles/${id}/read`, `/api/channels/${channel.id}/articles/read`]) {
-  expect((await jsonFetch(path,{method:"PUT",headers:{"x-test-actor":"b"}})).status).toBe(404);
-  expect((await rawHttp(path,{method:"PUT",headers:ingestHeaders(key.token)})).status).toBe(404);
-  expect((await jsonFetch(path,{method:"PUT",headers:{origin:"https://evil.example"}})).status).toBe(403);
- }
- expect((await jsonFetch(`/api/channels/${other.id}/articles/${id}/read`,{method:"PUT"})).status).toBe(404);
- const bulk = await jsonFetch(`/api/channels/${channel.id}/articles/read`, { method: "PUT" });
- expect(bulk.status).toBe(200);
- const page = dataOf<ArticlePage>((await jsonFetch(`/api/channels/${channel.id}/articles?limit=100`)).body);
- expect(page.items).toHaveLength(33);
- expect(page.items.every(a=>a.isRead)).toBe(true);
- expect((await listChannels()).find(c=>c.id===channel.id)?.hasUnread).toBe(false);
- expect((await submit(key.token,article())).status).toBe(201);
- expect((await listChannels()).find(c=>c.id===channel.id)?.hasUnread).toBe(true);
+	const channel = await createChannel();
+	const other = await createChannel();
+	const key = await createKey(channel.id);
+	const input = article();
+	const first = await submit(key.token, input);
+	const id = dataOf<ChannelArticle>(JSON.parse(first.text)).id;
+	for (let i = 0; i < 32; i++) expect((await submit(key.token, article())).status).toBe(201);
+	const read = await jsonFetch(`/api/channels/${channel.id}/articles/${id}/read`, {
+		method: "PUT",
+	});
+	expect(read.status).toBe(200);
+	expect(
+		dataOf<ChannelArticle>((await jsonFetch(`/api/channels/${channel.id}/articles/${id}`)).body)
+			.isRead,
+	).toBe(true);
+	expect((await submit(key.token, input)).status).toBe(200);
+	expect(
+		dataOf<ChannelArticle>((await jsonFetch(`/api/channels/${channel.id}/articles/${id}`)).body)
+			.isRead,
+	).toBe(true);
+	expect((await listChannels()).find((c) => c.id === channel.id)?.hasUnread).toBe(true);
+	for (const path of [
+		`/api/channels/${channel.id}/articles/${id}/read`,
+		`/api/channels/${channel.id}/articles/read`,
+	]) {
+		expect((await jsonFetch(path, { method: "PUT", headers: actorHeaders("b") })).status).toBe(404);
+		expect((await rawHttp(path, { method: "PUT", headers: ingestHeaders(key.token) })).status).toBe(
+			404,
+		);
+		expect(
+			(await jsonFetch(path, { method: "PUT", headers: { origin: "https://evil.example" } }))
+				.status,
+		).toBe(403);
+	}
+	expect(
+		(await jsonFetch(`/api/channels/${other.id}/articles/${id}/read`, { method: "PUT" })).status,
+	).toBe(404);
+	const bulk = await jsonFetch(`/api/channels/${channel.id}/articles/read`, { method: "PUT" });
+	expect(bulk.status).toBe(200);
+	const page = dataOf<ArticlePage>(
+		(await jsonFetch(`/api/channels/${channel.id}/articles?limit=100`)).body,
+	);
+	expect(page.items).toHaveLength(33);
+	expect(page.items.every((a) => a.isRead)).toBe(true);
+	expect((await listChannels()).find((c) => c.id === channel.id)?.hasUnread).toBe(false);
+	expect((await submit(key.token, article())).status).toBe(201);
+	expect((await listChannels()).find((c) => c.id === channel.id)?.hasUnread).toBe(true);
 });

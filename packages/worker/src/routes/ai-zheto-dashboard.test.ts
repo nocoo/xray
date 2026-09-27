@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { describe, expect, test } from "vitest";
 import { encryptSecret, parseKek } from "../lib/secrets-crypto.js";
+import { externalBinding } from "../test/external-binding.js";
 import type { AppEnv, AuthUser } from "../types.js";
 import { getAiConfigRoute, putAiConfigRoute } from "./ai.js";
 import { getDashboardRoute } from "./dashboard.js";
@@ -339,9 +340,11 @@ describe("AI config + translate (shipped handlers)", () => {
 		db.seedWatchlist("u1", 1);
 		const itemId = db.seedItem("u1", 1, "hello world");
 		const a = app(db, {
-			TRANSLATE_FN: async ({ text }) => ({
-				translatedText: `译:${text}`,
-				summaryText: null,
+			XRAY_EXTERNAL: externalBinding(async (input, init) => {
+				const body = (await new Request(input, init).json()) as { messages: { content: string }[] };
+				return Response.json({
+					choices: [{ message: { content: `译:${body.messages[1]?.content}` } }],
+				});
 			}),
 		});
 
@@ -402,19 +405,15 @@ describe("zhe.to save (shipped handlers)", () => {
 		const db = makeDb();
 		const calls: unknown[] = [];
 		const a = app(db, {
-			ZHETO_UPSTREAM: async (webhookUrl: string, body: unknown) => {
-				calls.push({ webhookUrl, body });
-				return {
-					status: 201,
-					json: {
-						data: {
-							shortUrl: "https://zhe.to/abc",
-							slug: "abc",
-							originalUrl: (body as { url: string }).url,
-						},
-					},
-				};
-			},
+			XRAY_EXTERNAL: externalBinding(async (input, init) => {
+				const request = new Request(input, init);
+				const body = (await request.json()) as { url: string };
+				calls.push({ webhookUrl: request.url, body });
+				return Response.json(
+					{ data: { shortUrl: "https://zhe.to/abc", slug: "abc", originalUrl: body.url } },
+					{ status: 201 },
+				);
+			}),
 		});
 
 		const fail = await a.request("/api/integrations/zheto/save", {
@@ -460,7 +459,7 @@ describe("zhe.to save (shipped handlers)", () => {
 		});
 		// upstream failure
 		const a2 = app(db, {
-			ZHETO_UPSTREAM: async () => ({ status: 500, json: {} }),
+			XRAY_EXTERNAL: externalBinding(async () => Response.json({}, { status: 500 })),
 		});
 		const bad = await a2.request("/api/integrations/zheto/save", {
 			method: "POST",
@@ -553,9 +552,7 @@ describe("AI/zheto error paths", () => {
 		db.seedWatchlist("u1", 1);
 		const id = db.seedItem("u1", 1, "boom");
 		const a = app(db, {
-			TRANSLATE_FN: async () => {
-				throw new Error("model down");
-			},
+			XRAY_EXTERNAL: externalBinding(async () => new Response("model down", { status: 503 })),
 		});
 		await a.request("/api/ai-config", {
 			method: "PUT",
@@ -631,10 +628,9 @@ describe("more coverage", () => {
 	test("zheto save upstream 200 isExisting", async () => {
 		const db = makeDb();
 		const a = app(db, {
-			ZHETO_UPSTREAM: async () => ({
-				status: 200,
-				json: { data: { shortUrl: null, slug: null, originalUrl: "https://x.com/1" } },
-			}),
+			XRAY_EXTERNAL: externalBinding(async () =>
+				Response.json({ data: { shortUrl: null, slug: null, originalUrl: "https://x.com/1" } }),
+			),
 		});
 		await a.request("/api/integrations/zheto", {
 			method: "PUT",

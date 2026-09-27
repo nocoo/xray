@@ -37,3 +37,42 @@ describe("createSettingsVm", () => {
 		expect(vm.getState().error).toBe("bad");
 	});
 });
+
+test("dirty window tracks persisted value, failed save and edits made while saving", async () => {
+	const settings = {
+		email: "owner@xray.test",
+		name: null,
+		image: null,
+		ingest: { windowHours: 24 },
+	};
+	let resolve!: (value: typeof settings) => void;
+	const api = {
+		fetchSettings: vi.fn().mockResolvedValue(settings),
+		patchSettings: vi.fn().mockRejectedValueOnce(new Error("Unavailable")),
+	};
+	const vm = createSettingsVm(api);
+	expect(vm.isDirty()).toBe(false);
+	await vm.load();
+	expect(vm.isDirty()).toBe(false);
+	vm.setWindowHours(48);
+	expect(vm.isDirty()).toBe(true);
+	vm.setWindowHours(24);
+	expect(vm.isDirty()).toBe(false);
+	vm.setWindowHours(48);
+	await vm.save();
+	expect(vm.isDirty()).toBe(true);
+	api.patchSettings.mockImplementationOnce(
+		() =>
+			new Promise((done) => {
+				resolve = done;
+			}),
+	);
+	const save = vm.save();
+	vm.setWindowHours(72);
+	resolve({ ...settings, ingest: { windowHours: 48 } });
+	await save;
+	expect(vm.getState().windowHours).toBe(72);
+	expect(vm.isDirty()).toBe(true);
+	vm.setWindowHours(48);
+	expect(vm.isDirty()).toBe(false);
+});

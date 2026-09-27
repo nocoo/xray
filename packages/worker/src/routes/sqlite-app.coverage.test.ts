@@ -1,9 +1,11 @@
 /**
- * L1 coverage: real SQL via bun:sqlite D1 shim + full worker app + AUTH_DEV_BYPASS.
+ * L1 coverage: real SQL via bun:sqlite D1 shim + full worker app + signed JWT identities.
  */
 import { Hono } from "hono";
 import { describe, expect, test } from "vitest";
 import app from "../index.js";
+import { successfulExternal } from "../test/external-binding.js";
+import { identityHeaders, localIdentityBindings } from "../test/signed-identity.js";
 import { createSqliteD1 } from "../test/sqlite-d1.js";
 import type { AppEnv } from "../types.js";
 import { getAiConfigRoute, putAiConfigRoute, testAiConfigRoute } from "./ai.js";
@@ -45,17 +47,13 @@ const KEK = "0123456789abcdef0123456789abcdef";
 function baseEnv(db: D1Database) {
 	return {
 		ENVIRONMENT: "test",
-		AUTH_DEV_BYPASS: "true",
+		...localIdentityBindings,
 		ALLOWED_EMAILS: "dev@xray.local,dev-b@xray.local",
 		DB: db,
 		XRAY_SECRETS_KEK: KEK,
 		XRAY_SECRETS_KEY_VERSION: "1",
 		ZHETO_WEBHOOK_ALLOW_HOSTS: "localhost,127.0.0.1",
-		TRANSLATE_FN: async () => ({ translatedText: "译", summaryText: "摘" }),
-		ZHETO_UPSTREAM: async () => ({
-			status: 200,
-			json: { shortUrl: "https://zhe.to/x", slug: "x", originalUrl: "u", isExisting: false },
-		}),
+		XRAY_EXTERNAL: successfulExternal,
 	};
 }
 
@@ -64,7 +62,7 @@ function hdr(actor: "a" | "b" = "a") {
 		host: "localhost",
 		origin: "http://localhost:7007",
 		"content-type": "application/json",
-		"x-test-actor": actor,
+		...identityHeaders(actor),
 	};
 }
 
@@ -334,7 +332,7 @@ describe("sqlite-backed full app coverage", () => {
 			).status,
 		).toBe(200);
 
-		// translate after AI configured (TRANSLATE_FN inject)
+		// Translate through the configured external response binding.
 		expect(
 			(
 				await app.request(
@@ -464,11 +462,12 @@ describe("sqlite-backed full app coverage", () => {
 		}
 	});
 
-	test("401 without bypass when AUTH_DEV_BYPASS off", async () => {
+	test("401 without a signed JWT", async () => {
 		const db = createSqliteD1();
 		const env = {
 			...baseEnv(db),
-			AUTH_DEV_BYPASS: "false",
+			XRAY_LOCAL_JWKS: undefined,
+			XRAY_EXTERNAL: undefined,
 			CF_ACCESS_TEAM_DOMAIN: undefined,
 			CF_ACCESS_AUD: undefined,
 		};

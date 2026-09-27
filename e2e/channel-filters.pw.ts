@@ -1,5 +1,9 @@
+import { installExternalMedia } from "../fixtures/e2e";
+import { FIXTURE_ANCHOR_ISO } from "../fixtures/primitives";
 import { expect, type APIRequestContext, type Locator, type Page, test } from "@playwright/test";
 import { BROWSER, browserApiHeaders, INGEST, WORKER } from "./helpers";
+
+test.beforeEach(async ({ page }) => { await installExternalMedia(page); });
 
 test.beforeAll(() => {
 	for (const url of [BROWSER, WORKER, INGEST]) {
@@ -15,8 +19,7 @@ test.beforeAll(() => {
 
 async function seed(request: APIRequestContext) {
 	const prefix = `Filters ${crypto.randomUUID()}`;
-	const now = new Date();
-	const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+	const month = FIXTURE_ANCHOR_ISO.slice(0, 7);
 	const response = await request.post(`${WORKER}/api/channels`, {
 		headers: browserApiHeaders,
 		data: { name: prefix },
@@ -199,7 +202,7 @@ test("server filters find unloaded reports and preserve combined filters through
 		const nextResponse = page.waitForResponse((r) => {
 			const url = new URL(r.url());
 			return (
-				url.pathname === `/api/channels/${data.channelId}/articles` &&
+				url.pathname.endsWith(`/api/channels/${data.channelId}/articles`) &&
 				url.searchParams.has("before")
 			);
 		});

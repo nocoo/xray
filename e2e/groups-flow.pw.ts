@@ -1,5 +1,8 @@
+import { installExternalMedia } from "../fixtures/e2e";
 import { expect, test } from "@playwright/test";
 import { BROWSER, WORKER, browserApiHeaders, requireWorker } from "./helpers";
+
+test.beforeEach(async ({ page }) => { await installExternalMedia(page); });
 
 test.describe("L3 groups flow", () => {
 	test("groups page shows created group", async ({ page, request }) => {

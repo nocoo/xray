@@ -91,13 +91,21 @@ describe("GET /api/v1/ingest/graph", () => {
 			).status,
 		).toBe(403);
 
+		let limited = false;
+		for (let attempt = 0; attempt < 130; attempt++) {
+			const response = await rawHttp("/api/v1/ingest/graph", {
+				headers: ingestHeaders(both.token),
+			});
+			if (response.status === 429) {
+				limited = true;
+				break;
+			}
+			expect(response.status).toBe(200);
+		}
 		expect(
-			(
-				await rawHttp("/api/v1/ingest/graph", {
-					headers: ingestHeaders(both.token, { "x-test-force-rl": "1" }),
-				})
-			).status,
-		).toBe(429);
+			limited,
+			"Native rate-limit binding must reject repeated requests for the same token",
+		).toBe(true);
 
 		expect(
 			(await rawHttp("/api/v1/ingest/graph", { headers: ingestHeaders("xray_pt_bad_token") }))

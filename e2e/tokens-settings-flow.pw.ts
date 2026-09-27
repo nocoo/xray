@@ -1,5 +1,8 @@
+import { installExternalMedia } from "../fixtures/e2e";
 import { expect, test } from "@playwright/test";
 import { BROWSER, WORKER, browserApiHeaders, requireWorker } from "./helpers";
+
+test.beforeEach(async ({ page }) => { await installExternalMedia(page); });
 
 test.describe("L3 tokens + settings + AI + zheto shells", () => {
 	test("settings excludes global tokens while producer API remains available", async ({ page, request }) => {

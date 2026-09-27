@@ -369,6 +369,11 @@ nav[aria-label="Breadcrumb"] + svg {
 	.channel-header > header > div {
 		gap: calc(var(--spacing) * 2);
 	}
+	.channel-header > header > div > div:last-child,
+	.channel-action-group,
+	.channel-action-group > fieldset {
+		gap: calc(var(--spacing) * 0.5);
+	}
 	.channel-header h1 {
 		font-size: var(--text-lg);
 		line-height: var(--text-lg--line-height);

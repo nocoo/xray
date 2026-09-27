@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, test } from "vitest";
+import { externalBinding } from "../test/external-binding.js";
 import {
 	emailProfileHash,
 	fetchAuthorProfile,
 	normalizeProfileEmail,
 	parseAuthorProfile,
 	resetAuthorProfileCache,
-	shouldLookupAuthorProfile,
 } from "./author-profile.js";
 
 afterEach(() => {
@@ -37,33 +37,15 @@ describe("parseAuthorProfile", () => {
 	});
 });
 
-describe("shouldLookupAuthorProfile", () => {
-	test("production/development or injected fetch", () => {
-		expect(shouldLookupAuthorProfile(undefined)).toBe(false);
-		expect(shouldLookupAuthorProfile({ ENVIRONMENT: "test" })).toBe(false);
-		expect(shouldLookupAuthorProfile({ ENVIRONMENT: "production" })).toBe(true);
-		expect(shouldLookupAuthorProfile({ ENVIRONMENT: "development" })).toBe(true);
-		expect(
-			shouldLookupAuthorProfile({
-				ENVIRONMENT: "test",
-				AUTHOR_PROFILE_FETCH: async () => ({ status: 200, json: async () => ({}) }),
-			}),
-		).toBe(true);
-	});
-});
-
 describe("fetchAuthorProfile", () => {
 	test("requests hash query and caches 200", async () => {
 		const seen: string[] = [];
-		const fetchFn = async (url: string) => {
-			seen.push(url);
-			return {
-				status: 200,
-				json: async () => ({ name: "Zheng Li", avatar: "https://cdn.example/a.jpg" }),
-			};
-		};
-		const first = await fetchAuthorProfile("architie@gmail.com", fetchFn, 1);
-		const second = await fetchAuthorProfile("Architie@gmail.com", fetchFn, 2);
+		const fetchFn = externalBinding(async (url) => {
+			seen.push(String(url));
+			return Response.json({ name: "Zheng Li", avatar: "https://cdn.example/a.jpg" });
+		});
+		const first = await fetchAuthorProfile("architie@gmail.com", { XRAY_EXTERNAL: fetchFn }, 1);
+		const second = await fetchAuthorProfile("Architie@gmail.com", { XRAY_EXTERNAL: fetchFn }, 2);
 		expect(first).toEqual({ name: "Zheng Li", avatar: "https://cdn.example/a.jpg" });
 		expect(second).toEqual(first);
 		expect(seen).toHaveLength(1);
@@ -75,22 +57,27 @@ describe("fetchAuthorProfile", () => {
 		expect(seen[0]).not.toContain("firefly.dev.hexly.ai");
 	});
 
+	test("profile caches stay scoped to their external binding", async () => {
+		const first = { XRAY_EXTERNAL: externalBinding(async () => Response.json({ name: "First" })) };
+		const second = {
+			XRAY_EXTERNAL: externalBinding(async () => Response.json({ name: "Second" })),
+		};
+		expect((await fetchAuthorProfile("owner@xray.test", first)).name).toBe("First");
+		expect((await fetchAuthorProfile("owner@xray.test", second)).name).toBe("Second");
+		expect((await fetchAuthorProfile("owner@xray.test", first)).name).toBe("First");
+	});
+
 	test("429, network, and bad json fail closed", async () => {
-		expect(
-			await fetchAuthorProfile("a@b.com", async () => ({ status: 429, json: async () => ({}) })),
-		).toEqual({ name: null, avatar: null });
-		expect(
-			await fetchAuthorProfile("a@b.com", async () => {
+		for (const fetch of [
+			async () => new Response(null, { status: 429 }),
+			async () => {
 				throw new Error("offline");
-			}),
-		).toEqual({ name: null, avatar: null });
-		expect(
-			await fetchAuthorProfile("c@d.com", async () => ({
-				status: 200,
-				json: async () => {
-					throw new Error("bad json");
-				},
-			})),
-		).toEqual({ name: null, avatar: null });
+			},
+			async () => new Response("not JSON"),
+		]) {
+			expect(
+				await fetchAuthorProfile("a@b.com", { XRAY_EXTERNAL: externalBinding(fetch) }),
+			).toEqual({ name: null, avatar: null });
+		}
 	});
 });

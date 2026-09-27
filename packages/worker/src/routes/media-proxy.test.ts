@@ -272,3 +272,47 @@ describe("GET /api/media/proxy", () => {
 		expect(res.status).toBe(200);
 	});
 });
+
+test("external binding preserves range responses and blocks redirect egress", async () => {
+	const { externalBinding } = await import("../test/external-binding.js");
+	vi.stubGlobal("fetch", () => {
+		throw new Error("Unexpected public egress");
+	});
+	const calls: string[] = [];
+	const env = {
+		XRAY_EXTERNAL: externalBinding(async (input, init) => {
+			const request = new Request(input, init);
+			calls.push(request.url);
+			expect(request.headers.get("range")).toBe("bytes=0-2");
+			expect(init?.redirect).toBe("manual");
+			if (request.url.endsWith("/redirect"))
+				return new Response(null, {
+					status: 302,
+					headers: { location: "https://evil.example.com/leak" },
+				});
+			return new Response("abc", {
+				status: 206,
+				headers: {
+					"content-type": "video/mp4",
+					"content-range": "bytes 0-2/100",
+					"accept-ranges": "bytes",
+				},
+			});
+		}),
+	};
+	const response = await app().request(
+		"/api/media/proxy?url=https://video.twimg.com/file.mp4",
+		{ headers: { range: "bytes=0-2" } },
+		env,
+	);
+	expect(response.status).toBe(206);
+	expect(response.headers.get("content-range")).toBe("bytes 0-2/100");
+	expect(await response.text()).toBe("abc");
+	const blocked = await app().request(
+		"/api/media/proxy?url=https://video.twimg.com/redirect",
+		{ headers: { range: "bytes=0-2" } },
+		env,
+	);
+	expect(blocked.status).toBe(403);
+	expect(calls).toEqual(["https://video.twimg.com/file.mp4", "https://video.twimg.com/redirect"]);
+});

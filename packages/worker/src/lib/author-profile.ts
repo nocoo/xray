@@ -1,3 +1,4 @@
+import { type ExternalEnv, externalFetch } from "./external.js";
 import { sha256Hex } from "./push-token-crypto.js";
 
 export const AUTHOR_PROFILE_URL = "https://lizheng.blog/api/authors/profile";
@@ -5,15 +6,13 @@ const CACHE_TTL_MS = 10 * 60 * 1000;
 
 export type AuthorProfile = { name: string | null; avatar: string | null };
 
-export type AuthorProfileFetch = (
-	url: string,
-	init?: { method?: string; headers?: Record<string, string>; signal?: AbortSignal },
-) => Promise<{ status: number; json: () => Promise<unknown> }>;
-
-const cache = new Map<string, { at: number; profile: AuthorProfile }>();
+type ProfileCache = Map<string, { at: number; profile: AuthorProfile }>;
+const cache: ProfileCache = new Map();
+let bindingCaches = new WeakMap<Fetcher, ProfileCache>();
 
 export function resetAuthorProfileCache(): void {
 	cache.clear();
+	bindingCaches = new WeakMap();
 }
 
 export function normalizeProfileEmail(email: string): string {
@@ -35,30 +34,25 @@ export function parseAuthorProfile(raw: unknown): AuthorProfile {
 	return { name, avatar };
 }
 
-export function shouldLookupAuthorProfile(env?: {
-	ENVIRONMENT?: string;
-	AUTHOR_PROFILE_FETCH?: AuthorProfileFetch;
-}): boolean {
-	if (!env) return false;
-	if (env.AUTHOR_PROFILE_FETCH) return true;
-	const mode = (env.ENVIRONMENT || "").toLowerCase();
-	return mode === "production" || mode === "development";
-}
-
 export async function fetchAuthorProfile(
 	email: string,
-	fetchFn: AuthorProfileFetch,
+	env: ExternalEnv = {},
 	nowMs: number = Date.now(),
 ): Promise<AuthorProfile> {
+	let scope = cache;
+	if (env.XRAY_EXTERNAL) {
+		scope = bindingCaches.get(env.XRAY_EXTERNAL) ?? new Map();
+		bindingCaches.set(env.XRAY_EXTERNAL, scope);
+	}
 	const hash = await emailProfileHash(email);
-	const hit = cache.get(hash);
+	const hit = scope.get(hash);
 	if (hit && nowMs - hit.at < CACHE_TTL_MS) return hit.profile;
 
 	const url = `${AUTHOR_PROFILE_URL}?hash=${hash}`;
 	let status = 0;
 	let json: unknown;
 	try {
-		const res = await fetchFn(url, {
+		const res = await externalFetch(env, url, {
 			method: "GET",
 			headers: { accept: "application/json" },
 			signal: AbortSignal.timeout(4000),
@@ -70,6 +64,6 @@ export async function fetchAuthorProfile(
 		return { name: null, avatar: null };
 	}
 	const profile = parseAuthorProfile(json);
-	cache.set(hash, { at: nowMs, profile });
+	scope.set(hash, { at: nowMs, profile });
 	return profile;
 }

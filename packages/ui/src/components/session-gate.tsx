@@ -4,7 +4,7 @@ import { type ReactNode, useEffect } from "react";
 import { MeProvider } from "@/hooks/me-context";
 import { useMe } from "@/hooks/use-me";
 import { documentTitle, SITE_TITLE } from "@/lib/document-title";
-import { DataModeSwitch } from "./layout/data-mode-switch";
+import { EnvironmentSwitch } from "./layout/environment-switch";
 
 function XrayMark({ className }: { className?: string }) {
 	return <img src="/logo-24.png" alt="" width={32} height={32} className={className} />;
@@ -22,7 +22,7 @@ function IdentityBadge({
 	return (
 		<div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-basalt-background p-4">
 			<div className="absolute top-4 right-4">
-				<DataModeSwitch />
+				<EnvironmentSwitch />
 			</div>
 			<div className="flex flex-col items-center">
 				<div
@@ -87,10 +87,7 @@ export function SessionGate({ children }: { children: ReactNode }) {
 		return (
 			<IdentityBadge
 				title="Sign in required"
-				description={
-					me.error ??
-					"Cloudflare Access session missing. Locally enable AUTH_DEV_BYPASS on the worker."
-				}
+				description={me.error ?? "Your session is missing or expired. Sign in and try again."}
 				action={
 					<Button variant="secondary" onClick={me.refresh}>
 						Retry

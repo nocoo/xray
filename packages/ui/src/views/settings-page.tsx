@@ -9,6 +9,7 @@ import * as aiApi from "@/api/ai";
 import * as settingsApi from "@/api/settings";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { FormSkeleton } from "@/components/loading-skeletons";
+import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 import { createAiSettingsVm } from "@/viewmodels/ai-settings-vm";
 import { createSettingsVm } from "@/viewmodels/settings-vm";
 import { useVm } from "@/viewmodels/use-vm";
@@ -19,6 +20,7 @@ export function SettingsPage() {
 	const aiVm = useMemo(() => createAiSettingsVm(aiApi), []);
 	const account = useVm(accountVm);
 	const ai = useVm(aiVm);
+	useUnsavedDraft(accountVm.isDirty() || aiVm.isDirty());
 
 	useEffect(() => {
 		setBreadcrumbs([{ label: "Settings" }]);

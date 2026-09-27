@@ -1,7 +1,6 @@
 import type { Context } from "hono";
 import { findActiveTokenByHash, touchPushToken } from "../repos/push-tokens.js";
 import type { AppEnv, AuthUser } from "../types.js";
-import { isDevOrTest } from "./env.js";
 import { parseBearerToken, sha256Hex, timingSafeEqual } from "./push-token-crypto.js";
 import { checkIngestRateLimit } from "./rate-limit.js";
 
@@ -46,10 +45,6 @@ export async function authenticatePushToken(
 	}
 	if (!scopes.includes(requiredScope)) {
 		return { ok: false, status: 403, error: `Missing ${requiredScope} scope` };
-	}
-
-	if (isDevOrTest(c.env) && c.req.header("x-test-force-rl") === "1") {
-		return { ok: false, status: 429, error: "Rate limited" };
 	}
 
 	const rl = await checkIngestRateLimit(c.env, `token:${row.id}`);

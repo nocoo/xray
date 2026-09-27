@@ -26,7 +26,4 @@ test("tag routes serialize names and assignments through the authenticated brows
 		["/api/channels/4/keys/8/tags", "PUT", '{"tagIds":[]}'],
 	]);
 	for (const [, init] of fetch.mock.calls) expect(init.credentials).toBe("same-origin");
-	sessionStorage.setItem("xray:data-mode", "product");
-	await api.fetchTags();
-	expect(fetch.mock.lastCall?.[0]).toBe("/__product/api/tags");
 });

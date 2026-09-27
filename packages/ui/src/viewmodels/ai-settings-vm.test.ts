@@ -98,3 +98,40 @@ describe("createAiSettingsVm", () => {
 		expect(vm3.getState().testMsg).toContain("unknown");
 	});
 });
+
+test("AI drafts remain dirty on failed save or test and preserve newer edits during save", async () => {
+	let resolve!: (value: typeof cfg) => void;
+	const api = {
+		fetchAiConfig: vi.fn().mockResolvedValue(cfg),
+		saveAiConfig: vi.fn().mockRejectedValueOnce(new Error("Unavailable")),
+		testAiConfig: vi.fn().mockResolvedValue({ ok: true }),
+	};
+	const vm = createAiSettingsVm(api);
+	expect(vm.isDirty()).toBe(false);
+	await vm.load();
+	expect(vm.isDirty()).toBe(false);
+	vm.patchForm({ model: "next-model" });
+	expect(vm.isDirty()).toBe(true);
+	vm.patchForm({ model: cfg.model });
+	expect(vm.isDirty()).toBe(false);
+	vm.patchForm({ apiKey: "draft-key", summaryPrompt: "new summary" });
+	await vm.test();
+	expect(vm.isDirty()).toBe(true);
+	await vm.save();
+	expect(vm.isDirty()).toBe(true);
+	api.saveAiConfig.mockImplementationOnce(
+		() =>
+			new Promise((done) => {
+				resolve = done;
+			}),
+	);
+	const save = vm.save();
+	vm.patchForm({ apiKey: "newer-key", model: "newer-model" });
+	resolve(cfg);
+	await save;
+	expect(vm.getState()).toMatchObject({ apiKey: "newer-key", model: "newer-model" });
+	expect(vm.isDirty()).toBe(true);
+	api.saveAiConfig.mockResolvedValueOnce(cfg);
+	await vm.save();
+	expect(vm.isDirty()).toBe(false);
+});

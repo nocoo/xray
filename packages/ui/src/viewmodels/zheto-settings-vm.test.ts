@@ -61,3 +61,47 @@ describe("createZhetoSettingsVm", () => {
 		expect(vm.getState().saved).toBe(true);
 	});
 });
+
+test("integration dirty state covers secret and folder, retains failed and concurrent edits", async () => {
+	const settings = {
+		configured: true,
+		webhookUrlMasked: "https://…",
+		folder: "inbox",
+		updatedAtMs: 1,
+	};
+	let resolve!: (value: typeof settings) => void;
+	const api = {
+		fetchZhetoSettings: vi.fn().mockResolvedValue(settings),
+		saveZhetoSettings: vi.fn().mockRejectedValueOnce(new Error("Unavailable")),
+	};
+	const vm = createZhetoSettingsVm(api);
+	expect(vm.isDirty()).toBe(false);
+	await vm.load();
+	expect(vm.isDirty()).toBe(false);
+	vm.setFolder("reports");
+	expect(vm.isDirty()).toBe(true);
+	vm.setFolder("inbox");
+	expect(vm.isDirty()).toBe(false);
+	vm.setWebhookUrl("https://zhe.to/draft");
+	await vm.save();
+	expect(vm.isDirty()).toBe(true);
+	api.saveZhetoSettings.mockImplementationOnce(
+		() =>
+			new Promise((done) => {
+				resolve = done;
+			}),
+	);
+	const save = vm.save();
+	vm.setWebhookUrl("https://zhe.to/newer");
+	vm.setFolder("newer folder");
+	resolve(settings);
+	await save;
+	expect(vm.getState()).toMatchObject({
+		webhookUrl: "https://zhe.to/newer",
+		folder: "newer folder",
+	});
+	expect(vm.isDirty()).toBe(true);
+	api.saveZhetoSettings.mockResolvedValueOnce({ ...settings, folder: "newer folder" });
+	await vm.save();
+	expect(vm.isDirty()).toBe(false);
+});

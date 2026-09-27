@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import { type ExternalEnv, externalFetch } from "../lib/external.js";
 import type { AppEnv } from "../types.js";
 
 /** Whitelist Twitter CDN hosts — prevent open-proxy abuse (legacy v1 parity). */
@@ -20,7 +21,11 @@ function isAllowedContentType(ct: string): boolean {
  * Fetch with manual redirects so every hop stays on the allowlist
  * (redirect: "follow" would otherwise escape to arbitrary hosts).
  */
-async function fetchAllowlisted(start: URL, init: RequestInit): Promise<Response> {
+async function fetchAllowlisted(
+	env: ExternalEnv,
+	start: URL,
+	init: RequestInit,
+): Promise<Response> {
 	let current = start;
 	for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
 		if (!isAllowedMediaUrl(current)) {
@@ -29,7 +34,7 @@ async function fetchAllowlisted(start: URL, init: RequestInit): Promise<Response
 				headers: { "content-type": "application/json" },
 			});
 		}
-		const res = await fetch(current.toString(), { ...init, redirect: "manual" });
+		const res = await externalFetch(env, current.toString(), { ...init, redirect: "manual" });
 		if (res.status >= 300 && res.status < 400) {
 			const loc = res.headers.get("location");
 			// URL.canParse avoids a try/catch branch that is hard to hit consistently across runtimes.
@@ -79,7 +84,7 @@ export async function mediaProxyRoute(c: Context<AppEnv>): Promise<Response> {
 		};
 		if (range) upstreamHeaders.Range = range;
 
-		const upstream = await fetchAllowlisted(parsed, { headers: upstreamHeaders });
+		const upstream = await fetchAllowlisted(c.env, parsed, { headers: upstreamHeaders });
 
 		// JSON error Responses from fetchAllowlisted
 		const ct0 = upstream.headers.get("content-type") ?? "";

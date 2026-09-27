@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { createWatchlist } from "@/api/watchlists";
 import { WatchlistIconPicker } from "@/components/watchlist-icon-picker";
+import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { resolveIcon } from "@/lib/watchlist-icons";
 
@@ -33,6 +34,7 @@ export function CreateWatchlistDialog({
 	const [icon, setIcon] = useState("eye");
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	useUnsavedDraft(open && (saving || name !== "" || description !== "" || icon !== "eye"));
 
 	useEffect(() => {
 		if (!open) return;

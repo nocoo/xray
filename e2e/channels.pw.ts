@@ -1,5 +1,9 @@
+import { installExternalMedia } from "../fixtures/e2e";
+import { MEDIA_URLS } from "../fixtures/primitives";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { BROWSER, browserApiHeaders, INGEST, WORKER } from "./helpers";
+
+test.beforeEach(async ({ page }) => { await installExternalMedia(page); });
 
 test.beforeAll(() => {
 	for (const url of [BROWSER, WORKER, INGEST]) {
@@ -8,6 +12,10 @@ test.beforeAll(() => {
 			throw new Error("Channels L3 requires explicit, isolated loopback test servers");
 		}
 	}
+});
+
+test.afterEach(async ({ page }) => {
+	await page.context().setOffline(false);
 });
 
 async function expectReaderChrome(page: Page) {
@@ -57,17 +65,13 @@ const reportBody = [
 	"## 今日进展",
 	"中文长文阅读需要稳定的字体与行距。报告保留原始 Markdown，方便团队集中查看每日进展。English stays readable alongside 中文。",
 	"| 项目 | 状态 |\n| --- | --- |\n| 阅读器 | 已完成 |",
-	"![趋势图](https://images.example.test/chart.svg)",
+	`![趋势图](${MEDIA_URLS.desk})`,
 	"```typescript\nconst report = { title: 'Daily report' };\n```",
 	...Array.from({ length: 18 }, (_, i) => `### 观察 ${i + 1}\n\n清晰的标题、紧凑的信息和适当的行宽，让每天的报告更容易阅读。保存滚动位置后，返回时可以接着看。`),
 ].join("\n\n");
 
 test("channel creation, one-time key, delivery, reader navigation and revocation", async ({ page, request }) => {
 	const name = `Research ${Date.now()}`;
-	await page.route("https://images.example.test/chart.svg", (route) => route.fulfill({
-		contentType: "image/svg+xml",
-		body: '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="240"><rect width="640" height="240" fill="#eee"/><path d="M20 210L180 140L340 170L620 30" fill="none" stroke="#345" stroke-width="3"/></svg>',
-	}));
 	await page.goto(`${BROWSER}/channels`);
 	await page.locator("#main-content").getByRole("button", { name: "New channel", exact: true }).click();
 	await page.getByLabel("Channel name", { exact: true }).fill(name);
@@ -182,7 +186,7 @@ test("channel creation, one-time key, delivery, reader navigation and revocation
 	await expect(content).toHaveAttribute("data-full-width", "false");
 	await page.setViewportSize({ width: 1600, height: 1000 });
 	await expectReaderChrome(page);
-	await page.screenshot({ path: "/tmp/xray-channels-desktop.png", fullPage: true });
+	await page.screenshot({ path: test.info().outputPath("xray-channels-desktop.png"), fullPage: true });
 	await page.getByRole("button", { name: /研发日报 · 2026-09-22/ }).focus();
 	await page.evaluate(() => document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "j", isComposing: true, bubbles: true })));
 	await expect(page).toHaveURL(new RegExp(`/articles/${ids[1]}`));
@@ -252,21 +256,18 @@ test("channel management edits profiles, persists ordering and confirms deletion
 	await expect(createDialog).toBeVisible();
 	await createDialog.getByLabel("Channel name", { exact: true }).fill(`${prefix} draft`);
 	await createDialog.getByLabel(/^Description\s*\(optional\)$/).fill("Retained description");
-	await page.route("**/api/channels", async route => {
-		if (route.request().method() === "POST") await route.fulfill({ status: 503, json: { error: "Try again" } });
-		else await route.continue();
-	});
+	await page.context().setOffline(true);
 	await createDialog.getByRole("button", { name: "Create channel", exact: true }).click();
-	await expect(createDialog.getByRole("alert")).toContainText("Worker unreachable");
+	await expect(createDialog.getByRole("alert")).toContainText("Cannot reach API");
 	await expect(createDialog.getByLabel("Channel name", { exact: true })).toHaveValue(`${prefix} draft`);
 	await expect(createDialog.getByLabel(/^Description\s*\(optional\)$/)).toHaveValue("Retained description");
 	await page.setViewportSize({ width: 320, height: 844 });
 	await expectOverlayFits(page, createDialog);
-	await page.screenshot({ path: "/tmp/xray-channel-create-mobile320.png", fullPage: true });
+	await page.screenshot({ path: test.info().outputPath("xray-channel-create-mobile320.png"), fullPage: true });
 	await createDialog.getByRole("button", { name: "Cancel", exact: true }).click();
 	await expect(createDialog).toHaveCount(0);
 	await expect(page.locator("#main-content").getByRole("button", { name: "New channel", exact: true })).toBeFocused();
-	await page.unroute("**/api/channels");
+	await page.context().setOffline(false);
 	await page.setViewportSize({ width: 1440, height: 1000 });
 	await expect(page.getByLabel("Channel name", { exact: true })).toHaveCount(0);
 
@@ -310,12 +311,11 @@ test("channel management edits profiles, persists ordering and confirms deletion
 			return Math.abs((top + bottom) / 2 - (box.top + box.bottom) / 2);
 		})).toBeLessThan(2);
 	}
-	await page.screenshot({ path: "/tmp/xray-channel-empty-desktop.png", fullPage: true });
-	const emptyListRoute = `**/api/channels/${channelIds[0]}/articles*`;
-	await page.route(emptyListRoute, route => route.fulfill({ status: 503, json: { error: "Try again" } }));
-	await page.reload();
+	await page.screenshot({ path: test.info().outputPath("xray-channel-empty-desktop.png"), fullPage: true });
+	await page.context().setOffline(true);
+	await page.getByRole("button", { name: "Refresh articles", exact: true }).click();
 	await expect(page.getByText("Reports unavailable", { exact: true })).toBeVisible();
-	await page.unroute(emptyListRoute);
+	await page.context().setOffline(false);
 	await page.getByRole("button", { name: "Retry reports", exact: true }).click();
 	await expect(page.getByText("No reports yet", { exact: true })).toBeVisible();
 	await expect(page.getByText("Updated channel description", { exact: true })).toBeVisible();
@@ -364,7 +364,7 @@ test("mobile reader contains long Markdown and blocks executable or embedded ima
 		await expect(page.getByRole("button", { name: "Use sans-serif font", exact: true })).toBeHidden();
 	}
 	await page.setViewportSize({ width: 390, height: 844 });
-	await page.screenshot({ path: "/tmp/xray-channels-mobile.png", fullPage: true });
+	await page.screenshot({ path: test.info().outputPath("xray-channels-mobile.png"), fullPage: true });
 	await page.mouse.move(0, 0);
 	await content.focus();
 	const sizeButton = page.getByRole("button", { name: "Increase font size", exact: true });
@@ -445,17 +445,21 @@ test("article dialogs retain failed drafts and select the next report after dele
 		expect(response.status()).toBe(201);
 		ids.push((await response.json()).id);
 	}
-	const target = `**/api/channels/${channel.id}/articles/${ids[1]}`;
-	await page.route(target, route => route.fulfill({ status: 503, json: { error: "Try again" } }));
+
 	await page.goto(`${BROWSER}/channels/${channel.id}`);
 	const content = page.getByRole("document", { name: "Article content" });
 	const edit = page.locator(".channel-header").getByRole("button", { name: "Edit article", exact: true });
 	const remove = page.locator(".channel-header").getByRole("button", { name: "Delete article", exact: true });
 	await expect(page).toHaveURL(new RegExp(`/articles/${ids[1]}$`));
+	await expect(content.getByRole("heading", { name: "Original 2026-09-22", exact: true })).toBeVisible();
+	await page.context().setOffline(true);
+	await page.getByRole("region", { name: "Articles", exact: true }).getByRole("button", { name: /Original 2026-09-21/ }).click();
 	await expect(content.getByText("Report unavailable", { exact: true })).toBeVisible();
 	await expect(edit).toBeDisabled();
-	await page.unroute(target);
+	await page.context().setOffline(false);
 	await content.getByRole("button", { name: "Retry report", exact: true }).click();
+	await expect(content.getByRole("heading", { name: "Original 2026-09-21", exact: true })).toBeVisible();
+	await page.getByRole("region", { name: "Articles", exact: true }).getByRole("button", { name: /Original 2026-09-22/ }).click();
 	await expect(content.getByRole("heading", { name: "Original 2026-09-22", exact: true })).toBeVisible();
 	await edit.click();
 	const editor = page.getByRole("dialog", { name: "Edit article", exact: true });
@@ -469,20 +473,17 @@ test("article dialogs retain failed drafts and select the next report after dele
 	await page.getByLabel("Article title", { exact: true }).fill("Edited 中文日报");
 	await page.getByLabel("Markdown", { exact: true }).fill("## 修改后的内容\n\n**保存后的正文**");
 	await page.getByLabel("Report date", { exact: true }).fill("2026-09-23");
-	await page.route(target, async route => {
-		if (route.request().method() === "PATCH") await route.fulfill({ status: 503, json: { error: "Try again" } });
-		else await route.continue();
-	});
+	await page.context().setOffline(true);
 	await editor.getByRole("button", { name: "Save article", exact: true }).click();
-	await expect(editor.getByRole("alert")).toContainText("Worker unreachable");
+	await expect(editor.getByRole("alert")).toContainText("Cannot reach API");
 	await expect(editor.getByLabel("Article title", { exact: true })).toHaveValue("Edited 中文日报");
 	await expect(editor.getByLabel("Markdown", { exact: true })).toHaveValue("## 修改后的内容\n\n**保存后的正文**");
 	await expect(editor.getByLabel("Report date", { exact: true })).toHaveValue("2026-09-23");
 	await page.setViewportSize({ width: 320, height: 844 });
 	await expectOverlayFits(page, editor);
-	await page.screenshot({ path: "/tmp/xray-article-edit-mobile320.png", fullPage: true });
+	await page.screenshot({ path: test.info().outputPath("xray-article-edit-mobile320.png"), fullPage: true });
 	await page.setViewportSize({ width: 1440, height: 1000 });
-	await page.unroute(target);
+	await page.context().setOffline(false);
 	await editor.getByRole("button", { name: "Save article", exact: true }).click();
 	await expect(editor).toHaveCount(0);
 	await expect(edit).toBeFocused();
@@ -498,18 +499,15 @@ test("article dialogs retain failed drafts and select the next report after dele
 	await expect(remove).toBeFocused();
 	await expect(content.getByRole("heading", { name: "Edited 中文日报", exact: true })).toBeVisible();
 	await remove.click();
-	await page.route(target, async route => {
-		if (route.request().method() === "DELETE") await route.fulfill({ status: 503, json: { error: "Try again" } });
-		else await route.continue();
-	});
+	await page.context().setOffline(true);
 	await confirmation.getByRole("button", { name: "Delete article", exact: true }).click();
-	await expect(confirmation.getByRole("alert")).toContainText("Worker unreachable");
+	await expect(confirmation.getByRole("alert")).toContainText("Cannot reach API");
 	await expect(confirmation).toContainText("Edited 中文日报");
 	await page.setViewportSize({ width: 320, height: 844 });
 	await expectOverlayFits(page, confirmation);
-	await page.screenshot({ path: "/tmp/xray-article-delete-mobile320.png", fullPage: true });
+	await page.screenshot({ path: test.info().outputPath("xray-article-delete-mobile320.png"), fullPage: true });
 	await page.setViewportSize({ width: 1440, height: 1000 });
-	await page.unroute(target);
+	await page.context().setOffline(false);
 	await confirmation.getByRole("button", { name: "Delete article", exact: true }).click();
 	await expect(page).toHaveURL(new RegExp(`/articles/${ids[0]}$`));
 	await expect(content.getByRole("heading", { name: "Original 2026-09-21", exact: true })).toBeVisible();
@@ -548,7 +546,7 @@ test("Tags page and popovers manage live deduplicated article tags with stable c
 	await expect(createTag.getByLabel("New tag name", { exact: true })).toHaveValue(sharedTag);
 	await page.setViewportSize({ width: 320, height: 844 });
 	await expectOverlayFits(page, createTag);
-	await page.screenshot({ path: "/tmp/xray-tag-create-mobile320.png", fullPage: true });
+	await page.screenshot({ path: test.info().outputPath("xray-tag-create-mobile320.png"), fullPage: true });
 	await createTag.getByRole("button", { name: "Cancel", exact: true }).click();
 	await expect(newTag).toBeFocused();
 	await page.setViewportSize({ width: 1440, height: 1000 });
@@ -574,19 +572,15 @@ test("Tags page and popovers manage live deduplicated article tags with stable c
 	await newToken.click();
 	const tokenDialog = page.getByRole("dialog", { name: "Create push token", exact: true });
 	await tokenDialog.getByLabel("Token name", { exact: true }).fill("Tagged producer");
-	const keyPath = `**/api/channels/${channel.id}/keys`;
-	await page.route(keyPath, async route => {
-		if (route.request().method() === "POST") await route.fulfill({ status: 503, json: { error: "Try again" } });
-		else await route.continue();
-	});
+	await page.context().setOffline(true);
 	await tokenDialog.getByRole("button", { name: "Create token", exact: true }).click();
-	await expect(tokenDialog.getByRole("alert")).toContainText("Worker unreachable");
+	await expect(tokenDialog.getByRole("alert")).toContainText("Cannot reach API");
 	await expect(tokenDialog.getByLabel("Token name", { exact: true })).toHaveValue("Tagged producer");
 	await page.setViewportSize({ width: 320, height: 844 });
 	await expectOverlayFits(page, tokenDialog);
-	await page.screenshot({ path: "/tmp/xray-token-create-mobile320.png", fullPage: true });
+	await page.screenshot({ path: test.info().outputPath("xray-token-create-mobile320.png"), fullPage: true });
 	await page.setViewportSize({ width: 1440, height: 1000 });
-	await page.unroute(keyPath);
+	await page.context().setOffline(false);
 	await tokenDialog.getByRole("button", { name: "Create token", exact: true }).click();
 	const tokenCreated = page.getByRole("dialog", { name: "Token created", exact: true });
 	const token = await tokenCreated.getByLabel("API key", { exact: true }).inputValue();
@@ -609,11 +603,11 @@ test("Tags page and popovers manage live deduplicated article tags with stable c
 	for (const node of await badge(sharedTag).all()) await expect(node).toHaveAttribute("data-tag-color", color!);
 	await expect(badge(channelTag)).toBeVisible();
 	await expect(badge(tokenTag)).toBeVisible();
-	await page.screenshot({ path: "/tmp/xray-tags-settings-desktop.png", fullPage: true });
+	await page.screenshot({ path: test.info().outputPath("xray-tags-settings-desktop.png"), fullPage: true });
 	await page.setViewportSize({ width: 320, height: 844 });
 	await tokenPicker.click();
 	await expectOverlayFits(page, picker);
-	await page.screenshot({ path: "/tmp/xray-tags-settings-mobile.png", fullPage: true });
+	await page.screenshot({ path: test.info().outputPath("xray-tags-settings-mobile.png"), fullPage: true });
 	await picker.getByRole("button", { name: "Close tag picker", exact: true }).click();
 	await expect(tokenPicker).toBeFocused();
 	await page.setViewportSize({ width: 1440, height: 1000 });
@@ -647,7 +641,7 @@ test("Tags page and popovers manage live deduplicated article tags with stable c
 	await expectArticleTags([sharedTag, channelTag, tokenTag]);
 	await page.setViewportSize({ width: 320, height: 844 });
 	await expectReaderChrome(page);
-	await page.screenshot({ path: "/tmp/xray-article-tags-mobile320.png", fullPage: true });
+	await page.screenshot({ path: test.info().outputPath("xray-article-tags-mobile320.png"), fullPage: true });
 	await page.setViewportSize({ width: 1440, height: 1000 });
 
 	await page.goto(`${BROWSER}/tags`);
@@ -680,7 +674,7 @@ test("Tags page and popovers manage live deduplicated article tags with stable c
 	await expect(confirmation).toContainText(renamedTag);
 	await page.setViewportSize({ width: 320, height: 844 });
 	await expectOverlayFits(page, confirmation);
-	await page.screenshot({ path: "/tmp/xray-tag-delete-mobile320.png", fullPage: true });
+	await page.screenshot({ path: test.info().outputPath("xray-tag-delete-mobile320.png"), fullPage: true });
 	await confirmation.getByRole("button", { name: "Cancel", exact: true }).click();
 	await expect(confirmation).toHaveCount(0);
 	await expect(deleteTag).toBeFocused();
@@ -716,12 +710,10 @@ test("leaving a pending article deletion does not pull navigation back to the re
 	const article = await submitted.json();
 	await page.goto(`${BROWSER}/channels/${channel.id}`);
 	await expect(page.getByRole("document", { name: "Article content" }).getByRole("heading", { name: "Pending", exact: true })).toBeVisible();
-	let release!: () => void;
-	const pending = new Promise<void>(resolve => { release = resolve; });
-	await page.route(`**/api/channels/${channel.id}/articles/${article.id}`, async route => {
-		if (route.request().method() === "DELETE") await pending;
-		await route.continue();
-	});
+	const transport = await page.context().newCDPSession(page);
+	try {
+	await transport.send("Network.enable");
+	await transport.send("Network.emulateNetworkConditions", { offline: false, latency: 1500, downloadThroughput: -1, uploadThroughput: -1 });
 	await page.getByRole("button", { name: "Delete article", exact: true }).click();
 	const deleting = page.waitForRequest(req => req.method() === "DELETE");
 	await page.getByRole("alertdialog", { name: "Delete article?", exact: true }).getByRole("button", { name: "Delete article", exact: true }).click();
@@ -732,8 +724,12 @@ test("leaving a pending article deletion does not pull navigation back to the re
 	}, `/channels/${channel.id}/settings`);
 	await expect(page).toHaveURL(new RegExp(`/channels/${channel.id}/settings$`));
 	const refreshed = page.waitForResponse(res => res.url().endsWith("/api/channels") && res.ok());
-	release();
+	await transport.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
 	await refreshed;
+	} finally {
+		await transport.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+		await transport.detach();
+	}
 	await expect.poll(async () => {
 		const result = await request.get(`${WORKER}/api/channels/${channel.id}/articles/${article.id}`, { headers: browserApiHeaders });
 		return result.status();
@@ -771,6 +767,7 @@ test("read indicators persist across devices, refresh and whole-channel bulk rea
  await expect(list.getByRole("img", { name: "Unread", exact: true })).toHaveCount(1);
  const device = await browser.newContext();
  const secondPage = await device.newPage();
+ await installExternalMedia(secondPage);
  await secondPage.goto(`${BROWSER}/channels/${channel.id}/articles/${ids[1]}`);
  await expect(secondPage.getByRole("region", { name: "Articles", exact: true }).getByRole("img", { name: "Unread", exact: true })).toHaveCount(1);
  await device.close();

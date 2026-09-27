@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
 	resolve: {
 		alias: {
-			"@": resolve(__dirname, "./src"),
+			"@": resolve(import.meta.dirname, "./src"),
 		},
 	},
 	test: {
@@ -27,7 +27,7 @@ export default defineConfig({
 				// React binder (useSyncExternalStore glue)
 				"src/viewmodels/use-vm.ts",
 				// Types / static mock fixtures (not executable product logic)
-				"src/lib/mock-data.ts",
+				"src/lib/content-types.ts",
 				"src/lib/tweet-types.ts",
 				"src/lib/version.ts",
 				"src/lib/watchlist-icons.ts",

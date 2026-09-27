@@ -145,7 +145,7 @@ export function ArticleLinksPanel({
 								<Button
 									variant="ghost"
 									size="icon"
-									className="h-6 w-6"
+									className="h-8 w-8"
 									aria-label="Close related links"
 									onClick={onClose}
 								>

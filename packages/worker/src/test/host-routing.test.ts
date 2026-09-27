@@ -26,7 +26,6 @@ describe("host routing matrix (R3-04)", () => {
 			// @ts-expect-error test
 			c.env = {
 				ENVIRONMENT: "development",
-				AUTH_DEV_BYPASS: "true",
 				ALLOWED_EMAILS: "dev@xray.local",
 				DB: {
 					prepare: () => ({
@@ -100,7 +99,6 @@ describe("host routing matrix (R3-04)", () => {
 		};
 		const env = {
 			ENVIRONMENT: "development",
-			AUTH_DEV_BYPASS: "true",
 			ALLOWED_EMAILS: "dev@xray.local",
 			ASSETS: assets,
 			DB: {

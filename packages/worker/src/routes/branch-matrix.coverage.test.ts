@@ -7,6 +7,8 @@ import app from "../index.js";
 import { mintPushToken, sha256Hex } from "../lib/push-token-crypto.js";
 import * as itemsRepo from "../repos/items.js";
 import * as translateRepo from "../repos/translate.js";
+import { externalBinding, successfulExternal } from "../test/external-binding.js";
+import { identityHeaders, localIdentityBindings } from "../test/signed-identity.js";
 import { createSqliteD1 } from "../test/sqlite-d1.js";
 import type { AppEnv } from "../types.js";
 import { ingestPushRoute } from "./ingest-push.js";
@@ -17,17 +19,13 @@ const KEK = "0123456789abcdef0123456789abcdef";
 function baseEnv(db: D1Database, extra: Record<string, unknown> = {}) {
 	return {
 		ENVIRONMENT: "test",
-		AUTH_DEV_BYPASS: "true",
+		...localIdentityBindings,
 		ALLOWED_EMAILS: "dev@xray.local,dev-b@xray.local",
 		DB: db,
 		XRAY_SECRETS_KEK: KEK,
 		XRAY_SECRETS_KEY_VERSION: "1",
 		ZHETO_WEBHOOK_ALLOW_HOSTS: "localhost,127.0.0.1",
-		TRANSLATE_FN: async () => ({ translatedText: "译", summaryText: "摘" }),
-		ZHETO_UPSTREAM: async () => ({
-			status: 200,
-			json: { shortUrl: "https://zhe.to/x", slug: "x", originalUrl: "u", isExisting: false },
-		}),
+		XRAY_EXTERNAL: successfulExternal,
 		...extra,
 	};
 }
@@ -37,7 +35,7 @@ function hdr(actor: "a" | "b" = "a") {
 		host: "localhost",
 		origin: "http://localhost:7007",
 		"content-type": "application/json",
-		"x-test-actor": actor,
+		...identityHeaders(actor),
 	};
 }
 
@@ -575,6 +573,7 @@ describe("branch matrix coverage", () => {
 		).toBe(200);
 
 		// AI test with draft body + mock fetch
+		env.XRAY_EXTERNAL = externalBinding((input, init) => fetch(input, init));
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(
@@ -890,10 +889,9 @@ describe("branch matrix coverage", () => {
 
 		// upstream 201 with nested data
 		const env201 = baseEnv(db, {
-			ZHETO_UPSTREAM: async () => ({
-				status: 201,
-				json: { data: { shortUrl: "s", slug: "sl", originalUrl: "o" } },
-			}),
+			XRAY_EXTERNAL: externalBinding(async () =>
+				Response.json({ data: { shortUrl: "s", slug: "sl", originalUrl: "o" } }, { status: 201 }),
+			),
 		});
 		expect(
 			(
@@ -915,7 +913,7 @@ describe("branch matrix coverage", () => {
 
 		// upstream 500 / 400 / throw
 		const env500 = baseEnv(db, {
-			ZHETO_UPSTREAM: async () => ({ status: 500, json: {} }),
+			XRAY_EXTERNAL: externalBinding(async () => Response.json({}, { status: 500 })),
 		});
 		expect(
 			(
@@ -927,7 +925,7 @@ describe("branch matrix coverage", () => {
 			).status,
 		).toBe(502);
 		const env400 = baseEnv(db, {
-			ZHETO_UPSTREAM: async () => ({ status: 400, json: {} }),
+			XRAY_EXTERNAL: externalBinding(async () => Response.json({}, { status: 400 })),
 		});
 		expect(
 			(
@@ -939,9 +937,9 @@ describe("branch matrix coverage", () => {
 			).status,
 		).toBe(400);
 		const envThrow = baseEnv(db, {
-			ZHETO_UPSTREAM: async () => {
+			XRAY_EXTERNAL: externalBinding(async () => {
 				throw new Error("net");
-			},
+			}),
 		});
 		expect(
 			(

@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import { presentationTime } from "../lib/env.js";
 import { jsonOk, requireUser } from "../lib/http.js";
 import { getDashboardAggregates } from "../repos/dashboard.js";
 import type { AppEnv } from "../types.js";
@@ -6,6 +7,6 @@ import type { AppEnv } from "../types.js";
 export async function getDashboardRoute(c: Context<AppEnv>) {
 	const user = requireUser(c);
 	if (user instanceof Response) return user;
-	const data = await getDashboardAggregates(c.env.DB, user.id);
+	const data = await getDashboardAggregates(c.env.DB, user.id, presentationTime(c.env));
 	return jsonOk(c, data);
 }

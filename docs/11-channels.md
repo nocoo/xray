@@ -109,6 +109,9 @@ Empty lists and documents use centered Basalt empty states with Lucide icons. Co
 
 ## Delivery checklist
 
+Historical v2.4.0 delivery evidence, recorded 2026-09-22. The Mock setup below has
+been replaced by the managed environment runtime described in Verification.
+
 - [x] Shared contracts, D1 migration, channel/key/ingest routes and L1 tests.
 - [x] Sidebar, management UI, Markdown reader, keyboard/position behavior and L1 tests.
 - [x] Canonical ingest hostname across local configuration, scripts, tests and docs (`691dbe4`, pre-commit checks passed).
@@ -130,7 +133,7 @@ The v2.4.0 production workflow applied `0003_channels.sql` and `0004_channel_sor
 
 ## Verification
 
-Run the existing lint, strict typecheck, coverage and build gates. L2 uses `env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID -u CF_API_TOKEN bun run test:l2`; serialize it because its existing harness owns a fixed test directory and temporarily supplies test environment variables. Browser tests require a separate local Worker with fresh SQLite state and a verified `_test_marker`, plus a separate Vite port. Never point automated tests at Product or the daily Mock store. Preview the completed application in Chrome through `https://xray.dev.hexly.ai`.
+Current runtime guidance (2026-09-27): run the existing lint, strict typecheck, coverage and build gates. `bun run test:l2` owns a fresh native E2E Worker and the route inventory gate. Install Chromium with `bun x --no-install playwright install chromium`; `bun run test:l3` builds and owns a separate E2E gateway/Worker, signed fixture identities, generated configuration and cleanup. Both launchers reject inherited production credentials; never target Prod or daily Demo. Preview the application in Chrome through `https://xray.dev.hexly.ai`. See [6DQ](06-testing-6dq.md) and [local environments](12-local-environments.md). The dated results below describe earlier revisions, not verification of this runtime.
 
 Verified locally on 2026-09-22 after the management revision:
 
@@ -200,5 +203,6 @@ and are unavailable on the ingest host. New arrivals after a bulk update remain
 unread. Channel responses expose `hasUnread`; article summaries and details expose
 `isRead`. Unread articles and sidebar channels use a glowing dot without an unread
 count. Refresh and mark-all-read actions sit above the channel list. Refresh keeps
-the current filters and loaded page depth. Local Mock channel 10 contains both read
-and unread examples; seeding never resets reading progress.
+the current filters and loaded page depth. The Demo inbox contains both read and
+unread examples; ordinary restarts preserve reading progress, while an explicit
+Demo reset replaces the catalog. See the [fixture matrix](13-environment-fixtures.md).

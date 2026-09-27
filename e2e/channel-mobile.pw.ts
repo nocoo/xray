@@ -1,5 +1,8 @@
+import { installExternalMedia } from "../fixtures/e2e";
 import { expect, test } from "@playwright/test";
 import { BROWSER, browserApiHeaders, INGEST, WORKER } from "./helpers";
+
+test.beforeEach(async ({ page }) => { await installExternalMedia(page); });
 
 test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 
@@ -70,7 +73,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
 			await page.reload();
 			await expect(content.getByRole("heading", { name: titles[1], exact: true })).toBeInViewport();
 			await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-			await page.screenshot({ path: `/tmp/xray-mobile-${viewport.width}-after.png` });
+			await page.screenshot({ path: test.info().outputPath(`xray-mobile-${viewport.width}-after.png`) });
 			await page.getByRole("button", { name: "Open navigation menu", exact: true }).tap();
 			await page.getByRole("dialog").getByRole("link", { name: "Channels", exact: true }).tap();
 			await expect(page).toHaveURL(`${BROWSER}/channels`);

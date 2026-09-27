@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import { translateAndSummarize } from "../lib/ai-client.js";
 import { jsonErr, jsonOk, parseIdParam, requireUser } from "../lib/http.js";
 import { decryptAiApiKey, getAiConfigRow } from "../repos/ai-configs.js";
 import { runTranslateBatch, TRANSLATE_MAX } from "../repos/translate.js";
@@ -44,13 +45,12 @@ export async function translateWatchlistRoute(c: Context<AppEnv>) {
 		return jsonErr(c, "AI key decrypt failed", 500);
 	}
 
-	const translateFn = c.env.TRANSLATE_FN;
 	const result = await runTranslateBatch(c.env.DB, user.id, id, {
 		limit,
 		itemIds,
 		config,
 		apiKey,
-		translateFn,
+		translateFn: (input) => translateAndSummarize(input, c.env),
 	});
 	return jsonOk(c, result);
 }

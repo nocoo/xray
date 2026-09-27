@@ -1,5 +1,9 @@
+import { installExternalMedia } from "../fixtures/e2e";
+import { MEDIA_URLS } from "../fixtures/primitives";
 import { expect, test } from "@playwright/test";
 import { BROWSER, browserApiHeaders, INGEST, WORKER } from "./helpers";
+
+test.beforeEach(async ({ page }) => { await installExternalMedia(page); });
 
 test.beforeAll(() => {
 	for (const value of [BROWSER, WORKER, INGEST]) {
@@ -16,29 +20,26 @@ test("related previews stay beside the reader and expand inline on mobile", asyn
 	const token = (await issued.json()).data.token;
 	const submitted = await request.post(`${INGEST}/api/v1/ingest/articles`, {
 		headers: { host: "xray-ingest.worker.hexly.ai", authorization: `Bearer ${token}` },
-		data: { external_id: "links", title: "研发观察：让阅读回到内容", report_date: "2026-09-22", markdown: "## 阅读与设计\n\n这是一篇记录阅读体验的报告，正文应当拥有最清晰的视觉层级。\n\n[中文阅读与 Kami](https://sources.example.com/kami#reader) 与 [Kami 重复来源](https://sources.example.com/kami) 提供阅读参考。\n\n[Workers 文档][docs] 帮助我们实现可靠的链接预览。\n\n[尚无预览的页面](https://sources.example.com/unavailable) 仍然可以直接打开。\n\n[docs]: https://sources.example.com/workers\n\n```text\nhttps://sources.example.com/code-only\n```\n\n![示例正文插图](https://images.example.com/article.svg)" },
+		data: { external_id: "links", title: "研发观察：让阅读回到内容", report_date: "2026-09-22", markdown: "## 阅读与设计\n\n这是一篇记录阅读体验的报告，正文应当拥有最清晰的视觉层级。\n\n[中文阅读与 Kami](https://github.com/tw93/Kami#reader) 与 [Kami 重复来源](https://github.com/tw93/Kami) 提供阅读参考。\n\n[Workers 文档][docs] 帮助我们实现可靠的链接预览。\n\n[尚无预览的页面](https://example.com/xray-demo-preview-unavailable-v1) 仍然可以直接打开。\n\n[docs]: https://developers.cloudflare.com/workers/\n\n```text\nhttps://example.com/code-only\n```\n\n![示例正文插图](" + MEDIA_URLS.desk + ")" },
 	});
 	expect(submitted.status()).toBe(201);
 	const id = (await submitted.json()).id;
 	const previewed: string[] = [];
-	await page.route("https://images.example.com/**", route => route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="#d6e5df"/><circle cx="410" cy="140" r="78" fill="#92b8a5"/><path d="M0 300L230 80L510 360H0" fill="#71948a"/></svg>' }));
-	await page.route("**/link-preview?*", async route => {
-		const url = new URL(route.request().url()).searchParams.get("url")!;
-		previewed.push(url);
-		const unavailable = url.endsWith("unavailable");
-		await route.fulfill({ json: { success: true, data: { url, title: unavailable ? null : url.endsWith("kami") ? "Kami · 舒适的中文阅读体验" : "Cloudflare Workers — Build with confidence", description: unavailable ? null : "保持清晰的信息层级，在文章旁边查看原始来源、摘要与图片。", siteName: unavailable ? null : "Research sources", imageUrl: unavailable ? null : "https://images.example.com/preview.svg" } } });
+	page.on("request", request => {
+		const url = new URL(request.url());
+		if (url.pathname.endsWith("/link-preview")) previewed.push(url.searchParams.get("url") ?? "");
 	});
 	await page.goto(`${BROWSER}/channels/${channel.id}/articles/${id}`);
 	const aside = page.getByRole("complementary", { name: "Related article links", exact: true });
 	const content = page.getByRole("document", { name: "Article content" });
 	await expect(aside).toBeVisible();
 	await expect(aside.getByRole("listitem")).toHaveCount(3);
-	await expect(aside.getByRole("link", { name: /Kami · 舒适/ })).toBeVisible();
+	await expect(aside.getByRole("link", { name: /Kami · A quieter/ })).toBeVisible();
 	await expect(aside.locator("img")).toHaveCount(2);
 	await expect.poll(() => aside.locator("img").first().evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
 	await expect(aside.getByRole("link", { name: /尚无预览的页面/ })).toBeVisible();
 	await expect.poll(() => new Set(previewed).size).toBe(3);
-	expect(previewed.every(url => !url.includes("code-only") && !url.includes("images.example.com") && !url.includes("#"))).toBe(true);
+	expect(previewed.every(url => !url.includes("code-only") && !url.includes("images.unsplash.com") && !url.includes("#"))).toBe(true);
 	const geometry = await page.locator(".channel-panes").evaluate(panes => {
 		const list = panes.querySelector(".channel-list")!.getBoundingClientRect();
 		const body = panes.querySelector(".channel-detail")!;
@@ -67,7 +68,7 @@ test("related previews stay beside the reader and expand inline on mobile", asyn
 	await aside.getByRole("link").first().focus();
 	await page.keyboard.press("j");
 	await expect(page).toHaveURL(new RegExp(`/articles/${id}$`));
-	await page.screenshot({ path: "/tmp/xray-related-links-desktop.png", fullPage: true });
+	await page.screenshot({ path: test.info().outputPath("xray-related-links-desktop.png"), fullPage: true });
 	await page.getByRole("button", { name: /Toggle theme/ }).click();
 	await page.getByRole("button", { name: /Toggle theme/ }).click();
 	await expect.poll(() => page.evaluate(() => document.documentElement.classList.contains("dark"))).toBe(true);
@@ -85,7 +86,7 @@ test("related previews stay beside the reader and expand inline on mobile", asyn
 			&& value('.channel-related-links a p', "color") > 200
 			&& value('.channel-header button', "backgroundColor") < 50;
 	})).toBe(true);
-	await page.screenshot({ path: "/tmp/xray-related-links-dark.png", fullPage: true, animations: "disabled" });
+	await page.screenshot({ path: test.info().outputPath("xray-related-links-dark.png"), fullPage: true, animations: "disabled" });
 	const openLinks = page.getByRole("button", { name: "Related links", exact: true });
 	const region = page.locator(".channel-links-region");
 	await expect(openLinks).toHaveAttribute("aria-expanded", "true");
@@ -134,7 +135,7 @@ test("related previews stay beside the reader and expand inline on mobile", asyn
 	})).toBe(true);
 	await aside.getByRole("heading", { name: "Related links", exact: true }).scrollIntoViewIfNeeded();
 	await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-	await page.screenshot({ path: "/tmp/xray-related-links-mobile.png" });
+	await page.screenshot({ path: test.info().outputPath("xray-related-links-mobile.png") });
 	await aside.getByRole("button", { name: "Close related links" }).click();
 	expect(await region.evaluate(node => node.getAnimations().some(animation => (animation as CSSTransition).transitionProperty === "grid-template-rows"))).toBe(true);
 	await expect(openLinks).toBeFocused();

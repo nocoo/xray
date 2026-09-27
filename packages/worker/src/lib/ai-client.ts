@@ -4,6 +4,7 @@
  */
 
 import { readResponseBounded, resolveAiBaseUrl } from "./ai-endpoint.js";
+import { type ExternalEnv, externalFetch } from "./external.js";
 
 export type ChatMessage = {
 	role: "system" | "user" | "assistant";
@@ -32,11 +33,14 @@ const BODY_MAX = 32_768;
  * Single chat.completions call against an OpenAI-compatible endpoint.
  * Throws Error with actionable message on config/upstream failure.
  */
-export async function chatCompletion(input: ChatCompletionInput): Promise<ChatCompletionResult> {
+export async function chatCompletion(
+	input: ChatCompletionInput,
+	env: ExternalEnv = {},
+): Promise<ChatCompletionResult> {
 	const ep = resolveAiBaseUrl(input.baseUrl);
 	if (!ep.ok) throw new Error(ep.error);
 
-	const res = await fetch(ep.chatCompletionsUrl, {
+	const res = await externalFetch(env, ep.chatCompletionsUrl, {
 		method: "POST",
 		headers: {
 			"content-type": "application/json",
@@ -98,16 +102,19 @@ export function parseCardTranslation(raw: string): {
 }
 
 /** Translate + optional summary (product translate path). */
-export async function translateAndSummarize(opts: {
-	text: string;
-	quotedText?: string | null;
-	apiKey: string;
-	model?: string | null;
-	baseUrl?: string | null;
-	translationPrompt?: string | null;
-	summaryPrompt?: string | null;
-	signal?: AbortSignal;
-}): Promise<{
+export async function translateAndSummarize(
+	opts: {
+		text: string;
+		quotedText?: string | null;
+		apiKey: string;
+		model?: string | null;
+		baseUrl?: string | null;
+		translationPrompt?: string | null;
+		summaryPrompt?: string | null;
+		signal?: AbortSignal;
+	},
+	env: ExternalEnv = {},
+): Promise<{
 	translatedText: string;
 	quotedTranslatedText: string | null;
 	summaryText: string | null;
@@ -125,17 +132,20 @@ ${TRANSLATE_REF_MARK}
 
 	const userContent = quotedText ? `POST:\n${opts.text}\n\nREFERENCED:\n${quotedText}` : opts.text;
 
-	const { content } = await chatCompletion({
-		apiKey: opts.apiKey,
-		model: opts.model,
-		baseUrl: opts.baseUrl,
-		messages: [
-			{ role: "system", content: system },
-			{ role: "user", content: userContent },
-		],
-		temperature: 0.2,
-		signal: opts.signal,
-	});
+	const { content } = await chatCompletion(
+		{
+			apiKey: opts.apiKey,
+			model: opts.model,
+			baseUrl: opts.baseUrl,
+			messages: [
+				{ role: "system", content: system },
+				{ role: "user", content: userContent },
+			],
+			temperature: 0.2,
+			signal: opts.signal,
+		},
+		env,
+	);
 
 	const parsed = quotedText
 		? parseCardTranslation(content)
@@ -146,17 +156,20 @@ ${TRANSLATE_REF_MARK}
 		return { ...parsed, summaryText: null };
 	}
 
-	const { content: summaryText } = await chatCompletion({
-		apiKey: opts.apiKey,
-		model: opts.model,
-		baseUrl: opts.baseUrl,
-		messages: [
-			{ role: "system", content: sumPrompt },
-			{ role: "user", content: userContent },
-		],
-		temperature: 0.2,
-		signal: opts.signal,
-	});
+	const { content: summaryText } = await chatCompletion(
+		{
+			apiKey: opts.apiKey,
+			model: opts.model,
+			baseUrl: opts.baseUrl,
+			messages: [
+				{ role: "system", content: sumPrompt },
+				{ role: "user", content: userContent },
+			],
+			temperature: 0.2,
+			signal: opts.signal,
+		},
+		env,
+	);
 
 	return { ...parsed, summaryText };
 }

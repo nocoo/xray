@@ -77,7 +77,7 @@ Rewrite = **clean cut**. Design/CSS stay; engine, auth, deploy, and ingest model
 ## 7. Success criteria
 
 1. **Prod browser** `https://xray.hexly.ai`：CF Access Google 登录后进 Dashboard。  
-   **Dev** `https://xray.dev.hexly.ai`：Worker `AUTH_DEV_BYPASS`（仅 development/test）。
+   **Local Demo/E2E** `https://xray.dev.hexly.ai`: managed native runtime with signed fixture JWTs and normal verification; local Prod retains the real Access identity. This replaces the original bypass criterion as of 2026-09-27; see [local environments](12-local-environments.md).
 2. **Prod ingest** `https://xray-ingest.worker.hexly.ai`：Bearer 可读图 + 可 push；browser host 不做 agent 流量。
 3. 迁移后 sidebar 出现原 watchlists/groups（无 posts）。
 4. Push token → `POST /api/v1/ingest/push` 写入 x.com + custom → 同一 watchlist mix 时间线。

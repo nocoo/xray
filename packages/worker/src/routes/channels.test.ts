@@ -1,3 +1,4 @@
+import { identityHeaders, localIdentityBindings } from "../test/signed-identity.js";
 /**
  * L1 channels coverage: full worker app over real SQLite (docs/11-channels.md).
  */
@@ -30,7 +31,7 @@ const INGEST_HOST = "xray-ingest.worker.hexly.ai";
 function makeEnv(db: D1Database, environment = "test") {
 	return {
 		ENVIRONMENT: environment,
-		AUTH_DEV_BYPASS: "true",
+		...localIdentityBindings,
 		ALLOWED_EMAILS: "dev@xray.local,dev-b@xray.local",
 		DB: db,
 		XRAY_SECRETS_KEK: KEK,
@@ -43,7 +44,7 @@ function hdr(actor: "a" | "b" = "a", extra: Record<string, string> = {}) {
 		host: "127.0.0.1",
 		origin: "http://localhost:7007",
 		"content-type": "application/json",
-		"x-test-actor": actor,
+		...identityHeaders(actor),
 		...extra,
 	};
 }
@@ -203,7 +204,8 @@ describe("channels browser routes", () => {
 			const prod = {
 				...env,
 				ENVIRONMENT: "production",
-				AUTH_DEV_BYPASS: undefined,
+				XRAY_LOCAL_JWKS: undefined,
+				XRAY_EXTERNAL: undefined,
 				CF_ACCESS_TEAM_DOMAIN: "hexly.cloudflareaccess.com",
 				CF_ACCESS_AUD: "aud",
 			};
@@ -415,7 +417,8 @@ describe("channels browser routes", () => {
 
 	test("all channel endpoints require browser Access auth (401 without JWT)", async () => {
 		const env = makeEnv(createSqliteD1(), "production");
-		delete env.AUTH_DEV_BYPASS;
+		delete env.XRAY_LOCAL_JWKS;
+		delete env.XRAY_EXTERNAL;
 		env.CF_ACCESS_TEAM_DOMAIN = "hexly.cloudflareaccess.com";
 		env.CF_ACCESS_AUD = "aud-1";
 		const noJwt = { host: "xray.hexly.ai", "content-type": "application/json" };
@@ -493,7 +496,7 @@ describe("channels browser routes", () => {
 		const bare = new Hono<AppEnv>();
 		bare.use("*", async (c, next) => {
 			// @ts-expect-error test env
-			c.env = { DB: createSqliteD1(), ENVIRONMENT: "test", AUTH_DEV_BYPASS: "true" };
+			c.env = { DB: createSqliteD1(), ENVIRONMENT: "test" };
 			return next();
 		});
 		bare.get("/api/channels", listChannelsRoute);
@@ -731,12 +734,29 @@ describe("channels ingest route", () => {
 		const env = makeEnv(createSqliteD1());
 		const channel = await createChannel(env);
 		const key = await createKey(env, channel.id);
-		expect((await submit(env, key.token, article(), { "x-test-force-rl": "1" })).status).toBe(429);
+		env.XRAY_INGEST_RL = { limit: async () => ({ success: false }) };
+		expect((await submit(env, key.token, article())).status).toBe(429);
 		expect(
 			dataOf<{ items: unknown[] }>(
 				(await call(`/api/channels/${channel.id}/articles`, { headers: hdr() }, env)).body,
 			).items,
 		).toEqual([]);
+	});
+
+	test("legacy force header cannot replace the binding result", async () => {
+		const env = makeEnv(createSqliteD1());
+		const channel = await createChannel(env);
+		const key = await createKey(env, channel.id);
+		const rateKeys: string[] = [];
+		env.XRAY_INGEST_RL = {
+			limit: async ({ key }) => {
+				rateKeys.push(key);
+				return { success: true };
+			},
+		};
+		expect((await submit(env, key.token, article(), { "x-test-force-rl": "1" })).status).toBe(201);
+		expect(rateKeys).toHaveLength(1);
+		expect(rateKeys[0]).toMatch(/^token:\d+$/);
 	});
 
 	test("edge auth and body branches", async () => {
@@ -801,7 +821,8 @@ describe("channels ingest route", () => {
 		try {
 			const env2 = makeEnv(createSqliteD1());
 			delete env2.ENVIRONMENT;
-			delete env2.AUTH_DEV_BYPASS;
+			delete env2.XRAY_LOCAL_JWKS;
+			delete env2.XRAY_EXTERNAL;
 			env2.CF_ACCESS_TEAM_DOMAIN = "hexly.cloudflareaccess.com";
 			env2.CF_ACCESS_AUD = "aud-1";
 			const jwtHeaders = {
@@ -844,7 +865,8 @@ describe("channels ingest route", () => {
 		}));
 		try {
 			const env = makeEnv(createSqliteD1(), "production");
-			delete env.AUTH_DEV_BYPASS;
+			delete env.XRAY_LOCAL_JWKS;
+			delete env.XRAY_EXTERNAL;
 			env.CF_ACCESS_TEAM_DOMAIN = "hexly.cloudflareaccess.com";
 			env.CF_ACCESS_AUD = "aud-1";
 			env.XRAY_INGEST_RL = { limit: async () => ({ success: true }) };

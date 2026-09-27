@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { describe, expect, test } from "vitest";
 import app from "../index.js";
+import { identityHeaders, localIdentityBindings } from "../test/signed-identity.js";
 import { createSqliteD1 } from "../test/sqlite-d1.js";
 import type { AppEnv } from "../types.js";
 import { deleteChannelArticleRoute, patchChannelArticleRoute } from "./channels.js";
@@ -11,7 +12,7 @@ function setup() {
 	const env = {
 		DB,
 		ENVIRONMENT: "test",
-		AUTH_DEV_BYPASS: "true",
+		...localIdentityBindings,
 		ALLOWED_EMAILS: "dev@xray.local,dev-b@xray.local",
 	} as AppEnv["Bindings"];
 	async function call(path: string, method = "GET", body?: unknown, actor = "a", extra = {}) {
@@ -23,7 +24,7 @@ function setup() {
 					host: "127.0.0.1",
 					origin: "http://localhost:7007",
 					"content-type": "application/json",
-					"x-test-actor": actor,
+					...identityHeaders(actor),
 					...extra,
 				},
 				body: body === undefined ? undefined : JSON.stringify(body),
@@ -197,7 +198,8 @@ describe("local tags and article management", () => {
 			const prod = {
 				...env,
 				ENVIRONMENT: "production",
-				AUTH_DEV_BYPASS: undefined,
+				XRAY_LOCAL_JWKS: undefined,
+				XRAY_EXTERNAL: undefined,
 				CF_ACCESS_TEAM_DOMAIN: "test.cloudflareaccess.com",
 				CF_ACCESS_AUD: "test",
 			};
@@ -225,7 +227,7 @@ describe("local tags and article management", () => {
 					path,
 					{
 						method: "PATCH",
-						headers: { host: "127.0.0.1", origin: "http://localhost:7007" },
+						headers: { host: "127.0.0.1", origin: "http://localhost:7007", ...identityHeaders() },
 						body: "{bad",
 					},
 					env,

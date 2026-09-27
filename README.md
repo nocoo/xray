@@ -55,25 +55,33 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
-`bun run dev` 自动应用本地 D1 迁移、构建 shared 包，并启动 Vite 和 Worker：
+`bun run dev` builds the shared package and starts the managed gateway. Open **https://xray.dev.hexly.ai** through Caddy for local preview and HMR. The gateway listens on 7007; native Worker and inspector ports are allocated dynamically.
 
-| 入口 | 地址 |
+| Command | Purpose |
 | --- | --- |
-| 本地 UI | `http://localhost:7007` |
-| 本地 Worker | `http://127.0.0.1:37007` |
-| 存活检查 | `http://127.0.0.1:37007/api/live` |
+| `bun run dev` | Resolve launcher mode, valid saved preference, then Demo |
+| `bun run dev -- --mode demo` | Explicit persistent Demo session |
+| `bun run dev -- --mode e2e` | Fresh manual E2E session, locked until shutdown |
+| `bun run preview -- --mode demo` | Build and serve the same UI from `packages/worker/static` |
+| `bun run env:db -- init --mode demo` | Initialize owned Demo storage and fixtures |
+| `bun run env:db -- migrate --mode demo` | Apply current migrations to Demo |
+| `bun run env:db -- seed --mode demo` | Seed only an unseeded Demo store |
+| `bun run env:db -- reset --mode demo` | Explicitly replace Demo data and discard its edits |
 
-本地预览统一使用 **https://xray.dev.hexly.ai**（Caddy HTTPS，支持热更新）。启动后默认显示 Mock 数据，使用独立的 `.wrangler/state-mock` 数据库；示例数据重复启动不会覆盖已有编辑。
+Stop the active Demo session before database commands. Demo persists in `packages/worker/.wrangler/environments/demo`; normal restarts retain edits. E2E uses a new owned `e2e-*` directory and cleans it up on shutdown. The retired `.wrangler/state-mock` store is preserved untouched.
 
-右上角可以切换 **Mock / Product**，选择在当前标签页保留；切换会回到首页并清空页面状态。Mock 使用 `dev@xray.local` 本地身份。Product 通过本地开发代理连接 `https://xray.hexly.ai`，使用当前 Access 用户的线上权限，**编辑、删除、翻译等操作会影响生产数据**。先安装 `cloudflared` 并运行：
+The local header shows **Demo | E2E | Prod**. Accepted interactive choices persist as a mode enum; switching checks unsaved drafts and reloads the home page. API requests and reader caches remain bound to the accepted instance, so an old request cannot become a write to another backend. E2E disables both alternatives until shutdown. Hosted deployments ignore local preferences; cloud CI also hides the control.
+
+Demo/E2E retain real JWT verification with signed fixture identities, production migrations and normal CRUD. Known external services use native fixture bindings, and the launcher provisions local encryption keys; do not configure daily `.dev.vars` for these sessions. Channel Markdown and related-preview images remain external HTTPS links. See the [environment contract](docs/12-local-environments.md) and [fixture matrix](docs/13-environment-fixtures.md).
+
+Local Prod connects to the deployed API with the real Access identity. Its edits, deletions, translations and integrations can affect production data. Install `cloudflared`, sign in, then explicitly select Prod:
 
 ```bash
-bun run login:product
+bun run login:prod
+bun run dev -- --mode prod
 ```
 
-完成浏览器中的 Cloudflare Access 登录后选择 Product；登录过期时重新运行命令并重试。凭据只由本地服务读取，不发送到前端，也不写入项目环境文件。自动化测试不得使用 Product。生产构建不包含模式切换或开发代理。Caddy 配置见[架构文档](docs/02-architecture.md)。
-
-保存 AI key 或 zhe.to webhook 前，需要在 `packages/worker/.dev.vars` 设置 `XRAY_SECRETS_KEK`：32 字节 ASCII 字符串，或解码后为 32 字节的 Base64。其他可选配置见 [.env.example](.env.example)。普通列表操作不依赖这些集成密钥。
+Credentials stay on the local server. Automated tests never select the real Prod service. Both Vite and locally served built assets support the same environment contract; only a trusted launcher injects the bootstrap marker, including automated CI with a hidden control.
 
 ```bash
 bun run build       # shared、UI 和 Worker 的部署预检构建
@@ -99,10 +107,12 @@ legacy/v1/         旧版 vinext 应用
 | 测试层 | 命令 |
 | --- | --- |
 | 共享逻辑、UI 与 Worker 单元测试 | `bun run test` |
-| Worker HTTP 集成测试 | `bun run --filter @xray/worker test:e2e` |
+| Worker HTTP integration + route inventory | `bun run test:l2` |
 | 浏览器端到端测试 | `bun run test:l3` |
 
-HTTP 测试会启动本地 Worker 和独立的测试 D1；运行前需要取消 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`CF_API_TOKEN` 环境变量。浏览器测试先执行 `bunx playwright install chromium`，再启动独立的本地测试 UI 与 Worker，通过 `PLAYWRIGHT_BROWSER_URL`、`PLAYWRIGHT_WORKER_URL` 和 `PLAYWRIGHT_INGEST_URL` 显式指定地址；不得使用日常 Mock 数据库或 Product 模式。隔离约束见 [AGENTS.md](AGENTS.md)。
+L2 and L3 own their fresh native E2E resources and reject inherited production credentials. Use `bun run test:l2` for HTTP tests plus the endpoint inventory gate. Install Chromium with `bun x --no-install playwright install chromium`; `bun run test:l3` builds the application, starts its own gateway and Worker, supplies signed identities and addresses, and cleans up afterward. Direct unmanaged Playwright invocation is rejected. Do not point tests at daily Demo or Prod.
+
+On 2026-09-27, the full native L2 suite passed 41 tests across six files with cleanup, including concurrency and ownership regressions. The final managed L3 suite passed 25/25 in 2.4 minutes with cleanup. Google Chrome acceptance through the local Caddy address passed persistence, draft guards, switching and the manual E2E lifecycle; six captured product surfaces were reviewed. CI execution, real Prod verification and a complete visual audit remain unverified. See [6DQ](docs/06-testing-6dq.md), [AGENTS.md](AGENTS.md) and the [current verification record](docs/12-local-environments.md).
 
 ## 技术栈
 
@@ -128,6 +138,8 @@ HTTP 测试会启动本地 Worker 和独立的测试 D1；运行前需要取消 
 - [功能说明](docs/04-features.md)
 - [本地采集生产者](docs/09-local-producer-twitter-cli.md)
 - [采集调度](docs/10-refresh-schedule.md)
+- [Local environments](docs/12-local-environments.md)
+- [Environment fixtures](docs/13-environment-fixtures.md)
 - [变更记录](CHANGELOG.md)
 
 ## 许可证

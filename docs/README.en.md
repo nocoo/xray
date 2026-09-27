@@ -55,17 +55,33 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
-`bun run dev` applies local D1 migrations, builds the shared package, and starts Vite and the Worker:
+`bun run dev` builds the shared package and starts the managed gateway. Open **https://xray.dev.hexly.ai** through Caddy for local preview and HMR. The gateway listens on 7007; native Worker and inspector ports are allocated dynamically.
 
-| Endpoint | Address |
+| Command | Purpose |
 | --- | --- |
-| Local UI | `http://localhost:7007` |
-| Local Worker | `http://127.0.0.1:37007` |
-| Liveness check | `http://127.0.0.1:37007/api/live` |
+| `bun run dev` | Resolve launcher mode, valid saved preference, then Demo |
+| `bun run dev -- --mode demo` | Explicit persistent Demo session |
+| `bun run dev -- --mode e2e` | Fresh manual E2E session, locked until shutdown |
+| `bun run preview -- --mode demo` | Build and serve the same UI from `packages/worker/static` |
+| `bun run env:db -- init --mode demo` | Initialize owned Demo storage and fixtures |
+| `bun run env:db -- migrate --mode demo` | Apply current migrations to Demo |
+| `bun run env:db -- seed --mode demo` | Seed only an unseeded Demo store |
+| `bun run env:db -- reset --mode demo` | Explicitly replace Demo data and discard its edits |
 
-The local environment uses the `dev@xray.local` identity without Access configuration. Vite hot reload is configured for `https://xray.dev.hexly.ai`; set up Caddy as described in the [architecture guide](02-architecture.md) to use that development hostname and hot reload.
+Stop the active Demo session before database commands. Demo persists in `packages/worker/.wrangler/environments/demo`; normal restarts retain edits. E2E uses a new owned `e2e-*` directory and cleans it up on shutdown. The retired `.wrangler/state-mock` store is preserved untouched.
 
-Before saving an AI key or zhe.to webhook, set `XRAY_SECRETS_KEK` in `packages/worker/.dev.vars`: a 32-byte ASCII string, or Base64 that decodes to 32 bytes. See [.env.example](../.env.example) for optional settings. Basic list operations do not require integration secrets.
+The local header shows **Demo | E2E | Prod**. Accepted interactive choices persist as a mode enum; switching checks unsaved drafts and reloads the home page. API requests and reader caches remain bound to the accepted instance, so an old request cannot become a write to another backend. E2E disables both alternatives until shutdown. Hosted deployments ignore local preferences; cloud CI also hides the control.
+
+Demo/E2E retain real JWT verification with signed fixture identities, production migrations and normal CRUD. Known external services use native fixture bindings, and the launcher provisions local encryption keys; do not configure daily `.dev.vars` for these sessions. Channel Markdown and related-preview images remain external HTTPS links. See the [environment contract](12-local-environments.md) and [fixture matrix](13-environment-fixtures.md).
+
+Local Prod connects to the deployed API with the real Access identity. Its edits, deletions, translations and integrations can affect production data. Install `cloudflared`, sign in, then explicitly select Prod:
+
+```bash
+bun run login:prod
+bun run dev -- --mode prod
+```
+
+Credentials stay on the local server. Automated tests never select the real Prod service. Both Vite and locally served built assets support the same environment contract; only a trusted launcher injects the bootstrap marker, including automated CI with a hidden control.
 
 ```bash
 bun run build       # shared, UI, and Worker deployment dry-run build
@@ -84,12 +100,6 @@ e2e/               Browser end-to-end tests
 legacy/v1/         Previous vinext application
 ```
 
-## Local data modes
-
-Start `bun run dev` and open **https://xray.dev.hexly.ai** through Caddy. The header defaults to **Mock**, backed by a separately seeded local database in `packages/worker/.wrangler/state-mock`. Repeated startup preserves existing edits.
-
-Select **Product** to connect the local UI to the production API. First run `bun run login:product` with `cloudflared` installed and finish Cloudflare Access sign-in. Credentials stay in the local server and cloudflared cache. Product operations use your production permissions and can change live data. Tests must never select Product against the real service. Switching reloads the dashboard; the selection persists within the current tab. Production builds do not include this development switch or proxy.
-
 ## Tests
 
 Install dependencies and run `bun run build:shared`, then execute these commands from the repository root:
@@ -97,10 +107,12 @@ Install dependencies and run `bun run build:shared`, then execute these commands
 | Test layer | Command |
 | --- | --- |
 | Shared logic, UI, and Worker unit tests | `bun run test` |
-| Worker HTTP integration tests | `bun run --filter @xray/worker test:e2e` |
+| Worker HTTP integration + route inventory | `bun run test:l2` |
 | Browser end-to-end tests | `bun run test:l3` |
 
-HTTP tests start a local Worker with a separate test D1 database. Unset `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `CF_API_TOKEN` before running them. For browser tests, run `bunx playwright install chromium` and start a separate local test UI and Worker. Set `PLAYWRIGHT_BROWSER_URL`, `PLAYWRIGHT_WORKER_URL`, and `PLAYWRIGHT_INGEST_URL` explicitly. Never use the daily Mock database or the live Product mode for automated tests; see [AGENTS.md](../AGENTS.md).
+L2 and L3 own their fresh native E2E resources and reject inherited production credentials. Use `bun run test:l2` for HTTP tests plus the endpoint inventory gate. Install Chromium with `bun x --no-install playwright install chromium`; `bun run test:l3` builds the application, starts its own gateway and Worker, supplies signed identities and addresses, and cleans up afterward. Direct unmanaged Playwright invocation is rejected. Do not point tests at daily Demo or Prod.
+
+On 2026-09-27, the full native L2 suite passed 41 tests across six files with cleanup, including concurrency and ownership regressions. The final managed L3 suite passed 25/25 in 2.4 minutes with cleanup. Google Chrome acceptance through the local Caddy address passed persistence, draft guards, switching and the manual E2E lifecycle; six captured product surfaces were reviewed. CI execution, real Prod verification and a complete visual audit remain unverified. See [6DQ](06-testing-6dq.md), [AGENTS.md](../AGENTS.md) and the [current verification record](12-local-environments.md).
 
 ## Stack
 
@@ -126,6 +138,8 @@ HTTP tests start a local Worker with a separate test D1 database. Unset `CLOUDFL
 - [Feature reference](04-features.md)
 - [Local collection producer](09-local-producer-twitter-cli.md)
 - [Collection scheduling](10-refresh-schedule.md)
+- [Local environments](12-local-environments.md)
+- [Environment fixtures](13-environment-fixtures.md)
 - [Changelog](../CHANGELOG.md)
 
 ## License

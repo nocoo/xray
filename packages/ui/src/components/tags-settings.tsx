@@ -33,6 +33,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as api from "@/api/tags";
 import { LoadingSkeleton } from "@/components/loading-skeletons";
+import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 import { createTagsVm } from "@/viewmodels/tags-vm";
 import { useVm } from "@/viewmodels/use-vm";
 import { useChannels } from "./channels-context";
@@ -49,6 +50,9 @@ export function TagsSettings() {
 	const [editor, setEditor] = useState<Tag | "new" | null>(null);
 	const [deleting, setDeleting] = useState<Tag | null>(null);
 	const [name, setName] = useState("");
+	useUnsavedDraft(
+		editor !== null && (state.busy || name !== (editor === "new" ? "" : editor.name)),
+	);
 	const opener = useRef<HTMLButtonElement | null>(null);
 	const search = useRef<HTMLInputElement>(null);
 	useEffect(() => {

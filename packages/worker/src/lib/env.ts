@@ -5,17 +5,30 @@ export function isDevOrTest(env: Bindings): boolean {
 	return e === "development" || e === "test";
 }
 
-export function authDevBypassEnabled(env: Bindings): boolean {
-	return env.AUTH_DEV_BYPASS === "true" || env.AUTH_DEV_BYPASS === "1";
+export function assertBootEnv(env: Bindings): void {
+	const localResources = [env.XRAY_LOCAL_JWKS, env.XRAY_PRESENTATION_TIME, env.XRAY_EXTERNAL];
+	if (!isDevOrTest(env) && localResources.some((value) => value !== undefined)) {
+		throw new Error("Local resources forbidden outside development/test — refusing to boot");
+	}
+	if (
+		env.XRAY_LOCAL_JWKS !== undefined &&
+		(env.CF_ACCESS_TEAM_DOMAIN !== "identity.xray.test" || env.CF_ACCESS_AUD !== "xray-local")
+	) {
+		throw new Error("Local JWKS requires the local Access issuer and audience");
+	}
+	if (
+		env.XRAY_PRESENTATION_TIME !== undefined &&
+		(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(env.XRAY_PRESENTATION_TIME) ||
+			!Number.isFinite(Date.parse(env.XRAY_PRESENTATION_TIME)))
+	) {
+		throw new Error("XRAY_PRESENTATION_TIME must be an ISO UTC timestamp");
+	}
 }
 
-/** Fail-closed production boot rule (XR-21). */
-export function assertBootEnv(env: Bindings): void {
-	if (authDevBypassEnabled(env) && !isDevOrTest(env)) {
-		throw new Error(
-			"AUTH_DEV_BYPASS is set but ENVIRONMENT is not development/test — refusing to boot",
-		);
-	}
+export function presentationTime(env: Pick<Bindings, "XRAY_PRESENTATION_TIME">): number {
+	return env.XRAY_PRESENTATION_TIME === undefined
+		? Date.now()
+		: Date.parse(env.XRAY_PRESENTATION_TIME);
 }
 
 export function parseAllowedEmails(raw: string | undefined): Set<string> {
@@ -27,11 +40,3 @@ export function parseAllowedEmails(raw: string | undefined): Set<string> {
 			.filter(Boolean),
 	);
 }
-
-export const DEV_BYPASS_IDENTITY = {
-	email: "dev@xray.local",
-	name: "Dev User",
-	image: null as string | null,
-	accessIss: "https://dev.xray.local",
-	accessSub: "dev-bypass-sub",
-} as const;

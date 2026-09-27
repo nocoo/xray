@@ -1,5 +1,3 @@
-import type { AuthorProfileFetch } from "./lib/author-profile.js";
-
 /** Minimal CF Rate Limit binding shape. */
 export type RateLimit = {
 	limit: (opts: { key: string }) => Promise<{ success: boolean }>;
@@ -21,15 +19,12 @@ export type TranslateFn = (input: {
 	summaryText?: string | null;
 }>;
 
-export type ZhetoUpstream = (
-	webhookUrl: string,
-	body: { url: string; note?: string; folder?: string },
-) => Promise<{ status: number; json: Record<string, unknown> }>;
-
 export type Bindings = {
 	DB: D1Database;
 	ENVIRONMENT?: string;
-	AUTH_DEV_BYPASS?: string;
+	XRAY_LOCAL_JWKS?: string;
+	XRAY_PRESENTATION_TIME?: string;
+	XRAY_EXTERNAL?: Fetcher;
 	ALLOWED_EMAILS?: string;
 	CF_ACCESS_TEAM_DOMAIN?: string;
 	CF_ACCESS_AUD?: string;
@@ -42,10 +37,6 @@ export type Bindings = {
 	XRAY_SECRETS_KEY_VERSION?: string;
 	/** Comma-separated hosts allowed for zheto webhook in non-prod tests */
 	ZHETO_WEBHOOK_ALLOW_HOSTS?: string;
-	/** Test injectables */
-	TRANSLATE_FN?: TranslateFn;
-	ZHETO_UPSTREAM?: ZhetoUpstream;
-	AUTHOR_PROFILE_FETCH?: AuthorProfileFetch;
 };
 
 export type AuthUser = {

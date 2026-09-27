@@ -201,9 +201,9 @@ Authorization: Bearer xray_pt_…
 | Mode | `XRAY_INGEST_BASE` (or `--ingest-base` / `--env`) |
 |------|---------------------------------------------------|
 | Prod | `https://xray-ingest.worker.hexly.ai` |
-| Dev / local | `http://127.0.0.1:37007` (wrangler `--env development`) |
+| Demo / E2E | `ingestBase` from the active `/__local/environment` descriptor |
 
-Script may accept `--env prod|dev` as sugar for the row above. Graph and push **must** share that base so ids cannot cross environments.
+`--env prod` selects the canonical production host. Local producers require an explicit `--ingest-base` or `XRAY_INGEST_BASE` from the current launcher; fixed local port aliases are removed. Graph and push **must** share that base so ids cannot cross environments.
 
 `--from-cache` still **live-fetches the graph** first; it only skips twitter-cli raw refetch. Empty `{watchlists:[]}` is a successful no-op (parser must accept empty arrays).
 
@@ -245,7 +245,7 @@ set -a && source ~/.config/xray/push.env && set +a   # loads XRAY_PUSH_TOKEN (+ 
 
 # 1. Target (graph + push share this base)
 export XRAY_INGEST_BASE=https://xray-ingest.worker.hexly.ai   # prod
-# export XRAY_INGEST_BASE=http://127.0.0.1:37007        # local/dev
+# Local: copy ingestBase from https://xray.dev.hexly.ai/__local/environment
 
 # 2. Optional knobs (push.env may already set these)
 export XRAY_WINDOW_HOURS=24
