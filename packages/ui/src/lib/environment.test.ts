@@ -83,7 +83,7 @@ test.each(["demo", "e2e", "prod"] as const)(
 			...ready,
 			mode,
 			instanceId: "new-run",
-			locked: mode === "e2e",
+			locked: false,
 		});
 		const env = await import("./environment");
 		await env.initializeEnvironment();
@@ -197,7 +197,7 @@ test("cancelled dirty switch leaves drafts, target, cache scope and preference i
 });
 
 test("discard confirmation runs before selection, serializes switches, and avoids a second unload prompt", async () => {
-	const fetcher = responses(ready, { ...ready, mode: "e2e", locked: true, instanceId: "e2e-new" });
+	const fetcher = responses(ready, { ...ready, mode: "e2e", locked: false, instanceId: "e2e-new" });
 	vi.spyOn(window.location, "assign").mockImplementation(() => {});
 	const env = await import("./environment");
 	const drafts = await import("./unsaved-drafts");

@@ -1,6 +1,23 @@
 import { expect, test } from "@playwright/test";
+import { installExternalMedia } from "../fixtures/e2e";
 import { startLocalServer } from "../packages/ui/dev/local-server";
 import { BROWSER } from "./helpers";
+
+test.beforeEach(async ({ page }) => { await installExternalMedia(page); });
+
+test("manual E2E startup exposes enabled alternatives without changing saved preferences", async ({ page }) => {
+	const app = await startLocalServer({ mode: "e2e", port: 0, built: true });
+	try {
+		await page.addInitScript(() => localStorage.setItem("xray:environment-mode", "demo"));
+		await page.goto(app.url);
+		await expect(page.getByRole("heading", { name: "Dashboard", exact: true }).last()).toBeVisible();
+		expect(app.descriptor()).toMatchObject({ mode: "e2e", locked: false, automated: false });
+		await expect(page.getByRole("radio", { name: "E2E", exact: true })).toBeChecked();
+		for (const name of ["Demo", "Prod"])
+			await expect(page.getByRole("radio", { name, exact: true })).toBeEnabled();
+		expect(await page.evaluate(() => localStorage.getItem("xray:environment-mode"))).toBe("demo");
+	} finally { await app.close(); }
+});
 
 test("automated E2E locks UI and server and leaves interactive preference intact", async ({ page, request }) => {
 	await page.addInitScript(() => localStorage.setItem("xray:environment-mode", "prod"));

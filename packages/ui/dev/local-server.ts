@@ -67,7 +67,7 @@ export async function startLocalServer(options: Options = {}) {
 		throw new Error("Automated instances require E2E");
 	const csrfToken = randomUUID();
 	let target: Target | undefined;
-	let locked = options.mode === "e2e";
+	const locked = !!options.automated;
 	let selection: Promise<Descriptor> | undefined;
 	let closing = false;
 	let closed: Promise<void> | undefined;
@@ -119,7 +119,6 @@ export async function startLocalServer(options: Options = {}) {
 					url: runtime?.url ?? PROD_ORIGIN,
 					runtime,
 				};
-				if (mode === "e2e") locked = true;
 				prodToken = "";
 				prodTokenExpiry = 0;
 				return descriptor();

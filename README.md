@@ -61,7 +61,7 @@ bun run dev
 | --- | --- |
 | `bun run dev` | Resolve launcher mode, valid saved preference, then Demo |
 | `bun run dev -- --mode demo` | Explicit persistent Demo session |
-| `bun run dev -- --mode e2e` | Fresh manual E2E session, locked until shutdown |
+| `bun run dev -- --mode e2e` | Fresh manual E2E session; switching remains available |
 | `bun run preview -- --mode demo` | Build and serve the same UI from `packages/worker/static` |
 | `bun run env:db -- init --mode demo` | Initialize owned Demo storage and fixtures |
 | `bun run env:db -- migrate --mode demo` | Apply current migrations to Demo |
@@ -70,7 +70,7 @@ bun run dev
 
 Stop the active Demo session before database commands. Demo persists in `packages/worker/.wrangler/environments/demo`; normal restarts retain edits. E2E uses a new owned `e2e-*` directory and cleans it up on shutdown. The retired `.wrangler/state-mock` store is preserved untouched.
 
-The local header shows **Demo | E2E | Prod**. Accepted interactive choices persist as a mode enum; switching checks unsaved drafts and reloads the home page. API requests and reader caches remain bound to the accepted instance, so an old request cannot become a write to another backend. E2E disables both alternatives until shutdown. Hosted deployments ignore local preferences; cloud CI also hides the control.
+The local header shows **Demo | E2E | Prod**. Accepted interactive choices persist as a mode enum; switching checks unsaved drafts and reloads the home page. API requests and reader caches remain bound to the accepted instance, so an old request cannot become a write to another backend. Only automated E2E disables both alternatives until shutdown. Manual E2E can switch back; leaving it cleans up its disposable data. Hosted deployments ignore local preferences; cloud CI also hides the control.
 
 Demo/E2E retain real JWT verification with signed fixture identities, production migrations and normal CRUD. Known external services use native fixture bindings, and the launcher provisions local encryption keys; do not configure daily `.dev.vars` for these sessions. Channel Markdown and related-preview images remain external HTTPS links. See the [environment contract](docs/12-local-environments.md) and [fixture matrix](docs/13-environment-fixtures.md).
 

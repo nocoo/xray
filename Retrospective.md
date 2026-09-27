@@ -146,3 +146,9 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 - **What:** Native startup rejected fixture constants exported as Worker entrypoints. Review also found that stale caller metadata could skip a D1 cleanup marker check, a failed switch could publish its candidate early, and a streaming failure could escape the local gateway handler.
 - **Why:** Static contracts and successful request tests did not exercise workerd exports, persisted ownership metadata, partial streams or shutdown during allocation. The first browser acceptance artifacts also used Playwright's disposable output directory.
 - **Follow-up:** Keep provider exports to native entrypoints, compare persisted owner state, publish a switch only after cleanup succeeds, retain every allocated runtime until its cleanup completes, and await streaming pipelines. Native concurrent-state and gateway failure tests now cover these cases. Keep independent acceptance captures under `reports/`, outside Playwright's resettable output tree.
+
+## 2026-09-27: Manual E2E must remain switchable
+
+- **What:** The original shared rule locked every E2E session, so the owner could not leave an interactively selected E2E instance.
+- **Why:** Locking was derived from the data mode rather than whether the launcher owned an automated test run. The owner clarified that only scripted E2E should be locked.
+- **Follow-up:** Derive the immutable lock from the trusted `automated` startup option. Cover manual startup, selection, fresh reentry, preference persistence and draft protection separately from local/hosted automated lock enforcement. Environment browser checks now use the same exact external-media fixture helper as other specs; real APIs remain intact.

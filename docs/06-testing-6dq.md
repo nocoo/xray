@@ -74,7 +74,7 @@ env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID -u CF_API_TOKEN bun run tes
 
 `test:l3` builds shared/UI/Worker output and calls `scripts/test-l3.ts`. The harness starts a fresh automated E2E Worker and built-asset gateway on allocated ports. It supplies `PLAYWRIGHT_BROWSER_URL`, `PLAYWRIGHT_WORKER_URL`, `PLAYWRIGHT_INGEST_URL`, signed fixture identities and `XRAY_E2E_MANAGED=1` to Playwright, then cleans up its resources on exit. The config rejects direct unmanaged invocation; do not supply daily-dev or production addresses manually.
 
-`e2e/*.pw.ts` run serially with Chromium, retained failure traces and screenshots. CI allows one retry and forbids focused tests. The launcher locks E2E server-side; local controls show the lock, while cloud CI returns `local:false` and hides the controls. Automated runs do not read or overwrite interactive preferences and never receive Prod credentials.
+`e2e/*.pw.ts` run serially with Chromium, retained failure traces and screenshots. CI allows one retry and forbids focused tests. The launcher locks automated E2E server-side; local controls show the lock, while cloud CI returns `local:false` and hides the controls. Automated runs do not read or overwrite interactive preferences and never receive Prod credentials.
 
 The final combined local run passed all 25 tests on 2026-09-27, including environment lock/preferences, hosted hidden controls and responsive reader geometry. The runner exited 0 and completed cleanup; artifacts are in `/tmp/xray-fixture-l3-final`. This is local execution evidence, not a CI run or visual acceptance.
 

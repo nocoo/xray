@@ -11,7 +11,10 @@ Implementation baseline: `9b4e775bd65658c559e8ab1f72563dc5cdfa2a08` (2.5.5).
   Replace local auth bypass with signed fixture identities and real JWT verification.
 - Keep one interactive session at `https://xray.dev.hexly.ai`. Accepted switches
   invalidate old instance requests instead of redirecting them to another backend.
-- Local E2E is locked until shutdown. Automated E2E has no production credentials.
+- Only script-launched automated E2E is locked until shutdown. Manual E2E can
+  switch to Demo/Prod; leaving it cleans up its disposable state. Automated E2E
+  has no production credentials. This follows the owner clarification on
+  2026-09-27, superseding the shared plan's original manual-E2E lock rule for Xray.
 - The local launcher serves both Vite and built assets. Hosted bundles have no local
   capability and never read environment preferences.
 - Production verification and publication are outside this implementation.
@@ -38,10 +41,11 @@ type LocalEnvironment = {
 
 `POST /__local/environment/select` accepts `{ mode, instanceId }` and the
 `X-Xray-Local-Csrf` header, returning the accepted descriptor. The server validates
-Host, Origin, CSRF and the current instance. E2E refuses every target except its
-current E2E instance. The server only accepts configured enum targets.
+Host, Origin, CSRF and the current instance. Automated E2E refuses every target except its
+current E2E instance. The server derives `locked` from its trusted startup
+`automated` option, never from the selected mode or browser input. The server only accepts configured enum targets.
 
-Startup order: E2E lock, explicit launcher mode, valid
+Startup order: automated E2E lock, explicit launcher mode, valid
 `localStorage["xray:environment-mode"]`, Demo. Only accepted interactive choices
 are persisted. Automated runs neither read nor write this preference.
 Cloud CI uses a fixed E2E descriptor with `local: false`, hiding the control.
@@ -137,7 +141,7 @@ live verification requires authorized real operations.
 
 - [x] Native local vertical slice with signed authentication and CRUD.
 - [x] Owned Demo/E2E storage, migrations, seed/reset, guarded cleanup.
-- [x] Local-only control, persistence, fixed request targets and E2E lock.
+- [x] Local-only control, persistence, fixed request targets and automated E2E lock.
 - [x] Rich deterministic fixtures and provider success/failure scenarios.
 - [x] Managed L2/L3, obsolete path removal and CI configuration.
 - [x] Local build, quality checks, scoped Chrome acceptance and recorded evidence.
@@ -157,7 +161,7 @@ Executed on 2026-09-27 against the implementation worktree based on `d63f238`:
 | L3 | Full managed suite 25/25 passed in 2.4 minutes, exit 0 and cleanup; actual runner `bun scripts/test-l3.ts --output=/tmp/xray-fixture-l3-final` after a successful full build |
 | Gateway regressions | 26 local HTTP tests passed, including failed switch cleanup, late startup/shutdown, partial stream errors, fixed targets and mocked Prod credential handling |
 | Demo database CLI | Explicit reset and migrate passed; replayed seed rejected with exit 1 |
-| Chrome/Caddy acceptance | Demo record survived restart and was removed afterward; draft cancellation/confirmation, stale API 409, manual E2E lock, saved preference and fresh remembered E2E passed |
+| Chrome/Caddy acceptance | Demo record survived restart and was removed afterward; draft cancellation/confirmation, stale API 409, original manual E2E lock (superseded by the owner clarification), saved preference and fresh remembered E2E passed |
 | Captures | Full build plus `bun scripts/capture-demo.ts` completed; six surfaces captured with loaded images and owned cleanup |
 
 Local evidence: `/tmp/xray-l2-with-isolation.log`,
@@ -172,3 +176,25 @@ CI execution, real Prod/Access/MFA/provider availability, video playback and a
 complete visual/accessibility audit remain unverified. Existing unified L1
 index-snapshot/rejection/timing and G2 exact-push-ref/parallelization gaps remain;
 this change does not claim complete 6DQ certification.
+
+### Manual E2E clarification (2026-09-27)
+
+Only `automated: true` locks the gateway for its lifetime. Interactive selection,
+saved E2E preference and `dev --mode e2e` stay switchable. Existing instance routing,
+draft confirmation and owned E2E cleanup apply when leaving manual E2E.
+
+- Gateway/control/environment regression tests: **71 passed** across three files.
+  They exercise manual entry/exit/reentry from each startup state and both local
+  and hosted automated lock enforcement. Prod transitions use mocked resources.
+- `bun scripts/test-l3.ts e2e/environments.pw.ts --output=/tmp/xray-manual-e2e-l3-final`:
+  **3/3 passed**, 19.0s, exit 0 with cleanup. The first run had a hosted-test timeout
+  after a slow native startup; the final serial run uses the shared exact-media
+  fixture helper and retains all UI/server assertions. No business API interception.
+- Google Chrome through Caddy: manual E2E starts unlocked, exits to Demo, preserves
+  draft cancellation/confirmation, saves the accepted preference, rejects stale
+  requests with 409 and creates a fresh instance on E2E reentry. The final state is
+  Demo. Evidence: `reports/environment-acceptance/manual-e2e.json` and `.png`.
+- Stopped instances left by the interrupted old launcher and timed-out test were
+  removed only after confirming dead owners and validating ownership/D1 markers.
+  No real Prod request was made. The original full L2/L3 results above are historical;
+  this correction reran the affected three browser journeys.

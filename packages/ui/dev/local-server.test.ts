@@ -213,31 +213,54 @@ describe("local environment descriptor and authorization", () => {
 		expect(mocks.start).not.toHaveBeenCalled();
 	});
 
-	test("E2E enforces server lock and rejects stale instance routes and selection", async () => {
-		const server = await start({ mode: "demo" });
-		const old = server.runtime;
-		const oldId = server.descriptor().instanceId;
-		expect((await select(server, "e2e")).json()).toMatchObject({ mode: "e2e", locked: true });
-		expect(old?.stop).toHaveBeenCalledOnce();
-		for (const mode of ["demo", "prod"]) expect((await select(server, mode)).status).toBe(409);
-		expect((await select(server, "e2e", oldId)).status).toBe(409);
-		expect((await http(`${server.url}/__local/instances/${oldId}/api/me`)).status).toBe(409);
-		expect((await select(server, "e2e")).status).toBe(200);
-		expect(mocks.exec).not.toHaveBeenCalled();
-	});
+	test.each([undefined, "demo", "e2e"] as const)(
+		"manual startup %s can leave and reenter fresh E2E instances",
+		async (mode) => {
+			const server = await start({ mode });
+			const old = server.runtime;
+			const oldId = server.descriptor().instanceId;
+			expect((await select(server, "e2e")).json()).toMatchObject({
+				mode: "e2e",
+				locked: false,
+				automated: false,
+			});
+			if (mode === "demo") expect(old?.stop).toHaveBeenCalledOnce();
+			if (mode !== "e2e") {
+				expect((await select(server, "e2e", oldId)).status).toBe(409);
+				expect((await http(`${server.url}/__local/instances/${oldId}/api/me`)).status).toBe(409);
+			}
+			for (const target of ["demo", "prod"]) {
+				const current = server.runtime;
+				const currentId = server.descriptor().instanceId;
+				expect((await select(server, target)).json()).toMatchObject({
+					mode: target,
+					locked: false,
+				});
+				expect(current?.stop).toHaveBeenCalledOnce();
+				expect((await http(`${server.url}/__local/instances/${currentId}/api/me`)).status).toBe(
+					409,
+				);
+				const next = await select(server, "e2e");
+				expect(next.json()).toMatchObject({ mode: "e2e", locked: false });
+				expect(next.json().instanceId).not.toBe(currentId);
+			}
+			expect(mocks.exec).not.toHaveBeenCalled();
+		},
+	);
 
-	test("automated E2E remains isolated; hosted CI hides controls through local false", async () => {
+	test.each([false, true])("automated E2E stays locked with hosted=%s", async (hosted) => {
 		await expect(start({ automated: true })).rejects.toThrow("require E2E");
 		await expect(start({ automated: true, mode: "prod" })).rejects.toThrow("require E2E");
-		const server = await start({ mode: "e2e", automated: true, hosted: true, catalog: "empty" });
+		const server = await start({ mode: "e2e", automated: true, hosted, catalog: "empty" });
 		expect((await http(`${server.url}/__local/environment`)).json()).toMatchObject({
-			local: false,
+			local: !hosted,
 			automated: true,
 			locked: true,
 			mode: "e2e",
 		});
 		expect(mocks.start).toHaveBeenCalledWith("e2e", { catalog: "empty" });
-		expect((await select(server, "prod")).status).toBe(409);
+		for (const mode of ["demo", "prod"]) expect((await select(server, mode)).status).toBe(409);
+		expect((await select(server, "e2e")).status).toBe(200);
 		expect((await api(server)).status).toBe(200);
 		expect(mocks.exec).not.toHaveBeenCalled();
 	});

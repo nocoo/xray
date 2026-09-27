@@ -47,8 +47,8 @@ test("local control has precisely Demo, E2E, Prod with an accessible hidden lege
 	expect(localStorage.getItem("xray:environment-mode")).toBe("prod");
 });
 
-test("E2E lock shows selection and disables both alternatives", async () => {
-	const { fetcher } = await setup({ ...ready, mode: "e2e", locked: true });
+test("automated E2E lock shows selection and disables both alternatives", async () => {
+	const { fetcher } = await setup({ ...ready, mode: "e2e", locked: true, automated: true });
 	for (const name of ["Demo", "Prod"]) {
 		const button = screen.getByRole("radio", { name }) as HTMLButtonElement;
 		expect(button.disabled).toBe(true);
@@ -57,6 +57,20 @@ test("E2E lock shows selection and disables both alternatives", async () => {
 	expect(screen.getByRole("radio", { name: "E2E" }).getAttribute("aria-checked")).toBe("true");
 	expect(fetcher).toHaveBeenCalledOnce();
 });
+
+test.each(["demo", "prod"] as const)(
+	"manual E2E can select %s and persist the accepted choice",
+	async (mode) => {
+		const { fetcher } = await setup({ ...ready, mode: "e2e" });
+		const navigate = vi.spyOn(window.location, "assign").mockImplementation(() => {});
+		fetcher.mockResolvedValueOnce(Response.json({ ...ready, mode, instanceId: "next-instance" }));
+		for (const name of ["Demo", "Prod"])
+			expect((screen.getByRole("radio", { name }) as HTMLButtonElement).disabled).toBe(false);
+		fireEvent.click(screen.getByRole("radio", { name: mode === "demo" ? "Demo" : "Prod" }));
+		await waitFor(() => expect(navigate).toHaveBeenCalledWith("/"));
+		expect(localStorage.getItem("xray:environment-mode")).toBe(mode);
+	},
+);
 
 test("cloud CI initializes its fixed target but hides control", async () => {
 	await setup({ ...ready, mode: "e2e", locked: true, automated: true, local: false });
