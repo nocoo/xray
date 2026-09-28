@@ -213,7 +213,7 @@ export function ChannelsPage() {
 				focusListSelection.current = inList;
 				void navigate(articlePath(channelId, next, filterQuery));
 			} else if (action === "read") {
-				if (!article) return;
+				if (!articleId) return;
 				event.preventDefault();
 				setMobileList(false);
 				documentRef.current?.focus({ preventScroll: true });
@@ -228,7 +228,6 @@ export function ChannelsPage() {
 		window.addEventListener("keydown", keydown);
 		return () => window.removeEventListener("keydown", keydown);
 	}, [
-		article,
 		articleId,
 		channelId,
 		filterQuery,

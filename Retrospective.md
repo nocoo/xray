@@ -162,3 +162,13 @@ The shared dashboard DTO now models that null explicitly, and the view shows
 “Deleted watchlist” instead of a fabricated identifier. Regression setup creates
 and deletes the parent through the real schema; read deletion behavior before
 constructing historical-record fixtures.
+
+## 2026-09-29: Enter must work while an article is loading
+
+The managed CI reader journey failed after keyboard navigation because Enter
+required a loaded article object, although the selected article ID and focusable
+reading region already existed. The request completed later without restoring
+the ignored input. Focus now depends on the selection and survives the real
+response. The browser regression holds that response until focus is asserted.
+Its setup first waits for the preceding selection and read-status refresh; URL
+changes alone can precede React effects and coalesce rapid navigation.
