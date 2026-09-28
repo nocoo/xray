@@ -190,11 +190,35 @@ test("channel creation, one-time key, delivery, reader navigation and revocation
 	await page.getByRole("button", { name: /研发日报 · 2026-09-22/ }).focus();
 	await page.evaluate(() => document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "j", isComposing: true, bubbles: true })));
 	await expect(page).toHaveURL(new RegExp(`/articles/${ids[1]}`));
-	await page.keyboard.press("j");
+	await Promise.all([
+		page.waitForResponse((response) => response.url().endsWith(`/api/channels/${channelId}/articles/${ids[0]}/read`) && response.request().method() === "PUT" && response.ok()),
+		page.waitForResponse((response) => response.url().endsWith(`/api/channels/${channelId}/articles?`) && response.ok()),
+		page.keyboard.press("j"),
+	]);
 	await expect(page).toHaveURL(new RegExp(`/articles/${ids[0]}`));
-	await page.keyboard.press("k");
-	await expect(page).toHaveURL(new RegExp(`/articles/${ids[1]}`));
-	await page.keyboard.press("Enter");
+	await expect(page.getByRole("button", { name: /研发日报 · 2026-09-21/ })).toBeFocused();
+	await expect(content).toHaveAttribute("aria-busy", "false");
+	await expect(page.getByRole("region", { name: "Articles", exact: true })).toHaveAttribute("aria-busy", "false");
+	const articleResponse = Promise.withResolvers<void>();
+	let articleRequestSeen = false;
+	await page.route(`**/api/channels/${channelId}/articles/${ids[1]}`, async (route) => {
+		const response = await route.fetch();
+		articleRequestSeen = true;
+		await articleResponse.promise;
+		await route.fulfill({ response });
+	}, { times: 1 });
+	try {
+		await page.keyboard.press("k");
+		await expect(page).toHaveURL(new RegExp(`/articles/${ids[1]}`));
+		await expect.poll(() => articleRequestSeen).toBe(true);
+		await expect(content).toHaveAttribute("aria-busy", "true");
+		await expect(page.getByRole("button", { name: /研发日报 · 2026-09-22/ })).toBeFocused();
+		await page.keyboard.press("Enter");
+		await expect(content).toBeFocused();
+	} finally {
+		articleResponse.resolve();
+	}
+	await expect(content).toHaveAttribute("aria-busy", "false");
 	await expect(content).toBeFocused();
 	await content.evaluate((node) => { node.scrollTop = 600; });
 	await page.waitForTimeout(250);
