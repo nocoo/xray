@@ -172,3 +172,8 @@ the ignored input. Focus now depends on the selection and survives the real
 response. The browser regression holds that response until focus is asserted.
 Its setup first waits for the preceding selection and read-status refresh; URL
 changes alone can precede React effects and coalesce rapid navigation.
+
+The normal push hook then blocked the repair on the newly published
+GHSA-3wwx-pv8p-q78v advisory. Miniflare pins Undici 7.29.0, so the existing
+root override policy now selects the fixed 7.29.1 patch. Preserve the blocking
+scanner and revalidate the real HTTP/browser harness after transport updates.
