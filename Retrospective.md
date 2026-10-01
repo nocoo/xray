@@ -177,3 +177,7 @@ The normal push hook then blocked the repair on the newly published
 GHSA-3wwx-pv8p-q78v advisory. Miniflare pins Undici 7.29.0, so the existing
 root override policy now selects the fixed 7.29.1 patch. Preserve the blocking
 scanner and revalidate the real HTTP/browser harness after transport updates.
+
+### 2026-10-01: Verify workspace release metadata after frozen install
+
+Bun 1.3.14 reported a successful install after the patch version bump but retained old workspace version fields in the text lockfile. Frozen-install success alone does not verify first-party version synchronization. Compare every workspace name/version with its manifest before committing a release. The stale lock metadata was corrected in a separate commit before any release push or tag.
