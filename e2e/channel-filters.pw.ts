@@ -159,6 +159,7 @@ test("server filters find unloaded reports and preserve combined filters through
 	page.setDefaultTimeout(15_000);
 	const data = await seed(request);
 	try {
+		await page.clock.install({ time: FIXTURE_ANCHOR_ISO });
 		await page.setViewportSize({ width: 1440, height: 1000 });
 		await page.goto(`${BROWSER}/channels/${data.channelId}`);
 		const list = page.getByRole("region", { name: "Articles", exact: true });
@@ -278,6 +279,7 @@ test("320px filter and calendar overlays fit and text input isolates reader shor
 	page.setDefaultTimeout(15_000);
 	const data = await seed(request);
 	try {
+		await page.clock.install({ time: FIXTURE_ANCHOR_ISO });
 		await page.setViewportSize({ width: 320, height: 800 });
 		await page.goto(`${BROWSER}/channels/${data.channelId}`);
 		await page.getByRole("button", { name: "Back to reports", exact: true }).click();
