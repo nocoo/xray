@@ -109,6 +109,11 @@ describe("link preview with native workerd HTMLRewriter", () => {
 			imageUrl: "https://news.example.com/image?x=1&y=2",
 		});
 	});
+	test("preserves interrupted and unterminated HTML entities in preview metadata", async () => {
+		expect(
+			await parse('<title>&Xi$ &amp; intact</title><meta name="description" content="&notin<">'),
+		).toMatchObject({ title: "&Xi$ & intact", description: "&notin<" });
+	});
 	test("uses native title/meta fallback and ignores invalid external images", async () => {
 		expect(
 			await parse(
