@@ -33,7 +33,7 @@
 		"capture:demo": "bun run build && bun scripts/capture-demo.ts"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.5.14",
+		"@biomejs/biome": "2.5.15",
 		"@playwright/test": "1.63.0",
 		"@vitest/coverage-v8": "5.0.1",
 		"husky": "^9.1.0",
