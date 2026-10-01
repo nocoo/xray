@@ -2,6 +2,23 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.5.6
+
+### Added
+
+- Add article copy feedback and unified dashboard content statistics.
+- Unify local Demo, E2E and Prod application environments with isolated fixture state and authenticated gateways.
+
+### Changed
+
+- Upgrade entities to 8.1.0, Vitest and coverage-v8 to 5.0.3, Biome to 2.5.15, and Turbo to 2.11.5.
+
+### Fixed
+
+- Preserve selected-article focus during loading and lock environment switching only for automated E2E sessions.
+- Keep undici on the patched 7.29.1 release and cover interrupted HTML entities in native Worker previews.
+- Pin channel-filter browser clocks to fixture time so date tests survive month boundaries.
+
 ## v2.5.5
 
 ### Changed
