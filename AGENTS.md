@@ -89,10 +89,10 @@ osv-scanner scan --lockfile=bun.lock
 | L1 subcheck — shared/UI coverage | Statements/branches/functions/lines each ≥95% over the declared non-View scope | enforced | Package Vitest configs, `test:coverage`, pre-commit and CI |
 | L1 subcheck — Worker coverage | All four metrics ≥95% over the declared production scope | enforced | Worker config and `check-coverage.sh`; no per-package branch exception |
 | L2 | Real HTTP plus full endpoint/method inventory and cross-tenant/SQL assertions | enforced | Worker `test/e2e/`, `check-route-coverage.ts`; pre-push and CI |
-| L3 | Critical browser/agent journeys against an isolated local stack | enforced | Managed harness and CI Chromium job configured; final local run passed 25/25 tests in 2.4 minutes on 2026-09-27 with cleanup. Scoped Chrome/Caddy acceptance passed; CI execution and real Prod remain unverified |
+| L3 | Critical browser/agent journeys against an isolated local stack | enforced | Managed harness and CI Chromium/WebKit job configured; installed Basalt 2.2.0 local run passed 36/36 tests in 4.8 minutes on 2026-10-02 with cleanup. Scoped Chrome/Caddy light/dark mobile/desktop acceptance passed; physical iPhone and this revision's CI/Prod remain unverified |
 | L1 subcheck — static lanes (former G1) | Strict types and lint/format, zero errors/warnings | enforced | Turbo typecheck, Biome, pre-commit and CI; these static lanes run on the working tree, so unified L1 is not snapshot-based |
 | G2 | Dependency + secret scanners, required tools fail closed | enforced | Pre-push gitleaks + OSV and CI; pre-commit gitleaks is optional, push-ref scoping remains a gap |
-| D1 | Per-run local state with guards/marker before writes and cleanup | enforced | Managed runtime owns generated config/secrets, unique E2E state and guarded cleanup. Full native L2 passed 41/41 on 2026-09-27, including six concurrency/ownership/cleanup tests |
+| D1 | Per-run local state with guards/marker before writes and cleanup | enforced | Managed runtime owns generated config/secrets, unique E2E state and guarded cleanup. Full native L2 passed 41/41 on 2026-10-02 with 62/62 routes, including six concurrency/ownership/cleanup tests |
 | Build | Build shared/UI/Worker output | manual | `bun run build`; the configured CI L3 command includes this build, but no CI run is recorded yet |
 | Docs | Keep route/tenant matrices and architecture current | manual | Numbered docs and full diff review |
 

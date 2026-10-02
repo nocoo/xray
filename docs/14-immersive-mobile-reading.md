@@ -70,41 +70,58 @@ Basalt publication waits for the owner's 2FA. Prepublication tarball inspection
 does not replace verification of the exact published artifact. The owner subsequently authorized an X-Ray patch release after integration
 acceptance; release verification is tracked separately from candidate validation. Both repositories keep atomic verified commits.
 
-## Verification status
+## Published integration evidence
 
-The source implementation and published Basalt 2.2.0 installation are complete;
-final installed-version acceptance is in progress.
-Prepublication checks use an owned snapshot and an integrity-verified draft
-tarball, never a replacement of the live consumer's installed dependency.
+Published `@nocoo/basalt@2.2.0` is installed and accepted on 2026-10-02. Official
+exact-version/latest and allowed-mirror metadata match the frozen archive from
+Basalt revision `ac93bca576adc13f4af383250a5a068a0538756d`:
 
-| Check | Prepublication evidence (2026-10-02) |
+- SHA-1: `0aee32c8bd78c580e6fba156fadaf530550d5a12`.
+- SHA-512: `BCaRT0J9Wc8txbzRAj47S/4+zvy99QkiWUX38RD/R+voTtDHKJKVOAKU/sE5gQ8OzHzbF10taBJfZH94TE6iJA==`.
+- All 395 installed files byte-match the archive. Only Basalt changes in the
+  dependency lock; no temporary registry URLs or unrelated transitive updates.
+- Bun 1.3.14 frozen installation passes. Integration commit: `07ff9a7`;
+  isolated-runtime banner-check fix: `685c9a9`.
+
+| Check | Installed-version evidence |
 | --- | --- |
-| Static | X-Ray source lint passes; isolated draft typecheck passes |
-| Unit/coverage | 922 tests; all four metrics exceed 95% in shared, Worker and UI |
-| L2 | 41 tests and all 62 declared routes pass; owned state cleaned |
-| L3 | 36/36 pass: Chromium full application plus WebKit channel/filter/link journeys |
-| Chrome/Caddy | Real Chrome 154, `https://xray.dev.hexly.ai`, disposable E2E demo catalog; light/dark at 390px and 1440px; zero page errors or horizontal overflow |
+| Static/build | Normal pre-commit lint and typecheck pass; production build passes (existing Vite chunk-size advisory remains) |
+| Unit/coverage | 923 tests; all four metrics exceed 95% in shared, Worker and UI |
+| L2 | 41/41 tests and all 62 declared routes pass; owned state cleaned |
+| L3 | 36/36 pass in 4.8 minutes: Chromium full application plus WebKit channel/filter/link journeys |
+| Chrome/Caddy | Chrome 154, `https://xray.dev.hexly.ai`, disposable E2E demo catalog; light/dark at 390px and 1440px; zero page errors or horizontal overflow |
 | Root geometry | One 52px mobile header; main/island/page/panes retain intrinsic long-document height; short article fills the reading surface |
 | Interaction | Typography, secondary actions, outside-focus dismissal, modal cancellation, responsive trigger replacement, history and paginated list restoration |
-| Scanners | Baseline lockfile OSV and history gitleaks pass; recheck the final dependency lock |
-| Review | Independent source findings resolved; final installed revision review remains pending |
+| Scanners | Published dependency lock passes OSV; repository history and staged changes pass gitleaks |
+| Review | Independent source, installed-file/lock comparison and runtime follow-up reviews have no remaining P0-P3 findings |
 
-This is draft evidence, not publication or exact-release acceptance. The supplied
-iPhone Safari screenshot is baseline evidence; fixed-size Chromium screenshots
-are not proof of Safari's dynamic browser chrome. WebKit automation supplements,
-but does not replace, iPhone acceptance with expanded/collapsed browser chrome,
-rotation, text enlargement, bottom-of-document reachability, keyboard, and back
-navigation. CI execution and production deployment are not claimed.
+Coverage percentages (statements / branches / functions / lines):
 
-The frozen final 2.2.0 candidate at Basalt revision
-`ac93bca576adc13f4af383250a5a068a0538756d` was subsequently verified in the same
-isolated consumer: build, typecheck, all 922 unit tests/coverage, and all 36 L3
-journeys passed (5.7 minutes). Its archive SHA-1 is
-`0aee32c8bd78c580e6fba156fadaf530550d5a12`.
+| Package | Coverage |
+| --- | --- |
+| Shared | 98.34 / 96.28 / 100 / 99.21 |
+| Worker | 98.62 / 96.21 / 97.22 / 99.70 |
+| UI | 98.86 / 96.67 / 99.03 / 99.46 |
 
-After the owner completed npm authentication, official exact-version/latest and
-allowed-mirror metadata confirmed 2.2.0 with matching SHA-1 and SHA-512. X-Ray
-installed the published version using Bun 1.3.14 and verified all 395 package
-files against the frozen archive. Only Basalt changes in the dependency lock;
-temporary mirror resolutions are removed. Frozen installation and production
-build pass. The full final gates and the authorized v2.5.7 release follow.
+Scoped Chrome captures and their manifest are in the ignored local evidence
+folder `reports/immersive/2026-10-02/`. Earlier candidate tests were repeated
+against the installed published package; candidate success alone was not used
+as publication proof.
+
+The first installed-version L2 attempt timed out after Wrangler logged successful
+local migrations. The installed CLI's banner update-check kept a registry socket
+open. `isolatedEnv` now sets its supported `WRANGLER_HIDE_BANNER=true`, with a
+regression test; the existing timeout, database/authentication guards and quality
+gates are unchanged. This suppresses that banner request, not every possible
+Wrangler network request. Native L2 and the scoped Chrome capture pass afterward.
+
+## Remaining acceptance
+
+The owner authorized an X-Ray Z+1 release (`2.5.6` to `2.5.7`) after integration
+acceptance. Exact-revision CI, deployment and both-host health evidence must be
+recorded by the release workflow; local checks do not prove remote execution.
+
+The supplied iPhone Safari screenshot remains baseline evidence. WebKit automation
+does not replace physical iPhone acceptance for dynamic browser chrome, rotation,
+text enlargement, bottom-of-document reachability, keyboard and back navigation.
+No live content mutation or physical-device verification is claimed here.
