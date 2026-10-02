@@ -320,7 +320,7 @@ export function ChannelsPage() {
 				triggerRef={moreButton}
 				onNavigate={openNavigation}
 			>
-				<div className="channel-mobile-utilities mt-2 flex flex-wrap items-center justify-between gap-2">
+				<div className="channel-mobile-utilities flex flex-wrap items-center justify-between gap-2">
 					<EnvironmentSwitch />
 					<ThemeToggle />
 				</div>

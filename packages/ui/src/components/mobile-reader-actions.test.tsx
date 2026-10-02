@@ -106,3 +106,27 @@ test("outside focus dismissal does not steal focus back from the next control", 
 	expect(document.activeElement).toBe(outside);
 	outside.remove();
 });
+
+test("action disclosure uses one borderless row style and no decorative arrow", async () => {
+	setup();
+	fireEvent.click(screen.getByRole("button", { name: "More channel actions" }));
+	const panel = await screen.findByRole("dialog", { name: "Channel actions" });
+	expect(panel.querySelector('svg[viewBox="0 0 20 10"]')).toBeNull();
+	const names = [
+		"Copy full article",
+		"Edit article",
+		"Related links",
+		"Delete article",
+		"Open navigation menu",
+	];
+	const rows = names.map((name) => screen.getByRole("button", { name }));
+	rows.push(screen.getByRole("link", { name: "Manage channel" }));
+	for (const row of rows) {
+		expect(row.classList.contains("border")).toBe(false);
+		for (const token of ["min-h-11", "w-full", "justify-start", "gap-3", "px-3", "text-sm"])
+			expect(row.classList.contains(token)).toBe(true);
+		expect(row.querySelector(":scope > svg + span")).not.toBeNull();
+	}
+	expect(screen.getByRole("heading", { name: "Channel actions" }).className).toContain("text-sm");
+	expect(screen.getByText("Article tools and navigation.").className).toContain("text-xs");
+});

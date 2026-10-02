@@ -1,4 +1,5 @@
 import { Button } from "@nocoo/basalt";
+import type { ButtonProps } from "@nocoo/basalt/components/button";
 import { Check, Copy, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { HeaderTooltip } from "@/components/layout/header-links";
@@ -10,12 +11,16 @@ export function CopyTextButton({
 	disabled,
 	className,
 	iconOnly = false,
+	variant = "outline",
+	size,
 }: {
 	text: string;
 	label: string;
 	disabled?: boolean;
 	className?: string;
 	iconOnly?: boolean;
+	variant?: ButtonProps["variant"];
+	size?: ButtonProps["size"];
 }) {
 	const [status, setStatus] = useState("");
 	const [copying, setCopying] = useState(false);
@@ -27,8 +32,8 @@ export function CopyTextButton({
 	const Icon = status === "Copied" ? Check : status ? TriangleAlert : Copy;
 	const button = (
 		<Button
-			variant="outline"
-			size={iconOnly ? "icon" : "sm"}
+			variant={variant}
+			size={size ?? (iconOnly ? "icon" : "sm")}
 			className={className}
 			disabled={disabled || copying}
 			title={iconOnly ? undefined : status || label}

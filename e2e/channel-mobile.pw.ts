@@ -63,6 +63,26 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
 				await expect(page.getByRole("button", { name: action, exact: true })).toBeInViewport();
 			}
 			await page.getByRole("button", { name: "More channel actions" }).tap();
+			const actions = page.getByRole("dialog", { name: "Channel actions" });
+			await expect(actions.locator('svg[viewBox="0 0 20 10"]')).toHaveCount(0);
+			await expect(actions.locator("button:has(> svg + span), a:has(> svg + span)")).toHaveCount(6);
+			const geometry = await actions.evaluate(panel => {
+				const rows = [...panel.querySelectorAll("button:has(> svg + span), a:has(> svg + span)")];
+				return rows.map(row => {
+					const style = getComputedStyle(row);
+					const box = row.getBoundingClientRect();
+					return { width: box.width, height: box.height, border: style.borderWidth, font: style.fontSize, padding: style.paddingLeft, icon: row.querySelector("svg")!.getBoundingClientRect().left, text: row.querySelector("span")!.getBoundingClientRect().left };
+				});
+			});
+			for (const row of geometry) {
+				expect(row).toEqual(geometry[0]);
+				expect(row.height).toBeGreaterThanOrEqual(44);
+				expect(row.border).toBe("0px");
+				expect(row.font).toBe("14px");
+			}
+			await expect.poll(() => actions.getByRole("heading").evaluate(node => getComputedStyle(node).fontSize)).toBe("14px");
+			await expect.poll(() => actions.getByText("Article tools and navigation.", { exact: true }).evaluate(node => getComputedStyle(node).fontSize)).toBe("12px");
+			await page.screenshot({ path: test.info().outputPath(`xray-mobile-${viewport.width}-actions.png`) });
 			for (const button of await page.locator(".channel-mobile-utilities button").all()) {
 				const bounds = await button.boundingBox();
 				expect(bounds!.width).toBeGreaterThanOrEqual(44);
@@ -73,6 +93,9 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
 			await expect(page.getByRole("link", { name: "Manage channel", exact: true })).toBeInViewport();
 			await page.keyboard.press("Escape");
 			await page.getByRole("button", { name: "Reading settings" }).tap();
+			const preferences = page.getByRole("dialog", { name: "Reading settings" });
+			await expect(preferences.locator('svg[viewBox="0 0 20 10"]')).toHaveCount(0);
+			await expect.poll(() => preferences.getByRole("heading").evaluate(node => getComputedStyle(node).fontSize)).toBe("14px");
 			await page.getByRole("button", { name: "Increase font size", exact: true }).tap();
 			await page.keyboard.press("Escape");
 			await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));

@@ -32,3 +32,18 @@ test("copies complete text and keeps transient success and failure feedback on t
 	await act(async () => vi.advanceTimersByTime(2500));
 	expect(button.textContent).toBe("Copy full article");
 });
+
+test("forwards the requested action style without changing other copy buttons", () => {
+	render(
+		<>
+			<CopyTextButton text="article" label="Copy article" variant="ghost" size="default" />
+			<CopyTextButton text="key" label="Copy key" />
+		</>,
+	);
+	const action = screen.getByRole("button", { name: "Copy article" });
+	const key = screen.getByRole("button", { name: "Copy key" });
+	expect(action.classList.contains("border")).toBe(false);
+	expect(action.classList.contains("text-sm")).toBe(true);
+	expect(key.classList.contains("border")).toBe(true);
+	expect(key.classList.contains("text-xs")).toBe(true);
+});

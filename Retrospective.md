@@ -269,3 +269,16 @@ clear before asserting position, then edits the same article to a gated tall ima
 and verifies that loading it restores the earlier offset. Hosted repetition of
 this stronger case passes in Chromium and WebKit; negative controls are isolated
 outside the working checkout.
+
+## 2026-10-03 - Inspect action popovers as a complete composition
+
+The first mobile reader action panel mixed an outlined small copy button with
+default ghost actions, inherited oversized popover heading/description text, and
+kept a decorative arrow. Functional and minimum-touch-target checks missed the
+inconsistent borders, font sizes and text starts. The reader now selects an
+arrowless popover and one shared action-row treatment, while other copy-button
+callers retain their existing defaults. Browser geometry assertions compare every
+row's border, font, padding, icon/text alignment and heading hierarchy. During
+verification, strict build also caught a Playwright-only `exact` query option in
+a Testing Library test; it was removed before committing. Runtime tests alone do
+not validate a testing library's TypeScript API.
