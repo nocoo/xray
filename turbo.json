@@ -10,6 +10,7 @@
 			"outputs": ["../worker/static/**"]
 		},
 		"@xray/worker#build": {
+			"env": ["WRANGLER_HIDE_BANNER", "WRANGLER_SEND_METRICS"],
 			"dependsOn": ["^build", "@xray/ui#build"],
 			"inputs": ["src/**", "wrangler.toml", "static/**", "package.json"],
 			"outputs": ["dist/**"]

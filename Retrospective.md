@@ -241,3 +241,9 @@ isolated environment now sets Wrangler's supported `WRANGLER_HIDE_BANNER=true`,
 which skips that update check before creating it. No gate, timeout, authentication
 check, database operation, or application behavior is disabled. An environment
 regression asserts both the offline banner policy and credential isolation.
+
+The root build's Turbo strict environment initially stripped both explicit
+Wrangler controls, so prefixing the shell command alone did not reach the Worker
+build. Its task now declares these two variables in `env`, preserving strict
+filtering and correct cache keys. Verify the subprocess environment rather than
+assuming a parent-shell setting reaches a build orchestrator.
