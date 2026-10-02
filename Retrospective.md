@@ -181,3 +181,12 @@ scanner and revalidate the real HTTP/browser harness after transport updates.
 ### 2026-10-01: Verify workspace release metadata after frozen install
 
 Bun 1.3.14 reported a successful install after the patch version bump but retained old workspace version fields in the text lockfile. Frozen-install success alone does not verify first-party version synchronization. Compare every workspace name/version with its manifest before committing a release. The stale lock metadata was corrected in a separate commit before any release push or tag.
+
+## 2026-10-02 - Browser overload mocks need static verification
+
+The document-scroll helper's focused Vitest tests passed, but pre-commit rejected
+its `window.scrollTo` mock: the overloaded browser method inferred the numeric
+signature, making an object-property access unreachable to TypeScript. No broken
+commit was created. The mock now explicitly accepts `number | ScrollToOptions`.
+When testing overloaded DOM APIs, run the strict type lane as well as the focused
+runtime tests; transpilation-only success is not type correctness.

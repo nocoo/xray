@@ -86,3 +86,51 @@ test.each(["wheel", "touchstart", "pointerdown", "keydown"])(
 		expect(save).toHaveBeenCalledTimes(1);
 	},
 );
+
+test("document mode restores the window and observes article layout rather than a nested pane", async () => {
+	let resized = () => {};
+	const observe = vi.fn();
+	const disconnect = vi.fn();
+	vi.stubGlobal(
+		"ResizeObserver",
+		class {
+			constructor(callback: () => void) {
+				resized = callback;
+			}
+			observe = observe;
+			disconnect = disconnect;
+		},
+	);
+	let top = 0;
+	vi.spyOn(window, "scrollY", "get").mockImplementation(() => top);
+	const scrollTo = vi
+		.spyOn(window, "scrollTo")
+		.mockImplementation((options: number | ScrollToOptions) => {
+			if (typeof options === "object") top = options.top ?? 0;
+		});
+	const element = document.createElement("section");
+	const article = document.createElement("article");
+	element.append(article);
+	document.body.append(element);
+	const save = vi.fn();
+	const stop = restoreReadingPosition(element, 700, save, "document");
+	expect(scrollTo).toHaveBeenCalledWith({ top: 700, behavior: "instant" });
+	expect(element.scrollTop).toBe(0);
+	expect(observe).toHaveBeenCalledWith(article);
+	window.dispatchEvent(new Event("scroll"));
+	expect(save).not.toHaveBeenCalled();
+	top = 200;
+	resized();
+	expect(top).toBe(700);
+	window.dispatchEvent(new Event("touchstart"));
+	top = 950;
+	window.dispatchEvent(new Event("scroll"));
+	expect(save).toHaveBeenLastCalledWith(950);
+	resized();
+	expect(top).toBe(950);
+	stop();
+	window.dispatchEvent(new Event("scroll"));
+	expect(save).toHaveBeenCalledOnce();
+	expect(disconnect).toHaveBeenCalledOnce();
+	await Promise.resolve();
+});
