@@ -247,3 +247,16 @@ Wrangler controls, so prefixing the shell command alone did not reach the Worker
 build. Its task now declares these two variables in `env`, preserving strict
 filtering and correct cache keys. Verify the subprocess environment rather than
 assuming a parent-shell setting reaches a build orchestrator.
+
+## 2026-10-02 - Read acknowledgements must not restart position restoration
+
+The release's Linux Chromium lane failed even though local interactive runs had
+passed. Hosted-mode repetition reproduced it: delaying the automatic read-state
+response let the reader reach 800px, then the metadata-only article replacement
+restarted the restoration effect before the scroll event persisted that offset.
+The page jumped to its old zero position. Restoration now depends on loaded
+article identity/readiness and the scroll owner, not every article object update.
+The existing resize observer still handles content layout. The browser regression
+holds the real read request until after initial scrolling and verifies that its
+acknowledgement cannot reset the position. The published v2.5.7 tag is preserved;
+failed CI correctly prevented deployment while a corrective release is prepared.

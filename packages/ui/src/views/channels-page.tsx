@@ -125,6 +125,7 @@ export function ChannelsPage() {
 	const reading = Boolean(articleId && !mobileList);
 	const listKey = `${scope}:list:${channelId}:${filterQuery}`;
 	const positionKey = `${scope}:article:${article?.channelId}:${article?.id}`;
+	const articleReady = Boolean(article);
 	useLayoutEffect(() => {
 		const previous = headerFocus.current;
 		if (
@@ -194,7 +195,7 @@ export function ChannelsPage() {
 		);
 	}, [state.loading, state.pageCount, matchingList, listKey, isMobile, reading]);
 	useLayoutEffect(() => {
-		if (!article || !documentRef.current || (isMobile && !reading)) return;
+		if (!articleReady || !documentRef.current || (isMobile && !reading)) return;
 		return restoreReadingPosition(
 			documentRef.current,
 			readPosition(sessionStorage, positionKey),
@@ -202,7 +203,7 @@ export function ChannelsPage() {
 			isMobile ? "document" : "element",
 			() => window.matchMedia("(max-width: 767px)").matches === isMobile,
 		);
-	}, [article, positionKey, isMobile, reading]);
+	}, [articleReady, positionKey, isMobile, reading]);
 	useLayoutEffect(() => {
 		if (
 			(previousArticleId.current !== articleId || focusListSelection.current) &&

@@ -108,6 +108,12 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
 
 test("immersive reader preserves root scroll through dialogs, resizing and short reports", async ({ page, request }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
+	let releaseRead!: () => void;
+	const pendingRead = new Promise<void>(resolve => { releaseRead = resolve; });
+	await page.route("**/articles/*/read", async route => {
+		await pendingRead;
+		await route.continue();
+	});
 	const created = await request.post(`${WORKER}/api/channels`, {
 		headers: browserApiHeaders, data: { name: `Immersive ${Date.now()}` },
 	});
@@ -129,6 +135,9 @@ test("immersive reader preserves root scroll through dialogs, resizing and short
 		const content = page.getByRole("document", { name: "Article content" });
 		await expect(content.getByRole("heading", { name: "long report", exact: true })).toBeVisible();
 		await page.evaluate(() => window.scrollTo(0, 800));
+		const acknowledged = page.waitForResponse(response => response.url().endsWith("/read") && response.request().method() === "PUT");
+		releaseRead();
+		await acknowledged;
 		await expect.poll(() => page.evaluate(() => scrollY)).toBe(800);
 		const more = page.getByRole("button", { name: "More channel actions" });
 		await more.tap();
@@ -172,6 +181,7 @@ test("immersive reader preserves root scroll through dialogs, resizing and short
 		await expect.poll(() => page.locator(".channel-reading-panel").evaluate(node => node.getBoundingClientRect().bottom >= innerHeight - 1)).toBe(true);
 		await page.screenshot({ path: test.info().outputPath("xray-immersive-short-mobile.png") });
 	} finally {
+		releaseRead();
 		await request.delete(`${WORKER}/api/channels/${channel.id}`, { headers: browserApiHeaders });
 	}
 });
