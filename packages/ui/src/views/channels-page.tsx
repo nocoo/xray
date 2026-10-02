@@ -48,10 +48,12 @@ import { CopyTextButton } from "@/components/copy-text-button";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { HeaderTooltip } from "@/components/layout/header-links";
 import { ArticleSkeleton, RowsSkeleton } from "@/components/loading-skeletons";
+import { MobileReaderActions } from "@/components/mobile-reader-actions";
 import { TagLabels } from "@/components/tag-labels";
 import { UnreadDot } from "@/components/unread-dot";
 import { useAuthUser } from "@/hooks/me-context";
 import { restoreReadingPosition } from "@/hooks/reading-position";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
 	adjacentArticle,
 	articlePath,
@@ -66,6 +68,8 @@ import { useVm } from "@/viewmodels/use-vm";
 
 export function ChannelsPage() {
 	const vm = useChannels();
+	const isMobile = useIsMobile();
+	const moreButton = useRef<HTMLButtonElement>(null);
 	const state = useVm(vm);
 	const params = useParams();
 	const channelId = Number(params.channelId) || 0;
@@ -257,7 +261,7 @@ export function ChannelsPage() {
 			open={showLinks}
 			onClose={() => {
 				setShowLinks(false);
-				linksButton.current?.focus({ preventScroll: true });
+				(isMobile ? moreButton : linksButton).current?.focus({ preventScroll: true });
 			}}
 		/>
 	);
@@ -282,156 +286,201 @@ export function ChannelsPage() {
 						</span>
 					}
 					actions={
-						<>
-							<div className="channel-action-group flex items-center gap-2">
-								<CopyTextButton
-									key={`${channelId}/${articleId}`}
-									label="Copy full article"
-									iconOnly
-									className="h-8 w-8"
-									text={article ? `# ${article.title}\n\n${article.markdown}` : ""}
-									disabled={!article || state.articleLoading}
-								/>
-								<HeaderTooltip label="Edit article">
+						isMobile ? (
+							<>
+								{articleId > 0 && !mobileList && (
 									<Button
-										variant="outline"
+										variant="ghost"
 										size="icon"
-										className="h-8 w-8"
-										aria-label="Edit article"
-										disabled={!article || state.articleLoading || state.busy || editing || deleting}
-										ref={editButton}
-										onClick={() => {
-											vm.setState({ error: null });
-											setEditing(true);
-										}}
-									>
-										<Pencil aria-hidden="true" className="h-4 w-4" />
-									</Button>
-								</HeaderTooltip>
-								<HeaderTooltip label="Delete article">
-									<Button
-										variant="outline"
-										size="icon"
-										className="h-8 w-8 text-basalt-destructive"
-										aria-label="Delete article"
-										disabled={!article || state.articleLoading || state.busy || editing || deleting}
-										onClick={() => {
-											vm.setState({ error: null });
-											setDeleting(true);
-										}}
-									>
-										<Trash2 aria-hidden="true" className="h-4 w-4" />
-									</Button>
-								</HeaderTooltip>
-							</div>
-							{articleId > 0 && !mobileList && (
-								<HeaderTooltip label="Back to reports">
-									<Button
-										variant="outline"
-										className="channel-back h-8 w-8"
-										size="icon"
+										className="channel-back h-11 w-11"
 										aria-label="Back to reports"
 										onClick={() => {
 											setMobileList(true);
 											requestAnimationFrame(() => selectedButton.current?.focus());
 										}}
 									>
-										<ArrowLeft aria-hidden="true" className="h-4 w-4" />
+										<ArrowLeft className="h-5 w-5" aria-hidden="true" />
 									</Button>
-								</HeaderTooltip>
-							)}
-							<div className="channel-action-group flex items-center gap-2">
-								<fieldset
-									className="flex min-w-0 items-center gap-2"
-									aria-label="Reading preferences"
-								>
-									<HeaderTooltip
-										label={preferences.sans ? "Use serif font" : "Use sans-serif font"}
-									>
-										<Button
-											variant="outline"
-											size="icon"
-											className="channel-desktop-preference h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
-											aria-label="Use sans-serif font"
-											aria-pressed={preferences.sans}
-											onClick={() => changePreferences({ ...preferences, sans: !preferences.sans })}
-										>
-											<Type aria-hidden="true" className="h-4 w-4" />
-										</Button>
-									</HeaderTooltip>
-									<HeaderTooltip label={`Decrease font size · ${preferences.size}px`}>
-										<Button
-											variant="outline"
-											size="icon"
-											className="h-8 w-8"
-											aria-label="Decrease font size"
-											disabled={preferences.size <= 16}
-											onClick={() =>
-												changePreferences({ ...preferences, size: preferences.size - 2 })
-											}
-										>
-											<AArrowDown aria-hidden="true" className="h-4 w-4" />
-										</Button>
-									</HeaderTooltip>
-									<HeaderTooltip label={`Increase font size · ${preferences.size}px`}>
-										<Button
-											variant="outline"
-											size="icon"
-											className="h-8 w-8"
-											aria-label="Increase font size"
-											disabled={preferences.size >= 22}
-											onClick={() =>
-												changePreferences({ ...preferences, size: preferences.size + 2 })
-											}
-										>
-											<AArrowUp aria-hidden="true" className="h-4 w-4" />
-										</Button>
-									</HeaderTooltip>
-									<HeaderTooltip
-										label={preferences.fullWidth ? "Use readable width" : "Use full width"}
-									>
-										<Button
-											variant="outline"
-											size="icon"
-											className="channel-desktop-preference h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
-											aria-label="Use full reading width"
-											aria-pressed={preferences.fullWidth}
-											onClick={() =>
-												changePreferences({ ...preferences, fullWidth: !preferences.fullWidth })
-											}
-										>
-											{preferences.fullWidth ? (
-												<Columns2 aria-hidden="true" className="h-4 w-4" />
-											) : (
-												<Maximize2 aria-hidden="true" className="h-4 w-4" />
-											)}
-										</Button>
-									</HeaderTooltip>
-								</fieldset>
-								<HeaderTooltip label={`Related links (${links.length})`}>
-									<Button
-										ref={linksButton}
-										variant="outline"
-										size="icon"
+								)}
+								<MobileReaderActions
+									key={`${channelId}/${articleId}`}
+									channelId={channelId}
+									text={article ? `# ${article.title}\n\n${article.markdown}` : ""}
+									disabled={!article || state.articleLoading || state.busy || editing || deleting}
+									preferences={preferences}
+									onPreferences={changePreferences}
+									onEdit={() => {
+										vm.setState({ error: null });
+										setEditing(true);
+									}}
+									onDelete={() => {
+										vm.setState({ error: null });
+										setDeleting(true);
+									}}
+									linkCount={links.length}
+									showLinks={showLinks}
+									onToggleLinks={() => setShowLinks(!showLinks)}
+									triggerRef={moreButton}
+								/>
+							</>
+						) : (
+							<>
+								<div className="channel-action-group flex items-center gap-2">
+									<CopyTextButton
+										key={`${channelId}/${articleId}`}
+										label="Copy full article"
+										iconOnly
 										className="h-8 w-8"
-										aria-label="Related links"
-										aria-expanded={hasLinks && showLinks}
-										aria-controls={hasLinks ? linksId : undefined}
-										disabled={!article || links.length === 0}
-										onClick={() => setShowLinks(!showLinks)}
+										text={article ? `# ${article.title}\n\n${article.markdown}` : ""}
+										disabled={!article || state.articleLoading}
+									/>
+									<HeaderTooltip label="Edit article">
+										<Button
+											variant="outline"
+											size="icon"
+											className="h-8 w-8"
+											aria-label="Edit article"
+											disabled={
+												!article || state.articleLoading || state.busy || editing || deleting
+											}
+											ref={editButton}
+											onClick={() => {
+												vm.setState({ error: null });
+												setEditing(true);
+											}}
+										>
+											<Pencil aria-hidden="true" className="h-4 w-4" />
+										</Button>
+									</HeaderTooltip>
+									<HeaderTooltip label="Delete article">
+										<Button
+											variant="outline"
+											size="icon"
+											className="h-8 w-8 text-basalt-destructive"
+											aria-label="Delete article"
+											disabled={
+												!article || state.articleLoading || state.busy || editing || deleting
+											}
+											onClick={() => {
+												vm.setState({ error: null });
+												setDeleting(true);
+											}}
+										>
+											<Trash2 aria-hidden="true" className="h-4 w-4" />
+										</Button>
+									</HeaderTooltip>
+								</div>
+								{articleId > 0 && !mobileList && (
+									<HeaderTooltip label="Back to reports">
+										<Button
+											variant="outline"
+											className="channel-back h-8 w-8"
+											size="icon"
+											aria-label="Back to reports"
+											onClick={() => {
+												setMobileList(true);
+												requestAnimationFrame(() => selectedButton.current?.focus());
+											}}
+										>
+											<ArrowLeft aria-hidden="true" className="h-4 w-4" />
+										</Button>
+									</HeaderTooltip>
+								)}
+								<div className="channel-action-group flex items-center gap-2">
+									<fieldset
+										className="flex min-w-0 items-center gap-2"
+										aria-label="Reading preferences"
 									>
-										<Link2 className="h-4 w-4" aria-hidden="true" />
-									</Button>
-								</HeaderTooltip>
-								<HeaderTooltip label="Manage channel">
-									<Button variant="outline" size="icon" className="h-8 w-8" asChild>
-										<Link to={`/channels/${channelId}/settings`} aria-label="Manage channel">
-											<Settings aria-hidden="true" className="h-4 w-4" />
-										</Link>
-									</Button>
-								</HeaderTooltip>
-							</div>
-						</>
+										<HeaderTooltip
+											label={preferences.sans ? "Use serif font" : "Use sans-serif font"}
+										>
+											<Button
+												variant="outline"
+												size="icon"
+												className="channel-desktop-preference h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
+												aria-label="Use sans-serif font"
+												aria-pressed={preferences.sans}
+												onClick={() =>
+													changePreferences({ ...preferences, sans: !preferences.sans })
+												}
+											>
+												<Type aria-hidden="true" className="h-4 w-4" />
+											</Button>
+										</HeaderTooltip>
+										<HeaderTooltip label={`Decrease font size · ${preferences.size}px`}>
+											<Button
+												variant="outline"
+												size="icon"
+												className="h-8 w-8"
+												aria-label="Decrease font size"
+												disabled={preferences.size <= 16}
+												onClick={() =>
+													changePreferences({ ...preferences, size: preferences.size - 2 })
+												}
+											>
+												<AArrowDown aria-hidden="true" className="h-4 w-4" />
+											</Button>
+										</HeaderTooltip>
+										<HeaderTooltip label={`Increase font size · ${preferences.size}px`}>
+											<Button
+												variant="outline"
+												size="icon"
+												className="h-8 w-8"
+												aria-label="Increase font size"
+												disabled={preferences.size >= 22}
+												onClick={() =>
+													changePreferences({ ...preferences, size: preferences.size + 2 })
+												}
+											>
+												<AArrowUp aria-hidden="true" className="h-4 w-4" />
+											</Button>
+										</HeaderTooltip>
+										<HeaderTooltip
+											label={preferences.fullWidth ? "Use readable width" : "Use full width"}
+										>
+											<Button
+												variant="outline"
+												size="icon"
+												className="channel-desktop-preference h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
+												aria-label="Use full reading width"
+												aria-pressed={preferences.fullWidth}
+												onClick={() =>
+													changePreferences({ ...preferences, fullWidth: !preferences.fullWidth })
+												}
+											>
+												{preferences.fullWidth ? (
+													<Columns2 aria-hidden="true" className="h-4 w-4" />
+												) : (
+													<Maximize2 aria-hidden="true" className="h-4 w-4" />
+												)}
+											</Button>
+										</HeaderTooltip>
+									</fieldset>
+									<HeaderTooltip label={`Related links (${links.length})`}>
+										<Button
+											ref={linksButton}
+											variant="outline"
+											size="icon"
+											className="h-8 w-8"
+											aria-label="Related links"
+											aria-expanded={hasLinks && showLinks}
+											aria-controls={hasLinks ? linksId : undefined}
+											disabled={!article || links.length === 0}
+											onClick={() => setShowLinks(!showLinks)}
+										>
+											<Link2 className="h-4 w-4" aria-hidden="true" />
+										</Button>
+									</HeaderTooltip>
+									<HeaderTooltip label="Manage channel">
+										<Button variant="outline" size="icon" className="h-8 w-8" asChild>
+											<Link to={`/channels/${channelId}/settings`} aria-label="Manage channel">
+												<Settings aria-hidden="true" className="h-4 w-4" />
+											</Link>
+										</Button>
+									</HeaderTooltip>
+								</div>
+							</>
+						)
 					}
 				/>
 			</div>
@@ -688,7 +737,7 @@ export function ChannelsPage() {
 							disablePointerDismissal
 							onCloseAutoFocus={(event) => {
 								event.preventDefault();
-								editButton.current?.focus();
+								(isMobile ? moreButton : editButton).current?.focus({ preventScroll: true });
 							}}
 						>
 							<DialogHeader>

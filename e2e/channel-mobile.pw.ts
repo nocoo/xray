@@ -51,11 +51,17 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
 			await expect.poll(() => content.evaluate(node => node.clientHeight)).toBeGreaterThan(viewport.height / 2);
 			await expect.poll(() => page.locator(".channel-header").evaluate(node => node.clientHeight)).toBeLessThanOrEqual(100);
 			await expect(page.getByRole("button", { name: "Use full reading width", exact: true })).toBeHidden();
-			for (const action of ["Back to reports", "Edit article", "Delete article", "Increase font size", "Related links"]) {
+			for (const action of ["Back to reports", "Reading settings", "More channel actions"]) {
 				await expect(page.getByRole("button", { name: action, exact: true })).toBeInViewport();
 			}
+			await page.getByRole("button", { name: "More channel actions" }).tap();
+			for (const action of ["Edit article", "Delete article", "Copy full article"])
+				await expect(page.getByRole("button", { name: action, exact: true })).toBeInViewport();
 			await expect(page.getByRole("link", { name: "Manage channel", exact: true })).toBeInViewport();
+			await page.keyboard.press("Escape");
+			await page.getByRole("button", { name: "Reading settings" }).tap();
 			await page.getByRole("button", { name: "Increase font size", exact: true }).tap();
+			await page.keyboard.press("Escape");
 			await content.evaluate(node => { node.scrollTop = node.scrollHeight; });
 			await expect(content.getByRole("heading", { name: "End of report", exact: true })).toBeInViewport();
 			await expect.poll(() => content.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);

@@ -19,6 +19,18 @@ test.afterEach(async ({ page }) => {
 });
 
 async function expectReaderChrome(page: Page) {
+	if ((page.viewportSize()?.width ?? 1280) < 768) {
+		for (const name of ["Reading settings", "More channel actions", "Back to reports"]) {
+			const button = page.getByRole("button", { name, exact: true });
+			await expect(button).toBeInViewport();
+			const box = await button.boundingBox();
+			expect(box!.width).toBeGreaterThanOrEqual(44);
+			expect(box!.height).toBeGreaterThanOrEqual(44);
+		}
+		await expect(page.getByRole("button", { name: "Edit article", exact: true })).toBeHidden();
+		await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+		return;
+	}
 	await expect(page.locator(".channel-header").getByRole("group", { name: "Reading preferences", exact: true })).toBeVisible();
 	await expect(page.getByLabel("Report date", { exact: true })).toHaveCount(0);
 	await expect(page.locator(".channel-detail").getByRole("group", { name: "Reading preferences", exact: true })).toHaveCount(0);
@@ -391,12 +403,12 @@ test("mobile reader contains long Markdown and blocks executable or embedded ima
 	await page.screenshot({ path: test.info().outputPath("xray-channels-mobile.png"), fullPage: true });
 	await page.mouse.move(0, 0);
 	await content.focus();
-	const sizeButton = page.getByRole("button", { name: "Increase font size", exact: true });
-	await sizeButton.focus();
-	await expect(page.getByRole("tooltip", { name: /Increase font size/ })).toBeVisible();
+	const settings = page.getByRole("button", { name: "Reading settings", exact: true });
+	await settings.click();
+	await page.getByRole("button", { name: "Increase font size", exact: true }).click();
 	await page.keyboard.press("Escape");
-	await expect(page.getByRole("tooltip")).toHaveCount(0);
-	await expect(sizeButton).toBeFocused();
+	await expect(page.getByRole("dialog", { name: "Reading settings" })).toHaveCount(0);
+	await expect(settings).toBeFocused();
 	await expect(content).toBeVisible();
 	await page.keyboard.press("Escape");
 	await expect(page.getByRole("button", { name: /中文阅读与安全排版/ })).toBeFocused();
