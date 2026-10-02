@@ -17,6 +17,7 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 | 11 | [Channels](11-channels.md) | Channel-bound producer keys, Markdown reports and split reader |
 | 12 | [Local environments](12-local-environments.md) | Demo/E2E/Prod contract, work streams and current verification evidence |
 | 13 | [Environment fixtures](13-environment-fixtures.md) | Synthetic catalog, provider scenarios, media provenance and feature coverage |
+| 14 | [Immersive mobile reading](14-immersive-mobile-reading.md) | Basalt layout boundary, mobile document reading, delivery and verification |
 
 ## Locked constraints
 
