@@ -1,4 +1,5 @@
 import { Badge, Button, ConfirmDialog, LayerCard } from "@nocoo/basalt";
+import { AppHeader } from "@nocoo/basalt/components/app-header";
 import { Banner } from "@nocoo/basalt/components/banner";
 import {
 	Dialog,
@@ -21,6 +22,7 @@ import {
 	Link2,
 	ListFilter,
 	Maximize2,
+	Menu,
 	Pencil,
 	Radio,
 	RefreshCw,
@@ -45,8 +47,11 @@ import { ArticleLinksPanel } from "@/components/article-links-panel";
 import { ChannelMarkdown } from "@/components/channel-markdown";
 import { useChannels } from "@/components/channels-context";
 import { CopyTextButton } from "@/components/copy-text-button";
+import { useAppNavigation } from "@/components/layout/app-shell";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
+import { EnvironmentSwitch } from "@/components/layout/environment-switch";
 import { HeaderTooltip } from "@/components/layout/header-links";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { ArticleSkeleton, RowsSkeleton } from "@/components/loading-skeletons";
 import { MobileReaderActions } from "@/components/mobile-reader-actions";
 import { TagLabels } from "@/components/tag-labels";
@@ -69,6 +74,7 @@ import { useVm } from "@/viewmodels/use-vm";
 export function ChannelsPage() {
 	const vm = useChannels();
 	const isMobile = useIsMobile();
+	const openNavigation = useAppNavigation();
 	const moreButton = useRef<HTMLButtonElement>(null);
 	const state = useVm(vm);
 	const params = useParams();
@@ -94,6 +100,8 @@ export function ChannelsPage() {
 	const linksId = useId();
 	const [showLinks, setShowLinks] = useState(true);
 	const editButton = useRef<HTMLButtonElement>(null);
+	const deleteButton = useRef<HTMLButtonElement>(null);
+	const headerFocus = useRef<HTMLElement | null>(null);
 	const list = useRef<HTMLElement>(null);
 	const documentRef = useRef<HTMLDivElement>(null);
 	const focusListSelection = useRef(false);
@@ -106,16 +114,36 @@ export function ChannelsPage() {
 	const hasLinks = Boolean(article && links.length > 0);
 	useEffect(() => {
 		const observer = new ResizeObserver(([entry]) =>
-			setStackedLinks(entry.contentRect.width <= 560),
+			setStackedLinks(isMobile || entry.contentRect.width <= 560),
 		);
 		if (pageRef.current) observer.observe(pageRef.current);
 		return () => observer.disconnect();
-	}, []);
+	}, [isMobile]);
 	const matchingList = state.channelId === channelId && state.filterQuery === filterQuery;
 	const listLoading = state.loading || !matchingList;
 	const emptyList = !listLoading && state.items.length === 0;
+	const reading = Boolean(articleId && !mobileList);
 	const listKey = `${scope}:list:${channelId}:${filterQuery}`;
 	const positionKey = `${scope}:article:${article?.channelId}:${article?.id}`;
+	useLayoutEffect(() => {
+		const previous = headerFocus.current;
+		if (
+			previous &&
+			!previous.isConnected &&
+			document.activeElement === document.body &&
+			!editing &&
+			!deleting
+		) {
+			const label = previous.getAttribute("aria-label");
+			const controls = pageRef.current?.querySelectorAll<HTMLButtonElement>("header button");
+			const equivalent = [...(controls ?? [])].find(
+				(button) => button.getAttribute("aria-label") === label,
+			);
+			(equivalent ?? (isMobile ? moreButton.current : editButton.current))?.focus({
+				preventScroll: true,
+			});
+		}
+	}, [isMobile, editing, deleting]);
 
 	useEffect(() => {
 		setBreadcrumbs([
@@ -154,32 +182,27 @@ export function ChannelsPage() {
 		};
 	}, [vm, channelId, articleId]);
 	useLayoutEffect(() => {
-		if (
-			state.loading ||
-			!list.current ||
-			state.channelId !== channelId ||
-			state.filterQuery !== filterQuery
-		)
-			return;
-		list.current.scrollTop = readPosition(sessionStorage, listKey);
+		if (state.loading || !list.current || !matchingList) return;
 		writeReaderValue(sessionStorage, `${listKey}:pages`, String(state.pageCount));
-	}, [
-		state.loading,
-		state.pageCount,
-		state.channelId,
-		state.filterQuery,
-		channelId,
-		filterQuery,
-		listKey,
-	]);
+		if (isMobile && reading) return;
+		return restoreReadingPosition(
+			list.current,
+			readPosition(sessionStorage, listKey),
+			(top) => writeReaderValue(sessionStorage, listKey, String(top)),
+			isMobile ? "document" : "element",
+			() => window.matchMedia("(max-width: 767px)").matches === isMobile,
+		);
+	}, [state.loading, state.pageCount, matchingList, listKey, isMobile, reading]);
 	useLayoutEffect(() => {
-		if (!article || !documentRef.current) return;
+		if (!article || !documentRef.current || (isMobile && !reading)) return;
 		return restoreReadingPosition(
 			documentRef.current,
 			readPosition(sessionStorage, positionKey),
 			(top) => writeReaderValue(sessionStorage, positionKey, String(top)),
+			isMobile ? "document" : "element",
+			() => window.matchMedia("(max-width: 767px)").matches === isMobile,
 		);
-	}, [article, positionKey]);
+	}, [article, positionKey, isMobile, reading]);
 	useLayoutEffect(() => {
 		if (
 			(previousArticleId.current !== articleId || focusListSelection.current) &&
@@ -244,6 +267,11 @@ export function ChannelsPage() {
 		state.busy,
 	]);
 	function select(id: number) {
+		writeReaderValue(
+			sessionStorage,
+			listKey,
+			String(isMobile ? window.scrollY : (list.current?.scrollTop ?? 0)),
+		);
 		setMobileList(false);
 		void navigate(articlePath(channelId, id, filterQuery));
 	}
@@ -266,64 +294,95 @@ export function ChannelsPage() {
 		/>
 	);
 
+	const mobileActions = (
+		<>
+			<MobileReaderActions
+				key={`${channelId}/${articleId}`}
+				channelId={channelId}
+				text={article ? `# ${article.title}\n\n${article.markdown}` : ""}
+				disabled={!article || state.articleLoading || state.busy || editing || deleting}
+				preferences={preferences}
+				onPreferences={changePreferences}
+				onEdit={() => {
+					vm.setState({ error: null });
+					setEditing(true);
+				}}
+				onDelete={() => {
+					vm.setState({ error: null });
+					setDeleting(true);
+				}}
+				linkCount={links.length}
+				showLinks={showLinks}
+				onToggleLinks={() => setShowLinks(!showLinks)}
+				triggerRef={moreButton}
+				onNavigate={openNavigation}
+			>
+				<div className="channel-mobile-utilities mt-2 flex flex-wrap items-center justify-between gap-2">
+					<EnvironmentSwitch />
+					<ThemeToggle />
+				</div>
+			</MobileReaderActions>
+		</>
+	);
+
 	return (
-		<section
-			ref={pageRef}
-			className="channel-page"
-			data-reading={Boolean(articleId && !mobileList)}
-		>
-			<div className="channel-header">
-				<PageHeader
-					title={
-						<span className="channel-title flex items-center gap-2" title={channel?.name}>
-							<Radio className="h-5 w-5 shrink-0 text-basalt-muted-foreground" aria-hidden="true" />
-							{channel?.name ?? "Channel"}
-						</span>
+		<section ref={pageRef} className="channel-page" data-reading={reading}>
+			{isMobile ? (
+				<AppHeader
+					sticky
+					density="compact"
+					className="channel-mobile-header"
+					onFocusCapture={(event) => {
+						headerFocus.current = event.target;
+					}}
+					title={channel?.name ?? "Channel"}
+					actions={mobileActions}
+					leading={
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-11 w-11"
+							aria-label={reading ? "Back to reports" : "Open navigation menu"}
+							onClick={() => {
+								if (!reading) {
+									openNavigation();
+									return;
+								}
+								setMobileList(true);
+								requestAnimationFrame(() => selectedButton.current?.focus({ preventScroll: true }));
+							}}
+						>
+							{reading ? (
+								<ArrowLeft className="h-5 w-5" aria-hidden="true" />
+							) : (
+								<Menu className="h-5 w-5" aria-hidden="true" />
+							)}
+						</Button>
 					}
-					description={
-						<span className="channel-description" title={channel?.description ?? undefined}>
-							{channel?.description || "Published reports, ready to read."}
-						</span>
-					}
-					actions={
-						isMobile ? (
-							<>
-								{articleId > 0 && !mobileList && (
-									<Button
-										variant="ghost"
-										size="icon"
-										className="channel-back h-11 w-11"
-										aria-label="Back to reports"
-										onClick={() => {
-											setMobileList(true);
-											requestAnimationFrame(() => selectedButton.current?.focus());
-										}}
-									>
-										<ArrowLeft className="h-5 w-5" aria-hidden="true" />
-									</Button>
-								)}
-								<MobileReaderActions
-									key={`${channelId}/${articleId}`}
-									channelId={channelId}
-									text={article ? `# ${article.title}\n\n${article.markdown}` : ""}
-									disabled={!article || state.articleLoading || state.busy || editing || deleting}
-									preferences={preferences}
-									onPreferences={changePreferences}
-									onEdit={() => {
-										vm.setState({ error: null });
-										setEditing(true);
-									}}
-									onDelete={() => {
-										vm.setState({ error: null });
-										setDeleting(true);
-									}}
-									linkCount={links.length}
-									showLinks={showLinks}
-									onToggleLinks={() => setShowLinks(!showLinks)}
-									triggerRef={moreButton}
+				/>
+			) : (
+				<div
+					className="channel-header"
+					onFocusCapture={(event) => {
+						headerFocus.current = event.target;
+					}}
+				>
+					<PageHeader
+						title={
+							<span className="channel-title flex items-center gap-2" title={channel?.name}>
+								<Radio
+									className="h-5 w-5 shrink-0 text-basalt-muted-foreground"
+									aria-hidden="true"
 								/>
-							</>
-						) : (
+								{channel?.name ?? "Channel"}
+							</span>
+						}
+						description={
+							<span className="channel-description" title={channel?.description ?? undefined}>
+								{channel?.description || "Published reports, ready to read."}
+							</span>
+						}
+						actions={
 							<>
 								<div className="channel-action-group flex items-center gap-2">
 									<CopyTextButton
@@ -358,6 +417,7 @@ export function ChannelsPage() {
 											size="icon"
 											className="h-8 w-8 text-basalt-destructive"
 											aria-label="Delete article"
+											ref={deleteButton}
 											disabled={
 												!article || state.articleLoading || state.busy || editing || deleting
 											}
@@ -397,7 +457,7 @@ export function ChannelsPage() {
 											<Button
 												variant="outline"
 												size="icon"
-												className="channel-desktop-preference h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
+												className="h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
 												aria-label="Use sans-serif font"
 												aria-pressed={preferences.sans}
 												onClick={() =>
@@ -441,7 +501,7 @@ export function ChannelsPage() {
 											<Button
 												variant="outline"
 												size="icon"
-												className="channel-desktop-preference h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
+												className="h-8 w-8 aria-pressed:border-basalt-primary aria-pressed:text-basalt-primary"
 												aria-label="Use full reading width"
 												aria-pressed={preferences.fullWidth}
 												onClick={() =>
@@ -480,10 +540,13 @@ export function ChannelsPage() {
 									</HeaderTooltip>
 								</div>
 							</>
-						)
-					}
-				/>
-			</div>
+						}
+					/>
+				</div>
+			)}
+			{isMobile && !reading && channel?.description && (
+				<p className="px-4 py-2 text-sm text-basalt-muted-foreground">{channel.description}</p>
+			)}
 			{state.error && !editing && !deleting && (
 				<p role="alert" className="px-3 py-2 text-sm text-basalt-destructive">
 					{state.error}
@@ -492,10 +555,14 @@ export function ChannelsPage() {
 
 			<div
 				className="channel-panes"
-				data-reading={Boolean(articleId && !mobileList)}
+				data-reading={reading}
 				data-has-links={hasLinks && !stackedLinks}
 			>
-				<LayerCard outlined padding="none" className="channel-list-column channel-side-panel">
+				<LayerCard
+					outlined
+					padding="none"
+					className="channel-list-column channel-side-panel rounded-none ring-0 md:rounded-basalt-lg md:ring-1"
+				>
 					<div className="channel-panel-heading">
 						<h2 className="inline-flex items-center gap-2 text-sm font-semibold">
 							<ListFilter className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" />
@@ -553,10 +620,6 @@ export function ChannelsPage() {
 						aria-label="Articles"
 						aria-busy={listLoading}
 						tabIndex={-1}
-						onScroll={(e) => {
-							if (!state.loading && matchingList)
-								writeReaderValue(sessionStorage, listKey, String(e.currentTarget.scrollTop));
-						}}
 					>
 						{(matchingList ? state.items : []).map((item) => (
 							<Button
@@ -640,7 +703,11 @@ export function ChannelsPage() {
 						)}
 					</section>
 				</LayerCard>
-				<LayerCard outlined padding="none" className="channel-reading-panel">
+				<LayerCard
+					outlined
+					padding="none"
+					className="channel-reading-panel rounded-none ring-0 md:rounded-basalt-lg md:ring-1"
+				>
 					<LayerCard.Well className="channel-detail p-0">
 						<div
 							ref={documentRef}
@@ -781,6 +848,10 @@ export function ChannelsPage() {
 					<ConfirmDialog
 						open={deleting}
 						onOpenChange={setDeleting}
+						onCloseAutoFocus={(event) => {
+							event.preventDefault();
+							(isMobile ? moreButton : deleteButton).current?.focus({ preventScroll: true });
+						}}
 						title="Delete article?"
 						description={
 							<>

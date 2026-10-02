@@ -343,6 +343,10 @@ nav[aria-label="Breadcrumb"] + svg {
 .channel-back {
 	display: none;
 }
+.channel-mobile-utilities button {
+	min-width: calc(var(--spacing) * 11);
+	min-height: calc(var(--spacing) * 11);
+}
 @container channel-reader (max-width: 920px) {
 	.channel-panes[data-has-links="true"] {
 		--channel-side-width: clamp(calc(var(--spacing) * 60), 32cqw, calc(var(--spacing) * 72 * 1.2));
@@ -363,45 +367,46 @@ nav[aria-label="Breadcrumb"] + svg {
 	}
 }
 @media (max-width: 767px) {
-	.channel-header {
-		margin-bottom: calc(var(--spacing) * 2);
+	.channel-page,
+	.channel-document,
+	.channel-list {
+		overflow: visible;
+		overscroll-behavior: auto;
 	}
-	.channel-header > header > div {
-		gap: calc(var(--spacing) * 2);
+	.channel-page {
+		min-width: 0;
 	}
-	.channel-header > header > div > div:last-child,
-	.channel-action-group,
-	.channel-action-group > fieldset {
-		gap: calc(var(--spacing) * 0.5);
+	.channel-panes {
+		flex: 1 0 auto;
+		flex-direction: column;
+		padding: 0;
 	}
-	.channel-header h1 {
-		font-size: var(--text-lg);
-		line-height: var(--text-lg--line-height);
-	}
-	.channel-title,
-	.channel-description {
-		display: block;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.channel-description {
-		font-size: var(--text-xs);
-		line-height: var(--text-xs--line-height);
-	}
-	.channel-title > svg,
-	.channel-desktop-preference {
+	.channel-panes > .channel-links-region {
 		display: none;
 	}
-	.channel-header .channel-back {
-		order: -1;
-		margin-right: auto;
+	.channel-reading-panel,
+	.channel-list-column,
+	.channel-detail,
+	.channel-document,
+	.channel-list {
+		flex: 1 0 auto;
+		min-height: 0;
+	}
+	.channel-prose {
+		padding: calc(var(--spacing) * 4);
+	}
+	.channel-prose > header {
+		margin-bottom: calc(var(--spacing) * 4);
 	}
 	.channel-list-item {
 		overflow-wrap: anywhere;
 	}
 	.channel-list-item > span > span:first-child {
 		white-space: normal;
+	}
+	.channel-panel-heading button {
+		min-height: calc(var(--spacing) * 11);
+		min-width: calc(var(--spacing) * 11);
 	}
 }
 @container channel-reader (max-width: 560px) {

@@ -10,6 +10,7 @@ function setup(disabled = false, linkCount = 2) {
 	const onEdit = vi.fn();
 	const onDelete = vi.fn();
 	const onToggleLinks = vi.fn();
+	const onNavigate = vi.fn();
 	const triggerRef = createRef<HTMLButtonElement>();
 	function Reader() {
 		const [preferences, setPreferences] = useState({ size: 18, sans: false, fullWidth: false });
@@ -27,12 +28,13 @@ function setup(disabled = false, linkCount = 2) {
 					showLinks
 					onToggleLinks={onToggleLinks}
 					triggerRef={triggerRef}
+					onNavigate={onNavigate}
 				/>
 			</MemoryRouter>
 		);
 	}
 	render(<Reader />);
-	return { onEdit, onDelete, onToggleLinks, triggerRef };
+	return { onEdit, onDelete, onToggleLinks, onNavigate, triggerRef };
 }
 
 test("discloses typography without shrinking touch targets or losing size limits", async () => {
@@ -57,7 +59,7 @@ test("discloses typography without shrinking touch targets or losing size limits
 	await waitFor(() => expect(document.activeElement).toBe(trigger));
 });
 
-test.each(["Edit article", "Delete article", "Related links"])(
+test.each(["Edit article", "Delete article", "Related links", "Open navigation menu"])(
 	"closes disclosure and restores its stable trigger before %s",
 	async (label) => {
 		const actions = setup();
@@ -73,7 +75,9 @@ test.each(["Edit article", "Delete article", "Related links"])(
 				? actions.onEdit
 				: label === "Delete article"
 					? actions.onDelete
-					: actions.onToggleLinks;
+					: label === "Related links"
+						? actions.onToggleLinks
+						: actions.onNavigate;
 		await waitFor(() => expect(action).toHaveBeenCalledOnce());
 		expect(document.activeElement).toBe(trigger);
 		expect(screen.queryByRole("dialog", { name: "Channel actions" })).toBeNull();
@@ -87,4 +91,18 @@ test("unavailable articles disable mutations and empty links without hiding chan
 	for (const name of ["Copy full article", "Edit article", "Delete article", "Related links"])
 		expect((screen.getByRole("button", { name }) as HTMLButtonElement).disabled).toBe(true);
 	expect(screen.getByRole("link", { name: "Manage channel" })).toBeTruthy();
+});
+
+test("outside focus dismissal does not steal focus back from the next control", async () => {
+	setup();
+	const outside = document.createElement("button");
+	outside.textContent = "Outside control";
+	document.body.append(outside);
+	fireEvent.click(screen.getByRole("button", { name: "More channel actions" }));
+	await screen.findByRole("dialog", { name: "Channel actions" });
+	outside.focus();
+	fireEvent.focusIn(outside);
+	await waitFor(() => expect(screen.queryByRole("dialog", { name: "Channel actions" })).toBeNull());
+	expect(document.activeElement).toBe(outside);
+	outside.remove();
 });

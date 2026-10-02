@@ -3,13 +3,14 @@ export function restoreReadingPosition(
 	top: number,
 	save: (top: number) => void,
 	mode: "element" | "document" = "element",
+	isCurrentOwner: () => boolean = () => true,
 ) {
 	const target = mode === "document" ? window : element;
 	const position = () => (mode === "document" ? window.scrollY : element.scrollTop);
 	let active = true;
 	let applied = position();
 	function restore() {
-		if (!active) return;
+		if (!active || !isCurrentOwner()) return;
 		if (mode === "document") window.scrollTo({ top, behavior: "instant" });
 		else element.scrollTop = top;
 		applied = position();
@@ -18,6 +19,7 @@ export function restoreReadingPosition(
 		active = false;
 	}
 	function scroll() {
+		if (!isCurrentOwner()) return;
 		if (active && position() === applied) return;
 		active = false;
 		save(position());

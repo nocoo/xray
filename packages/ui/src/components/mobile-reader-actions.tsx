@@ -11,6 +11,7 @@ import {
 	AArrowUp,
 	Ellipsis,
 	Link2,
+	Menu,
 	Pencil,
 	Settings,
 	Trash2,
@@ -35,6 +36,7 @@ export function MobileReaderActions({
 	showLinks,
 	onToggleLinks,
 	triggerRef,
+	onNavigate,
 	children,
 }: {
 	channelId: number;
@@ -48,6 +50,7 @@ export function MobileReaderActions({
 	showLinks: boolean;
 	onToggleLinks: () => void;
 	triggerRef: RefObject<HTMLButtonElement | null>;
+	onNavigate?: () => void;
 	children?: ReactNode;
 }) {
 	const [open, setOpen] = useState(false);
@@ -128,11 +131,13 @@ export function MobileReaderActions({
 					className="max-h-[var(--radix-popover-content-available-height)] w-72 max-w-[calc(100vw-1.5rem)] overflow-y-auto"
 					aria-label="Channel actions"
 					onCloseAutoFocus={(event) => {
-						event.preventDefault();
-						triggerRef.current?.focus({ preventScroll: true });
 						const action = pendingAction.current;
 						pendingAction.current = null;
-						action?.();
+						if (action) {
+							event.preventDefault();
+							triggerRef.current?.focus({ preventScroll: true });
+							action();
+						}
 					}}
 				>
 					<PopoverTitle>Channel actions</PopoverTitle>
@@ -176,6 +181,15 @@ export function MobileReaderActions({
 							<Trash2 className="h-4 w-4" aria-hidden="true" /> Delete article
 						</Button>
 					</div>
+					{onNavigate && (
+						<Button
+							variant="ghost"
+							className="mt-3 min-h-11 w-full justify-start"
+							onClick={() => select(onNavigate)}
+						>
+							<Menu className="h-4 w-4" aria-hidden="true" /> Open navigation menu
+						</Button>
+					)}
 					{children && <div className="mt-3 border-t border-basalt-border pt-3">{children}</div>}
 				</PopoverContent>
 			</Popover>

@@ -44,6 +44,7 @@ export function ArticleEditor({
 			<fieldset disabled={busy} className="min-w-0 space-y-4">
 				<Field label="Article title" required>
 					<Input
+						className="text-base md:text-sm"
 						autoFocus
 						required
 						maxLength={ARTICLE_LIMITS.title}
@@ -54,6 +55,7 @@ export function ArticleEditor({
 				<div className="grid items-start gap-4 sm:grid-cols-2">
 					<Field label="Report date" required>
 						<Input
+							className="text-base md:text-sm"
 							type="date"
 							required
 							value={draft.report_date}
@@ -62,6 +64,7 @@ export function ArticleEditor({
 					</Field>
 					<Field label="Author" required={false}>
 						<Input
+							className="text-base md:text-sm"
 							maxLength={ARTICLE_LIMITS.author}
 							value={draft.author}
 							onChange={(e) => setDraft({ ...draft, author: e.target.value })}
@@ -70,6 +73,7 @@ export function ArticleEditor({
 				</div>
 				<Field label="Summary" required={false}>
 					<InputArea
+						className="text-base md:text-sm"
 						rows={2}
 						maxLength={ARTICLE_LIMITS.summary}
 						value={draft.summary}
@@ -84,7 +88,7 @@ export function ArticleEditor({
 					<InputArea
 						required
 						rows={10}
-						className="font-mono text-sm"
+						className="font-mono text-base md:text-sm"
 						value={draft.markdown}
 						onChange={(e) => setDraft({ ...draft, markdown: e.target.value })}
 					/>

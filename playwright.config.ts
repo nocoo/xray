@@ -13,5 +13,12 @@ export default defineConfig({
 		trace: "retain-on-failure",
 		screenshot: "only-on-failure",
 	},
-	projects: [{ name: "chromium", use: { browserName: "chromium" } }],
+	projects: [
+		{ name: "chromium", use: { browserName: "chromium" } },
+		{
+			name: "webkit",
+			testMatch: ["channel-mobile.pw.ts", "article-links.pw.ts", "channel-filters.pw.ts"],
+			use: { browserName: "webkit" },
+		},
+	],
 });

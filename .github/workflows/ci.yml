@@ -37,13 +37,15 @@ jobs:
         }
 
   l3:
-    name: L3 managed Chromium + build
+    name: L3 managed Chromium + WebKit + build
     uses: nocoo/base-ci/.github/workflows/test-job.yml@ad43150de3a2be2fa464b5cd2f921dc4fa9f8f0f
     with:
       runtime-version: "1.3.14"
       install-policy: "trusted"
       timeout-minutes: 20
       browser: chromium
-      pre-command: "bun run check:wrangler-version"
+      pre-command: |
+        bun run check:wrangler-version
+        bun x --no-install playwright install --with-deps webkit
       command: "bun run test:l3"
       env-json: '{"CI":"true"}'

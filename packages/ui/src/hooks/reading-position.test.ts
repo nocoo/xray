@@ -134,3 +134,31 @@ test("document mode restores the window and observes article layout rather than 
 	expect(disconnect).toHaveBeenCalledOnce();
 	await Promise.resolve();
 });
+
+test("ignores resize clamping from a retired scroll owner before its listener is detached", () => {
+	let resized = () => {};
+	vi.stubGlobal(
+		"ResizeObserver",
+		class {
+			constructor(callback: () => void) {
+				resized = callback;
+			}
+			observe() {}
+			disconnect() {}
+		},
+	);
+	const element = document.createElement("div");
+	let current = true;
+	const save = vi.fn();
+	const stop = restoreReadingPosition(element, 600, save, "element", () => current);
+	element.scrollTop = 650;
+	element.dispatchEvent(new Event("scroll"));
+	expect(save).toHaveBeenLastCalledWith(650);
+	current = false;
+	element.scrollTop = 0;
+	element.dispatchEvent(new Event("scroll"));
+	resized();
+	expect(save).toHaveBeenCalledOnce();
+	expect(element.scrollTop).toBe(0);
+	stop();
+});

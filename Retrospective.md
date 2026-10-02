@@ -190,3 +190,42 @@ signature, making an object-property access unreachable to TypeScript. No broken
 commit was created. The mock now explicitly accepts `number | ScrollToOptions`.
 When testing overloaded DOM APIs, run the strict type lane as well as the focused
 runtime tests; transpilation-only success is not type correctness.
+
+## 2026-10-02 - Preserve nonmodal disclosure dismissal semantics
+
+The first mobile action popover implementation always restored focus to its
+trigger. Independent review identified that this overrides Radix's intentional
+outside-focus dismissal behavior and can pull keyboard users back into the
+control they are leaving. Manual restoration is now limited to an explicit
+popover-to-dialog/navigation action; ordinary dismissal retains the library's
+focus handling. An outside-focus regression test protects this distinction.
+
+## 2026-10-02 - Recheck every flex sibling when changing scroll ownership
+
+The first document-mode consumer smoke failed in both engines: the article
+rendered but its containing island had zero height, so sticky navigation could
+not stay visible. Computed geometry traced this to the unused `PageAside` host:
+its `h-full shrink-0` remained beside the island after the wrapper changed from a
+row to a mobile column, consuming all available height. Channel routes now omit
+that unused host. Their own mobile article frames also use intrinsic flex bases
+rather than carrying bounded-pane shrink-to-zero assumptions into document flow.
+Do not repair sticky positioning with offsets until all ancestor and sibling
+height/overflow constraints have been inspected. Long/short document and overlay
+scroll regressions belong to the real consumer, not only the library example.
+
+The broader reader regression also caught a paginated-list restoration race:
+selection could trigger list refresh before the browser delivered the scroll
+event from focusing the selected row. Capture the list's current offset at the
+selection boundary before switching panes or fetching read-state updates; event
+listeners alone are not a complete navigation checkpoint.
+
+## 2026-10-02 - Registry propagation and temporary mirror lock entries
+
+The published package's exact-version endpoint became visible before its install
+index, so the first Bun install could not resolve 2.2.0. After verifying both full
+and compact indexes, installation succeeded without republishing. Bun also wrote
+the temporary mirror's tarball URLs into otherwise unchanged lock entries. Those
+resolutions were normalized back to the existing registry-independent form; a
+structural comparison confirmed only Basalt's package entry changed and a frozen
+install passed. Check install metadata and lockfile scope before committing a
+newly published dependency; an exact-version response alone is not install proof.

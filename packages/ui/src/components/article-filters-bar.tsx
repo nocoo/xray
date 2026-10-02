@@ -63,14 +63,14 @@ export function ArticleFiltersBar({
 				<div className="relative min-w-0 flex-1">
 					<Search
 						aria-hidden="true"
-						className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-basalt-muted-foreground"
+						className="pointer-events-none absolute left-2.5 top-3.5 h-4 w-4 text-basalt-muted-foreground md:top-2.5"
 					/>
 					<Input
 						aria-label="Search reports"
 						placeholder="Search reports…"
 						value={draft.query}
 						maxLength={200}
-						className="h-9 pl-8 pr-8"
+						className="h-11 pl-8 pr-12 text-base md:h-9 md:pr-8 md:text-sm"
 						disabled={disabled}
 						onChange={(event) => setDraft({ ...draft, query: event.target.value })}
 					/>
@@ -78,7 +78,7 @@ export function ArticleFiltersBar({
 						type="submit"
 						variant="ghost"
 						size="icon"
-						className="absolute right-1 top-1 h-7 w-7"
+						className="absolute right-0 top-0 h-11 w-11 md:right-1 md:top-1 md:h-7 md:w-7"
 						aria-label="Apply keyword search"
 						disabled={disabled}
 					>
@@ -97,7 +97,7 @@ export function ArticleFiltersBar({
 							type="button"
 							variant="outline"
 							size="icon"
-							className="relative h-9 w-9 shrink-0"
+							className="relative h-11 w-11 shrink-0 md:h-9 md:w-9"
 							aria-label={count ? `Filter reports (${count} active)` : "Filter reports"}
 							disabled={disabled}
 						>
@@ -149,6 +149,7 @@ export function ArticleFiltersBar({
 								</div>
 								<Input
 									aria-label="Find filter tags"
+									className="text-base md:text-sm"
 									placeholder="Find a tag…"
 									value={tagSearch}
 									onChange={(event) => setTagSearch(event.target.value)}
@@ -230,7 +231,7 @@ export function ArticleFiltersBar({
 					<Button
 						variant="ghost"
 						size="sm"
-						className="h-6 gap-1 px-1 text-xs"
+						className="h-11 gap-1 px-2 text-sm md:h-6 md:px-1 md:text-xs"
 						disabled={disabled}
 						onClick={() => onApply("")}
 					>
