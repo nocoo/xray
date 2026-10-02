@@ -134,14 +134,24 @@ Markdown dependency loses edit restoration (2/2 failed).
 
 On `31917f4daef4f74cf6b8975dc73a2d8be72a0bcd`, the complete hosted `CI=true`
 browser run passed 36/36 in 5.2 minutes with `--retries 0`. Normal atomic commit
-gates and independent corrective review pass. Corrected exact-revision remote
-CI and deployment remain pending; a subsequent release must not rewrite v2.5.7.
+gates and independent corrective review pass. Corrected revision
+`8c20d4e0220b60b5ecaf692bc0e411c67983d058` subsequently passed
+[CI 37015863843](https://github.com/nocoo/xray/actions/runs/37015863843), including
+all 36 browser journeys without a flaky result. Its exact-revision
+[deployment 37016438221](https://github.com/nocoo/xray/actions/runs/37016438221)
+passed with no pending D1 migrations. Worker version
+`0c11be42-69f1-478b-8bc9-62b5adec1b43` serves healthy `2.5.7` responses from both
+browser and ingest `/api/live` endpoints, including environment and D1 checks.
+The GitHub Release notes disclose the distinction between the immutable original
+tag and corrected production revision. A subsequent release must not rewrite
+v2.5.7.
 
 ## Remaining acceptance
 
 The owner authorized an X-Ray Z+1 release (`2.5.6` to `2.5.7`) after integration
-acceptance. Exact-revision CI, deployment and both-host health evidence must be
-recorded by the release workflow; local checks do not prove remote execution.
+acceptance. Exact-revision CI, deployment and both-host health evidence are recorded above;
+local checks alone were not treated as remote execution. An optional corrective
+v2.5.8 tag that includes the follow-up fixes awaits separate owner confirmation.
 
 The supplied iPhone Safari screenshot remains baseline evidence. WebKit automation
 does not replace physical iPhone acceptance for dynamic browser chrome, rotation,
