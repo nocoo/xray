@@ -137,7 +137,8 @@ test("immersive reader preserves root scroll through dialogs, resizing and short
 		await page.evaluate(() => window.scrollTo(0, 800));
 		const acknowledged = page.waitForResponse(response => response.url().endsWith("/read") && response.request().method() === "PUT");
 		releaseRead();
-		await acknowledged;
+		expect((await acknowledged).ok()).toBe(true);
+		await expect(page.locator(".channel-list-item").filter({ hasText: "long report" }).locator(".unread-dot")).toHaveCount(0);
 		await expect.poll(() => page.evaluate(() => scrollY)).toBe(800);
 		const more = page.getByRole("button", { name: "More channel actions" });
 		await more.tap();
@@ -174,6 +175,24 @@ test("immersive reader preserves root scroll through dialogs, resizing and short
 		await page.getByRole("alertdialog").getByRole("button", { name: "Cancel", exact: true }).tap();
 		await expect(more).toBeFocused();
 		await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(600);
+		let finishImage!: () => void;
+		const imageReady = new Promise<void>(resolve => { finishImage = resolve; });
+		await page.route("https://example.com/xray-delayed-reader.png", async route => {
+			await imageReady;
+			await route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="2000"><rect width="320" height="2000" fill="#e8ede9"/></svg>' });
+		});
+		try {
+			await more.tap();
+			await page.getByRole("button", { name: "Edit article", exact: true }).tap();
+			await editor.getByLabel("Markdown", { exact: true }).fill("![Delayed layout](https://example.com/xray-delayed-reader.png)");
+			await editor.getByRole("button", { name: "Save article", exact: true }).tap();
+			await expect(editor).toHaveCount(0);
+			const image = content.getByRole("img", { name: "Delayed layout" });
+			await expect(image).toBeAttached();
+			finishImage();
+			await expect.poll(() => image.evaluate(node => (node as HTMLImageElement).naturalHeight)).toBe(2000);
+			await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(600);
+		} finally { finishImage(); }
 		await page.getByRole("button", { name: "Back to reports", exact: true }).tap();
 		await page.locator(".channel-list-item").filter({ hasText: "short report" }).tap();
 		await expect(content.getByRole("heading", { name: "short report", exact: true })).toBeInViewport();

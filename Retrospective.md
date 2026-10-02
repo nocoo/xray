@@ -260,3 +260,12 @@ The existing resize observer still handles content layout. The browser regressio
 holds the real read request until after initial scrolling and verifies that its
 acknowledgement cannot reset the position. The published v2.5.7 tag is preserved;
 failed CI correctly prevented deployment while a corrective release is prepared.
+
+Review then narrowed the fix further: same-article Markdown edits still need a
+fresh restoration cycle for delayed image layout. The effect retains the Markdown
+primitive as a dependency while excluding read-only metadata. The browser check
+requires a successful read response and the refreshed list's read indicator to
+clear before asserting position, then edits the same article to a gated tall image
+and verifies that loading it restores the earlier offset. Hosted repetition of
+this stronger case passes in Chromium and WebKit; negative controls are isolated
+outside the working checkout.
