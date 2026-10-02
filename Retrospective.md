@@ -229,3 +229,15 @@ resolutions were normalized back to the existing registry-independent form; a
 structural comparison confirmed only Basalt's package entry changed and a frozen
 install passed. Check install metadata and lockfile scope before committing a
 newly published dependency; an exact-version response alone is not install proof.
+
+## 2026-10-02 - Keep local test commands independent of registry update checks
+
+Final installed-version acceptance exposed a Wrangler 4.136.3 exit hang. Local
+migration logs reported success in under two seconds, but the process remained
+alive until the harness's unchanged 90-second deadline killed it. Inspection of
+the installed CLI traced an unnecessary banner update-check HTTP request whose
+timeout rejected without closing its socket on the blocked registry path. The
+isolated environment now sets Wrangler's supported `WRANGLER_HIDE_BANNER=true`,
+which skips that update check before creating it. No gate, timeout, authentication
+check, database operation, or application behavior is disabled. An environment
+regression asserts both the offline banner policy and credential isolation.

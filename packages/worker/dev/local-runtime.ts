@@ -36,6 +36,7 @@ export function isolatedEnv(source: NodeJS.ProcessEnv = process.env): NodeJS.Pro
 		LANG: source.LANG,
 		CI: "true",
 		WRANGLER_SEND_METRICS: "false",
+		WRANGLER_HIDE_BANNER: "true",
 		CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false",
 		CLOUDFLARE_INCLUDE_PROCESS_ENV: "false",
 	};
