@@ -115,6 +115,28 @@ regression test; the existing timeout, database/authentication guards and qualit
 gates are unchanged. This suppresses that banner request, not every possible
 Wrangler network request. Native L2 and the scoped Chrome capture pass afterward.
 
+## Release follow-up
+
+The v2.5.7 tag and GitHub Release point to
+`8dfca786b89aecf8464d8454f9b36fd9f15e760f`. Its first remote CI run
+[37012689095](https://github.com/nocoo/xray/actions/runs/37012689095) passed
+35/36 browser journeys but exposed an initial read-acknowledgement scroll race in
+Linux Chromium. The release gate correctly prevented production deployment; the
+published tag is not moved.
+
+Corrections `8d3a9cf` and `31917f4` separate article identity/rendered Markdown
+changes from read-only metadata updates. A successful read acknowledgement and
+the refreshed read indicator must not reset scrolling; editing the same report
+to delayed image content must still re-arm layout restoration. The strengthened
+case passes in both engines. Isolated negative controls demonstrate that the old
+whole-article dependency reintroduces the race (2/3 failed) and removing the
+Markdown dependency loses edit restoration (2/2 failed).
+
+On `31917f4daef4f74cf6b8975dc73a2d8be72a0bcd`, the complete hosted `CI=true`
+browser run passed 36/36 in 5.2 minutes with `--retries 0`. Normal atomic commit
+gates and independent corrective review pass. Corrected exact-revision remote
+CI and deployment remain pending; a subsequent release must not rewrite v2.5.7.
+
 ## Remaining acceptance
 
 The owner authorized an X-Ray Z+1 release (`2.5.6` to `2.5.7`) after integration
