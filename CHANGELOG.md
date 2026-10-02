@@ -2,6 +2,18 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.6.0
+
+### Changed
+- Record corrected production delivery
+- Record corrective release verification
+
+### Fixed
+- Contain touch-sized environment segments
+- Unify mobile reader action popovers
+- Restore reading position after content edits
+- Preserve scroll on read acknowledgement
+
 ## v2.5.7
 
 ### Added
