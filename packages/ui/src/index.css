@@ -347,6 +347,9 @@ nav[aria-label="Breadcrumb"] + svg {
 	min-width: calc(var(--spacing) * 11);
 	min-height: calc(var(--spacing) * 11);
 }
+.channel-mobile-utilities [data-slot="segment-control-viewport"] > [role="radiogroup"] {
+	height: auto;
+}
 @container channel-reader (max-width: 920px) {
 	.channel-panes[data-has-links="true"] {
 		--channel-side-width: clamp(calc(var(--spacing) * 60), 32cqw, calc(var(--spacing) * 72 * 1.2));

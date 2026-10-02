@@ -282,3 +282,19 @@ row's border, font, padding, icon/text alignment and heading hierarchy. During
 verification, strict build also caught a Playwright-only `exact` query option in
 a Testing Library test; it was removed before committing. Runtime tests alone do
 not validate a testing library's TypeScript API.
+
+## 2026-10-03 - Resize the segmented rail with its touch targets
+
+The mobile action footer raised every button to a 44px minimum but left Basalt's
+segmented rail at its default 32px height. Its selected background correctly
+measured the taller item and protruded beyond the rail. The existing screenshot
+acceptance used hosted presentation, which hides the environment selector, and
+button-only size assertions did not check containment. The local footer now lets
+that rail size intrinsically with its items and existing padding. A dedicated
+isolated E2E catalog explicitly shows local controls even in CI, checks all three
+buttons and the selected indicator against the rail in both themes/mobile widths,
+and confirms the ordinary desktop rail remains unchanged.
+The first selector targeted the fieldset's `group` role instead of the inner
+Radix `radiogroup`. Live DOM inspection and the failing containment regression
+identified this before commit; the final selector is scoped to the documented
+segment viewport and its actual radio group.

@@ -1,4 +1,6 @@
 import { installExternalMedia } from "../fixtures/e2e";
+import { DEMO_CATALOG } from "../fixtures/demo";
+import { startLocalServer } from "../packages/ui/dev/local-server";
 import { expect, test } from "@playwright/test";
 import { BROWSER, browserApiHeaders, INGEST, WORKER } from "./helpers";
 
@@ -13,6 +15,40 @@ test.beforeAll(() => {
 			throw new Error("Mobile L3 requires explicit isolated local servers");
 		}
 	}
+});
+
+test("local environment segments and selection indicator stay inside the touch-sized rail", async ({ page }) => {
+	const app = await startLocalServer({ mode: "e2e", automated: true, hosted: false, catalog: "demo", port: 0, built: true });
+	try {
+		for (const theme of ["light", "dark"]) {
+			await page.setViewportSize({ width: 390, height: 844 });
+			await page.goto(`${app.url}/channels/${DEMO_CATALOG.readingChannelId}/articles/${DEMO_CATALOG.readArticleId}`);
+			await page.getByRole("document", { name: "Article content" }).waitFor();
+			await page.evaluate(theme => localStorage.setItem("theme", theme), theme);
+			await page.reload();
+			for (const width of [320, 390]) {
+				await page.setViewportSize({ width, height: 844 });
+				await page.getByRole("button", { name: "More channel actions" }).tap();
+				const panel = page.getByRole("dialog", { name: "Channel actions" });
+				const group = panel.getByRole("radiogroup", { name: "Environment", exact: true });
+				await expect(group.getByRole("radio", { name: "E2E", exact: true })).toBeChecked();
+				await expect.poll(() => group.evaluate(rail => {
+					const bounds = rail.getBoundingClientRect();
+					const buttons = [...rail.querySelectorAll('[role="radio"]')];
+					const selected = rail.querySelector('[aria-checked="true"]')!.getBoundingClientRect();
+					const indicator = rail.querySelector('[data-slot="selection-indicator"]')!.getBoundingClientRect();
+					return buttons.length === 3 && buttons.every(button => {
+						const box = button.getBoundingClientRect();
+						return box.width >= 44 && box.height === 44 && box.top >= bounds.top + 1 && box.bottom <= bounds.bottom - 1;
+					}) && bounds.height === 48 && Math.abs(indicator.top - selected.top) < 1 && Math.abs(indicator.height - selected.height) < 1;
+				})).toBe(true);
+				await page.screenshot({ path: test.info().outputPath(`environment-segments-${width}-${theme}.png`) });
+				await page.keyboard.press("Escape");
+			}
+			await page.setViewportSize({ width: 1440, height: 1000 });
+			await expect.poll(() => page.getByRole("radiogroup", { name: "Environment", exact: true }).evaluate(node => node.getBoundingClientRect().height)).toBe(32);
+		}
+	} finally { await app.close(); }
 });
 
 for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
