@@ -2,6 +2,21 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.5.7
+
+### Added
+- Integrate immersive mobile reader
+- Support document reading positions
+- Disclose mobile reader actions
+
+### Changed
+- Record published reader acceptance
+- Define immersive mobile reading contract
+
+### Fixed
+- Preserve build validation controls
+- Keep local validation offline
+
 ## v2.5.6
 
 ### Added
