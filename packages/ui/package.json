@@ -14,7 +14,7 @@
 		"@nocoo/basalt": "2.2.0",
 		"@xray/shared": "workspace:*",
 		"clsx": "^2.1.1",
-		"lucide-react": "1.47.0",
+		"lucide-react": "1.55.0",
 		"react": "^19.3.0",
 		"react-dom": "^19.3.0",
 		"react-markdown": "10.1.0",
