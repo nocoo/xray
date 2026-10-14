@@ -27,7 +27,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success')
-    uses: nocoo/base-ci/.github/workflows/deploy-worker.yml@ad43150de3a2be2fa464b5cd2f921dc4fa9f8f0f
+    uses: nocoo/base-ci/.github/workflows/deploy-worker.yml@0394178ebcff0418c442d84a84119220f31f8987 # v2026.9
     with:
       expected-workflow-path: ".github/workflows/ci.yml"
       expected-workflow-name: "CI"
@@ -37,7 +37,6 @@ jobs:
       runtime-version: "1.3.14"
       install-policy: "blocked"
       build-command: "bun run build"
-      wrangler-version: "4.149.0"
       wrangler-working-directory: "packages/worker"
       d1-migrations: true
       d1-command: "d1 migrations apply xray-db --remote --env production"
