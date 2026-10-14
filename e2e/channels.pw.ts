@@ -817,7 +817,7 @@ test("read indicators persist across devices, refresh and whole-channel bulk rea
  await expect(list.getByRole("img", { name: "Unread", exact: true })).toHaveCount(2);
  await page.screenshot({ path: testInfo.outputPath("read-state-dark.png") });
  await page.getByRole("button", { name: "Collapse sidebar", exact: true }).click();
- await expect(page.locator('[data-collapsed="true"]').getByRole("img", { name: "Unread", exact: true })).toBeVisible();
+ await expect(page.locator('[data-basalt-sidebar][data-collapsed]').getByRole("img", { name: "Unread", exact: true })).toBeVisible();
  await page.getByRole("button", { name: "Expand sidebar", exact: true }).click();
  await page.goto(`${BROWSER}/channels/${channel.id}/articles/${ids[1]}?q=report+2`);
  await expect(list.getByRole("button")).toHaveCount(1);

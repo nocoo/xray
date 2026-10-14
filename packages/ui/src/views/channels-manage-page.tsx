@@ -77,7 +77,7 @@ export function ChannelsManagePage() {
 	}
 	return (
 		<Dialog open={creating} onOpenChange={setCreating}>
-			<div className="space-y-4">
+			<div className="space-y-basalt-layout-lg">
 				<PageHeader
 					title={
 						<SectionLabel icon={Radio} tone="rose">
@@ -235,18 +235,21 @@ export function ChannelsManagePage() {
 							}
 						/>
 					) : (
-						<Table aria-label="Channels">
+						<Table
+							aria-label="Channels"
+							className="[&_tr>:first-child]:ps-basalt-table-edge [&_tr>:last-child]:pe-basalt-table-edge"
+						>
 							<TableHeader>
 								<TableRow>
-									<TableHead className="px-4">Channel</TableHead>
-									<TableHead textAlign="end" className="px-4 hidden md:table-cell">
+									<TableHead>Channel</TableHead>
+									<TableHead textAlign="end" className="hidden md:table-cell">
 										Reports
 									</TableHead>
-									<TableHead textAlign="end" className="px-4 hidden lg:table-cell">
+									<TableHead textAlign="end" className="hidden lg:table-cell">
 										Tokens
 									</TableHead>
-									<TableHead className="px-4 hidden xl:table-cell">Latest report</TableHead>
-									<TableHead textAlign="end" className="px-4 w-px whitespace-nowrap">
+									<TableHead className="hidden xl:table-cell">Latest report</TableHead>
+									<TableHead textAlign="end" className="w-px whitespace-nowrap">
 										Actions
 									</TableHead>
 								</TableRow>
@@ -256,7 +259,7 @@ export function ChannelsManagePage() {
 									const index = state.channels.findIndex((item) => item.id === channel.id);
 									return (
 										<TableRow key={channel.id} data-channel-id={channel.id}>
-											<TableCell className="px-4 w-full max-w-0">
+											<TableCell className="w-full max-w-0">
 												<Link
 													to={`/channels/${channel.id}`}
 													className="block truncate font-medium hover:underline"
@@ -277,16 +280,16 @@ export function ChannelsManagePage() {
 													{channel.articleCount} reports · {channel.activeKeyCount} tokens
 												</p>
 											</TableCell>
-											<TableCell textAlign="end" className="px-4 hidden tabular-nums md:table-cell">
+											<TableCell textAlign="end" className="hidden tabular-nums md:table-cell">
 												{channel.articleCount}
 											</TableCell>
-											<TableCell textAlign="end" className="px-4 hidden tabular-nums lg:table-cell">
+											<TableCell textAlign="end" className="hidden tabular-nums lg:table-cell">
 												{channel.activeKeyCount}
 											</TableCell>
-											<TableCell className="px-4 hidden whitespace-nowrap text-basalt-muted-foreground xl:table-cell">
+											<TableCell className="hidden whitespace-nowrap text-basalt-muted-foreground xl:table-cell">
 												{channel.latestReportDate ?? "No reports"}
 											</TableCell>
-											<TableCell textAlign="end" className="px-4">
+											<TableCell textAlign="end">
 												<div className="grid grid-cols-2 justify-end gap-1 sm:flex sm:items-center">
 													<Button
 														variant="outline"

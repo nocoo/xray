@@ -12,7 +12,7 @@ export function EnvironmentSwitch() {
 		<>
 			<SegmentControl
 				legend="Environment"
-				className="mr-2 [&>legend]:sr-only [&_[data-slot=segment-control-viewport]]:overflow-visible [&_[data-slot=segment-control-viewport]]:pb-0"
+				className="[&>legend]:sr-only [&_[data-slot=segment-control-viewport]]:overflow-visible [&_[data-slot=segment-control-viewport]]:pb-0"
 				value={environment.mode ?? ""}
 				disabled={busy}
 				onValueChange={async (mode) => {

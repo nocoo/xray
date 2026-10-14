@@ -170,19 +170,14 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 
 	if (collapsed) {
 		return (
-			<BasaltSidebar
-				collapsed
-				aria-label="Main navigation"
-				data-testid="app-sidebar"
-				data-collapsed="true"
-			>
+			<BasaltSidebar collapsed aria-label="Main navigation" data-testid="app-sidebar">
 				<SidebarHeader className="justify-start px-0 pl-6">
 					<XrayMark />
 				</SidebarHeader>
 				<Button
 					variant="ghost"
 					size="icon"
-					className="mb-1 h-10 w-10 self-center"
+					className="mb-basalt-space-sm self-center [&_svg]:size-basalt-icon-lg"
 					onClick={onToggle}
 					aria-label="Expand sidebar"
 				>
@@ -213,7 +208,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 						</Tooltip>
 					))}
 				</SidebarNav>
-				<SidebarFooter className="flex w-full justify-center px-0">
+				<SidebarFooter className="px-basalt-panel-x py-basalt-panel-y">
 					<Tooltip delayDuration={0}>
 						<TooltipTrigger asChild>
 							<span className="inline-flex">{avatar}</span>
@@ -228,12 +223,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 	}
 
 	return (
-		<BasaltSidebar
-			collapsed={false}
-			aria-label="Main navigation"
-			data-testid="app-sidebar"
-			data-collapsed="false"
-		>
+		<BasaltSidebar collapsed={false} aria-label="Main navigation" data-testid="app-sidebar">
 			<SidebarHeader>
 				<div className="flex w-full items-center justify-between">
 					<div className="flex min-w-0 items-center gap-3 pl-3">
@@ -248,7 +238,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 					<Button
 						variant="ghost"
 						size="icon"
-						className="h-7 w-7 shrink-0"
+						className="[&_svg]:size-basalt-icon-lg"
 						onClick={onToggle}
 						aria-label="Collapse sidebar"
 					>
@@ -329,7 +319,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 					);
 				})}
 			</SidebarNav>
-			<SidebarFooter>
+			<SidebarFooter className="px-basalt-panel-x py-basalt-panel-y">
 				<SidebarUser
 					className="w-full min-w-0"
 					name={user.name}

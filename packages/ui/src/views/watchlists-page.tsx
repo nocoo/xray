@@ -45,7 +45,7 @@ export function WatchlistsPage() {
 	}, [searchParams, setSearchParams, openCreateWatchlist]);
 
 	return (
-		<div className="space-y-4">
+		<div className="space-y-basalt-layout-lg">
 			<PageHeader
 				title={
 					<SectionLabel icon={Eye} tone="blue">

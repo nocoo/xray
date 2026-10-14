@@ -35,7 +35,7 @@ export function SettingsPage() {
 	}, [accountVm, aiVm]);
 
 	return (
-		<div className="min-w-0 space-y-6">
+		<div className="min-w-0 space-y-basalt-layout-lg">
 			<PageHeader
 				title={
 					<SectionLabel icon={Settings2} tone="neutral">
@@ -53,7 +53,7 @@ export function SettingsPage() {
 				{account.error && <Banner variant="error" size="sm" description={account.error} />}
 				{account.saved && <Banner variant="default" size="sm" description="Saved." />}
 				<LayerCard padding="none">
-					<LayerCard.Body className="space-y-4">
+					<LayerCard.Body className="space-y-basalt-layout">
 						{account.loading ? (
 							<FormSkeleton label="Loading account settings" fields={1} />
 						) : (

@@ -257,7 +257,9 @@ export function WatchlistDetailPage() {
 			<div
 				className={cn(
 					"relative min-h-0 flex-1",
-					postsFeedActive ? "flex min-h-0 flex-col gap-3 md:gap-4" : "space-y-4",
+					postsFeedActive
+						? "flex min-h-0 flex-col gap-basalt-layout-lg"
+						: "space-y-basalt-layout-lg",
 				)}
 			>
 				<Tabs
@@ -265,7 +267,9 @@ export function WatchlistDetailPage() {
 					onValueChange={(v) => vm.setActiveTab(v as "members" | "posts")}
 					className={cn(
 						"[&>header>div]:flex-wrap [&>header>div>div:first-child]:min-w-40",
-						postsFeedActive ? "flex min-h-0 flex-1 flex-col gap-4" : "space-y-4",
+						postsFeedActive
+							? "flex min-h-0 flex-1 flex-col gap-basalt-layout-lg"
+							: "space-y-basalt-layout-lg",
 					)}
 				>
 					<PageHeader

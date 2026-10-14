@@ -40,7 +40,7 @@ test("page icon hierarchy and bright statistics survive themes and narrow layout
 			await page.getByRole("button", { name: /Toggle theme/ }).click();
 		}
 		await expect(page.locator("html")).toHaveClass(new RegExp(theme));
-		for (const width of [1440, 320]) {
+		for (const width of [1440, 768, 320]) {
 			await page.setViewportSize({ width, height: 1000 });
 			for (const route of routes) {
 				await page.goto(`${BROWSER}${route}`);
@@ -48,6 +48,34 @@ test("page icon hierarchy and bright statistics survive themes and narrow layout
 				await expect(title).toBeVisible();
 				await expect(title.locator("svg")).toHaveCount(1);
 				await expect(title.locator("svg")).toHaveAttribute("aria-hidden", "true");
+				await expect(page.locator("[data-basalt-island]")).toHaveCSS(
+					"padding-left",
+					width === 1440 ? "32px" : width === 768 ? "24px" : "16px",
+				);
+				await expect(page.locator("[data-basalt-island]")).toHaveCSS(
+					"padding-right",
+					width === 1440 ? "32px" : width === 768 ? "24px" : "16px",
+				);
+				for (const icon of await page.locator("[data-basalt-header-actions] svg").all()) {
+					await expect(icon).toHaveCSS("width", "16px");
+					await expect(icon).toHaveCSS("height", "16px");
+				}
+				await expect(page.locator("[data-basalt-header] h1")).toHaveCSS("font-size", "14px");
+				await expect(title).toHaveCSS("font-size", "24px");
+				for (const action of await page
+					.locator("[data-basalt-header-actions] .basalt-action-icon")
+					.all()) {
+					await expect(action).toHaveCSS("width", "34px");
+					await expect(action).toHaveCSS("height", "34px");
+				}
+				for (const table of await page
+					.locator(
+						'table[aria-label="Channels"], table[aria-label="Active tokens"], table[aria-label="Push tokens"]',
+					)
+					.all()) {
+					await expect(table.locator("thead th").first()).toHaveCSS("padding-left", "16px");
+					await expect(table.locator("thead th").last()).toHaveCSS("padding-right", "16px");
+				}
 				await expect
 					.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
 					.toBe(true);
@@ -81,12 +109,21 @@ test("page icon hierarchy and bright statistics survive themes and narrow layout
 			if (width === 1440) {
 				const sidebar = page.getByTestId("app-sidebar");
 				const footer = sidebar.locator('[data-slot="sidebar-footer"]');
+				await expect(sidebar).not.toHaveAttribute("data-collapsed");
+				await expect(footer).toHaveCSS("padding", "12px 16px");
 				const avatar = footer.locator("img").first();
 				await expect(avatar).toBeVisible();
 				const outer = await sidebar.boundingBox();
 				const inner = await avatar.boundingBox();
 				expect(inner!.x).toBeGreaterThanOrEqual(outer!.x);
 				expect(inner!.x + inner!.width).toBeLessThanOrEqual(outer!.x + outer!.width);
+				expect(inner!.x - outer!.x).toBe(16);
+				await page.getByRole("button", { name: "Collapse sidebar", exact: true }).click();
+				await expect(sidebar).toHaveAttribute("data-collapsed", "");
+				await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(68);
+				await expect.poll(async () => (await avatar.boundingBox())!.x).toBe(inner!.x);
+				await expect(footer).toHaveCSS("padding", "12px 16px");
+				await page.getByRole("button", { name: "Expand sidebar", exact: true }).click();
 			}
 		}
 	}

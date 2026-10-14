@@ -105,7 +105,7 @@ export function TokensPage() {
 		}
 	}
 	return (
-		<div className="min-w-0 space-y-5">
+		<div className="min-w-0 space-y-basalt-layout-lg">
 			<PageHeader
 				title={
 					<SectionLabel icon={KeyRound} tone="amber">
@@ -353,13 +353,16 @@ export function TokensPage() {
 						columns={[{ label: "Producer" }, { label: "Access" }, { label: "Actions" }]}
 					/>
 				) : filtered.length ? (
-					<Table aria-label="Active tokens" className="table-fixed">
+					<Table
+						aria-label="Active tokens"
+						className="table-fixed [&_tr>:first-child]:ps-basalt-table-edge [&_tr>:last-child]:pe-basalt-table-edge"
+					>
 						<TableHeader>
 							<TableRow>
-								<TableHead className="px-4">Producer</TableHead>
-								<TableHead className="hidden w-64 px-4 lg:table-cell">Access</TableHead>
-								<TableHead className="hidden w-44 px-4 md:table-cell">Activity</TableHead>
-								<TableHead textAlign="end" className="w-24 px-4 ">
+								<TableHead>Producer</TableHead>
+								<TableHead className="hidden w-64 lg:table-cell">Access</TableHead>
+								<TableHead className="hidden w-44 md:table-cell">Activity</TableHead>
+								<TableHead textAlign="end" className="w-24">
 									Actions
 								</TableHead>
 							</TableRow>
@@ -367,7 +370,7 @@ export function TokensPage() {
 						<TableBody>
 							{filtered.map((token) => (
 								<TableRow key={token.id}>
-									<TableCell className="px-4 py-4 align-top">
+									<TableCell className="py-basalt-panel-y align-top">
 										<p className="truncate font-medium" title={token.label}>
 											{token.label}
 										</p>
@@ -412,7 +415,7 @@ export function TokensPage() {
 												: "Never used"}
 										</p>
 									</TableCell>
-									<TableCell className="hidden px-4 py-4 align-top lg:table-cell">
+									<TableCell className="hidden py-basalt-panel-y align-top lg:table-cell">
 										{token.channelId === null ? (
 											<p className="text-sm">All your watchlists</p>
 										) : (
@@ -430,7 +433,7 @@ export function TokensPage() {
 											{token.scopes.join(" · ")}
 										</p>
 									</TableCell>
-									<TableCell className="hidden px-4 py-4 align-top md:table-cell">
+									<TableCell className="hidden py-basalt-panel-y align-top md:table-cell">
 										<p className="text-xs">
 											{token.lastUsedAtMs
 												? new Date(token.lastUsedAtMs).toLocaleString()
@@ -440,7 +443,7 @@ export function TokensPage() {
 											Created {new Date(token.createdAtMs).toLocaleDateString()}
 										</p>
 									</TableCell>
-									<TableCell className="px-3 py-3 align-top">
+									<TableCell className="py-basalt-panel-y align-top">
 										<div className="flex flex-col items-end gap-1 sm:flex-row sm:justify-end">
 											<Button
 												variant="ghost"

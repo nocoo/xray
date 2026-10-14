@@ -123,7 +123,7 @@ function AppShellInner({ children }: AppShellProps) {
 										<Button
 											variant="ghost"
 											size="icon"
-											className="h-8 w-8"
+											className="[&_svg]:size-basalt-icon-lg"
 											onClick={() => setMobileOpen(true)}
 											aria-label="Open navigation menu"
 										>
@@ -139,7 +139,12 @@ function AppShellInner({ children }: AppShellProps) {
 									<EnvironmentSwitch />
 									{!isMobile && (
 										<HeaderTooltip label="GitHub repository">
-											<Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="[&_svg]:size-basalt-icon-lg"
+												asChild
+											>
 												<a
 													href="https://github.com/nocoo/xray"
 													target="_blank"
@@ -160,10 +165,10 @@ function AppShellInner({ children }: AppShellProps) {
 					<div
 						className={
 							channelRoute
-								? "flex min-h-0 min-w-0 flex-1 flex-col md:flex-row md:px-3 md:pb-3"
+								? "flex min-h-0 min-w-0 flex-1 flex-col md:flex-row md:px-basalt-layout-sm md:pb-basalt-layout-sm"
 								: asideOpen
-									? "flex min-h-0 flex-1 gap-2 px-2 pb-2 md:gap-3 md:px-3 md:pb-3"
-									: "flex min-h-0 flex-1 px-2 pb-2 md:px-3 md:pb-3"
+									? "flex min-h-0 flex-1 gap-basalt-content-gap px-basalt-space-lg pb-basalt-space-lg md:gap-basalt-layout-sm md:px-basalt-layout-sm md:pb-basalt-layout-sm"
+									: "flex min-h-0 flex-1 px-basalt-space-lg pb-basalt-space-lg md:px-basalt-layout-sm md:pb-basalt-layout-sm"
 						}
 					>
 						<ContentIsland

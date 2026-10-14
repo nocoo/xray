@@ -74,7 +74,7 @@ export function ChannelSettingsPage() {
 	}, [id, vm]);
 	if (!channel)
 		return (
-			<div className="space-y-4">
+			<div className="space-y-basalt-layout-lg">
 				<PageHeader
 					title="Channel settings"
 					description="Manage this channel and its push tokens."
@@ -132,7 +132,7 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 	useUnsavedDraft(changed || (creatingToken && (state.busy || (!token && label !== ""))));
 
 	return (
-		<div className="min-w-0 space-y-5">
+		<div className="min-w-0 space-y-basalt-layout-lg">
 			<PageHeader
 				title={
 					<SectionLabel icon={Settings} tone="rose">
@@ -388,13 +388,16 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 							]}
 						/>
 					) : keys.length ? (
-						<Table aria-label="Push tokens">
+						<Table
+							aria-label="Push tokens"
+							className="[&_tr>:first-child]:ps-basalt-table-edge [&_tr>:last-child]:pe-basalt-table-edge"
+						>
 							<TableHeader>
 								<TableRow>
-									<TableHead className="px-4">Name</TableHead>
-									<TableHead className="px-4 hidden md:table-cell">Created</TableHead>
-									<TableHead className="px-4 hidden sm:table-cell">Last used</TableHead>
-									<TableHead textAlign="end" className="px-4 w-px whitespace-nowrap">
+									<TableHead>Name</TableHead>
+									<TableHead className="hidden md:table-cell">Created</TableHead>
+									<TableHead className="hidden sm:table-cell">Last used</TableHead>
+									<TableHead textAlign="end" className="w-px whitespace-nowrap">
 										Actions
 									</TableHead>
 								</TableRow>
@@ -402,7 +405,7 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 							<TableBody>
 								{keys.map((key) => (
 									<TableRow key={key.id}>
-										<TableCell className="px-4 w-full max-w-0">
+										<TableCell className="w-full max-w-0">
 											<p className="truncate font-medium" title={key.label}>
 												{key.label}
 											</p>
@@ -427,15 +430,15 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 												/>
 											</div>
 										</TableCell>
-										<TableCell className="px-4 hidden whitespace-nowrap text-basalt-muted-foreground md:table-cell">
+										<TableCell className="hidden whitespace-nowrap text-basalt-muted-foreground md:table-cell">
 											{new Date(key.createdAtMs).toLocaleDateString()}
 										</TableCell>
-										<TableCell className="px-4 hidden whitespace-nowrap text-basalt-muted-foreground sm:table-cell">
+										<TableCell className="hidden whitespace-nowrap text-basalt-muted-foreground sm:table-cell">
 											{key.lastUsedAtMs
 												? new Date(key.lastUsedAtMs).toLocaleString()
 												: "Never used"}
 										</TableCell>
-										<TableCell textAlign="end" className="px-4">
+										<TableCell textAlign="end">
 											<Button
 												variant="ghost"
 												size="icon"

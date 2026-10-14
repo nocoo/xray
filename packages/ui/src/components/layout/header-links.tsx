@@ -28,7 +28,7 @@ export function HexlyLink() {
 			<Button
 				variant="ghost"
 				size="icon"
-				className="h-8 w-8 shrink-0 text-basalt-muted-foreground hover:text-basalt-foreground"
+				className="[&_svg]:size-basalt-icon-lg text-basalt-muted-foreground hover:text-basalt-foreground"
 				asChild
 			>
 				<a
@@ -38,9 +38,6 @@ export function HexlyLink() {
 					aria-label="Xray on hexly.ai (opens in a new tab)"
 				>
 					<svg
-						className="size-[18px]"
-						width="18"
-						height="18"
 						viewBox="0 0 24 24"
 						fill="none"
 						stroke="currentColor"

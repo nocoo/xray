@@ -122,7 +122,7 @@ export function GroupsPage() {
 	};
 
 	return (
-		<div className="space-y-4">
+		<div className="space-y-basalt-layout-lg">
 			<PageHeader
 				title={
 					<SectionLabel icon={Users} tone="green">
@@ -244,7 +244,7 @@ export function GroupsPage() {
 							Add
 						</Button>
 					</LayerCard.Header>
-					<LayerCard.Body className="space-y-4">
+					<LayerCard.Body className="space-y-basalt-layout">
 						{s.membersLoading && !s.members.length ? (
 							<RowsSkeleton label="Loading members" count={3} />
 						) : s.membersError && !s.members.length ? (

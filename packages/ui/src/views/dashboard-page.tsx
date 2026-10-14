@@ -30,7 +30,7 @@ export function DashboardPage() {
 	}, [vm]);
 
 	return (
-		<div className="space-y-4">
+		<div className="space-y-basalt-layout-lg">
 			<PageHeader
 				title={<SectionLabel icon={ChartNoAxesCombined}>Dashboard</SectionLabel>}
 				description="Content across your watchlists and channels."
@@ -51,7 +51,7 @@ export function DashboardPage() {
 
 function DashboardSkeleton() {
 	return (
-		<LoadingSkeleton label="Loading dashboard" className="space-y-4">
+		<LoadingSkeleton label="Loading dashboard" className="space-y-basalt-layout-lg">
 			<StatGrid columns={4} className="grid-cols-2">
 				{["content", "recent", "watchlists", "channels"].map((id) => (
 					<StatSkeleton key={id} />
@@ -75,7 +75,7 @@ const iconColors = {
 
 function DashboardBody({ data, vm }: { data: DashboardAggregates; vm: DashboardVm }) {
 	return (
-		<div className="space-y-4">
+		<div className="space-y-basalt-layout-lg">
 			<StatGrid columns={4} className="grid-cols-2">
 				{vm.cards().map((card) => (
 					<StatCard

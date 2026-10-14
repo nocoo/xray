@@ -28,7 +28,7 @@ export function IntegrationsZhetoPage() {
 	}, [vm]);
 
 	return (
-		<div className="space-y-4">
+		<div className="space-y-basalt-layout-lg">
 			<PageHeader
 				title={
 					<SectionLabel icon={Bookmark} tone="green">
@@ -46,7 +46,7 @@ export function IntegrationsZhetoPage() {
 						Bookmark delivery
 					</SectionLabel>
 				</LayerCard.Header>
-				<LayerCard.Body className="space-y-4">
+				<LayerCard.Body className="space-y-basalt-layout">
 					{loading && !settings ? (
 						<FormSkeleton label="Loading integration settings" className="grid gap-3" />
 					) : (

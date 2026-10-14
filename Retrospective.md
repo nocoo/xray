@@ -371,3 +371,15 @@ waits for the first popover to close so its closing focus restoration cannot
 dismiss the newly opened one. Group selection retains a visible checkmark, and
 the new layout regression checks island overflow as well as document overflow
 in Chromium and WebKit.
+
+## 2026-10-15 - Test spacing ownership, not just containment
+
+The first Basalt 3.1 acceptance checked overflow and white statistics, but missed
+footer insets and framework icon dimensions. An application-supplied
+`data-collapsed="false"` still matched the package's collapsed presence selector;
+the earlier width constraint only treated its overflow symptom. Remove competing
+state attributes and let the component own them. Dead sidebar geometry constants
+had tests that passed without exercising the rendered sidebar; replace those
+checks with actual expanded/collapsed avatar coordinates, footer padding, island
+insets and toolbar typography. Increased desktop island padding is a documented
+package change, not a reason to shrink global control or layout tokens.

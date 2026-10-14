@@ -103,15 +103,6 @@
 	animation: fade-up 0.18s ease-out both;
 }
 
-nav[aria-label="Breadcrumb"] svg,
-nav[aria-label="Breadcrumb"] + svg {
-	width: 0.75rem;
-	height: 0.75rem;
-	flex-shrink: 0;
-	stroke-width: 1.5;
-	color: hsl(var(--basalt-muted-foreground));
-}
-
 .recharts-wrapper *:focus {
 	outline: none;
 }

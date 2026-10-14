@@ -46,3 +46,36 @@ Headful Google Chrome 155 acceptance at `https://xray.dev.hexly.ai` covered all
 11 canonical page routes in light/dark themes at 1440px, 390px and 320px: no
 document/island horizontal overflow and no page errors. Primary light-theme
 statistics render white; mobile reading keeps its single compact header.
+
+## Spacing follow-up (2026-10-15)
+
+Live measurements confirmed ContentIsland's 32px horizontal / 24px vertical
+desktop inset, 24px tablet inset and 16px mobile inset match the installed 3.1
+contract. Channels does not add another page padding layer; these defaults remain
+library-owned. Outer shell gutters now refer to the matching semantic tokens.
+Page section spacing consistently uses the 24px layout role, while card bodies
+retain their 16px content spacing. Attached management tables use a 16px outer
+rail aligned with the card header, and the library's 8px internal column insets.
+
+The sidebar previously emitted `data-collapsed="false"` in expanded mode, which
+matches Basalt's presence selector and applied collapsed footer alignment. The
+library now exclusively owns that attribute. The account region uses panel
+insets (16px horizontal, 12px vertical), keeping the 36px avatar at the same
+horizontal position in expanded and collapsed rails. The old geometry constant
+and its self-referential tests were unused by the rendered sidebar and removed;
+browser assertions now verify the real layout instead.
+
+Framework action glyphs explicitly use the 16px display-icon token inside normal
+34px icon buttons. Old fixed-height overrides, the breadcrumb SVG CSS patch and
+the environment switch's extra margin were removed. Chrome title text remains
+14px and content headings 24px. The compact immersive reader retains its 44px
+touch targets; dense post-card action bars and article typography are intentional
+content-specific layouts, not page-spacing overrides.
+
+Follow-up verification: lint/typecheck/build passed; 945 unit tests passed with
+all four coverage metrics above 95% (five unused constant-only tests removed).
+Managed Chromium/WebKit passed 42/42, including desktop/tablet/mobile spacing
+assertions. Headful Chrome 155 checked 11 routes in both themes at 1440, 768, 390
+and 320px with no page errors or document/island overflow. Screenshots are under
+`reports/ui-spacing-2026-10-15/`. Backend and dependency lanes were unchanged and
+were not rerun for this UI-only follow-up.
