@@ -33,6 +33,7 @@ export function createChannelsVm(api: typeof channelsApi) {
 	let articleRequest = 0;
 	let articleChannelId = 0;
 	let managerRequest = 0;
+	const readArticles = new Set<number>();
 	async function mutate<T>(operation: () => Promise<T>): Promise<T | undefined> {
 		if (store.getState().busy) return;
 		store.setState({ busy: true, error: null });
@@ -88,13 +89,16 @@ export function createChannelsVm(api: typeof channelsApi) {
 					page = { items: [...page.items, ...next.items], nextCursor: next.nextCursor };
 					pageCount++;
 				}
+				const items = more
+					? [
+							...previous.items,
+							...page.items.filter((item) => !previous.items.some((old) => old.id === item.id)),
+						]
+					: page.items;
 				store.setState({
-					items: more
-						? [
-								...previous.items,
-								...page.items.filter((item) => !previous.items.some((old) => old.id === item.id)),
-							]
-						: page.items,
+					items: items.map((item) =>
+						readArticles.has(item.id) ? { ...item, isRead: true } : item,
+					),
 					nextCursor: page.nextCursor,
 					pageCount,
 					loading: false,
@@ -114,13 +118,25 @@ export function createChannelsVm(api: typeof channelsApi) {
 			try {
 				const article = await api.fetchArticle(channelId, articleId);
 				if (request !== articleRequest) return;
-				store.setState({ article, articleLoading: false });
-				if (!article.isRead) {
+				store.setState({
+					article: readArticles.has(articleId) ? { ...article, isRead: true } : article,
+					articleLoading: false,
+				});
+				if (!article.isRead && !readArticles.has(articleId)) {
 					await api.markArticleRead(channelId, articleId);
-					const current = store.getState().article;
-					if (request === articleRequest && current)
-						store.setState({ article: { ...current, isRead: true } });
-					await vm.refreshReports(channelId);
+					readArticles.add(articleId);
+					store.setState((current) => ({
+						...(request === articleRequest && current.article
+							? { article: { ...current.article, isRead: true } }
+							: {}),
+						items:
+							current.channelId === channelId
+								? current.items.map((item) =>
+										item.id === articleId ? { ...item, isRead: true } : item,
+									)
+								: current.items,
+					}));
+					await vm.loadChannels();
 				}
 			} catch (e) {
 				if (request === articleRequest) store.setState({ articleLoading: false, error: errMsg(e) });

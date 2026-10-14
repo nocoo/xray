@@ -550,9 +550,11 @@ test("opening unread content persists only after a successful current load and r
 	await vm.selectArticle(1, 2);
 	expect(api.markArticleRead).toHaveBeenCalledExactlyOnceWith(1, 2);
 	expect(vm.getState().article?.isRead).toBe(true);
-	expect(api.fetchArticles).toHaveBeenLastCalledWith(1, "q=daily", null);
+	expect(api.fetchArticles).toHaveBeenCalledExactlyOnceWith(1, "q=daily", null);
+	expect(api.fetchChannels).toHaveBeenCalledOnce();
 	api.markArticleRead.mockRejectedValueOnce(Error("read failed"));
-	await vm.selectArticle(1, 2);
+	api.fetchArticle.mockResolvedValueOnce({ ...article, id: 3, isRead: false });
+	await vm.selectArticle(1, 3);
 	expect(vm.getState().article?.isRead).toBe(false);
 	expect(vm.getState().error).toBe("read failed");
 	const slow = deferred<ChannelArticle>();
@@ -562,6 +564,74 @@ test("opening unread content persists only after a successful current load and r
 	slow.resolve({ ...article, id: 3, isRead: false });
 	await old;
 	expect(api.markArticleRead).toHaveBeenCalledTimes(2);
+});
+
+test.each(["read-first", "page-first"])(
+	"read acknowledgement and load-more preserve pages and read state (%s)",
+	async (order) => {
+		const { vm, api } = setup();
+		const unread = { ...article, isRead: false };
+		api.fetchArticles.mockResolvedValueOnce({ items: [unread], nextCursor: 2 });
+		await vm.loadArticles(1, "q=daily");
+		const read = deferred<{ read: true }>();
+		const page = deferred<{ items: ChannelArticle[]; nextCursor: null }>();
+		api.fetchArticle.mockResolvedValueOnce(unread);
+		api.markArticleRead.mockReturnValueOnce(read.promise);
+		const selected = vm.selectArticle(1, 2);
+		await vi.waitFor(() => expect(api.markArticleRead).toHaveBeenCalled());
+		api.fetchArticles.mockReturnValueOnce(page.promise);
+		const more = vm.loadArticles(1, "q=daily", true);
+		const next = { ...unread, id: 1 };
+		if (order === "read-first") {
+			read.resolve({ read: true });
+			await selected;
+			expect(vm.getState()).toMatchObject({ loading: true, pageCount: 1 });
+			page.resolve({ items: [unread, next], nextCursor: null });
+		} else {
+			page.resolve({ items: [unread, next], nextCursor: null });
+			await more;
+			read.resolve({ read: true });
+		}
+		await Promise.all([selected, more]);
+		expect(api.fetchArticles).toHaveBeenCalledTimes(2);
+		expect(api.fetchArticles).toHaveBeenLastCalledWith(1, "q=daily", 2);
+		expect(vm.getState()).toMatchObject({
+			items: [{ ...unread, isRead: true }, next],
+			article: { ...unread, isRead: true },
+			pageCount: 2,
+			nextCursor: null,
+			loading: false,
+		});
+		expect(api.fetchChannels).toHaveBeenCalledOnce();
+	},
+);
+
+test("read acknowledgement survives an older restore response and detail navigation", async () => {
+	const { vm, api } = setup();
+	const unread = { ...article, isRead: false };
+	const page = deferred<{ items: ChannelArticle[]; nextCursor: null }>();
+	api.fetchArticles
+		.mockResolvedValueOnce({ items: [{ ...unread, id: 3 }], nextCursor: 3 })
+		.mockReturnValueOnce(page.promise);
+	const restore = vm.loadArticles(1, "q=daily", false, 2);
+	await vi.waitFor(() => expect(api.fetchArticles).toHaveBeenCalledTimes(2));
+	api.fetchArticle.mockResolvedValueOnce(unread);
+	await vm.selectArticle(1, 2);
+	await vm.selectArticle(0, 0);
+	page.resolve({ items: [unread], nextCursor: null });
+	await restore;
+	expect(vm.getState()).toMatchObject({
+		items: [
+			{ ...unread, id: 3 },
+			{ ...unread, isRead: true },
+		],
+		pageCount: 2,
+		article: null,
+	});
+	api.fetchArticle.mockResolvedValueOnce(unread);
+	await vm.selectArticle(1, 2);
+	expect(vm.getState().article?.isRead).toBe(true);
+	expect(api.markArticleRead).toHaveBeenCalledOnce();
 });
 
 test("late read completions preserve the current article; failures cannot overwrite newer navigation", async () => {
@@ -576,9 +646,9 @@ test("late read completions preserve the current article; failures cannot overwr
 	await first;
 	expect(vm.getState().article).toEqual(article);
 	const failure = deferred<{ read: true }>();
-	api.fetchArticle.mockResolvedValueOnce({ ...article, isRead: false });
+	api.fetchArticle.mockResolvedValueOnce({ ...article, id: 4, isRead: false });
 	api.markArticleRead.mockReturnValueOnce(failure.promise);
-	const second = vm.selectArticle(1, 2);
+	const second = vm.selectArticle(1, 4);
 	await vi.waitFor(() => expect(api.markArticleRead).toHaveBeenCalledTimes(2));
 	await vm.selectArticle(0, 0);
 	failure.reject(Error("obsolete"));

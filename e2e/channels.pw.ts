@@ -204,7 +204,7 @@ test("channel creation, one-time key, delivery, reader navigation and revocation
 	await expect(page).toHaveURL(new RegExp(`/articles/${ids[1]}`));
 	await Promise.all([
 		page.waitForResponse((response) => response.url().endsWith(`/api/channels/${channelId}/articles/${ids[0]}/read`) && response.request().method() === "PUT" && response.ok()),
-		page.waitForResponse((response) => response.url().endsWith(`/api/channels/${channelId}/articles?`) && response.ok()),
+		page.waitForResponse((response) => response.url().endsWith("/api/channels") && response.ok()),
 		page.keyboard.press("j"),
 	]);
 	await expect(page).toHaveURL(new RegExp(`/articles/${ids[0]}`));
