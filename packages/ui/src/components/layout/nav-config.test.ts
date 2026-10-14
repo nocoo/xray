@@ -13,6 +13,7 @@ describe("nav-config", () => {
 		expect(groups.find((g) => g.label === "Settings")?.items.map((item) => item.href)).toEqual([
 			"/channels",
 			"/tags",
+			"/tokens",
 			"/settings",
 		]);
 		expect(labels).not.toContain("Explore");

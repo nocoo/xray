@@ -123,7 +123,7 @@ Push token is **agent authentication**, not a write-only capability.
 
 ### Token CRUD — browser host only
 
-- `GET/POST /api/push-tokens`, `DELETE /api/push-tokens/:id`
+- `GET /api/tokens` (all active account tokens), `GET/POST /api/push-tokens`, `PATCH/DELETE /api/push-tokens/:id`
 - Access session required; Bearer tokens **cannot** mint/revoke tokens.
 
 ### Local authentication and external resources
@@ -283,8 +283,8 @@ AAD := utf8(user_id || ":" || field_name)   # e.g. userId:ai.api_key
 |---------|--------|
 | Table | `push_tokens` (see 03) |
 | Mint | Browser + Access only; return plaintext once |
-| API | `GET /api/push-tokens`, `POST /api/push-tokens`, `DELETE /api/push-tokens/:id` |
-| UI | Named article tokens in Channels → channel settings; watchlist producer tokens are API-managed |
+| API | `GET /api/tokens`, `GET /api/push-tokens`, `POST /api/push-tokens`, `PATCH/DELETE /api/push-tokens/:id` |
+| UI | Settings sidebar → Tokens manages Watchlist and Channel tokens globally; Channels → channel settings also manages that channel's tokens |
 
 ## 9. zhe.to
 

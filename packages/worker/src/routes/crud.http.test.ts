@@ -13,7 +13,13 @@ import {
 } from "./groups.js";
 import { deleteItemRoute, listItemsRoute } from "./items.js";
 import { getSettingsRoute, patchSettingsRoute } from "./settings.js";
-import { createTokenRoute, listTokensRoute, revokeTokenRoute } from "./tokens.js";
+import {
+	createTokenRoute,
+	listManagedTokensRoute,
+	listTokensRoute,
+	patchTokenRoute,
+	revokeTokenRoute,
+} from "./tokens.js";
 import {
 	addMemberRoute,
 	createTagRoute,
@@ -309,13 +315,25 @@ function makeDb() {
 						}
 						return { meta: { changes: row ? 1 : 0 } };
 					}
-					if (up.startsWith("UPDATE PUSH_TOKENS") && up.includes("REVOKED_AT_MS")) {
+					if (up.startsWith("UPDATE PUSH_TOKENS") && up.includes("SET REVOKED_AT_MS")) {
 						// SET revoked_at_ms = ? WHERE id = ? AND user_id = ?
 						const [, id, userId] = binds as [number, number, string];
 						const row = tables.push_tokens.find(
 							(t) => t.id === id && t.user_id === userId && t.revoked_at_ms == null,
 						);
 						if (row) row.revoked_at_ms = Date.now();
+						return { meta: { changes: row ? 1 : 0 } };
+					}
+					if (up.startsWith("UPDATE PUSH_TOKENS") && up.includes("SET LABEL")) {
+						const [label, id, userId] = binds as [string, number, string];
+						const row = tables.push_tokens.find(
+							(t) =>
+								t.id === id &&
+								t.user_id === userId &&
+								t.revoked_at_ms == null &&
+								t.channel_id == null,
+						);
+						if (row) row.label = label;
 						return { meta: { changes: row ? 1 : 0 } };
 					}
 					if (up.startsWith("DELETE FROM WATCHLISTS")) {
@@ -423,8 +441,10 @@ function appWithUser(user: AuthUser, db: D1Database) {
 	app.delete("/api/groups/:id/members/:memberId", deleteGroupMemberRoute);
 	app.get("/api/settings", getSettingsRoute);
 	app.patch("/api/settings", patchSettingsRoute);
+	app.get("/api/tokens", listManagedTokensRoute);
 	app.get("/api/push-tokens", listTokensRoute);
 	app.post("/api/push-tokens", createTokenRoute);
+	app.patch("/api/push-tokens/:id", patchTokenRoute);
 	app.delete("/api/push-tokens/:id", revokeTokenRoute);
 	return app;
 }
@@ -591,6 +611,15 @@ describe("CRUD HTTP routes", () => {
 		expect([201, 400, 500]).toContain(tok.status);
 		if (tok.status === 201) {
 			const id = ((await tok.json()) as { data: { id: number } }).data.id;
+			expect(
+				(
+					await app.request(`/api/push-tokens/${id}`, {
+						method: "PATCH",
+						body: JSON.stringify({ label: "renamed" }),
+						headers: { "content-type": "application/json" },
+					})
+				).status,
+			).toBe(200);
 			expect((await app.request(`/api/push-tokens/${id}`, { method: "DELETE" })).status).toBe(200);
 		}
 	});
@@ -641,11 +670,13 @@ describe("CRUD HTTP routes", () => {
 		app.get("/api/watchlists", listWatchlistsRoute);
 		app.get("/api/settings", getSettingsRoute);
 		app.get("/api/groups", listGroupsRoute);
+		app.get("/api/tokens", listManagedTokensRoute);
 		app.get("/api/push-tokens", listTokensRoute);
 		expect((await app.request("/api/watchlists")).status).toBe(401);
 		expect((await app.request("/api/settings")).status).toBe(401);
 		expect((await app.request("/api/groups")).status).toBe(401);
 		expect((await app.request("/api/push-tokens")).status).toBe(401);
+		expect((await app.request("/api/tokens")).status).toBe(401);
 	});
 
 	test("not found paths", async () => {
@@ -677,6 +708,24 @@ describe("CRUD HTTP routes", () => {
 		expect((await app.request("/api/groups/999/members")).status).toBe(404);
 		expect((await app.request("/api/watchlists/999/items")).status).toBe(404);
 		expect((await app.request("/api/push-tokens/999", { method: "DELETE" })).status).toBe(404);
+		expect(
+			(
+				await app.request("/api/push-tokens/999", {
+					method: "PATCH",
+					body: JSON.stringify({ label: "x" }),
+					headers: { "content-type": "application/json" },
+				})
+			).status,
+		).toBe(404);
+		expect(
+			(
+				await app.request("/api/push-tokens/0", {
+					method: "PATCH",
+					body: JSON.stringify({ label: "x" }),
+					headers: { "content-type": "application/json" },
+				})
+			).status,
+		).toBe(400);
 	});
 
 	test("invalid json bodies hit catch paths", async () => {

@@ -5,6 +5,7 @@ import { describe, expect, test } from "vitest";
 import { mintPushToken, sha256Hex } from "../lib/push-token-crypto.js";
 import { createSqliteD1 } from "../test/sqlite-d1.js";
 import * as aiConfigs from "./ai-configs.js";
+import * as channels from "./channels.js";
 import * as dashboard from "./dashboard.js";
 import * as groups from "./groups.js";
 import * as ingestLogs from "./ingest-logs.js";
@@ -110,6 +111,44 @@ describe("sqlite repos coverage", () => {
 		expect(await pushTokens.findActiveTokenByHash(db, minted.tokenHash)).toBeTruthy();
 		await pushTokens.touchPushToken(db, tok.id);
 		expect(await pushTokens.findActiveTokenByHash(db, await sha256Hex("nope"))).toBeNull();
+		expect(await pushTokens.renamePushToken(db, "u1", tok.id, "lab-renamed")).toBe(true);
+		expect(await pushTokens.renamePushToken(db, "u2", tok.id, "nope")).toBe(false);
+
+		const channel = await channels.createChannel(db, "u1", { name: "Research" });
+		const keyMinted = await mintPushToken();
+		const key = await pushTokens.createChannelKey(
+			db,
+			"u1",
+			channel.id,
+			"Research Agent",
+			keyMinted.tokenPrefix,
+			keyMinted.tokenHash,
+		);
+		expect(await pushTokens.renameChannelKey(db, "u1", channel.id, key.id, "Daily agent")).toBe(
+			true,
+		);
+		expect(await tags.replaceChannelTags(db, "u1", channel.id, [tag.id], key.id)).toEqual([
+			{ id: tag.id, name: "t" },
+		]);
+		const managed = await pushTokens.listManagedTokens(db, "u1");
+		expect(managed.map((t) => t.id).sort()).toEqual([tok.id, key.id].sort());
+		expect(managed.find((t) => t.id === tok.id)).toMatchObject({
+			label: "lab-renamed",
+			channelId: null,
+			channelName: null,
+			tags: [],
+		});
+		expect(managed.find((t) => t.id === key.id)).toMatchObject({
+			label: "Daily agent",
+			channelId: channel.id,
+			channelName: "Research",
+			tags: [{ id: tag.id, name: "t" }],
+			scopes: ["articles:write"],
+		});
+		expect(JSON.stringify(managed)).not.toMatch(/token_hash|tokenHash/);
+		expect(await pushTokens.listPushTokens(db, "u1")).toHaveLength(1);
+		expect(await pushTokens.renamePushToken(db, "u1", key.id, "nope")).toBe(false);
+		expect(await pushTokens.renameChannelKey(db, "u1", channel.id, tok.id, "nope")).toBe(false);
 
 		const now = Date.now();
 		expect(

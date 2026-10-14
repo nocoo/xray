@@ -158,21 +158,22 @@ Worker uses encrypted secrets for translate/summary.
 | Summary on translate | `summaryPrompt` → second chat call in `defaultTranslateFn` | **done** |
 | Full multi-provider SaaS (gecko-grade adapters) | — | **not MVP** (optional backlog) |
 
-## 7. Settings and channel push tokens
+## 7. Settings and push tokens
 
 ### General (`/settings` — S5 M0.5 / with M0)
 
 Profile (email from Access); `ingest.windowHours` (**1–168**, default 24) via `GET/PATCH /api/settings`.
 
-### Watchlist producer tokens (browser-authenticated API)
+### Producer tokens (`/tokens`)
 
-Global Settings has no token UI. Channel article tokens are managed separately at `/channels/:channelId/settings` and carry only `articles:write`; see [Channels](11-channels.md).
+The Settings sidebar group's Tokens page manages active Watchlist and Channel credentials across the account. It supports creation, renaming, revocation, type/search filters and channel-token tags. Channel article tokens are also managed at `/channels/:channelId/settings` and carry only `articles:write`; see [Channels](11-channels.md). Account and AI configuration remain separate at `/settings`.
 
 | Action | Auth | Behavior |
 |--------|------|----------|
 | List | Access | label, `token_prefix`, created, last_used — never full secret |
 | Create | Access + Origin check | full `xray_pt_…` plaintext **once**; store prefix + SHA-256 hash; default scopes `ingest:read` + `ingest:push` |
-| Revoke | Access | `DELETE /api/push-tokens/:id` |
+| Rename | Access + Origin check | `PATCH /api/push-tokens/:id`; label only, no credential rotation or scope changes |
+| Revoke | Access + Origin check | `DELETE /api/push-tokens/:id` |
 
 Token is ingest **auth** (XR-29): same secret for `GET /api/v1/ingest/graph` and `POST /api/v1/ingest/push`. It does not call browser CRUD.
 

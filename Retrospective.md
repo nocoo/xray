@@ -298,3 +298,37 @@ The first selector targeted the fieldset's `group` role instead of the inner
 Radix `radiogroup`. Live DOM inspection and the failing containment regression
 identified this before commit; the final selector is scoped to the documented
 segment viewport and its actual radio group.
+
+## 2026-10-14 - Reconcile terminal identity before controlling panes
+
+The inherited Herdr context pointed at a different project's old pane while the
+live X-Ray session had moved. Using `--current` created an empty helper shell in
+the wrong tab. No command ran there; the owned shell was moved to the live X-Ray
+tab after refreshing the agent inventory. Future orchestration must reconcile
+inherited IDs with the current repository and live terminal identity before any
+layout mutation, and use explicit validated IDs when they disagree.
+
+The first token browser journey assumed a `Research` tag existed in every E2E
+catalog. The managed suite deliberately starts with minimal state, so the picker
+waited for a nonexistent tag; cleanup in `finally` then obscured the selector error
+after the request context timed out. The journey now creates its own uniquely
+named tag and asserts its visibility before interacting. Successful runs remove
+their resources, while the harness owns failed-run store cleanup. Browser tests
+must own every fixture they require and preserve the original failure evidence.
+The mobile token fixture also uses a per-attempt UUID so a failed attempt's row
+cannot collide with CI retry selectors before the harness cleans the store.
+
+Review also caught token dialog focus restoration running before the modal focus
+trap released. Both token surfaces now restore focus through `onCloseAutoFocus`,
+falling back to Create when filtering or revocation removes the original trigger.
+The browser regression checks Cancel, Escape, Save and Revoke, including a rename
+that removes its own filtered row. Async tag checkboxes require a click followed
+by an awaited checked-state assertion; Playwright's synchronous `check()` contract
+does not fit a server-confirmed controlled checkbox.
+
+The initial token counters used StatStrip's muted background, which is not a
+Basalt content surface. They now follow the dashboard's StatCard bright surface,
+verified in Chrome at desktop and narrow mobile widths in both themes. The
+browser regression compares all three counter backgrounds with the semantic
+bright token; choosing a library component alone does not prove its surface is
+appropriate for the page hierarchy.

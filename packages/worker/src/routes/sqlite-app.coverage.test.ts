@@ -25,7 +25,13 @@ import {
 import { listWatchlistIngestLogsRoute } from "./ingest-logs.js";
 import { deleteItemRoute, listItemsRoute } from "./items.js";
 import { getSettingsRoute, patchSettingsRoute } from "./settings.js";
-import { createTokenRoute, listTokensRoute, revokeTokenRoute } from "./tokens.js";
+import {
+	createTokenRoute,
+	listManagedTokensRoute,
+	listTokensRoute,
+	patchTokenRoute,
+	revokeTokenRoute,
+} from "./tokens.js";
 import { translateWatchlistRoute } from "./translate.js";
 import {
 	addMemberRoute,
@@ -236,6 +242,16 @@ describe("sqlite-backed full app coverage", () => {
 		expect([200, 201]).toContain(scopedTok.status);
 		expect((scopedTok.body as { data: { scopes: string[] } }).data.scopes).toEqual(["ingest:read"]);
 		expect((await app.request("/api/push-tokens", { headers: hdr() }, env)).status).toBe(200);
+		expect((await app.request("/api/tokens", { headers: hdr() }, env)).status).toBe(200);
+		expect(
+			(
+				await app.request(
+					`/api/push-tokens/${tok.id}`,
+					{ method: "PATCH", headers: hdr(), body: JSON.stringify({ label: "lab-renamed" }) },
+					env,
+				)
+			).status,
+		).toBe(200);
 
 		const push = await app.request(
 			"/api/v1/ingest/push",
@@ -690,8 +706,10 @@ describe("sqlite-backed full app coverage", () => {
 		h.get("/api/integrations/zheto", getZhetoSettingsRoute);
 		h.put("/api/integrations/zheto", putZhetoSettingsRoute);
 		h.post("/api/integrations/zheto/save", zhetoSaveRoute);
+		h.get("/api/tokens", listManagedTokensRoute);
 		h.get("/api/push-tokens", listTokensRoute);
 		h.post("/api/push-tokens", createTokenRoute);
+		h.patch("/api/push-tokens/:id", patchTokenRoute);
 		h.delete("/api/push-tokens/:id", revokeTokenRoute);
 
 		const paths: Array<[string, string]> = [
@@ -729,8 +747,10 @@ describe("sqlite-backed full app coverage", () => {
 			["GET", "/api/integrations/zheto"],
 			["PUT", "/api/integrations/zheto"],
 			["POST", "/api/integrations/zheto/save"],
+			["GET", "/api/tokens"],
 			["GET", "/api/push-tokens"],
 			["POST", "/api/push-tokens"],
+			["PATCH", "/api/push-tokens/1"],
 			["DELETE", "/api/push-tokens/1"],
 		];
 		for (const [method, path] of paths) {

@@ -53,6 +53,7 @@ function setup() {
 		deleteArticle: vi.fn().mockResolvedValue({ deleted: true }),
 		fetchChannelKeys: vi.fn().mockResolvedValue([key]),
 		createChannelKey: vi.fn().mockResolvedValue({ ...key, id: 4, token: "one-time" }),
+		renameChannelKey: vi.fn().mockResolvedValue({ updated: true }),
 		revokeChannelKey: vi.fn().mockResolvedValue({ revoked: true }),
 	};
 	return { api, vm: createChannelsVm(api) };
@@ -623,5 +624,37 @@ test("a pending read acknowledgement preserves edits and a deleted article", asy
 		await selected;
 		if (deleted) expect(vm.getState().article).toBeNull();
 		else expect(vm.getState().article).toMatchObject({ title: "Edited", isRead: true });
+	}
+});
+
+test("channel token renames validate input and preserve unrelated keys", async () => {
+	const { api, vm } = setup();
+	expect(vm.renameKey(3, "New")).toBeUndefined();
+	await vm.manage(1);
+	vm.setState({ keys: [key, { ...key, id: 9, label: "Other" }] });
+	expect(await vm.renameKey(3, " New ")).toBe(true);
+	expect(api.renameChannelKey).toHaveBeenCalledWith(1, 3, "New");
+	expect(vm.getState().keys.map((item) => item.label)).toEqual(["New", "Other"]);
+	expect(await vm.renameKey(3, " ")).toBeUndefined();
+	expect(vm.getState().error).toContain("1 and 64");
+	api.renameChannelKey.mockRejectedValueOnce(new Error("Offline"));
+	await vm.renameKey(3, "Next");
+	expect(vm.getState().error).toBe("Offline");
+	vm.setState({ keysLoading: true });
+	expect(vm.renameKey(3, "New")).toBeUndefined();
+});
+
+test("channel token renames ignore completions and failures after changing channel", async () => {
+	for (const fail of [false, true]) {
+		const { api, vm } = setup();
+		await vm.manage(1);
+		const pending = deferred<{ updated: true }>();
+		api.renameChannelKey.mockReturnValueOnce(pending.promise);
+		const rename = vm.renameKey(3, "Late");
+		await vm.manage(0);
+		if (fail) pending.reject(new Error("Old error"));
+		else pending.resolve({ updated: true });
+		await rename;
+		expect(vm.getState()).toMatchObject({ keys: [], error: null, busy: false });
 	}
 });

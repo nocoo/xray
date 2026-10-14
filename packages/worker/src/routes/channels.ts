@@ -1,4 +1,4 @@
-import { parseArticleInput, parseArticlePageQuery } from "@xray/shared";
+import { parseArticleInput, parseArticlePageQuery, parseTokenLabel } from "@xray/shared";
 import type { Context } from "hono";
 import {
 	jsonErr,
@@ -22,7 +22,12 @@ import {
 	updateChannel,
 	updateChannelArticle,
 } from "../repos/channels.js";
-import { createChannelKey, listChannelKeys, revokeChannelKey } from "../repos/push-tokens.js";
+import {
+	createChannelKey,
+	listChannelKeys,
+	renameChannelKey,
+	revokeChannelKey,
+} from "../repos/push-tokens.js";
 import type { AppEnv } from "../types.js";
 
 const MAX_LABEL = 64;
@@ -162,6 +167,20 @@ export async function revokeChannelKeyRoute(c: Context<AppEnv>) {
 	const ok = await revokeChannelKey(c.env.DB, user.id, id, keyId);
 	if (!ok) return jsonErr(c, "Not found", 404);
 	return jsonOk(c, { revoked: true });
+}
+
+export async function patchChannelKeyRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	const id = parseIdParam(c.req.param("id"));
+	const keyId = parseIdParam(c.req.param("keyId"));
+	if (!id || !keyId) return jsonErr(c, "invalid id", 400);
+	if (!(await getChannel(c.env.DB, user.id, id))) return jsonErr(c, "Not found", 404);
+	const parsed = parseTokenLabel(await c.req.json().catch(() => null));
+	if (!parsed.ok) return jsonErr(c, parsed.error, 400);
+	const ok = await renameChannelKey(c.env.DB, user.id, id, keyId, parsed.label);
+	if (!ok) return jsonErr(c, "Not found", 404);
+	return jsonOk(c, { updated: true });
 }
 
 function parseArticlePageQuerySafe(c: Context<AppEnv>): ReturnType<typeof parseArticlePageQuery> {

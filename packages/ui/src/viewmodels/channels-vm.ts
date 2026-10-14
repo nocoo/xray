@@ -7,6 +7,7 @@ import type {
 } from "@xray/shared";
 import type * as channelsApi from "@/api/channels";
 import { createStore, errMsg } from "./store";
+import { tokenLabel } from "./tokens-vm";
 
 export function createChannelsVm(api: typeof channelsApi) {
 	const store = createStore({
@@ -276,6 +277,25 @@ export function createChannelsVm(api: typeof channelsApi) {
 				const { token, ...key } = result;
 				if (request === managerRequest) store.setState((s) => ({ keys: [...s.keys, key], token }));
 				await vm.loadChannels();
+				return true;
+			});
+		},
+		renameKey(keyId: number, label: string) {
+			const { managerId, keysLoading } = store.getState();
+			if (!managerId || keysLoading) return;
+			const request = managerRequest;
+			return mutate(async () => {
+				const name = tokenLabel(label);
+				try {
+					await api.renameChannelKey(managerId, keyId, name);
+				} catch (error) {
+					if (request === managerRequest) throw error;
+					return;
+				}
+				if (request !== managerRequest) return;
+				store.setState((s) => ({
+					keys: s.keys.map((key) => (key.id === keyId ? { ...key, label: name } : key)),
+				}));
 				return true;
 			});
 		},

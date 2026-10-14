@@ -236,7 +236,7 @@ Only `sourceType === "x.com"` members are fetched.
 | **`~/.config/xray/push.env`** | **Canonical** secret file (`chmod 600`). Contains `XRAY_PUSH_TOKEN`, default prod `XRAY_INGEST_BASE`, optional knobs. |
 | `.xray-push.env` (repo root) | Optional pointer note only — **gitignored** (`*.push-token`, `.xray-push.env`). Never put the real token in-repo. |
 
-Mint / reset (ops): call the browser-authenticated `POST /api/push-tokens` with `{ "label": "Producer name" }`, then update `~/.config/xray/push.env`. Global Settings no longer has token controls. Tokens created in Channels belong to one channel and cannot ingest watchlist posts.
+Mint / rotate: open **Settings sidebar group → Tokens** (`/tokens`), choose **Create token → Watchlist ingestion**, and copy the one-time key into `~/.config/xray/push.env`. The browser-authenticated `POST /api/push-tokens` with `{ "label": "Producer name" }` remains available for operations. After updating the producer, revoke its old token. The dedicated Tokens page lists both token types and supports naming, search and revocation; account/AI Settings remains separate. Channel publishing tokens belong to one channel and cannot ingest watchlist posts. Renaming does not rotate a credential; tokens have no automatic expiration.
 
 ```bash
 # 0. Preconditions

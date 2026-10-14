@@ -17,6 +17,7 @@ import {
 	markChannelArticlesReadRoute,
 	orderChannelsRoute,
 	patchChannelArticleRoute,
+	patchChannelKeyRoute,
 	patchChannelRoute,
 	revokeChannelKeyRoute,
 } from "./routes/channels.js";
@@ -44,7 +45,13 @@ import { meRoute } from "./routes/me.js";
 import { mediaProxyRoute } from "./routes/media-proxy.js";
 import { getSettingsRoute, patchSettingsRoute } from "./routes/settings.js";
 import { deleteTagRoute, patchTagRoute, putChannelTagsRoute } from "./routes/tags.js";
-import { createTokenRoute, listTokensRoute, revokeTokenRoute } from "./routes/tokens.js";
+import {
+	createTokenRoute,
+	listManagedTokensRoute,
+	listTokensRoute,
+	patchTokenRoute,
+	revokeTokenRoute,
+} from "./routes/tokens.js";
 import { translateWatchlistRoute } from "./routes/translate.js";
 import {
 	addMemberRoute,
@@ -145,8 +152,10 @@ app.get("/api/integrations/zheto", getZhetoSettingsRoute);
 app.put("/api/integrations/zheto", putZhetoSettingsRoute);
 app.post("/api/integrations/zheto/save", zhetoSaveRoute);
 
+app.get("/api/tokens", listManagedTokensRoute);
 app.get("/api/push-tokens", listTokensRoute);
 app.post("/api/push-tokens", createTokenRoute);
+app.patch("/api/push-tokens/:id", patchTokenRoute);
 app.delete("/api/push-tokens/:id", revokeTokenRoute);
 
 app.get("/api/channels", listChannelsRoute);
@@ -159,6 +168,7 @@ app.get("/api/channels/:id/articles/:articleId", getChannelArticleRoute);
 app.get("/api/channels/:id/articles/:articleId/link-preview", articleLinkPreviewRoute);
 app.get("/api/channels/:id/keys", listChannelKeysRoute);
 app.post("/api/channels/:id/keys", createChannelKeyRoute);
+app.patch("/api/channels/:id/keys/:keyId", patchChannelKeyRoute);
 app.delete("/api/channels/:id/keys/:keyId", revokeChannelKeyRoute);
 
 app.get("/api/v1/ingest/graph", ingestGraphRoute);

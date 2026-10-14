@@ -12,6 +12,7 @@ import { GroupsPage } from "@/views/groups-page";
 import { IntegrationsZhetoPage } from "@/views/integrations-zheto-page";
 import { SettingsPage } from "@/views/settings-page";
 import { TagsPage } from "@/views/tags-page";
+import { TokensPage } from "@/views/tokens-page";
 import { WatchlistDetailPage } from "@/views/watchlist-detail-page";
 import { WatchlistsPage } from "@/views/watchlists-page";
 
@@ -45,6 +46,7 @@ export function App() {
 						<Route path="/groups" element={<GroupsPage />} />
 						<Route path="/integrations/zheto" element={<IntegrationsZhetoPage />} />
 						<Route path="/tags" element={<TagsPage />} />
+						<Route path="/tokens" element={<TokensPage />} />
 						<Route path="/settings" element={<SettingsPage />} />
 					</Route>
 					<Route path="*" element={<Navigate to="/" replace />} />

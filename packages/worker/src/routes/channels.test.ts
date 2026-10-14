@@ -21,6 +21,7 @@ import {
 	listChannelsRoute,
 	markChannelArticlesReadRoute,
 	orderChannelsRoute,
+	patchChannelKeyRoute,
 	patchChannelRoute,
 	revokeChannelKeyRoute,
 } from "./channels.js";
@@ -187,6 +188,7 @@ describe("channels browser routes", () => {
 			[`/api/channels/${channel.id}`, "DELETE"],
 			["/api/channels/order", "PUT"],
 			["/api/channels/1/articles/read", "PUT"],
+			[`/api/channels/${channel.id}/keys/${key.id}`, "PATCH"],
 		] as const) {
 			const body = JSON.stringify({ ids: [channel.id] });
 			expect((await call(path, { method, headers: ingestHdr(key.token), body }, env)).status).toBe(
@@ -317,6 +319,10 @@ describe("channels browser routes", () => {
 			],
 			[`/api/channels/${channel.id}/keys`, { method: "POST", headers: hdr(), body: "x" }],
 			[`/api/channels/${channel.id}/keys/0`, { method: "DELETE", headers: hdr() }],
+			[
+				`/api/channels/${channel.id}/keys/0`,
+				{ method: "PATCH", headers: hdr(), body: JSON.stringify({ label: "x" }) },
+			],
 		] as const) {
 			const r = await call(path, { ...init }, env);
 			expect(r.status, `${init.method ?? "GET"} ${path}`).toBe(400);
@@ -349,6 +355,14 @@ describe("channels browser routes", () => {
 				{ method: "POST", headers: hdr("b"), body: JSON.stringify({ label: "Hijack" }) },
 			],
 			[`/api/channels/${channel.id}/keys/${key.id}`, { method: "DELETE", headers: hdr("b") }],
+			[
+				`/api/channels/${channel.id}/keys/${key.id}`,
+				{ method: "PATCH", headers: hdr("b"), body: JSON.stringify({ label: "Hijack" }) },
+			],
+			[
+				"/api/channels/999/keys/1",
+				{ method: "PATCH", headers: hdr(), body: JSON.stringify({ label: "x" }) },
+			],
 		] as const) {
 			const r = await call(path, { ...init }, env);
 			expect(r.status, `${init.method ?? "GET"} ${path} tenant`).toBe(404);
@@ -433,6 +447,7 @@ describe("channels browser routes", () => {
 			["/api/channels/1/articles/1", "GET"],
 			["/api/channels/1/keys", "GET"],
 			["/api/channels/1/keys", "POST"],
+			["/api/channels/1/keys/1", "PATCH"],
 			["/api/channels/1/keys/1", "DELETE"],
 		] as const) {
 			const r = await call(
@@ -509,6 +524,7 @@ describe("channels browser routes", () => {
 		bare.get("/api/channels/:id/articles/:articleId", getChannelArticleRoute);
 		bare.get("/api/channels/:id/keys", listChannelKeysRoute);
 		bare.post("/api/channels/:id/keys", createChannelKeyRoute);
+		bare.patch("/api/channels/:id/keys/:keyId", patchChannelKeyRoute);
 		bare.delete("/api/channels/:id/keys/:keyId", revokeChannelKeyRoute);
 		for (const [path, method] of [
 			["/api/channels", "GET"],
@@ -521,6 +537,7 @@ describe("channels browser routes", () => {
 			["/api/channels/1/articles/1", "GET"],
 			["/api/channels/1/keys", "GET"],
 			["/api/channels/1/keys", "POST"],
+			["/api/channels/1/keys/1", "PATCH"],
 			["/api/channels/1/keys/1", "DELETE"],
 		] as const) {
 			const res = await bare.request(path, {

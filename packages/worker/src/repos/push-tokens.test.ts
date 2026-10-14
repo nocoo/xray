@@ -5,7 +5,10 @@ import {
 	createPushToken,
 	findActiveTokenByHash,
 	listChannelKeys,
+	listManagedTokens,
 	listPushTokens,
+	renameChannelKey,
+	renamePushToken,
 	revokeChannelKey,
 	revokePushToken,
 	touchPushToken,
@@ -33,6 +36,17 @@ function memDb() {
 				},
 				async all<T>() {
 					const [userId, channelId] = binds as [string, number?];
+					if (sql.includes("LEFT JOIN channels")) {
+						return {
+							results: rows
+								.filter((r) => r.user_id === userId && r.revoked_at_ms == null)
+								.map((r) => ({
+									...r,
+									channel_name: r.channel_id ? `ch-${r.channel_id}` : null,
+									tags_json: "[]",
+								})) as T[],
+						};
+					}
 					if (sql.includes("channel_id = ?")) {
 						return {
 							results: rows.filter(
@@ -80,6 +94,19 @@ function memDb() {
 						if (r) r.last_used_at_ms = now;
 						return { meta: { changes: 1 } };
 					}
+					if (sql.includes("SET label")) {
+						const watchlistOnly = sql.includes("channel_id IS NULL");
+						const [label, id, userId, channelId] = binds as [string, number, string, number?];
+						const r = rows.find(
+							(x) =>
+								x.id === id &&
+								x.user_id === userId &&
+								x.revoked_at_ms == null &&
+								(watchlistOnly ? x.channel_id == null : x.channel_id === channelId),
+						);
+						if (r) r.label = label;
+						return { meta: { changes: r ? 1 : 0 } };
+					}
 					return { meta: { changes: 0 } };
 				},
 			};
@@ -120,6 +147,37 @@ describe("push-tokens repo", () => {
 		expect(await listChannelKeys(db, "u1", 3)).toHaveLength(0);
 	});
 
+	test("listManagedTokens returns active watchlist and channel keys without hashes", async () => {
+		const db = memDb();
+		const watch = await createPushToken(db, "u1", "watchlist", "aaaa1111", "hash-wl");
+		const key = await createChannelKey(db, "u1", 3, "Research Agent", "bbbb2222", "hash-ch");
+		await createPushToken(db, "u2", "other", "cccc3333", "hash-other");
+		const listed = await listManagedTokens(db, "u1");
+		expect(listed).toHaveLength(2);
+		expect(listed.map((t) => t.id).sort()).toEqual([watch.id, key.id].sort());
+		expect(listed.find((t) => t.id === watch.id)).toMatchObject({
+			label: "watchlist",
+			channelId: null,
+			channelName: null,
+			tags: [],
+		});
+		expect(listed.find((t) => t.id === key.id)).toMatchObject({
+			label: "Research Agent",
+			channelId: 3,
+			channelName: "ch-3",
+			scopes: [...CHANNEL_KEY_SCOPES],
+		});
+		expect(JSON.stringify(listed)).not.toMatch(/token_hash|hash-wl|hash-ch/);
+		expect(await renamePushToken(db, "u1", watch.id, "renamed-watch")).toBe(true);
+		expect(await renameChannelKey(db, "u1", 3, key.id, "renamed-key")).toBe(true);
+		expect(await renamePushToken(db, "u1", key.id, "nope")).toBe(false);
+		expect(await renameChannelKey(db, "u1", 3, watch.id, "nope")).toBe(false);
+		expect(await renamePushToken(db, "u2", watch.id, "nope")).toBe(false);
+		await revokePushToken(db, "u1", watch.id);
+		expect(await renamePushToken(db, "u1", watch.id, "dead")).toBe(false);
+		expect((await listManagedTokens(db, "u1")).map((t) => t.label)).toEqual(["renamed-key"]);
+	});
+
 	test("degraded D1 responses fall back safely", async () => {
 		const nullResults = {
 			prepare() {
@@ -138,7 +196,10 @@ describe("push-tokens repo", () => {
 			},
 		} as unknown as D1Database;
 		expect(await listChannelKeys(nullResults, "u1", 1)).toEqual([]);
+		expect(await listManagedTokens(nullResults, "u1")).toEqual([]);
 		expect(await revokeChannelKey(nullResults, "u1", 1, 2)).toBe(false);
+		expect(await renamePushToken(nullResults, "u1", 1, "x")).toBe(false);
+		expect(await renameChannelKey(nullResults, "u1", 1, 2, "x")).toBe(false);
 	});
 });
 

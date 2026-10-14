@@ -1,3 +1,4 @@
+import { parseTokenLabel } from "@xray/shared";
 import type { Context } from "hono";
 import { isDevOrTest } from "../lib/env.js";
 import { jsonErr, jsonOk, parseIdParam, requireUser } from "../lib/http.js";
@@ -5,7 +6,9 @@ import { mintPushToken } from "../lib/push-token-crypto.js";
 import {
 	createPushToken,
 	DEFAULT_INGEST_SCOPES,
+	listManagedTokens,
 	listPushTokens,
+	renamePushToken,
 	revokePushToken,
 } from "../repos/push-tokens.js";
 import type { AppEnv } from "../types.js";
@@ -22,6 +25,24 @@ export async function listTokensRoute(c: Context<AppEnv>) {
 	const user = requireUser(c);
 	if (user instanceof Response) return user;
 	return jsonOk(c, await listPushTokens(c.env.DB, user.id));
+}
+
+export async function listManagedTokensRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	return jsonOk(c, await listManagedTokens(c.env.DB, user.id));
+}
+
+export async function patchTokenRoute(c: Context<AppEnv>) {
+	const user = requireUser(c);
+	if (user instanceof Response) return user;
+	const id = parseIdParam(c.req.param("id"));
+	if (!id) return jsonErr(c, "invalid id", 400);
+	const parsed = parseTokenLabel(await c.req.json().catch(() => null));
+	if (!parsed.ok) return jsonErr(c, parsed.error, 400);
+	const ok = await renamePushToken(c.env.DB, user.id, id, parsed.label);
+	if (!ok) return jsonErr(c, "Not found", 404);
+	return jsonOk(c, { updated: true });
 }
 
 export async function createTokenRoute(c: Context<AppEnv>) {

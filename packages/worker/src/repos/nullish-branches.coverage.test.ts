@@ -100,6 +100,9 @@ describe("nullish / edge repo branches", () => {
 				created_at_ms: 1,
 				last_used_at_ms: null,
 				revoked_at_ms: null,
+				channel_id: null,
+				channel_name: null,
+				tags_json: null,
 			},
 			{
 				id: 2,
@@ -111,6 +114,9 @@ describe("nullish / edge repo branches", () => {
 				created_at_ms: 2,
 				last_used_at_ms: 3,
 				revoked_at_ms: null,
+				channel_id: 9,
+				channel_name: "Research",
+				tags_json: "[]",
 			},
 			{
 				id: 3,
@@ -122,6 +128,9 @@ describe("nullish / edge repo branches", () => {
 				created_at_ms: 3,
 				last_used_at_ms: null,
 				revoked_at_ms: null,
+				channel_id: 9,
+				channel_name: "Research",
+				tags_json: JSON.stringify([{ id: 4, name: "Science" }]),
 			},
 		];
 		const db = mockDb({
@@ -133,9 +142,19 @@ describe("nullish / edge repo branches", () => {
 		expect(list[1]?.scopes).toEqual(["ingest:read", "ingest:push"]);
 		expect(list[2]?.scopes).toEqual(["a", "1"]);
 		expect(await pushTokens.revokePushToken(db, "u1", 1)).toBe(false);
+		const managed = await pushTokens.listManagedTokens(db, "u1");
+		expect(managed[0]?.scopes).toEqual([]);
+		expect(managed[0]?.tags).toEqual([]);
+		expect(managed[1]?.scopes).toEqual([]);
+		expect(managed[1]?.tags).toEqual([]);
+		expect(managed[2]?.scopes).toEqual(["a", "1"]);
+		expect(managed[2]?.tags).toEqual([{ id: 4, name: "Science" }]);
+		expect(await pushTokens.renamePushToken(db, "u1", 1, "x")).toBe(false);
+		expect(await pushTokens.renameChannelKey(db, "u1", 9, 3, "x")).toBe(false);
 
 		const empty = mockDb({ all: () => null as unknown as unknown[] });
 		expect(await pushTokens.listPushTokens(empty, "u1")).toEqual([]);
+		expect(await pushTokens.listManagedTokens(empty, "u1")).toEqual([]);
 	});
 
 	test("settings non-finite window hours", async () => {

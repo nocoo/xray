@@ -1,4 +1,4 @@
-import type { ChannelKey } from "@xray/shared";
+import type { ChannelKey, ManagedToken } from "@xray/shared";
 
 export type PushTokenRow = {
 	id: number;
@@ -26,19 +26,22 @@ export type PushTokenDto = {
 
 export const DEFAULT_INGEST_SCOPES = ["ingest:read", "ingest:push"] as const;
 
-function toDto(row: PushTokenRow): PushTokenDto {
-	let scopes: string[] = [...DEFAULT_INGEST_SCOPES];
+function parseScopesJson(raw: string, fallback: string[]): string[] {
 	try {
-		const parsed = JSON.parse(row.scopes) as unknown;
-		if (Array.isArray(parsed)) scopes = parsed.map(String);
+		const parsed = JSON.parse(raw) as unknown;
+		if (Array.isArray(parsed)) return parsed.map(String);
 	} catch {
-		/* default */
+		/* fallback */
 	}
+	return fallback;
+}
+
+function toDto(row: PushTokenRow): PushTokenDto {
 	return {
 		id: row.id,
 		label: row.label,
 		tokenPrefix: row.token_prefix,
-		scopes,
+		scopes: parseScopesJson(row.scopes, [...DEFAULT_INGEST_SCOPES]),
 		createdAtMs: row.created_at_ms,
 		lastUsedAtMs: row.last_used_at_ms,
 		revokedAtMs: row.revoked_at_ms,
@@ -201,6 +204,79 @@ export async function revokeChannelKey(
 			 WHERE id = ? AND user_id = ? AND channel_id = ? AND revoked_at_ms IS NULL`,
 		)
 		.bind(now, keyId, userId, channelId)
+		.run();
+	return (result.meta.changes ?? 0) > 0;
+}
+
+type ManagedTokenRow = {
+	id: number;
+	label: string;
+	token_prefix: string;
+	scopes: string;
+	created_at_ms: number;
+	last_used_at_ms: number | null;
+	channel_id: number | null;
+	channel_name: string | null;
+	tags_json?: string | null;
+};
+
+/** Active watchlist + channel tokens for one tenant. Never selects hashes or plaintext. */
+export async function listManagedTokens(db: D1Database, userId: string): Promise<ManagedToken[]> {
+	const { results } = await db
+		.prepare(
+			`SELECT t.id, t.label, t.token_prefix, t.scopes, t.created_at_ms, t.last_used_at_ms,
+ t.channel_id, c.name AS channel_name,
+ (SELECT json_group_array(json_object('id', tg.id, 'name', tg.name)) FROM channel_key_tags kt
+ JOIN tags tg ON tg.id = kt.tag_id WHERE kt.key_id = t.id AND tg.user_id = t.user_id) AS tags_json
+			 FROM push_tokens t
+			 LEFT JOIN channels c ON c.id = t.channel_id AND c.user_id = t.user_id
+			 WHERE t.user_id = ? AND t.revoked_at_ms IS NULL
+			 ORDER BY t.id DESC`,
+		)
+		.bind(userId)
+		.all<ManagedTokenRow>();
+	return (results ?? []).map((r) => ({
+		id: r.id,
+		label: r.label,
+		tokenPrefix: r.token_prefix,
+		scopes: parseScopesJson(r.scopes, []),
+		createdAtMs: r.created_at_ms,
+		lastUsedAtMs: r.last_used_at_ms,
+		channelId: r.channel_id,
+		channelName: r.channel_name,
+		tags: JSON.parse(r.tags_json ?? "[]"),
+	}));
+}
+
+export async function renamePushToken(
+	db: D1Database,
+	userId: string,
+	id: number,
+	label: string,
+): Promise<boolean> {
+	const result = await db
+		.prepare(
+			`UPDATE push_tokens SET label = ?
+			 WHERE id = ? AND user_id = ? AND revoked_at_ms IS NULL AND channel_id IS NULL`,
+		)
+		.bind(label, id, userId)
+		.run();
+	return (result.meta.changes ?? 0) > 0;
+}
+
+export async function renameChannelKey(
+	db: D1Database,
+	userId: string,
+	channelId: number,
+	keyId: number,
+	label: string,
+): Promise<boolean> {
+	const result = await db
+		.prepare(
+			`UPDATE push_tokens SET label = ?
+			 WHERE id = ? AND user_id = ? AND channel_id = ? AND revoked_at_ms IS NULL`,
+		)
+		.bind(label, keyId, userId, channelId)
 		.run();
 	return (result.meta.changes ?? 0) > 0;
 }

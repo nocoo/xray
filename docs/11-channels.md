@@ -24,6 +24,7 @@ Browser responses use the existing `{ success: true, data: ... }` envelope. Iden
 | DELETE | `/api/channels/:id/articles/:articleId` | `{ deleted: true }` |
 | GET | `/api/channels/:id/keys` | `ChannelKey[]`, active keys only |
 | POST | `/api/channels/:id/keys` | `{ label }` / `ChannelKey & { token: string }` |
+| PATCH | `/api/channels/:id/keys/:keyId` | `{ label }` / `{ updated: true }`; active owned key only |
 | DELETE | `/api/channels/:id/keys/:keyId` | `{ revoked: true }` |
 | GET / POST | `/api/tags` | List / create `{ name }`; shared tenant tag catalog |
 | PATCH / DELETE | `/api/tags/:id` | Rename `{ name }` / delete associations without removing resources |
@@ -63,7 +64,7 @@ The key, not request fields, determines the tenant and channel. Capture the sour
 
 `/channels` is the management page, linked immediately above Settings. Dynamic reading links remain below Groups. The page provides creation, search, report/token totals, latest report dates, and keyboard-accessible up/down ordering. Sort order is stored per tenant and applied to the sidebar. New channels append to the end; full-set ordering and its response run in a single D1 transaction, rejecting stale or cross-tenant sets without partial writes.
 
-`/channels/:channelId/settings` contains the editable name/description, channel statistics, multiple named push tokens, copyable submission examples and individual revocation. Examples always contain the literal `YOUR_CHANNEL_TOKEN` placeholder; helper text explains replacing it manually before submission. Only the dedicated Copy key action copies the real one-time credential. Deleting a channel requires confirmation and cascades its reports and keys; revoking a key keeps existing reports. Global Settings contains account and AI configuration. The dedicated `/tags` page lives in the Settings sidebar group. Existing watchlist producer tokens retain their browser-authenticated API and scopes, with no global token UI.
+`/channels/:channelId/settings` contains the editable name/description, channel statistics, multiple named push tokens, copyable submission examples and individual revocation. Examples always contain the literal `YOUR_CHANNEL_TOKEN` placeholder; helper text explains replacing it manually before submission. Only the dedicated Copy key action copies the real one-time credential. Deleting a channel requires confirmation and cascades its reports and keys; revoking a key keeps existing reports. Global Settings contains account and AI configuration. The dedicated `/tags` page lives in the Settings sidebar group. The dedicated `/tokens` page also lives in the Settings sidebar group. It lists all active Watchlist and Channel tokens for the current account, with type/search filters, channel links, prefixes, permissions and usage metadata. Both surfaces can create, rename and revoke channel keys and change their tags; the global page additionally manages Watchlist tokens. Closing the creation dialog clears its one-time secret. Renaming changes future submission source names, never historical report source labels; scope and channel binding are immutable.
 
 Primary report bodies use `LayerCard.Well` at the brightest surface level (white in light mode); their list, action bars and page chrome remain lower in the hierarchy. The same hierarchy applies to watchlist content and dashboard metrics.
 
@@ -206,3 +207,14 @@ count. Refresh and mark-all-read actions sit above the channel list. Refresh kee
 the current filters and loaded page depth. The Demo inbox contains both read and
 unread examples; ordinary restarts preserve reading progress, while an explicit
 Demo reset replaces the catalog. See the [fixture matrix](13-environment-fixtures.md).
+
+## Account-wide token administration
+
+| Method | Browser route | Contract |
+|---|---|---|
+| GET | `/api/tokens` | `ManagedToken[]`; all active account-owned credentials, channel names and token tags; no hashes or secrets |
+| GET / POST | `/api/push-tokens` | Watchlist-only list / create with `{ label }`; creation returns the one-time secret |
+| PATCH | `/api/push-tokens/:id` | `{ label }` / `{ updated: true }`; active Watchlist token only |
+| DELETE | `/api/push-tokens/:id` | Revoke owned token |
+
+Management requires browser Access authentication and same-origin mutation checks. The ingest hostname does not expose these routes, and Bearer producer keys grant no administration rights. Rename labels are trimmed and validated at 1–64 characters. Lists exclude revoked tokens, while retained reports keep their source and tag associations.

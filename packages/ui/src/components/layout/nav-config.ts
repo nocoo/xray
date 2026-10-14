@@ -1,6 +1,7 @@
 import { type NavGroupDef, V2_NAV_GROUPS } from "@xray/shared";
 import {
 	Eye,
+	KeyRound,
 	LayoutDashboard,
 	Link as LinkIcon,
 	type LucideIcon,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 
 const ICON_MAP: Record<string, LucideIcon> = {
+	KeyRound,
 	LayoutDashboard,
 	Eye,
 	Radio,

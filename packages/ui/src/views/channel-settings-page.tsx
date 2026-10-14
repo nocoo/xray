@@ -30,6 +30,7 @@ import {
 	Clock3,
 	FileText,
 	KeyRound,
+	Pencil,
 	Plus,
 	Radio,
 	Send,
@@ -44,6 +45,7 @@ import { CopyTextButton } from "@/components/copy-text-button";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { FormSkeleton, TableSkeleton } from "@/components/loading-skeletons";
 import { TagAssignment } from "@/components/tag-assignment";
+import { TokenRenameDialog } from "@/components/token-rename-dialog";
 import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 import { channelRequest, ingestEndpoint, reportExample } from "@/lib/channel-reader";
 import { createTagsVm } from "@/viewmodels/tags-vm";
@@ -113,6 +115,9 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 	const [label, setLabel] = useState("");
 	const [saved, setSaved] = useState(false);
 	const [revoking, setRevoking] = useState<ChannelKey | null>(null);
+	const [editingKey, setEditingKey] = useState<ChannelKey | null>(null);
+	const renameButton = useRef<HTMLButtonElement | null>(null);
+	const revokeButton = useRef<HTMLButtonElement | null>(null);
 	const [deleting, setDeleting] = useState(false);
 	const managing = state.managerId === channel.id;
 	const token = managing ? state.token : null;
@@ -454,12 +459,27 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 										</TableCell>
 										<TableCell className="px-4 text-right">
 											<Button
+												variant="ghost"
+												size="icon"
+												aria-label={`Rename ${key.label}`}
+												title="Rename token"
+												disabled={state.busy}
+												onClick={(event) => {
+													renameButton.current = event.currentTarget;
+													vm.setState({ error: null });
+													setEditingKey(key);
+												}}
+											>
+												<Pencil className="h-4 w-4" aria-hidden="true" />
+											</Button>
+											<Button
 												variant="outline"
 												size="sm"
 												aria-label={`Revoke ${key.label}`}
 												disabled={state.busy}
 												onClick={(event) => {
 													event.currentTarget.focus();
+													revokeButton.current = event.currentTarget;
 													vm.setState({ error: null });
 													setRevoking(key);
 												}}
@@ -541,8 +561,31 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 					</Button>
 				</LayerCard>
 			</SectionRule>
+			{editingKey && (
+				<TokenRenameDialog
+					key={editingKey.id}
+					label={editingKey.label}
+					busy={state.busy}
+					error={state.error}
+					onSave={async (name) => vm.renameKey(editingKey.id, name)}
+					onClose={() => setEditingKey(null)}
+					onRestoreFocus={() => {
+						(renameButton.current?.isConnected
+							? renameButton.current
+							: createTokenButton.current
+						)?.focus();
+					}}
+				/>
+			)}
 			<ConfirmDialog
 				open={!!revoking}
+				onCloseAutoFocus={(event) => {
+					event.preventDefault();
+					(revokeButton.current?.isConnected
+						? revokeButton.current
+						: createTokenButton.current
+					)?.focus();
+				}}
 				onOpenChange={(open) => {
 					if (!open) setRevoking(null);
 				}}
@@ -566,7 +609,6 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 				onConfirm={async () => {
 					if (revoking && (await vm.revoke(revoking.id))) {
 						setRevoking(null);
-						createTokenButton.current?.focus();
 					}
 				}}
 			/>
