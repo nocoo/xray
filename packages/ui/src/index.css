@@ -139,7 +139,7 @@ nav[aria-label="Breadcrumb"] + svg {
 }
 .channel-panes[data-has-links="true"] {
 	--channel-side-width: clamp(
-		calc(var(--spacing) * 60),
+		calc(var(--spacing) * 56),
 		calc((100cqw - var(--spacing) * 118 - 2px) / 2),
 		calc(var(--spacing) * 72 * 1.2)
 	);
@@ -352,7 +352,11 @@ nav[aria-label="Breadcrumb"] + svg {
 }
 @container channel-reader (max-width: 920px) {
 	.channel-panes[data-has-links="true"] {
-		--channel-side-width: clamp(calc(var(--spacing) * 60), 32cqw, calc(var(--spacing) * 72 * 1.2));
+		--channel-side-width: clamp(
+			calc(var(--spacing) * 55),
+			calc(100cqw - var(--spacing) * 113 - 2px),
+			calc(var(--spacing) * 72 * 1.2)
+		);
 	}
 	.channel-list-column {
 		width: 100%;

@@ -2,10 +2,12 @@ import { Button, Field, Input, LayerCard } from "@nocoo/basalt";
 import { Banner } from "@nocoo/basalt/components/banner";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { SensitiveInput } from "@nocoo/basalt/components/sensitive-input";
+import { Bookmark, Save, ShieldCheck, Webhook } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import * as zhetoApi from "@/api/zheto";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { FormSkeleton } from "@/components/loading-skeletons";
+import { SectionLabel } from "@/components/section-label";
 import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 import { useVm } from "@/viewmodels/use-vm";
 import { createZhetoSettingsVm } from "@/viewmodels/zheto-settings-vm";
@@ -28,13 +30,22 @@ export function IntegrationsZhetoPage() {
 	return (
 		<div className="space-y-4">
 			<PageHeader
-				title="zhe.to"
+				title={
+					<SectionLabel icon={Bookmark} tone="green">
+						zhe.to
+					</SectionLabel>
+				}
 				description="Webhook URL is stored encrypted. Path token lives only inside the URL."
 			/>
 
 			{error && <Banner variant="error" size="sm" description={error} />}
 			{saved && <Banner variant="default" size="sm" description="Saved." />}
 			<LayerCard className="max-w-lg">
+				<LayerCard.Header>
+					<SectionLabel icon={Webhook} tone="green">
+						Bookmark delivery
+					</SectionLabel>
+				</LayerCard.Header>
 				<LayerCard.Body className="space-y-4">
 					{loading && !settings ? (
 						<FormSkeleton label="Loading integration settings" className="grid gap-3" />
@@ -76,6 +87,7 @@ export function IntegrationsZhetoPage() {
 									/>
 								</Field>
 								<Button type="submit" size="sm">
+									<Save className="size-4" strokeWidth={1.5} aria-hidden="true" />
 									Save
 								</Button>
 							</form>
@@ -83,6 +95,11 @@ export function IntegrationsZhetoPage() {
 					)}
 				</LayerCard.Body>
 			</LayerCard>
+			<p className="flex max-w-lg items-start gap-2 text-sm text-basalt-muted-foreground">
+				<ShieldCheck className="mt-0.5 size-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+				Save articles to your own library. Credentials stay encrypted and are never included in
+				copied links.
+			</p>
 		</div>
 	);
 }

@@ -4,7 +4,7 @@ import { Dock, DockBody } from "@nocoo/basalt/components/dock";
 import { Empty } from "@nocoo/basalt/components/empty";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { SkeletonLine } from "@nocoo/basalt/components/skeleton-line";
-import { Eye, Languages, Plus, RefreshCw, ScrollText, Settings, X } from "lucide-react";
+import { Eye, Languages, Plus, RefreshCw, ScrollText, Settings, Users, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
 import * as aiApi from "@/api/ai";
@@ -19,6 +19,7 @@ import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { PageAside } from "@/components/layout/page-aside";
 import { CardsSkeleton, RowsSkeleton } from "@/components/loading-skeletons";
 import { PostsColumnsPages } from "@/components/posts-columns-pages";
+import { SectionLabel } from "@/components/section-label";
 import { SourceFilter } from "@/components/source-filter";
 import { useRestoreDialogFocus } from "@/hooks/restore-dialog-focus";
 import { useColumns } from "@/hooks/use-columns";
@@ -268,7 +269,7 @@ export function WatchlistDetailPage() {
 					)}
 				>
 					<PageHeader
-						title={<span className="break-words">{title}</span>}
+						title={<SectionLabel icon={Eye}>{title}</SectionLabel>}
 						description={
 							s.wl
 								? `${s.wl.translateEnabled ? "Translate on" : "Translate off"}${
@@ -279,8 +280,14 @@ export function WatchlistDetailPage() {
 						actions={
 							<>
 								<TabsList aria-label="Watchlist view" className="shrink-0">
-									<TabsTrigger value="members">Members ({s.members.length})</TabsTrigger>
-									<TabsTrigger value="posts">Posts ({s.items.length})</TabsTrigger>
+									<TabsTrigger value="members">
+										<Users className="size-4" strokeWidth={1.5} aria-hidden="true" />
+										Members ({s.members.length})
+									</TabsTrigger>
+									<TabsTrigger value="posts">
+										<ScrollText className="size-4" strokeWidth={1.5} aria-hidden="true" />
+										Posts ({s.items.length})
+									</TabsTrigger>
 								</TabsList>
 								<SourceFilter
 									value={s.sourceFilter}
@@ -360,7 +367,11 @@ export function WatchlistDetailPage() {
 									</div>
 								) : (
 									<LayerCard>
-										<Empty title="No members yet." description="Add an x.com or custom handle." />
+										<Empty
+											icon={<Users aria-hidden="true" strokeWidth={1.5} />}
+											title="No members yet."
+											description="Add an x.com or custom handle."
+										/>
 									</LayerCard>
 								)}
 								<EditMemberDialog

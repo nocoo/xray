@@ -18,6 +18,7 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 | 12 | [Local environments](12-local-environments.md) | Demo/E2E/Prod contract, work streams and current verification evidence |
 | 13 | [Environment fixtures](13-environment-fixtures.md) | Synthetic catalog, provider scenarios, media provenance and feature coverage |
 | 14 | [Immersive mobile reading](14-immersive-mobile-reading.md) | Basalt layout boundary, mobile document reading, delivery and verification |
+| 15 | [UI polish and Basalt 3](15-ui-polish-basalt-3.md) | Lucide hierarchy, package migration and browser verification |
 
 ## Locked constraints
 

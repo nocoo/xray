@@ -17,7 +17,7 @@ export default defineConfig({
 		{ name: "chromium", use: { browserName: "chromium" } },
 		{
 			name: "webkit",
-			testMatch: ["channel-mobile.pw.ts", "article-links.pw.ts", "channel-filters.pw.ts"],
+			testMatch: ["channel-mobile.pw.ts", "article-links.pw.ts", "channel-filters.pw.ts", "ui-polish.pw.ts"],
 			use: { browserName: "webkit" },
 		},
 	],

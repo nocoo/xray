@@ -1,13 +1,14 @@
 import { Button, LayerCard } from "@nocoo/basalt";
 import { Empty } from "@nocoo/basalt/components/empty";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
-import { Brain, Eye, Plus, Server, TrendingUp } from "lucide-react";
+import { Brain, Eye, Languages, Plus, Server, TrendingUp, Users } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router";
 import * as watchlistsApi from "@/api/watchlists";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { CardsSkeleton } from "@/components/loading-skeletons";
+import { SectionLabel } from "@/components/section-label";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { useVm } from "@/viewmodels/use-vm";
 import { createWatchlistsVm } from "@/viewmodels/watchlists-vm";
@@ -46,7 +47,11 @@ export function WatchlistsPage() {
 	return (
 		<div className="space-y-4">
 			<PageHeader
-				title="Watchlists"
+				title={
+					<SectionLabel icon={Eye} tone="blue">
+						Watchlists
+					</SectionLabel>
+				}
 				description="Create and manage collections of Twitter/X and custom sources."
 				actions={
 					<Button size="sm" type="button" onClick={openCreateWatchlist}>
@@ -62,6 +67,7 @@ export function WatchlistsPage() {
 			{!loading && watchlists.length === 0 && !error && (
 				<LayerCard>
 					<Empty
+						icon={<Eye className="h-10 w-10" aria-hidden="true" strokeWidth={1.5} />}
 						title="No watchlists yet."
 						description="Create one to start the mix timeline."
 						action={
@@ -96,14 +102,21 @@ export function WatchlistsPage() {
 										)}
 									</div>
 								</div>
-								<div className="mt-3 flex items-center gap-3 text-xs text-basalt-muted-foreground">
-									<span>
+								<div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-basalt-muted-foreground">
+									<span className="inline-flex items-center gap-1.5">
+										<Users className="h-3.5 w-3.5" aria-hidden="true" strokeWidth={1.5} />
 										{wl.memberCount} member{wl.memberCount !== 1 ? "s" : ""}
 									</span>
 									{wl.translateEnabled ? (
-										<span className="text-emerald-600 dark:text-emerald-400">Translate on</span>
+										<span className="inline-flex items-center gap-1.5 text-basalt-tag-success-foreground">
+											<Languages className="h-3.5 w-3.5" aria-hidden="true" strokeWidth={1.5} />
+											Translate on
+										</span>
 									) : (
-										<span>Translate off</span>
+										<span className="inline-flex items-center gap-1.5">
+											<Languages className="h-3.5 w-3.5" aria-hidden="true" strokeWidth={1.5} />
+											Translate off
+										</span>
 									)}
 								</div>
 							</LayerCard>

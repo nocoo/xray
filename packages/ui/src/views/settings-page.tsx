@@ -4,11 +4,13 @@ import { InputArea } from "@nocoo/basalt/components/input-area";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { SectionRule } from "@nocoo/basalt/components/section-rule";
 import { SensitiveInput } from "@nocoo/basalt/components/sensitive-input";
+import { Bot, PlugZap, Save, Settings2, UserRound } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import * as aiApi from "@/api/ai";
 import * as settingsApi from "@/api/settings";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { FormSkeleton } from "@/components/loading-skeletons";
+import { SectionLabel } from "@/components/section-label";
 import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 import { createAiSettingsVm } from "@/viewmodels/ai-settings-vm";
 import { createSettingsVm } from "@/viewmodels/settings-vm";
@@ -34,9 +36,20 @@ export function SettingsPage() {
 
 	return (
 		<div className="min-w-0 space-y-6">
-			<PageHeader title="Settings" description="Account preferences and AI configuration." />
+			<PageHeader
+				title={
+					<SectionLabel icon={Settings2} tone="neutral">
+						Settings
+					</SectionLabel>
+				}
+				description="Account preferences and AI configuration."
+			/>
 
-			<SectionRule id="account" title="Account" hint="Signed-in user and ingest lookback window.">
+			<SectionRule
+				id="account"
+				title={<SectionLabel icon={UserRound}>Account</SectionLabel>}
+				hint="Signed-in user and ingest lookback window."
+			>
 				{account.error && <Banner variant="error" size="sm" description={account.error} />}
 				{account.saved && <Banner variant="default" size="sm" description="Saved." />}
 				<LayerCard padding="none">
@@ -68,6 +81,7 @@ export function SettingsPage() {
 									</Field>
 									<div className="flex justify-end border-t border-basalt-border pt-4 sm:col-span-2">
 										<Button type="submit" size="sm" disabled={account.loading}>
+											<Save className="size-4" strokeWidth={1.5} aria-hidden="true" />
 											Save window
 										</Button>
 									</div>
@@ -80,7 +94,11 @@ export function SettingsPage() {
 
 			<SectionRule
 				id="ai"
-				title="AI"
+				title={
+					<SectionLabel icon={Bot} tone="green">
+						AI
+					</SectionLabel>
+				}
 				hint="Configure your provider, model, and prompts for manual AI actions."
 			>
 				<LayerCard padding="none">
@@ -144,6 +162,7 @@ export function SettingsPage() {
 								</Field>
 								<div className="flex flex-wrap items-center justify-end gap-2 border-t border-basalt-border pt-4 sm:col-span-2">
 									<Button type="submit" size="sm" loading={ai.saving}>
+										<Save className="size-4" strokeWidth={1.5} aria-hidden="true" />
 										{ai.saving ? "Saving…" : "Save"}
 									</Button>
 									<Button
@@ -154,6 +173,7 @@ export function SettingsPage() {
 										loading={ai.testing}
 										onClick={() => void aiVm.test()}
 									>
+										<PlugZap className="size-4" strokeWidth={1.5} aria-hidden="true" />
 										{ai.testing ? "Testing…" : "Test connection"}
 									</Button>
 								</div>

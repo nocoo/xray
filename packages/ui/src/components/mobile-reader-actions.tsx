@@ -25,7 +25,7 @@ import { CopyTextButton } from "./copy-text-button";
 type Preferences = ReturnType<typeof readPreferences>;
 
 const actionClassName =
-	"min-h-11 w-full justify-start gap-3 px-3 text-left text-sm font-medium [&_svg]:stroke-[1.5]";
+	"min-h-11 w-full justify-start gap-3 border-0 px-3 text-left text-sm font-medium [&_svg]:stroke-[1.5]";
 
 export function MobileReaderActions({
 	channelId,

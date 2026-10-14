@@ -110,7 +110,7 @@ export function CardsSkeleton({
 	return (
 		<LoadingSkeleton label={label} className={className}>
 			{[1, 2, 3, 4, 5, 6].map((id) => (
-				<LayerCard key={id} className={feed ? "space-y-5 bg-basalt-bright" : "space-y-3"}>
+				<LayerCard key={id} className={feed ? "space-y-5 bg-basalt-bright!" : "space-y-3"}>
 					<div className="flex items-center gap-3">
 						<SkeletonLine
 							className="h-10 shrink-0 rounded-basalt-md"

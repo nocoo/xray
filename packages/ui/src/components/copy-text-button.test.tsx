@@ -43,7 +43,8 @@ test("forwards the requested action style without changing other copy buttons", 
 	const action = screen.getByRole("button", { name: "Copy article" });
 	const key = screen.getByRole("button", { name: "Copy key" });
 	expect(action.classList.contains("border")).toBe(false);
-	expect(action.classList.contains("text-sm")).toBe(true);
+	expect(action.classList.contains("basalt-action")).toBe(true);
+	expect(action.classList.contains("basalt-action-sm")).toBe(false);
 	expect(key.classList.contains("border")).toBe(true);
-	expect(key.classList.contains("text-xs")).toBe(true);
+	expect(key.classList.contains("basalt-action-sm")).toBe(true);
 });

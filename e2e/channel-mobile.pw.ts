@@ -46,7 +46,7 @@ test("local environment segments and selection indicator stay inside the touch-s
 				await page.keyboard.press("Escape");
 			}
 			await page.setViewportSize({ width: 1440, height: 1000 });
-			await expect.poll(() => page.getByRole("radiogroup", { name: "Environment", exact: true }).evaluate(node => node.getBoundingClientRect().height)).toBe(32);
+			await expect.poll(() => page.getByRole("radiogroup", { name: "Environment", exact: true }).evaluate(node => node.getBoundingClientRect().height)).toBe(34);
 		}
 	} finally { await app.close(); }
 });
@@ -102,6 +102,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
 			const actions = page.getByRole("dialog", { name: "Channel actions" });
 			await expect(actions.locator('svg[viewBox="0 0 20 10"]')).toHaveCount(0);
 			await expect(actions.locator("button:has(> svg + span), a:has(> svg + span)")).toHaveCount(6);
+			await expect.poll(() => actions.evaluate(panel => [...panel.querySelectorAll("button:has(> svg + span), a:has(> svg + span)")].every(row => row.getBoundingClientRect().height >= 44))).toBe(true);
 			const geometry = await actions.evaluate(panel => {
 				const rows = [...panel.querySelectorAll("button:has(> svg + span), a:has(> svg + span)")];
 				return rows.map(row => {
@@ -128,6 +129,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
 				await expect(page.getByRole("button", { name: action, exact: true })).toBeInViewport();
 			await expect(page.getByRole("link", { name: "Manage channel", exact: true })).toBeInViewport();
 			await page.keyboard.press("Escape");
+			await expect(actions).toBeHidden();
 			await page.getByRole("button", { name: "Reading settings" }).tap();
 			const preferences = page.getByRole("dialog", { name: "Reading settings" });
 			await expect(preferences.locator('svg[viewBox="0 0 20 10"]')).toHaveCount(0);

@@ -330,7 +330,12 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 				})}
 			</SidebarNav>
 			<SidebarFooter>
-				<SidebarUser name={user.name} email={user.email} avatar={avatar} />
+				<SidebarUser
+					className="w-full min-w-0"
+					name={user.name}
+					email={user.email}
+					avatar={avatar}
+				/>
 			</SidebarFooter>
 		</BasaltSidebar>
 	);

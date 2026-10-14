@@ -10,7 +10,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@nocoo/basalt/components/select";
-import { Plus, Trash2, Users } from "lucide-react";
+import { Check, Copy, Pencil, Plus, Trash2, Upload, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { Group } from "@/api/groups";
@@ -20,6 +20,7 @@ import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { RenameDialog } from "@/components/dialogs/rename-dialog";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { CardsSkeleton, RowsSkeleton } from "@/components/loading-skeletons";
+import { SectionLabel } from "@/components/section-label";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { createGroupsVm } from "@/viewmodels/groups-vm";
 import { useVm } from "@/viewmodels/use-vm";
@@ -123,7 +124,11 @@ export function GroupsPage() {
 	return (
 		<div className="space-y-4">
 			<PageHeader
-				title="Groups"
+				title={
+					<SectionLabel icon={Users} tone="green">
+						Groups
+					</SectionLabel>
+				}
 				description="Source-aware member pools you can copy into watchlists."
 				actions={
 					<Button size="sm" type="button" onClick={openCreateGroup}>
@@ -142,6 +147,7 @@ export function GroupsPage() {
 			{!s.loading && s.groups.length === 0 && !s.error && (
 				<LayerCard>
 					<Empty
+						icon={<Users className="h-10 w-10" aria-hidden="true" strokeWidth={1.5} />}
 						title="No groups yet."
 						description="Create a reusable member pool to copy into watchlists."
 						action={
@@ -156,17 +162,12 @@ export function GroupsPage() {
 			<ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 				{s.groups.map((g) => (
 					<li key={g.id}>
-						<LayerCard
-							outlined={s.selectedId === g.id}
-							className={cn(
-								"animate-fade-up",
-								s.selectedId === g.id && "ring-2 ring-basalt-primary",
-							)}
-						>
+						<LayerCard className="animate-fade-up">
 							<Button
 								type="button"
 								variant="ghost"
 								onClick={() => selectGroup(g.id)}
+								aria-pressed={s.selectedId === g.id}
 								className="h-auto w-full items-center justify-start gap-3 p-0 text-left"
 							>
 								<div
@@ -181,10 +182,14 @@ export function GroupsPage() {
 									<p className="truncate text-sm font-medium">{g.name}</p>
 									<p className="text-xs text-basalt-muted-foreground">{g.memberCount} members</p>
 								</div>
+								{s.selectedId === g.id && (
+									<Check className="h-4 w-4 shrink-0" aria-hidden="true" strokeWidth={1.5} />
+								)}
 							</Button>
 						</LayerCard>
 						<div className="mt-2 flex flex-wrap gap-2">
 							<Button type="button" size="sm" variant="outline" onClick={() => setRenameTarget(g)}>
+								<Pencil className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
 								Rename
 							</Button>
 							<Button
@@ -194,6 +199,7 @@ export function GroupsPage() {
 								className="text-basalt-destructive"
 								onClick={() => setDeleteTarget(g)}
 							>
+								<Trash2 className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
 								Delete
 							</Button>
 						</div>
@@ -279,7 +285,7 @@ export function GroupsPage() {
 											onClick={() => void vm.removeMember(m.id)}
 											aria-label="Remove member"
 										>
-											<Trash2 className="h-3.5 w-3.5" />
+											<Trash2 className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
 										</Button>
 									</li>
 								))}
@@ -303,6 +309,7 @@ export function GroupsPage() {
 								disabled={s.importBusy || !s.importText.trim()}
 								onClick={() => void onImport()}
 							>
+								<Upload className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
 								{s.importBusy ? "Importing…" : "Import members"}
 							</Button>
 						</div>
@@ -334,6 +341,7 @@ export function GroupsPage() {
 								disabled={s.copyBusy || s.copyWlId === "" || s.members.length === 0}
 								onClick={() => void onCopyToWl()}
 							>
+								<Copy className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
 								{s.copyBusy ? "Copying…" : "Copy members"}
 							</Button>
 						</div>

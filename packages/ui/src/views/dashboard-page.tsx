@@ -2,7 +2,7 @@ import { LayerCard } from "@nocoo/basalt";
 import { StatCard, StatGrid } from "@nocoo/basalt/charts/stat-card";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { SectionRule } from "@nocoo/basalt/components/section-rule";
-import { Eye, Layers, Radio, TrendingUp } from "lucide-react";
+import { Activity, ChartNoAxesCombined, Eye, Layers, Radio, TrendingUp } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import type { DashboardAggregates } from "@/api/dashboard";
 import * as dashboardApi from "@/api/dashboard";
@@ -11,6 +11,7 @@ import { IngestTable } from "@/components/dashboard/ingest-table";
 import { ChartSkeleton, StatSkeleton } from "@/components/dashboard/skeletons";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { LoadingSkeleton, RowsSkeleton } from "@/components/loading-skeletons";
+import { SectionLabel } from "@/components/section-label";
 import { createDashboardVm, type DashboardVm } from "@/viewmodels/dashboard-vm";
 import { useVm } from "@/viewmodels/use-vm";
 
@@ -30,7 +31,10 @@ export function DashboardPage() {
 
 	return (
 		<div className="space-y-4">
-			<PageHeader title="Dashboard" description="Content across your watchlists and channels." />
+			<PageHeader
+				title={<SectionLabel icon={ChartNoAxesCombined}>Dashboard</SectionLabel>}
+				description="Content across your watchlists and channels."
+			/>
 			{error && (
 				<p role="alert" className="text-sm text-basalt-destructive">
 					{error}
@@ -62,6 +66,12 @@ function DashboardSkeleton() {
 }
 
 const icons = { content: Layers, recent: TrendingUp, watchlists: Eye, channels: Radio };
+const iconColors = {
+	content: "text-basalt-tag-blue-foreground",
+	recent: "text-basalt-tag-teal-foreground",
+	watchlists: "text-basalt-tag-amber-foreground",
+	channels: "text-basalt-tag-rose-foreground",
+};
 
 function DashboardBody({ data, vm }: { data: DashboardAggregates; vm: DashboardVm }) {
 	return (
@@ -74,15 +84,17 @@ function DashboardBody({ data, vm }: { data: DashboardAggregates; vm: DashboardV
 						value={card.value}
 						subtitle={card.subtitle}
 						icon={icons[card.key]}
-						iconColor="hidden text-basalt-muted-foreground sm:block"
-						className="bg-basalt-bright"
+						iconColor={`hidden sm:block ${iconColors[card.key]}`}
+						className="bg-basalt-bright!"
 					/>
 				))}
 			</StatGrid>
 			<LayerCard>
 				<LayerCard.Header>
 					<div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-						<span>Content added (14d)</span>
+						<SectionLabel icon={TrendingUp} tone="green">
+							Content added (14d)
+						</SectionLabel>
 						<span className="text-xs font-normal text-basalt-muted-foreground">
 							One item or report = one record · UTC
 						</span>
@@ -93,7 +105,11 @@ function DashboardBody({ data, vm }: { data: DashboardAggregates; vm: DashboardV
 				</LayerCard.Body>
 			</LayerCard>
 			<SectionRule
-				title="Watchlist ingest diagnostics"
+				title={
+					<SectionLabel icon={Activity} tone="amber">
+						Watchlist ingest diagnostics
+					</SectionLabel>
+				}
 				hint="Watchlist retries and rejections are separate from content counts."
 				actions={
 					<span className="text-xs text-basalt-muted-foreground">

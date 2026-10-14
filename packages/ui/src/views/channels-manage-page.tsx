@@ -1,4 +1,5 @@
 import { Button, Field, Input, LayerCard } from "@nocoo/basalt";
+import { StatCard, StatGrid } from "@nocoo/basalt/charts/stat-card";
 import { Banner } from "@nocoo/basalt/components/banner";
 import {
 	Dialog,
@@ -11,7 +12,7 @@ import {
 } from "@nocoo/basalt/components/dialog";
 import { InputArea } from "@nocoo/basalt/components/input-area";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
-import { StatStrip } from "@nocoo/basalt/components/stat-strip";
+import { SkeletonLine } from "@nocoo/basalt/components/skeleton-line";
 import {
 	Table,
 	TableBody,
@@ -37,6 +38,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { useChannels } from "@/components/channels-context";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { TableSkeleton } from "@/components/loading-skeletons";
+import { SectionLabel } from "@/components/section-label";
 import { TagLabels } from "@/components/tag-labels";
 import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 import { useVm } from "@/viewmodels/use-vm";
@@ -78,10 +80,9 @@ export function ChannelsManagePage() {
 			<div className="space-y-4">
 				<PageHeader
 					title={
-						<span className="flex items-center gap-2">
-							<Radio className="h-5 w-5 text-basalt-muted-foreground" aria-hidden="true" />
+						<SectionLabel icon={Radio} tone="rose">
 							Channels
-						</span>
+						</SectionLabel>
 					}
 					description="Organize your reports, arrange the sidebar, and manage each channel’s push tokens."
 					actions={
@@ -103,36 +104,37 @@ export function ChannelsManagePage() {
 					}
 				/>
 				{!creating && state.error && <Banner variant="error" size="sm" description={state.error} />}
-				<StatStrip
-					className="dark:[&_.bg-basalt-muted]:bg-basalt-muted-foreground/15 grid-cols-3 gap-2 sm:gap-3 md:grid-cols-3 [&>div]:flex [&>div]:flex-col [&>div]:bg-basalt-bright [&>div]:p-3 sm:[&>div]:p-4 [&_dd]:mt-auto [&_dd]:pt-2"
-					loading={state.catalogLoading && !state.channels.length}
-					items={[
+				<StatGrid columns={3} className="grid-cols-3 gap-2 sm:gap-3">
+					{[
+						{ label: "Channels", value: state.channels.length, icon: Radio },
 						{
-							label: (
-								<span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-									<Radio className="h-4 w-4" aria-hidden="true" /> Channels
-								</span>
-							),
-							value: state.channels.length,
-						},
-						{
-							label: (
-								<span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-									<FileText className="h-4 w-4" aria-hidden="true" /> Reports
-								</span>
-							),
+							label: "Reports",
 							value: state.channels.reduce((total, channel) => total + channel.articleCount, 0),
+							icon: FileText,
 						},
 						{
-							label: (
-								<span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-									<KeyRound className="h-4 w-4" aria-hidden="true" /> Active tokens
-								</span>
-							),
+							label: "Active tokens",
 							value: state.channels.reduce((total, channel) => total + channel.activeKeyCount, 0),
+							icon: KeyRound,
 						},
-					]}
-				/>
+					].map((stat) => (
+						<StatCard
+							key={stat.label}
+							label={stat.label}
+							value={stat.value}
+							icon={stat.icon}
+							iconColor="hidden text-basalt-muted-foreground sm:block"
+							className="bg-basalt-bright! p-3 sm:p-4 [&_[data-slot=stat-card-heading]]:gap-2 [&_[data-slot=stat-card-value]]:text-xl sm:[&_[data-slot=stat-card-value]]:text-4xl"
+							status={
+								state.catalogLoading && !state.channels.length ? (
+									<span role="status" aria-label={`Loading ${stat.label.toLowerCase()}`}>
+										<SkeletonLine className="h-6 w-10" />
+									</span>
+								) : undefined
+							}
+						/>
+					))}
+				</StatGrid>
 				<DialogContent size="lg" disablePointerDismissal>
 					<DialogHeader>
 						<DialogTitle>New channel</DialogTitle>
@@ -224,6 +226,7 @@ export function ChannelsManagePage() {
 						/>
 					) : !channels.length ? (
 						<LayerCard.Empty
+							icon={<Radio className="h-6 w-6" aria-hidden="true" strokeWidth={1.5} />}
 							title={query ? "No matching channels" : "No channels yet"}
 							description={
 								query
@@ -236,10 +239,16 @@ export function ChannelsManagePage() {
 							<TableHeader>
 								<TableRow>
 									<TableHead className="px-4">Channel</TableHead>
-									<TableHead className="px-4 hidden text-right md:table-cell">Reports</TableHead>
-									<TableHead className="px-4 hidden text-right lg:table-cell">Tokens</TableHead>
+									<TableHead textAlign="end" className="px-4 hidden md:table-cell">
+										Reports
+									</TableHead>
+									<TableHead textAlign="end" className="px-4 hidden lg:table-cell">
+										Tokens
+									</TableHead>
 									<TableHead className="px-4 hidden xl:table-cell">Latest report</TableHead>
-									<TableHead className="px-4 w-px whitespace-nowrap text-right">Actions</TableHead>
+									<TableHead textAlign="end" className="px-4 w-px whitespace-nowrap">
+										Actions
+									</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
@@ -268,16 +277,16 @@ export function ChannelsManagePage() {
 													{channel.articleCount} reports · {channel.activeKeyCount} tokens
 												</p>
 											</TableCell>
-											<TableCell className="px-4 hidden text-right tabular-nums md:table-cell">
+											<TableCell textAlign="end" className="px-4 hidden tabular-nums md:table-cell">
 												{channel.articleCount}
 											</TableCell>
-											<TableCell className="px-4 hidden text-right tabular-nums lg:table-cell">
+											<TableCell textAlign="end" className="px-4 hidden tabular-nums lg:table-cell">
 												{channel.activeKeyCount}
 											</TableCell>
 											<TableCell className="px-4 hidden whitespace-nowrap text-basalt-muted-foreground xl:table-cell">
 												{channel.latestReportDate ?? "No reports"}
 											</TableCell>
-											<TableCell className="px-4 text-right">
+											<TableCell textAlign="end" className="px-4">
 												<div className="grid grid-cols-2 justify-end gap-1 sm:flex sm:items-center">
 													<Button
 														variant="outline"

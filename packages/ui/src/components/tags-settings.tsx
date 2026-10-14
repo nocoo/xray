@@ -33,6 +33,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as api from "@/api/tags";
 import { LoadingSkeleton } from "@/components/loading-skeletons";
+import { SectionLabel } from "@/components/section-label";
 import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 import { createTagsVm } from "@/viewmodels/tags-vm";
 import { useVm } from "@/viewmodels/use-vm";
@@ -89,10 +90,9 @@ export function TagsSettings() {
 		<div className="min-w-0 space-y-4">
 			<PageHeader
 				title={
-					<span className="flex items-center gap-2">
-						<TagIcon className="h-5 w-5 text-basalt-muted-foreground" aria-hidden="true" />
+					<SectionLabel icon={TagIcon} tone="amber">
 						Tags
-					</span>
+					</SectionLabel>
 				}
 				description="One collection of labels for your channels, push tokens, and watchlist members."
 				actions={

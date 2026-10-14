@@ -1,4 +1,5 @@
 import { Button, ConfirmDialog, Field, Input, LayerCard } from "@nocoo/basalt";
+import { StatCard, StatGrid } from "@nocoo/basalt/charts/stat-card";
 import { Banner } from "@nocoo/basalt/components/banner";
 import { CodeBlock } from "@nocoo/basalt/components/code";
 import {
@@ -13,7 +14,6 @@ import {
 import { InputArea } from "@nocoo/basalt/components/input-area";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { SectionRule } from "@nocoo/basalt/components/section-rule";
-import { StatStrip } from "@nocoo/basalt/components/stat-strip";
 import {
 	Table,
 	TableBody,
@@ -44,6 +44,7 @@ import { useChannels } from "@/components/channels-context";
 import { CopyTextButton } from "@/components/copy-text-button";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { FormSkeleton, TableSkeleton } from "@/components/loading-skeletons";
+import { SectionLabel } from "@/components/section-label";
 import { TagAssignment } from "@/components/tag-assignment";
 import { TokenRenameDialog } from "@/components/token-rename-dialog";
 import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
@@ -134,13 +135,9 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 		<div className="min-w-0 space-y-5">
 			<PageHeader
 				title={
-					<span className="flex items-center gap-2">
-						<Settings
-							className="h-5 w-5 shrink-0 text-basalt-muted-foreground"
-							aria-hidden="true"
-						/>
-						<span className="min-w-0 [overflow-wrap:anywhere]">{channel.name}</span>
-					</span>
+					<SectionLabel icon={Settings} tone="rose">
+						{channel.name}
+					</SectionLabel>
 				}
 				description="Channel settings · Profile, activity, and push tokens."
 				actions={
@@ -161,54 +158,34 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 			{!creatingToken && !revoking && !deleting && state.error && (
 				<Banner role="alert" variant="error" size="sm" description={state.error} />
 			)}
-			<StatStrip
-				className="md:grid-cols-2 xl:grid-cols-4 [&>div]:bg-basalt-bright"
-				items={[
+			<StatGrid columns={4} className="grid-cols-2">
+				{[
+					{ label: "Reports", value: channel.articleCount, icon: FileText },
+					{ label: "Active tokens", value: channel.activeKeyCount, icon: KeyRound },
+					{ label: "Latest report", value: channel.latestReportDate ?? "—", icon: CalendarDays },
 					{
-						label: (
-							<span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-								<FileText className="h-4 w-4" aria-hidden="true" /> Reports
-							</span>
-						),
-						value: channel.articleCount,
+						label: "Last received",
+						value: channel.lastReceivedAtMs
+							? new Date(channel.lastReceivedAtMs).toLocaleString()
+							: "—",
+						icon: Clock3,
 					},
-					{
-						label: (
-							<span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-								<KeyRound className="h-4 w-4" aria-hidden="true" /> Active tokens
-							</span>
-						),
-						value: channel.activeKeyCount,
-					},
-					{
-						label: (
-							<span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-								<CalendarDays className="h-4 w-4" aria-hidden="true" /> Latest report
-							</span>
-						),
-						value: <span className="text-sm">{channel.latestReportDate ?? "—"}</span>,
-					},
-					{
-						label: (
-							<span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-								<Clock3 className="h-4 w-4" aria-hidden="true" /> Last received
-							</span>
-						),
-						value: (
-							<span className="text-sm">
-								{channel.lastReceivedAtMs
-									? new Date(channel.lastReceivedAtMs).toLocaleString()
-									: "—"}
-							</span>
-						),
-					},
-				]}
-			/>
+				].map((stat) => (
+					<StatCard
+						key={stat.label}
+						label={stat.label}
+						value={stat.value}
+						icon={stat.icon}
+						iconColor="hidden text-basalt-tag-rose-foreground sm:block"
+						className={`bg-basalt-bright! max-sm:p-3 max-sm:[&_[data-slot=stat-card-heading]_p]:text-xs ${typeof stat.value === "string" ? "[&_[data-slot=stat-card-value]]:text-base" : "max-sm:[&_[data-slot=stat-card-value]]:text-2xl"}`}
+					/>
+				))}
+			</StatGrid>
 			<SectionRule
 				title={
-					<span className="flex items-center gap-2">
-						<Radio className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" /> Profile
-					</span>
+					<SectionLabel icon={Radio} tone="rose">
+						Profile
+					</SectionLabel>
 				}
 			>
 				<LayerCard padding="none">
@@ -284,10 +261,9 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 			</SectionRule>
 			<SectionRule
 				title={
-					<span className="flex items-center gap-2">
-						<KeyRound className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" /> Push
-						tokens
-					</span>
+					<SectionLabel icon={KeyRound} tone="amber">
+						Push tokens
+					</SectionLabel>
 				}
 				hint="Each token can submit reports only to this channel."
 			>
@@ -418,7 +394,9 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 									<TableHead className="px-4">Name</TableHead>
 									<TableHead className="px-4 hidden md:table-cell">Created</TableHead>
 									<TableHead className="px-4 hidden sm:table-cell">Last used</TableHead>
-									<TableHead className="px-4 w-px whitespace-nowrap text-right">Actions</TableHead>
+									<TableHead textAlign="end" className="px-4 w-px whitespace-nowrap">
+										Actions
+									</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
@@ -457,7 +435,7 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 												? new Date(key.lastUsedAtMs).toLocaleString()
 												: "Never used"}
 										</TableCell>
-										<TableCell className="px-4 text-right">
+										<TableCell textAlign="end" className="px-4">
 											<Button
 												variant="ghost"
 												size="icon"
@@ -493,6 +471,7 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 						</Table>
 					) : (
 						<LayerCard.Empty
+							icon={<KeyRound aria-hidden="true" strokeWidth={1.5} />}
 							title="No push tokens"
 							description="Create a named token for each agent or page that sends reports here."
 						/>
@@ -501,10 +480,9 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 			</SectionRule>
 			<SectionRule
 				title={
-					<span className="flex items-center gap-2">
-						<Send className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" /> Submit a
-						report
-					</span>
+					<SectionLabel icon={Send} tone="blue">
+						Submit a report
+					</SectionLabel>
 				}
 				actions={
 					<CopyTextButton
@@ -537,10 +515,9 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 			</SectionRule>
 			<SectionRule
 				title={
-					<span className="flex items-center gap-2">
-						<Trash2 className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" /> Delete
-						channel
-					</span>
+					<SectionLabel icon={Trash2} tone="neutral">
+						Delete channel
+					</SectionLabel>
 				}
 			>
 				<LayerCard className="flex flex-wrap items-center justify-between gap-4">

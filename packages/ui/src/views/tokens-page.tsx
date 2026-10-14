@@ -30,9 +30,11 @@ import {
 import type { ManagedToken } from "@xray/shared";
 import {
 	ArrowUpRight,
+	Eye,
 	KeyRound,
 	Pencil,
 	Plus,
+	Radio,
 	RefreshCw,
 	Search,
 	ShieldCheck,
@@ -46,6 +48,7 @@ import { useChannels } from "@/components/channels-context";
 import { CopyTextButton } from "@/components/copy-text-button";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { TableSkeleton } from "@/components/loading-skeletons";
+import { SectionLabel } from "@/components/section-label";
 import { TagAssignment } from "@/components/tag-assignment";
 import { TokenRenameDialog } from "@/components/token-rename-dialog";
 import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
@@ -104,7 +107,11 @@ export function TokensPage() {
 	return (
 		<div className="min-w-0 space-y-5">
 			<PageHeader
-				title="Tokens"
+				title={
+					<SectionLabel icon={KeyRound} tone="amber">
+						Tokens
+					</SectionLabel>
+				}
 				description="One place for every producer. Manage watchlist ingestion and channel publishing."
 				actions={
 					<>
@@ -271,15 +278,32 @@ export function TokensPage() {
 			/>
 			<StatGrid columns={3} className="grid-cols-3 sm:grid-cols-3">
 				{[
-					{ label: "Active tokens", value: state.tokens.length },
-					{ label: "Watchlist", value: watchlistCount },
-					{ label: "Channel", value: state.tokens.length - watchlistCount },
+					{
+						label: "Active tokens",
+						value: state.tokens.length,
+						icon: KeyRound,
+						color: "text-basalt-tag-amber-foreground",
+					},
+					{
+						label: "Watchlist",
+						value: watchlistCount,
+						icon: Eye,
+						color: "text-basalt-tag-blue-foreground",
+					},
+					{
+						label: "Channel",
+						value: state.tokens.length - watchlistCount,
+						icon: Radio,
+						color: "text-basalt-tag-rose-foreground",
+					},
 				].map((stat) => (
 					<StatCard
 						key={stat.label}
 						label={stat.label}
 						value={stat.value}
-						className="bg-basalt-bright"
+						icon={stat.icon}
+						iconColor={`hidden sm:block ${stat.color}`}
+						className="bg-basalt-bright! max-sm:p-3 max-sm:[&_[data-slot=stat-card-heading]_p]:text-xs max-sm:[&_[data-slot=stat-card-value]]:text-2xl"
 						status={state.loading && !state.tokens.length ? <SkeletonLine /> : undefined}
 					/>
 				))}
@@ -335,7 +359,9 @@ export function TokensPage() {
 								<TableHead className="px-4">Producer</TableHead>
 								<TableHead className="hidden w-64 px-4 lg:table-cell">Access</TableHead>
 								<TableHead className="hidden w-44 px-4 md:table-cell">Activity</TableHead>
-								<TableHead className="w-24 px-4 text-right">Actions</TableHead>
+								<TableHead textAlign="end" className="w-24 px-4 ">
+									Actions
+								</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
@@ -455,6 +481,7 @@ export function TokensPage() {
 					</Table>
 				) : (
 					<LayerCard.Empty
+						icon={<KeyRound aria-hidden="true" strokeWidth={1.5} />}
 						title={
 							state.error
 								? "Tokens unavailable"

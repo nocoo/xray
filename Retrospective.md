@@ -332,3 +332,42 @@ verified in Chrome at desktop and narrow mobile widths in both themes. The
 browser regression compares all three counter backgrounds with the semantic
 bright token; choosing a library component alone does not prove its surface is
 appropriate for the page hierarchy.
+
+## 2026-10-14 - Verify live geometry after a Basalt major upgrade
+
+Basalt 3.1.0 changes StatCard to a LayerCard surface and replaces old button
+utility classes with semantic action classes. The initial dev inspection still
+used Vite's pre-upgrade optimized package, so the server was restarted before
+acceptance. Under the actual new package, surface selectors overrode ordinary
+bright-background utilities and SidebarUser grew beyond the centered footer.
+Explicit bright-token priority for primary statistics and their skeletons, plus
+bounded user-row width, restore the intended hierarchy and avatar containment.
+Browser regressions check these computed styles and bounds in both themes.
+The copy-button test now checks current action-size classes instead of retired
+text utilities. A first screenshot sweep also used redirected route aliases and
+tried switching themes inside the immersive reader's hidden chrome; acceptance
+now uses canonical routes and switches themes on the Tokens page before the sweep.
+The full browser suite additionally exposed the wider island insets reducing the
+three-column reader below its 440px content floor at 1280px. Reducing the side
+columns' minimum, rather than the readable center or test threshold, preserves
+that contract. Mobile overlay geometry now waits for the opening scale animation
+to settle before comparing 44px touch targets; the desktop environment rail
+expectation follows Basalt 3's documented 34px control size.
+Lucide itself marks SVGs hidden from accessibility; the new heading regression
+initially counted both that SVG and its decorative wrapper. It now asserts the
+SVG's actual hidden semantics instead of assuming a single hidden descendant.
+Basalt 3's ghost buttons also reserve a transparent one-pixel border. The reader's
+borderless action menu explicitly removes it on its existing shared action class,
+keeping identical row geometry and the original no-border contract.
+The updated timing also exposed an existing read/pagination race: opening an
+unread report refreshed the article list after its read mutation, invalidating a
+concurrent Load more response. Read confirmations now update matching state and
+refresh only the channel catalog; confirmed reads are preserved across in-flight
+list responses. Deferred-promise tests exercise both completion orders instead
+of hiding the race with browser sleeps.
+The corresponding browser journey now waits for the channel catalog refresh,
+not the intentionally removed article-list request. Switching mobile popovers
+waits for the first popover to close so its closing focus restoration cannot
+dismiss the newly opened one. Group selection retains a visible checkmark, and
+the new layout regression checks island overflow as well as document overflow
+in Chromium and WebKit.

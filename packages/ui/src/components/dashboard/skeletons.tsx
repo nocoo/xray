@@ -3,7 +3,7 @@ import { SkeletonLine } from "@nocoo/basalt/components/skeleton-line";
 
 export function StatSkeleton() {
 	return (
-		<LayerCard className="bg-basalt-bright">
+		<LayerCard className="bg-basalt-bright!">
 			<div className="flex items-center justify-between">
 				<SkeletonLine className="h-3" minWidth={30} maxWidth={50} />
 				<SkeletonLine className="h-4" style={{ width: "calc(var(--spacing) * 4)" }} />

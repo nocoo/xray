@@ -54,6 +54,7 @@ import { HeaderTooltip } from "@/components/layout/header-links";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { ArticleSkeleton, RowsSkeleton } from "@/components/loading-skeletons";
 import { MobileReaderActions } from "@/components/mobile-reader-actions";
+import { SectionLabel } from "@/components/section-label";
 import { TagLabels } from "@/components/tag-labels";
 import { UnreadDot } from "@/components/unread-dot";
 import { useAuthUser } from "@/hooks/me-context";
@@ -373,11 +374,9 @@ export function ChannelsPage() {
 					<PageHeader
 						title={
 							<span className="channel-title flex items-center gap-2" title={channel?.name}>
-								<Radio
-									className="h-5 w-5 shrink-0 text-basalt-muted-foreground"
-									aria-hidden="true"
-								/>
-								{channel?.name ?? "Channel"}
+								<SectionLabel icon={Radio} tone="rose">
+									{channel?.name ?? "Channel"}
+								</SectionLabel>
 							</span>
 						}
 						description={
