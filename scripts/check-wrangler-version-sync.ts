@@ -26,9 +26,11 @@ function main(): void {
 	const releaseVersions = [...release.matchAll(/^\s+wrangler-version:\s*"([^"]+)"\s*$/gm)].map(
 		(match) => match[1],
 	);
-	if (releaseVersions.length !== 1 || !releaseVersions[0]) {
-		throw new Error("Release workflow must declare exactly one wrangler-version.");
+	// base-ci v2026.9 derives Wrangler from the lockfile; an explicit pin is optional.
+	if (releaseVersions.length > 1) {
+		throw new Error("Release workflow must declare at most one wrangler-version.");
 	}
+	const releaseVersion = releaseVersions[0] ?? "lockfile";
 
 	const manifestVersion = workerPackage.devDependencies?.wrangler;
 	if (!manifestVersion) throw new Error("Worker package must declare a Wrangler devDependency.");
@@ -49,10 +51,11 @@ function main(): void {
 		"resolved Wrangler package in bun.lock",
 	);
 
-	const versions = [releaseVersions[0], manifestVersion, lockedWorkspaceVersion, resolvedVersion];
+	const versions = [manifestVersion, lockedWorkspaceVersion, resolvedVersion];
+	if (releaseVersion !== "lockfile") versions.push(releaseVersion);
 	if (!versions.every((version) => version === manifestVersion)) {
 		throw new Error(
-			`Wrangler version mismatch: release=${releaseVersions[0]}, manifest=${manifestVersion}, ` +
+			`Wrangler version mismatch: release=${releaseVersion}, manifest=${manifestVersion}, ` +
 				`workspace-lock=${lockedWorkspaceVersion}, resolved-lock=${resolvedVersion}.`,
 		);
 	}
