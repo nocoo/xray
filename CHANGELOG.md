@@ -2,6 +2,12 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.8.0
+
+### Added
+- Add scoped read-only query tokens
+- Refine token table layout and hierarchy
+
 ## v2.7.0
 
 ### Added
