@@ -2,6 +2,29 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.7.0
+
+### Added
+- Polish ui with basalt 3.1 and lucide
+- Add account-wide token management
+
+### Changed
+- Upgrade base-ci to v2026.9
+- Bump vitest and @vitest/coverage-v8 to 5.0.4
+- Bump wrangler to 4.149.0
+- Bump turbo to 2.11.7
+- Bump source-map-js override to 1.2.2
+- Bump sharp override to 0.35.5
+- Bump remark-cjk-friendly to 2.3.2
+- Bump lucide-react to 1.55.0
+- Bump hono to 4.13.13
+- Bump @playwright/test to 1.64.0
+- Bump @cloudflare/workers-types to 5.20261012.1
+
+### Fixed
+- Align shell and page spacing with basalt
+- Preserve pagination when marking reports read
+
 ## v2.6.0
 
 ### Changed
