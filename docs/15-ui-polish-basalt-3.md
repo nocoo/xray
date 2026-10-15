@@ -79,3 +79,36 @@ assertions. Headful Chrome 155 checked 11 routes in both themes at 1440, 768, 39
 and 320px with no page errors or document/island overflow. Screenshots are under
 `reports/ui-spacing-2026-10-15/`. Backend and dependency lanes were unchanged and
 were not rerun for this UI-only follow-up.
+
+## Token table refinement (2026-10-15)
+
+The Tokens page now composes the installed Basalt DataTable with `edge="attached"`
+instead of managing table cells and outer rails independently. Token identity,
+access, tags, last use and actions have separate desktop columns. Sorting and
+pagination are not added; filtering, mutations and one-time credentials stay in
+the existing ViewModel and dialogs. Loading uses the same DataTable columns.
+
+Responsive columns follow the available table width, not the viewport: access
+appears at 36rem, activity at 48rem and tags at 60rem. A 768px viewport still has
+a 260px sidebar, so viewport-based column visibility can leave almost no room
+for a token name. Narrow tables keep identity, target and both actions visible;
+Basalt Collapsible exposes scopes, tags and activity under Details. Mobile
+actions retain 44px targets. Full names and precise last-use timestamps remain
+available on the corresponding title attributes.
+
+Semantic blue/rose distinguish watchlist/channel credentials; amber identifies
+unused tokens, and teal marks recorded activity. Lucide header and type glyphs
+are decorative, while the labels remain textual. InputGroup owns the search
+icon inset, with stacked filters on small screens. Bright statistics keep aligned
+values when their labels wrap. `e2e/tokens-management.pw.ts` checks real rows,
+column visibility, minimum identity width, action targets and Details behavior.
+
+Verification: lint/typecheck/build and 945 unit tests passed, with all four
+coverage metrics above 95%. The final managed Chromium/WebKit run passed 43/43;
+the preceding run passed the token journeys but encountered a socket closure in
+the unrelated local-environment WebKit test. Chrome 155 acceptance used both
+themes at 1440/1024/768/390/320px with watchlist/channel tokens, long names, used
+and unused credentials, tags, Details and the create dialog. No page errors or
+horizontal table overflow occurred; baseline desktop rows measured 78px across
+both types. Captures live under `reports/tokens-layout-2026-10-15/`. No production
+data, dependencies or backend behavior changed.

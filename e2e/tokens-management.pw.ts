@@ -280,3 +280,59 @@ test("tokens remain usable on narrow screens with empty filters, dialogs and ret
 	await expect(page.getByRole("alert")).toHaveCount(0);
 	await request.delete(`${WORKER}/api/push-tokens/${fixture.id}`, { headers: browserApiHeaders });
 });
+
+test("token table uses aligned columns and container-aware details", async ({ page, request }) => {
+	const suffix = crypto.randomUUID();
+	const channel = (await (await request.post(`${WORKER}/api/channels`, {
+		headers: browserApiHeaders, data: { name: `Layout ${suffix}` },
+	})).json()).data;
+	const channelLabel = `Publisher ${suffix}`;
+	const watchLabel = `Collector ${suffix}`;
+	await request.post(`${WORKER}/api/channels/${channel.id}/keys`, {
+		headers: browserApiHeaders, data: { label: channelLabel },
+	});
+	const watch = (await (await request.post(`${WORKER}/api/push-tokens`, {
+		headers: browserApiHeaders, data: { label: watchLabel },
+	})).json()).data;
+	try {
+		await page.goto(`${BROWSER}/tokens`);
+		await page.getByRole("textbox", { name: "Search tokens" }).fill(suffix);
+		const table = page.getByRole("table", { name: "Active tokens", exact: true });
+		await expect(table.locator("tbody tr")).toHaveCount(2);
+		for (const width of [1440, 1024, 768, 390, 320]) {
+			await page.setViewportSize({ width, height: 1000 });
+			await expect.poll(() => table.evaluate(node => node.parentElement!.scrollWidth <= node.parentElement!.clientWidth)).toBe(true);
+			await expect.poll(() => table.locator("tbody td:first-child").evaluateAll(cells => cells.every(cell => cell.getBoundingClientRect().width >= 140))).toBe(true);
+			const row = table.getByRole("row").filter({ hasText: channelLabel });
+			for (const action of ["Rename", "Revoke"]) {
+				const button = row.getByRole("button", { name: `${action} ${channelLabel}`, exact: true });
+				await expect(button).toBeInViewport();
+				const bounds = await button.boundingBox();
+				if (width < 640) {
+					expect(bounds!.width).toBeGreaterThanOrEqual(44);
+					expect(bounds!.height).toBeGreaterThanOrEqual(44);
+				}
+			}
+			if (width === 1440) {
+				await expect(table.getByRole("columnheader")).toHaveText(["Token", "Access", "Tags", "Last used", "Actions"]);
+				await expect(table.getByRole("columnheader", { name: "Tags", exact: true })).toBeVisible();
+				const heights = await table.locator("tbody tr").evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height));
+				expect(heights[0]).toBe(heights[1]);
+				expect(heights[0]).toBeLessThanOrEqual(90);
+			} else {
+				const details = row.getByRole("button", { name: `Details for ${channelLabel}`, exact: true });
+				await details.click();
+				await expect(details).toHaveAttribute("aria-expanded", "true");
+				await expect(row.getByRole("button", { name: `Edit ${channelLabel} tags`, exact: true })).toBeVisible();
+				await expect(row.getByText("Never used", { exact: true }).filter({ visible: true })).toBeVisible();
+				await details.click();
+				await expect(details).toHaveAttribute("aria-expanded", "false");
+			}
+			const search = await page.getByRole("textbox", { name: "Search tokens" }).boundingBox();
+			expect(search!.width).toBeGreaterThan(180);
+		}
+	} finally {
+		await request.delete(`${WORKER}/api/channels/${channel.id}`, { headers: browserApiHeaders });
+		await request.delete(`${WORKER}/api/push-tokens/${watch.id}`, { headers: browserApiHeaders });
+	}
+});

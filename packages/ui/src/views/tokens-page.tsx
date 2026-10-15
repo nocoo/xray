@@ -10,6 +10,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@nocoo/basalt/components/dialog";
+import { InputGroup } from "@nocoo/basalt/components/input-group";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import {
 	Select,
@@ -19,38 +20,17 @@ import {
 	SelectValue,
 } from "@nocoo/basalt/components/select";
 import { SkeletonLine } from "@nocoo/basalt/components/skeleton-line";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@nocoo/basalt/components/table";
 import type { ManagedToken } from "@xray/shared";
-import {
-	ArrowUpRight,
-	Eye,
-	KeyRound,
-	Pencil,
-	Plus,
-	Radio,
-	RefreshCw,
-	Search,
-	ShieldCheck,
-	Trash2,
-} from "lucide-react";
+import { Eye, KeyRound, Plus, Radio, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router";
 import * as tagsApi from "@/api/tags";
 import * as tokensApi from "@/api/tokens";
 import { useChannels } from "@/components/channels-context";
 import { CopyTextButton } from "@/components/copy-text-button";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
-import { TableSkeleton } from "@/components/loading-skeletons";
 import { SectionLabel } from "@/components/section-label";
-import { TagAssignment } from "@/components/tag-assignment";
 import { TokenRenameDialog } from "@/components/token-rename-dialog";
+import { TokensTable } from "@/components/tokens-table";
 import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 import { ingestBase } from "@/lib/environment";
 import { createTagsVm } from "@/viewmodels/tags-vm";
@@ -302,8 +282,8 @@ export function TokensPage() {
 						label={stat.label}
 						value={stat.value}
 						icon={stat.icon}
-						iconColor={`hidden sm:block ${stat.color}`}
-						className="bg-basalt-bright! max-sm:p-3 max-sm:[&_[data-slot=stat-card-heading]_p]:text-xs max-sm:[&_[data-slot=stat-card-value]]:text-2xl"
+						iconColor={`hidden xl:block ${stat.color}`}
+						className="bg-basalt-bright! max-sm:p-3 max-sm:[&_[data-slot=stat-card-heading]]:min-h-basalt-control-lg max-sm:[&_[data-slot=stat-card-heading]_p]:text-xs max-sm:[&_[data-slot=stat-card-value]]:text-2xl"
 						status={state.loading && !state.tokens.length ? <SkeletonLine /> : undefined}
 					/>
 				))}
@@ -314,29 +294,31 @@ export function TokensPage() {
 			<LayerCard padding="none">
 				<LayerCard.Header className="flex flex-wrap items-center justify-between gap-3">
 					<div className="flex items-center gap-2">
-						<KeyRound className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" />
+						<KeyRound
+							className="size-basalt-icon-lg text-basalt-tag-amber-foreground"
+							aria-hidden="true"
+							strokeWidth={1.5}
+						/>
 						<h2 className="text-sm font-medium">Active credentials</h2>
-						<span className="text-xs tabular-nums text-basalt-muted-foreground">
+						<Badge variant="secondary" className="tabular-nums">
 							{filtered.length}
 							{filtered.length !== state.tokens.length && ` / ${state.tokens.length}`}
-						</span>
+						</Badge>
 					</div>
-					<div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-						<div className="relative min-w-0 flex-1 sm:w-64">
-							<Search
-								className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-basalt-muted-foreground"
-								aria-hidden="true"
-							/>
-							<Input
+					<div className="grid w-full gap-basalt-content-gap sm:max-w-md sm:grid-cols-[minmax(0,1fr)_9rem]">
+						<InputGroup>
+							<InputGroup.Addon>
+								<Search aria-hidden="true" strokeWidth={1.5} />
+							</InputGroup.Addon>
+							<InputGroup.Input
 								aria-label="Search tokens"
 								placeholder="Search name, channel, or tag"
-								className="pl-9"
 								value={query}
 								onChange={(event) => setQuery(event.target.value)}
 							/>
-						</div>
+						</InputGroup>
 						<Select value={kind} onValueChange={(value) => setKind(value as TokenKind)}>
-							<SelectTrigger aria-label="Filter token type" className="w-36">
+							<SelectTrigger aria-label="Filter token type" className="w-full">
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
@@ -347,141 +329,25 @@ export function TokensPage() {
 						</Select>
 					</div>
 				</LayerCard.Header>
-				{state.loading && !state.tokens.length ? (
-					<TableSkeleton
-						label="Loading tokens"
-						columns={[{ label: "Producer" }, { label: "Access" }, { label: "Actions" }]}
+				{(state.loading && !state.tokens.length) || filtered.length ? (
+					<TokensTable
+						tokens={filtered}
+						loading={state.loading && !state.tokens.length}
+						busy={state.busy}
+						tagsVm={tagsVm}
+						onTags={(id, tags) => vm.setTags(id, tags)}
+						onRename={(token, event) => {
+							renameButton.current = event.currentTarget;
+							vm.setState({ error: null });
+							setEditing(token);
+						}}
+						onRevoke={(token, event) => {
+							event.currentTarget.focus();
+							revokeButton.current = event.currentTarget;
+							vm.setState({ error: null });
+							setRevoking(token);
+						}}
 					/>
-				) : filtered.length ? (
-					<Table
-						aria-label="Active tokens"
-						className="table-fixed [&_tr>:first-child]:ps-basalt-table-edge [&_tr>:last-child]:pe-basalt-table-edge"
-					>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Producer</TableHead>
-								<TableHead className="hidden w-64 lg:table-cell">Access</TableHead>
-								<TableHead className="hidden w-44 md:table-cell">Activity</TableHead>
-								<TableHead textAlign="end" className="w-24">
-									Actions
-								</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{filtered.map((token) => (
-								<TableRow key={token.id}>
-									<TableCell className="py-basalt-panel-y align-top">
-										<p className="truncate font-medium" title={token.label}>
-											{token.label}
-										</p>
-										<div className="mt-1 flex flex-wrap items-center gap-2">
-											<code className="text-xs text-basalt-muted-foreground">
-												{token.tokenPrefix}...
-											</code>
-											<Badge variant="secondary" className="text-xs">
-												{token.channelId === null ? "Watchlist" : "Channel"}
-											</Badge>
-										</div>
-										<div className="mt-2 min-w-0 lg:hidden">
-											{token.channelId === null ? (
-												<span className="text-xs text-basalt-muted-foreground">
-													All your watchlists
-												</span>
-											) : (
-												<Link
-													className="block truncate text-xs hover:underline"
-													to={`/channels/${token.channelId}/settings`}
-													title={token.channelName ?? undefined}
-												>
-													{token.channelName}
-												</Link>
-											)}
-										</div>
-										{token.channelId !== null && (
-											<div className="mt-2">
-												<TagAssignment
-													vm={tagsVm}
-													tags={token.tags}
-													channelId={token.channelId}
-													keyId={token.id}
-													label={token.label}
-													onChange={(tags) => vm.setTags(token.id, tags)}
-												/>
-											</div>
-										)}
-										<p className="mt-2 text-xs text-basalt-muted-foreground md:hidden">
-											{token.lastUsedAtMs
-												? `Used ${new Date(token.lastUsedAtMs).toLocaleDateString()}`
-												: "Never used"}
-										</p>
-									</TableCell>
-									<TableCell className="hidden py-basalt-panel-y align-top lg:table-cell">
-										{token.channelId === null ? (
-											<p className="text-sm">All your watchlists</p>
-										) : (
-											<Link
-												className="flex min-w-0 items-center gap-1 text-sm hover:underline"
-												to={`/channels/${token.channelId}/settings`}
-											>
-												<span className="truncate" title={token.channelName ?? undefined}>
-													{token.channelName}
-												</span>
-												<ArrowUpRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-											</Link>
-										)}
-										<p className="mt-1 break-words font-mono text-xs text-basalt-muted-foreground">
-											{token.scopes.join(" · ")}
-										</p>
-									</TableCell>
-									<TableCell className="hidden py-basalt-panel-y align-top md:table-cell">
-										<p className="text-xs">
-											{token.lastUsedAtMs
-												? new Date(token.lastUsedAtMs).toLocaleString()
-												: "Never used"}
-										</p>
-										<p className="mt-1 text-xs text-basalt-muted-foreground">
-											Created {new Date(token.createdAtMs).toLocaleDateString()}
-										</p>
-									</TableCell>
-									<TableCell className="py-basalt-panel-y align-top">
-										<div className="flex flex-col items-end gap-1 sm:flex-row sm:justify-end">
-											<Button
-												variant="ghost"
-												size="icon"
-												className="h-11 w-11 sm:h-9 sm:w-9"
-												aria-label={`Rename ${token.label}`}
-												title="Rename token"
-												disabled={state.busy}
-												onClick={(event) => {
-													renameButton.current = event.currentTarget;
-													vm.setState({ error: null });
-													setEditing(token);
-												}}
-											>
-												<Pencil className="h-4 w-4" aria-hidden="true" />
-											</Button>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="h-11 w-11 sm:h-9 sm:w-9 text-basalt-muted-foreground hover:text-basalt-destructive"
-												aria-label={`Revoke ${token.label}`}
-												title="Revoke token"
-												disabled={state.busy}
-												onClick={(event) => {
-													event.currentTarget.focus();
-													revokeButton.current = event.currentTarget;
-													vm.setState({ error: null });
-													setRevoking(token);
-												}}
-											>
-												<Trash2 className="h-4 w-4" aria-hidden="true" />
-											</Button>
-										</div>
-									</TableCell>
-								</TableRow>
-							))}
-						</TableBody>
-					</Table>
 				) : (
 					<LayerCard.Empty
 						icon={<KeyRound aria-hidden="true" strokeWidth={1.5} />}

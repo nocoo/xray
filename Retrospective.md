@@ -383,3 +383,13 @@ had tests that passed without exercising the rendered sidebar; replace those
 checks with actual expanded/collapsed avatar coordinates, footer padding, island
 insets and toolbar typography. Increased desktop island padding is a documented
 package change, not a reason to shrink global control or layout tokens.
+
+## 2026-10-15 - Measure table width after subtracting the sidebar
+
+The initial Tokens DataTable composition used viewport breakpoints for its fixed
+activity column. At 768px the remaining island was only 436px wide: the table
+itself did not overflow, but identity cells collapsed and their children
+overlapped. Document-level overflow checks could not catch that. Column visibility
+now follows a named table container, with auxiliary details disclosed below the
+identity when space is limited. Browser regression measures the identity cell's
+minimum width and action reachability, not just the overall table bounds.
