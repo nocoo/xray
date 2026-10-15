@@ -112,7 +112,14 @@ export {
 	X_HANDLE_RE,
 	XRAY_SECRET_ENV_KEYS,
 } from "./producer-utils.js";
-export type { ContentQuery, QueryArticle, QueryItem, QueryPage, QueryPost } from "./query.js";
+export type {
+	ContentQuery,
+	QueryArticle,
+	QueryItem,
+	QueryPage,
+	QueryPost,
+	QuerySources,
+} from "./query.js";
 export { parseContentQuery } from "./query.js";
 export type { SourceType } from "./source.js";
 export { isSourceType, SOURCE_TYPE_LABELS, SOURCE_TYPES } from "./source.js";

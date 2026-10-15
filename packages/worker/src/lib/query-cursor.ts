@@ -10,7 +10,7 @@ export type QueryCursorContext = {
 };
 
 async function signature(body: string, context: QueryCursorContext): Promise<string> {
-	const { startMs, endMs, order } = context.query;
+	const { source, startMs, endMs, order } = context.query;
 	const key = await crypto.subtle.importKey(
 		"raw",
 		new TextEncoder().encode(context.key),
@@ -22,7 +22,16 @@ async function signature(body: string, context: QueryCursorContext): Promise<str
 		"HMAC",
 		key,
 		new TextEncoder().encode(
-			JSON.stringify([body, context.tokenId, context.accessJson, startMs, endMs, order]),
+			JSON.stringify([
+				body,
+				context.tokenId,
+				context.accessJson,
+				source.kind,
+				source.id,
+				startMs,
+				endMs,
+				order,
+			]),
 		),
 	);
 	return Array.from(new Uint8Array(signed), (byte) => byte.toString(16).padStart(2, "0")).join("");

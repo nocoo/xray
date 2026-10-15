@@ -186,7 +186,7 @@ export function TokenEditorDialog({
 						)}
 						<LayerCard className="text-sm text-basalt-muted-foreground">
 							{kind === "query"
-								? "Read-only. Up to 100 posts and articles per page. No publishing, read-state changes, or token administration."
+								? "Read-only. Grants define allowed sources; each request queries one watchlist or channel, up to 100 items per page. No publishing, read-state changes, or token administration."
 								: kind === "channel"
 									? "Publish Markdown reports to one channel. The destination cannot be changed later."
 									: "Read the collection graph and push content to any watchlist in your account. No stored-content query or channel access."}

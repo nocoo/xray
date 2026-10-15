@@ -7,13 +7,15 @@ export function tokenAgentGuide(kind: TokenKind, base: string): string {
 
 READ-ONLY QUERY TOKEN
 Read XRAY_QUERY_TOKEN from the environment.
+First GET /api/v1/query/sources with the same credential. It returns {success:true,data:{watchlists:[{id,name}],channels:[{id,name}]}} with only live authorized sources. Do not invent IDs or use the producer graph.
+Query each source separately: GET /api/v1/query?watchlistId=<id> for posts, or GET /api/v1/query?channelId=<id> for articles. Exactly one source ID is required; no selector, both selectors, or duplicate parameters return 400. Sources outside the token grant return 403; missing or foreign sources under an all-source grant return 404. Refresh the source list after deletion.
 GET /api/v1/query returns {success:true,data:{items:[...],nextCursor:string|null}}.
 Each item is {kind:"post",timeMs,post:{id,watchlistId,sourceType,externalId,authorUsername,title,text,createdAtMs,payload,translatedText,quotedTranslatedText,summaryText}} or {kind:"article",timeMs,article:{id,channelId,externalId,title,reportDate,summary,author,markdown,sourceLabel,createdAtMs}}.
-Only the token's allowed sources are returned. All-source tokens include future watchlists and channels; selected-source tokens do not.
+Each page contains only the requested source, never merged content. Token grants are an authorization ceiling, not query selection. All-source tokens permit current and future watchlists and channels; selected-source tokens permit only their configured IDs. To read multiple sources, loop over the discovered IDs with separate pagination/checkpoints for each.
 Pages contain at most 100 items (limit=1..100, default 100). Default order=desc, newest first. timeMs is post publication time or article report_date at 00:00:00 UTC, not ingestion time.
 Optional start (inclusive) and end (exclusive) must be RFC3339 UTC timestamps ending in Z, with at most 3 fractional second digits. Use order=asc for oldest first.
-Example: GET /api/v1/query?limit=100&order=asc&start=2026-10-01T00%3A00%3A00Z&end=2026-11-01T00%3A00%3A00Z
-For each next page, URL-encode nextCursor into cursor, keeping the same time range and order. Stop when nextCursor is null. Cursors are bound to this token and its access settings; restart pagination after settings change. Do not invent or modify cursors.
+Example: GET /api/v1/query?watchlistId=<id-from-sources>&limit=100&order=asc&start=2026-10-01T00%3A00%3A00Z&end=2026-11-01T00%3A00%3A00Z
+For each next page, URL-encode nextCursor into cursor, keeping the same source ID, time range and order. Stop when nextCursor is null. Cursors are bound to this token, its access settings and the selected source; restart pagination after settings change. Do not invent or modify cursors.
 Consume idempotently using (kind, post.id or article.id). This is not a change feed or snapshot: late arrivals/edits require an overlapping time window and local deduplication. Store any consumer checkpoint yourself.
 Queries never mark content read, delete data, acknowledge consumption, or run AI. This token cannot publish or read the ingest graph.`;
 	if (kind === "channel")

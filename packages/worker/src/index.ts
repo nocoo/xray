@@ -184,6 +184,7 @@ app.get("/api/v1/ingest/graph", ingestGraphRoute);
 app.post("/api/v1/ingest/push", ingestPushRoute);
 app.post("/api/v1/ingest/articles", ingestArticlesRoute);
 app.get("/api/v1/query", queryRoute);
+app.get("/api/v1/query/sources", queryRoute);
 
 // Browser/local SPA via ASSETS binding
 app.all("*", async (c) => {

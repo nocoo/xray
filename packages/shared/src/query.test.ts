@@ -52,15 +52,25 @@ describe("query token contracts", () => {
 			expect(parseQueryTokenInput(body).ok).toBe(false);
 	});
 	test("parses UTC intervals and defaults", () => {
-		expect(parseContentQuery({})).toEqual({
+		expect(parseContentQuery({ watchlistId: "1" })).toEqual({
 			ok: true,
-			value: { startMs: null, endMs: null, order: "desc", limit: 100, cursor: null },
+			value: {
+				source: { kind: "watchlist", id: 1 },
+				startMs: null,
+				endMs: null,
+				order: "desc",
+				limit: 100,
+				cursor: null,
+			},
 		});
 		const start = "2026-10-14T00:00:00Z",
 			end = "2026-10-15T00:00:00.123Z";
-		expect(parseContentQuery({ start, end, order: "asc", limit: "1", cursor: "abc" })).toEqual({
+		expect(
+			parseContentQuery({ channelId: "2", start, end, order: "asc", limit: "1", cursor: "abc" }),
+		).toEqual({
 			ok: true,
 			value: {
+				source: { kind: "channel", id: 2 },
 				startMs: Date.parse(start),
 				endMs: Date.parse(end),
 				order: "asc",
@@ -68,8 +78,19 @@ describe("query token contracts", () => {
 				cursor: "abc",
 			},
 		});
-		expect(parseContentQuery({ start: "0001-01-01T00:00:00.1Z" }).ok).toBe(true);
-		expect(parseContentQuery({ end: "2026-10-14T00:00:00.12Z" }).ok).toBe(true);
+		expect(parseContentQuery({ watchlistId: "1", start: "0001-01-01T00:00:00.1Z" }).ok).toBe(true);
+		expect(parseContentQuery({ watchlistId: "1", end: "2026-10-14T00:00:00.12Z" }).ok).toBe(true);
+	});
+	test("requires exactly one canonical positive source ID", () => {
+		for (const raw of [
+			{},
+			{ watchlistId: "1", channelId: "2" },
+			...["", "0", "-1", "1.5", "1e2", "01", " 1", "9007199254740992"].flatMap((id) => [
+				{ watchlistId: id },
+				{ channelId: id },
+			]),
+		])
+			expect(parseContentQuery(raw).ok).toBe(false);
 	});
 	test("rejects invalid dates, precision and query options", () => {
 		for (const raw of [
@@ -92,6 +113,6 @@ describe("query token contracts", () => {
 			{ cursor: "x".repeat(2049) },
 			{ tenant: "other" },
 		])
-			expect(parseContentQuery(raw).ok, JSON.stringify(raw)).toBe(false);
+			expect(parseContentQuery({ watchlistId: "1", ...raw }).ok, JSON.stringify(raw)).toBe(false);
 	});
 });

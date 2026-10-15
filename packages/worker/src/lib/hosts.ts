@@ -33,6 +33,7 @@ export function classifyHost(hostHeader: string): HostKind {
 export function isIngestAllowedPath(method: string, path: string): boolean {
 	if (method === "GET" && path === "/api/live") return true;
 	if (method === "GET" && path === "/api/v1/query") return true;
+	if (method === "GET" && path === "/api/v1/query/sources") return true;
 	if (method === "GET" && path === "/api/v1/ingest/graph") return true;
 	if (method === "POST" && path === "/api/v1/ingest/push") return true;
 	if (method === "POST" && path === "/api/v1/ingest/articles") return true;

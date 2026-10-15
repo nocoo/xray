@@ -119,7 +119,8 @@ Push token is **agent authentication**, not a write-only capability.
   - `GET /api/v1/ingest/graph` — requires scope `ingest:read`. Returns that user's watchlists + `x.com` members (shape = producer `parseMembersGraph`).
   - `POST /api/v1/ingest/push` — requires scope `ingest:push`.
   - `POST /api/v1/ingest/articles` — requires a channel-bound key with `articles:write`.
-  - `GET /api/v1/query` — requires `query:read` and explicit all/selected access; bounded mixed post/article results, never read-state mutations. [Contract](16-query-tokens.md).
+  - `GET /api/v1/query/sources` — requires `query:read`; only authorized live watchlist/channel IDs and names.
+  - `GET /api/v1/query` — requires `query:read` and explicit all/selected access; exactly one `watchlistId` or `channelId` per request, source-bound cursors, never merged results or read-state mutations. [Contract](16-query-tokens.md).
 - Mint default scopes: `["ingest:read","ingest:push"]`. Missing scope → 403. Tokens minted with only `ingest:push` do **not** gain read; remint.
 - Token does **not** unlock browser CRUD, Groups, AI, settings, zhe.to, or token admin.
 

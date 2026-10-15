@@ -42,7 +42,8 @@ const sections = [
 		kind: "query",
 		label: "Query",
 		title: "Read-only query",
-		description: "Read posts and articles from all or selected sources. 100 items per page.",
+		description:
+			"Authorize all or selected sources. Query one watchlist or channel at a time, up to 100 items per page.",
 		icon: ScanSearch,
 		tone: "text-basalt-tag-teal-foreground",
 	},

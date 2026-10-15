@@ -14,7 +14,12 @@ test("query guide describes pagination, time boundaries and strictly read-only c
 	const guide = tokenAgentGuide("query", "https://xray-ingest.worker.hexly.ai");
 	for (const term of [
 		"XRAY_QUERY_TOKEN",
-		"GET /api/v1/query",
+		"GET /api/v1/query/sources",
+		"watchlistId=<id>",
+		"channelId=<id>",
+		"Exactly one source ID",
+		"never merged content",
+		"same source ID",
 		"nextCursor",
 		"100",
 		"inclusive",

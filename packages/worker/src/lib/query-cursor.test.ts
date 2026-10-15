@@ -5,7 +5,14 @@ const context: QueryCursorContext = {
 	tokenId: 1,
 	accessJson: '{"mode":"all","watchlistIds":[],"channelIds":[]}',
 	key: "cursor-test-key",
-	query: { startMs: null, endMs: null, order: "asc", limit: 100, cursor: null },
+	query: {
+		source: { kind: "watchlist", id: 1 },
+		startMs: null,
+		endMs: null,
+		order: "asc",
+		limit: 100,
+		cursor: null,
+	},
 };
 async function signed(raw: string) {
 	const body = btoa(raw).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -20,7 +27,16 @@ async function signed(raw: string) {
 		"HMAC",
 		key,
 		new TextEncoder().encode(
-			JSON.stringify([body, context.tokenId, context.accessJson, null, null, "asc"]),
+			JSON.stringify([
+				body,
+				context.tokenId,
+				context.accessJson,
+				"watchlist",
+				1,
+				null,
+				null,
+				"asc",
+			]),
 		),
 	);
 	const mac = Array.from(new Uint8Array(value), (v) => v.toString(16).padStart(2, "0")).join("");
@@ -51,6 +67,8 @@ describe("query cursor validation", () => {
 		const cursor = await encodeQueryCursor({ timeMs: 1, kind: "post", id: 1 }, context);
 		for (const next of [
 			{ ...context, tokenId: 2 },
+			{ ...context, query: { ...context.query, source: { kind: "channel" as const, id: 1 } } },
+			{ ...context, query: { ...context.query, source: { kind: "watchlist" as const, id: 2 } } },
 			{ ...context, key: "different" },
 			{ ...context, accessJson: "{}" },
 			{ ...context, query: { ...context.query, startMs: 1 } },

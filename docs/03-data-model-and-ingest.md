@@ -483,6 +483,7 @@ pushTokenAuth → size/rate limits → parse API v1 canonical envelope (R4-06)
 
 | Method | Path | Host | Auth |
 |--------|------|------|------|
+| GET | `/api/v1/query/sources` | **ingest** | Bearer `query:read`; authorized live source IDs/names |
 | GET | `/api/v1/query` | **ingest** | Bearer `query:read`; [query contract](16-query-tokens.md) |
 | GET | `/api/v1/ingest/graph` | **ingest** | Bearer `ingest:read` |
 | POST | `/api/v1/ingest/push` | **ingest** | Bearer `ingest:push` |

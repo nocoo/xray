@@ -1,4 +1,4 @@
-import type { ManagedToken, QueryPage, QueryTokenAccess } from "@xray/shared";
+import type { ManagedToken, QueryPage, QuerySources, QueryTokenAccess } from "@xray/shared";
 import { describe, expect, test } from "vitest";
 import { actorHeaders, dataOf, ingestHeaders, jsonFetch, rawHttp } from "./helpers.js";
 
@@ -23,20 +23,31 @@ async function query(token:string,params="") {
 }
 
 describe("query credentials over native HTTP",()=>{
- test("all grants include future sources; selected mixed sources paginate by content time without marking read",async()=>{
+ test("queries each authorized source independently and discovers only live allowed IDs",async()=>{
   const account=await mint();const a=await sources();const b=await sources();const foreign=await sources("b");
   const selected=await mint({mode:"selected",watchlistIds:[a.watchlist.id,b.watchlist.id],channelIds:[a.channel.id]});
-  const full=await query(selected.token);expect(full.status).toBe(200);expect(full.body.success).toBe(true);expect(full.body.data.items).toHaveLength(8);
-  const broad=await query(account.token);expect(broad.status).toBe(200);const broadItems=broad.body.data.items;
-  expect(broadItems.filter(i=>i.kind==="post"&&[a.watchlist.id,b.watchlist.id].includes(i.post.watchlistId))).toHaveLength(6);
-  expect(broadItems.filter(i=>i.kind==="article"&&i.article.channelId===b.channel.id)).toHaveLength(2);
-  expect(broadItems.some(i=>i.kind==="post"?i.post.watchlistId===foreign.watchlist.id:i.article.channelId===foreign.channel.id)).toBe(false);
-  for(const order of ["asc","desc"]) {let cursor:string|null=null;const items:QueryPage["items"]=[];do {const page=await query(selected.token,`?limit=1&order=${order}${cursor?`&cursor=${cursor}`:""}`);expect(page.status).toBe(200);items.push(...page.body.data.items);cursor=page.body.data.nextCursor;} while(cursor);expect(items).toEqual(order==="desc"?full.body.data.items:[...full.body.data.items].reverse());}
-  const boundary=await query(selected.token,`?start=${a.day}T00:00:00Z&end=${a.day}T00:00:00.001Z`);expect(boundary.status).toBe(200);expect(boundary.body.data.items).toHaveLength(4);expect(boundary.body.data.items.every(i=>i.timeMs===a.midnight)).toBe(true);
+  const discover=async(token:string)=>{const r=await rawHttp("/api/v1/query/sources",{headers:ingestHeaders(token)});expect(r.status).toBe(200);return dataOf<QuerySources>(JSON.parse(r.text));};
+  expect(await discover(selected.token)).toEqual({watchlists:[{id:a.watchlist.id,name:expect.any(String)},{id:b.watchlist.id,name:expect.any(String)}],channels:[{id:a.channel.id,name:expect.any(String)}]});
+  const catalog=await discover(account.token);
+  expect(catalog.watchlists.map(w=>w.id)).toEqual(expect.arrayContaining([a.watchlist.id,b.watchlist.id]));
+  expect(catalog.channels.map(c=>c.id)).toContain(b.channel.id);
+  expect(catalog.watchlists.map(w=>w.id)).not.toContain(foreign.watchlist.id);
+  expect(catalog.channels.map(c=>c.id)).not.toContain(foreign.channel.id);
+  for(const [selector,count] of [[`watchlistId=${a.watchlist.id}`,3],[`watchlistId=${b.watchlist.id}`,3],[`channelId=${a.channel.id}`,2]] as const) {
+   const full=await query(selected.token,`?${selector}`);expect(full.status).toBe(200);expect(full.body.success).toBe(true);expect(full.body.data.items).toHaveLength(count);
+   expect(full.body.data.items.every(i=>i.kind==="post"?selector===`watchlistId=${i.post.watchlistId}`:selector===`channelId=${i.article.channelId}`)).toBe(true);
+   for(const order of ["asc","desc"]) {let cursor:string|null=null;const items:QueryPage["items"]=[];do {const page=await query(selected.token,`?${selector}&limit=1&order=${order}${cursor?`&cursor=${cursor}`:""}`);expect(page.status).toBe(200);items.push(...page.body.data.items);cursor=page.body.data.nextCursor;} while(cursor);expect(items).toEqual(order==="desc"?full.body.data.items:[...full.body.data.items].reverse());}
+   const boundary=await query(selected.token,`?${selector}&start=${a.day}T00:00:00Z&end=${a.day}T00:00:00.001Z`);expect(boundary.status).toBe(200);expect(boundary.body.data.items).toHaveLength(count===3?1:2);expect(boundary.body.data.items.every(i=>i.timeMs===a.midnight)).toBe(true);
+  }
+  expect((await query(account.token,`?channelId=${b.channel.id}`)).body.data.items).toHaveLength(2);
+  expect((await query(selected.token,`?channelId=${b.channel.id}`)).status).toBe(403);
+  for(const selector of [`watchlistId=${foreign.watchlist.id}`,`channelId=${foreign.channel.id}`]) expect((await query(account.token,`?${selector}`)).status).toBe(404);
   const readState=await jsonFetch(`/api/channels/${a.channel.id}/articles`);expect(dataOf<{items:Array<{isRead:boolean}>}>(readState.body).items.every(i=>i.isRead===false)).toBe(true);
   const logs=await jsonFetch(`/api/watchlists/${a.watchlist.id}/ingest-logs`);expect(dataOf<unknown[]>(logs.body)).toHaveLength(1);
   await jsonFetch(`/api/watchlists/${a.watchlist.id}`,{method:"DELETE"});await jsonFetch(`/api/watchlists/${b.watchlist.id}`,{method:"DELETE"});await jsonFetch(`/api/channels/${a.channel.id}`,{method:"DELETE"});
-  expect((await query(selected.token)).body.data).toEqual({items:[],nextCursor:null});
+  expect(await discover(selected.token)).toEqual({watchlists:[],channels:[]});
+  expect((await query(selected.token,`?watchlistId=${a.watchlist.id}`)).status).toBe(404);
+  expect((await query(selected.token,`?channelId=${a.channel.id}`)).status).toBe(404);
  });
  test("browser grants are tenant-validated atomically, metadata-only, kind-bound and revocable",async()=>{
   const a=await sources();const foreign=await sources("b");const token=await mint();
@@ -46,7 +57,7 @@ describe("query credentials over native HTTP",()=>{
   for(const actor of ["a","b"] as const) {expect((await jsonFetch(`/api/query-tokens/${token.id}`,{method:"PATCH",headers:actorHeaders(actor),body:JSON.stringify({label:"Invalid",access:{...grants,channelIds:[foreign.channel.id]}})})).status).toBe(404);}
   expect((await jsonFetch("/api/query-tokens",{method:"POST",body:JSON.stringify({label:"Invalid",access:{...grants,watchlistIds:[foreign.watchlist.id]}})})).status).toBe(400);
   expect((await jsonFetch(`/api/query-tokens/${token.id}`,{method:"DELETE",headers:actorHeaders("b")})).status).toBe(404);
-  expect((await query(token.token)).body.data.items).toHaveLength(5);
+  expect((await query(token.token,`?watchlistId=${a.watchlist.id}`)).body.data.items).toHaveLength(3);
   for(const method of ["PATCH","DELETE"]){expect((await jsonFetch(`/api/push-tokens/${token.id}`,{method,body:method==="PATCH"?JSON.stringify({label:"Wrong kind"}):undefined})).status).toBe(404);expect((await jsonFetch(`/api/query-tokens/${a.producer.id}`,{method,body:method==="PATCH"?JSON.stringify({label:"Wrong kind",access:all}):undefined})).status).toBe(404);}
   expect(dataOf<Array<{id:number}>>((await jsonFetch("/api/push-tokens")).body).some(t=>t.id===token.id)).toBe(false);
   const deleted=await jsonFetch(`/api/query-tokens/${token.id}`,{method:"DELETE"});expect(deleted.status).toBe(200);expect(dataOf(deleted.body)).toEqual({revoked:true});expect((await query(token.token)).status).toBe(401);
@@ -54,9 +65,13 @@ describe("query credentials over native HTTP",()=>{
  });
  test("rejects invalid cursors/context, producer scopes, browser query and Bearer administration",async()=>{
   const a=await sources();const token=await mint({mode:"selected",watchlistIds:[a.watchlist.id],channelIds:[a.channel.id]});const second=await mint();
-  const cursor=(await query(token.token,"?limit=1")).body.data.nextCursor;expect(cursor).toBeTruthy();
-  for(const params of ["?cursor=broken",`?cursor=${cursor}&order=asc`,`?cursor=${cursor}&start=${a.day}T00:00:00Z`,"?limit=101","?start=2026-02-30T00:00:00Z","?end=2026-10-14T00:00:00.1234Z"]){expect((await query(token.token,params)).status).toBe(400);}
-  expect((await query(second.token,`?cursor=${cursor}`)).status).toBe(400);
+  const cursor=(await query(token.token,`?watchlistId=${a.watchlist.id}&limit=1`)).body.data.nextCursor;expect(cursor).toBeTruthy();
+  for(const params of ["?cursor=broken",`?cursor=${cursor}&order=asc`,`?cursor=${cursor}&start=${a.day}T00:00:00Z`,"?limit=101","?start=2026-02-30T00:00:00Z","?end=2026-10-14T00:00:00.1234Z"]){expect((await query(token.token,`?watchlistId=${a.watchlist.id}&${params.slice(1)}`)).status).toBe(400);}
+  expect((await query(second.token,`?watchlistId=${a.watchlist.id}&cursor=${cursor}`)).status).toBe(400);
+  for(const params of ["", "?limit=1", `?watchlistId=${a.watchlist.id}&channelId=${a.channel.id}`, `?watchlistId=${a.watchlist.id}&watchlistId=${a.watchlist.id}`, `?channelId=${a.channel.id}&cursor=${cursor}`]) expect((await query(token.token,params)).status).toBe(400);
+  for(const headers of [ingestHeaders(a.producer.token),ingestHeaders(a.key.token)]) expect((await rawHttp("/api/v1/query/sources",{headers})).status).toBe(403);
+  expect((await rawHttp("/api/v1/query/sources",{headers:{host:"xray-ingest.worker.hexly.ai"}})).status).toBe(401);
+  expect((await rawHttp("/api/v1/query/sources",{headers:actorHeaders("a",{host:"xray.hexly.ai"})})).status).toBe(404);
   expect((await query(a.producer.token)).status).toBe(403);expect((await query(a.key.token)).status).toBe(403);
   for(const [path,method] of [["/api/v1/ingest/graph","GET"],["/api/v1/ingest/push","POST"],["/api/v1/ingest/articles","POST"]]) expect((await rawHttp(path,{method,headers:ingestHeaders(token.token),body:method==="GET"?undefined:"{}"})).status).toBe(403);
   expect((await rawHttp("/api/v1/query",{headers:actorHeaders("a",{host:"xray.hexly.ai"})})).status).toBe(404);

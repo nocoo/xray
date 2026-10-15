@@ -33,7 +33,12 @@ export type QueryItem =
 	| { kind: "post"; timeMs: number; post: QueryPost }
 	| { kind: "article"; timeMs: number; article: QueryArticle };
 export type QueryPage = { items: QueryItem[]; nextCursor: string | null };
+export type QuerySources = {
+	watchlists: { id: number; name: string }[];
+	channels: { id: number; name: string }[];
+};
 export type ContentQuery = {
+	source: { kind: "watchlist" | "channel"; id: number };
 	startMs: number | null;
 	endMs: number | null;
 	order: "asc" | "desc";
@@ -56,8 +61,22 @@ function utcTime(raw: string): number | null {
 export function parseContentQuery(
 	raw: Record<string, string>,
 ): { ok: true; value: ContentQuery } | { ok: false; error: string } {
-	if (Object.keys(raw).some((key) => !["start", "end", "order", "limit", "cursor"].includes(key)))
+	if (
+		Object.keys(raw).some(
+			(key) =>
+				!["watchlistId", "channelId", "start", "end", "order", "limit", "cursor"].includes(key),
+		)
+	)
 		return { ok: false, error: "unknown query parameter" };
+	if ((raw.watchlistId === undefined) === (raw.channelId === undefined))
+		return { ok: false, error: "provide exactly one watchlistId or channelId" };
+	const sourceId = raw.watchlistId ?? raw.channelId ?? "";
+	if (!/^[1-9]\d*$/.test(sourceId) || !Number.isSafeInteger(Number(sourceId)))
+		return { ok: false, error: "source ID must be a positive safe integer" };
+	const source: ContentQuery["source"] = {
+		kind: raw.watchlistId === undefined ? "channel" : "watchlist",
+		id: Number(sourceId),
+	};
 	const startMs = raw.start === undefined ? null : utcTime(raw.start);
 	const endMs = raw.end === undefined ? null : utcTime(raw.end);
 	if ((raw.start !== undefined && startMs === null) || (raw.end !== undefined && endMs === null))
@@ -72,5 +91,5 @@ export function parseContentQuery(
 	const cursor = raw.cursor ?? null;
 	if (cursor !== null && (!cursor || cursor.length > 2048))
 		return { ok: false, error: "invalid cursor" };
-	return { ok: true, value: { startMs, endMs, order, limit, cursor } };
+	return { ok: true, value: { source, startMs, endMs, order, limit, cursor } };
 }

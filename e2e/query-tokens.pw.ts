@@ -4,7 +4,7 @@ import { installExternalMedia } from "../fixtures/e2e";
 import { canonicalArticle } from "../fixtures/primitives";
 import { BROWSER, WORKER, INGEST, browserApiHeaders } from "./helpers";
 
-test("query tokens manage mixed-source access, paginate read-only and copy credential-free guides", async ({ page, request }) => {
+test("query tokens authorize multiple sources, query each separately read-only and copy credential-free guides", async ({ page, request }) => {
 	await installExternalMedia(page);
 	await page.addInitScript(() => {
 		Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (text: string) => { (window as typeof window & { copiedGuide: string }).copiedGuide = text; } } });
@@ -22,8 +22,8 @@ test("query tokens manage mixed-source access, paginate read-only and copy crede
 			watchlists.push(watchlist);
 			const item = canonicalArticle(`query-${index}-${suffix}`, `Query post ${index}`);
 			item.created_at = new Date().toISOString();
-			const pushed = await request.post(`${INGEST}/api/v1/ingest/push`, { headers: agentHeaders(producer.token), data: { watchlist_id: watchlist.id, items: [item] } });
-			expect((await pushed.json()).accepted).toBe(1);
+			const pushed = await request.post(`${INGEST}/api/v1/ingest/push`, { headers: agentHeaders(producer.token), data: { watchlist_id: watchlist.id, items: [item, {...item, external_id: `${item.external_id}-second`}] } });
+			expect((await pushed.json()).accepted).toBe(2);
 			const channel = (await (await request.post(`${WORKER}/api/channels`, { headers: browserApiHeaders, data: { name: `Query channel ${index} ${suffix}` } })).json()).data;
 			channels.push(channel);
 			const key = (await (await request.post(`${WORKER}/api/channels/${channel.id}/keys`, { headers: browserApiHeaders, data: { label: `Query publisher ${index}` } })).json()).data;
@@ -49,9 +49,19 @@ test("query tokens manage mixed-source access, paginate read-only and copy crede
 			expect(response.status()).toBe(200);
 			return (await response.json()).data as QueryPage;
 		};
-		const all = await read();
-		expect(all.items.some((item) => item.kind === "post" && item.post.watchlistId === watchlists[1].id)).toBe(true);
-		expect(all.items.some((item) => item.kind === "article" && item.article.channelId === channels[1].id)).toBe(true);
+		const discovery = await request.get(`${INGEST}/api/v1/query/sources`, {headers:agentHeaders(token)});
+		expect(discovery.status()).toBe(200);
+		expect(discovery.headers()["cache-control"]).toBe("no-store");
+		const sources = (await discovery.json()).data;
+		expect(sources.watchlists.map((source:{id:number})=>source.id)).toContain(watchlists[1].id);
+		expect(sources.channels.map((source:{id:number})=>source.id)).toContain(channels[1].id);
+		const allPosts = await read(`?watchlistId=${watchlists[1].id}`);
+		expect(allPosts.items).toHaveLength(2);
+		expect(allPosts.items.every((item) => item.kind === "post" && item.post.watchlistId === watchlists[1].id)).toBe(true);
+		const allArticles = await read(`?channelId=${channels[1].id}`);
+		expect(allArticles.items).toHaveLength(1);
+		expect(allArticles.items.every((item) => item.kind === "article" && item.article.channelId === channels[1].id)).toBe(true);
+		expect((await request.get(`${INGEST}/api/v1/query`,{headers:agentHeaders(token)})).status()).toBe(400);
 		for (const kind of ["query", "watchlist", "channel"]) {
 			await page.getByRole("button", { name: `Copy ${kind} agent guide`, exact: true }).click();
 			const copied = await page.evaluate(() => (window as typeof window & { copiedGuide: string }).copiedGuide);
@@ -74,15 +84,21 @@ test("query tokens manage mixed-source access, paginate read-only and copy crede
 		}
 		await dialog.getByRole("button", { name: "Save changes", exact: true }).click();
 		await expect(page.getByRole("button", { name: `Edit ${label}`, exact: true })).toBeFocused();
-		const selected = await read();
+		const selected = await read(`?watchlistId=${watchlists[0].id}`);
 		expect(selected.items).toHaveLength(2);
-		expect(selected.items.map((item) => item.kind).sort()).toEqual(["article", "post"]);
-		const first = await read("?limit=1&order=asc");
-		expect(first.items[0].kind).toBe("article");
+		expect(selected.items.every(item=>item.kind==="post"&&item.post.watchlistId===watchlists[0].id)).toBe(true);
+		expect((await read(`?channelId=${channels[0].id}`)).items).toHaveLength(1);
+		for(const selector of [`watchlistId=${watchlists[1].id}`,`channelId=${channels[1].id}`]) expect((await request.get(`${INGEST}/api/v1/query?${selector}`,{headers:agentHeaders(token)})).status()).toBe(403);
+		const selectedSources=(await (await request.get(`${INGEST}/api/v1/query/sources`,{headers:agentHeaders(token)})).json()).data;
+		expect(selectedSources).toEqual({watchlists:[{id:watchlists[0].id,name:watchlists[0].name}],channels:[{id:channels[0].id,name:channels[0].name}]});
+		const first = await read(`?watchlistId=${watchlists[0].id}&limit=1&order=asc`);
+		expect(first.items[0].kind).toBe("post");
 		expect(first.nextCursor).toBeTruthy();
-		const second = await read(`?limit=1&order=asc&cursor=${encodeURIComponent(first.nextCursor!)}`);
+		const second = await read(`?watchlistId=${watchlists[0].id}&limit=1&order=asc&cursor=${encodeURIComponent(first.nextCursor!)}`);
 		expect(second.items[0].kind).toBe("post");
+		expect(second.items[0]).not.toEqual(first.items[0]);
 		expect(second.nextCursor).toBeNull();
+		expect((await request.get(`${INGEST}/api/v1/query?channelId=${channels[0].id}&order=asc&cursor=${encodeURIComponent(first.nextCursor!)}`,{headers:agentHeaders(token)})).status()).toBe(400);
 		const articles = (await (await request.get(`${WORKER}/api/channels/${channels[0].id}/articles`, { headers: browserApiHeaders })).json()).data;
 		expect(articles.items[0].isRead).toBe(false);
 		expect((await request.post(`${INGEST}/api/v1/ingest/articles`, { headers: agentHeaders(token), data: {} })).status()).toBe(403);

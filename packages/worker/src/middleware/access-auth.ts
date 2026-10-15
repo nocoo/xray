@@ -148,7 +148,8 @@ export async function accessAuth(c: Context<AppEnv>, next: Next) {
 		path === "/api/v1/ingest/push" ||
 		path === "/api/v1/ingest/graph" ||
 		path === "/api/v1/ingest/articles" ||
-		path === "/api/v1/query"
+		path === "/api/v1/query" ||
+		path === "/api/v1/query/sources"
 	) {
 		if (kind !== "ingest" && kind !== "local") {
 			return c.json({ error: "Not found" }, 404);

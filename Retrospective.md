@@ -410,3 +410,25 @@ per query token. A regression test signs a forged cursor with the Bearer hash
 and requires rejection, and verifies that neither creation nor list responses
 expose the signing key. An authentication verifier is not a server-only secret
 against an authenticated caller.
+
+
+## 2026-10-15 - Separate query selection from token authorization
+
+The initial query-token implementation interpreted a multi-source authorization
+grant as a request for a merged feed. Although tenant isolation and pagination
+passed tests, the contract did not match the owner's per-watchlist/per-channel
+consumption workflow. The tests reinforced the same mistaken interpretation.
+
+The corrected contract requires exactly one watchlist or channel per request,
+binds cursors to that source, and provides an authorized ID/name catalog. Token
+grants remain the access ceiling. Missing/ambiguous selectors fail instead of
+falling back to a combined feed. Future API work must distinguish permission
+scope from request selection in concrete client examples before implementation,
+and test independently authorized sources without combining their results.
+
+The first local acceptance script used Playwright's separate request context
+against the Caddy HTTPS origin; Bun did not trust its local certificate even
+though Chrome did. It failed before fixture writes. The corrected script uses
+same-origin browser fetch for fixture setup and the managed loopback descriptor
+for agent calls. Do not disable certificate verification or alter machine trust
+to make browser acceptance plumbing work.
