@@ -2,6 +2,11 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.8.1
+
+### Fixed
+- Query one authorized source per request
+
 ## v2.8.0
 
 ### Added
