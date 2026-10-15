@@ -5,7 +5,7 @@ import {
 	CollapsibleTrigger,
 } from "@nocoo/basalt/components/collapsible";
 import { DataTable, type DataTableColumn } from "@nocoo/basalt/components/data-table";
-import type { ManagedToken, Tag } from "@xray/shared";
+import type { ManagedToken, Tag, TokenKind } from "@xray/shared";
 import {
 	Activity,
 	ArrowUpRight,
@@ -15,6 +15,7 @@ import {
 	KeyRound,
 	Pencil,
 	Radio,
+	ScanSearch,
 	ShieldCheck,
 	Tags,
 	Trash2,
@@ -24,10 +25,41 @@ import { Link } from "react-router";
 import type { TagsVm } from "@/viewmodels/tags-vm";
 import { TagAssignment } from "./tag-assignment";
 
-function TokenAccess({ token, compact = false }: { token: ManagedToken; compact?: boolean }) {
+function TokenAccess({
+	token,
+	compact = false,
+	sources,
+}: {
+	token: ManagedToken;
+	compact?: boolean;
+	sources: Map<string, string>;
+}) {
+	const access = token.queryAccess;
+	const sourceLabel =
+		access?.mode === "selected"
+			? [
+					...access.watchlistIds.map(
+						(id) => sources.get(`watchlist:${id}`) ?? `Deleted watchlist #${id}`,
+					),
+					...access.channelIds.map(
+						(id) => sources.get(`channel:${id}`) ?? `Deleted channel #${id}`,
+					),
+				].join(" · ")
+			: "All watchlists and channels";
 	return (
 		<div className="min-w-0 space-y-basalt-space-sm">
-			{token.channelId === null ? (
+			{token.kind === "query" ? (
+				<div>
+					<p className="line-clamp-2 break-words text-basalt-foreground" title={sourceLabel}>
+						{sourceLabel}
+					</p>
+					{access?.mode === "selected" && (
+						<p className="text-basalt-sm text-basalt-muted-foreground">
+							{access.watchlistIds.length} watchlists · {access.channelIds.length} channels
+						</p>
+					)}
+				</div>
+			) : token.channelId === null ? (
 				<span className="text-basalt-foreground">All your watchlists</span>
 			) : (
 				<Link
@@ -94,6 +126,8 @@ function TokenActivity({ token }: { token: ManagedToken }) {
 
 export function TokensTable({
 	tokens,
+	kind,
+	sources,
 	loading,
 	busy,
 	tagsVm,
@@ -102,6 +136,8 @@ export function TokensTable({
 	onRevoke,
 }: {
 	tokens: ManagedToken[];
+	kind: TokenKind;
+	sources: Map<string, string>;
 	loading: boolean;
 	busy: boolean;
 	tagsVm: TagsVm;
@@ -141,12 +177,18 @@ export function TokensTable({
 			cellClassName: "py-basalt-panel-y align-top @min-[36rem]/tokens:align-middle",
 			accessor: (token) => {
 				const channel = token.channelId !== null;
-				const Icon = channel ? Radio : Eye;
+				const query = token.kind === "query";
+				const Icon = query ? ScanSearch : channel ? Radio : Eye;
+				const tone = query
+					? "bg-basalt-tag-teal text-basalt-tag-teal-foreground"
+					: channel
+						? "bg-basalt-tag-rose text-basalt-tag-rose-foreground"
+						: "bg-basalt-tag-blue text-basalt-tag-blue-foreground";
 				return (
 					<div className="min-w-0 space-y-basalt-content-gap">
 						<div className="flex min-w-0 items-center gap-basalt-content-gap">
 							<span
-								className={`hidden size-8 shrink-0 items-center justify-center rounded-basalt-md @min-[36rem]/tokens:flex ${channel ? "bg-basalt-tag-rose text-basalt-tag-rose-foreground" : "bg-basalt-tag-blue text-basalt-tag-blue-foreground"}`}
+								className={`hidden size-8 shrink-0 items-center justify-center rounded-basalt-md @min-[36rem]/tokens:flex ${tone}`}
 							>
 								<Icon className="size-basalt-icon-lg" aria-hidden="true" strokeWidth={1.5} />
 							</span>
@@ -155,15 +197,8 @@ export function TokensTable({
 									{token.label}
 								</p>
 								<div className="mt-basalt-space-sm flex flex-wrap items-center gap-x-basalt-content-gap gap-y-basalt-space-sm">
-									<Badge
-										variant={null}
-										className={
-											channel
-												? "bg-basalt-tag-rose text-basalt-tag-rose-foreground"
-												: "bg-basalt-tag-blue text-basalt-tag-blue-foreground"
-										}
-									>
-										{channel ? "Channel" : "Watchlist"}
+									<Badge variant={null} className={tone}>
+										{query ? "Read only" : "Write"}
 									</Badge>
 									<code className="text-basalt-sm text-basalt-muted-foreground">
 										{token.tokenPrefix}...
@@ -172,7 +207,7 @@ export function TokensTable({
 							</div>
 						</div>
 						<div className="@min-[36rem]/tokens:hidden">
-							<TokenAccess token={token} compact />
+							<TokenAccess token={token} compact sources={sources} />
 						</div>
 						{channel && (
 							<div className="hidden @min-[48rem]/tokens:block @min-[60rem]/tokens:hidden">
@@ -226,7 +261,7 @@ export function TokensTable({
 			),
 			headerClassName: "hidden w-[32%] @min-[36rem]/tokens:table-cell @min-[60rem]/tokens:w-[24%]",
 			cellClassName: "hidden @min-[36rem]/tokens:table-cell",
-			accessor: (token) => <TokenAccess token={token} />,
+			accessor: (token) => <TokenAccess token={token} sources={sources} />,
 		},
 		{
 			id: "tags",
@@ -278,8 +313,8 @@ export function TokensTable({
 						variant="ghost"
 						size="icon"
 						className="max-sm:min-h-basalt-touch max-sm:min-w-basalt-touch text-basalt-tag-blue-foreground"
-						aria-label={`Rename ${token.label}`}
-						title="Rename token"
+						aria-label={`${token.kind === "query" ? "Edit" : "Rename"} ${token.label}`}
+						title={token.kind === "query" ? "Edit name and access" : "Rename token"}
 						disabled={busy}
 						onClick={(event) => onRename(token, event)}
 					>
@@ -303,10 +338,10 @@ export function TokensTable({
 	return (
 		<div className="@container/tokens">
 			<DataTable
-				aria-label="Active tokens"
+				aria-label={`${kind === "query" ? "Query" : kind === "channel" ? "Channel" : "Watchlist"} tokens`}
 				loading={loading}
 				data={tokens}
-				columns={columns}
+				columns={columns.filter((column) => column.id !== "tags" || kind === "channel")}
 				edge="attached"
 				getRowId={(token) => String(token.id)}
 				className="table-fixed"

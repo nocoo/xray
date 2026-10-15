@@ -3,6 +3,8 @@ import { expect, test, vi } from "vitest";
 import { createTokensVm, filterTokens, tokenLabel } from "./tokens-vm";
 
 const watchlist: ManagedToken = {
+	kind: "watchlist",
+	queryAccess: null,
 	id: 1,
 	label: "Twitter producer",
 	tokenPrefix: "prefix01",
@@ -15,6 +17,7 @@ const watchlist: ManagedToken = {
 };
 const channel: ManagedToken = {
 	...watchlist,
+	kind: "channel",
 	id: 2,
 	label: "Daily agent",
 	channelId: 3,
@@ -24,6 +27,11 @@ const channel: ManagedToken = {
 };
 function setup() {
 	const api = {
+		fetchWatchlists: vi.fn().mockResolvedValue([{ id: 1, name: "Signals" }]),
+		fetchChannels: vi.fn().mockResolvedValue([{ id: 3, name: "Research" }]),
+		createQueryToken: vi.fn().mockResolvedValue({ ...queryToken, token: "query-secret" }),
+		updateQueryToken: vi.fn().mockResolvedValue({ updated: true }),
+		revokeQueryToken: vi.fn().mockResolvedValue({ revoked: true }),
 		fetchTokens: vi.fn().mockResolvedValue([watchlist, channel]),
 		createWatchlistToken: vi.fn().mockResolvedValue({ ...watchlist, id: 5, token: "watch-secret" }),
 		createChannelKey: vi.fn().mockResolvedValue({ ...channel, id: 6, token: "channel-secret" }),
@@ -34,6 +42,51 @@ function setup() {
 	};
 	return { api, vm: createTokensVm(api) };
 }
+const queryToken: ManagedToken = {
+	...watchlist,
+	id: 7,
+	kind: "query",
+	label: "Reader",
+	scopes: ["query:read"],
+	queryAccess: { mode: "all", watchlistIds: [], channelIds: [] },
+};
+
+test("query tokens are independent, editable, revocable and never retain plaintext metadata", async () => {
+	const { api, vm } = setup();
+	await vm.load();
+	expect(vm.getState()).toMatchObject({
+		watchlists: [{ id: 1, name: "Signals" }],
+		channels: [{ id: 3, name: "Research" }],
+	});
+	expect(await vm.createQuery(" Reader ", { mode: "all", watchlistIds: [], channelIds: [] })).toBe(
+		true,
+	);
+	expect(api.createQueryToken).toHaveBeenCalledWith({
+		label: "Reader",
+		access: queryToken.queryAccess,
+	});
+	expect(vm.getState().secret).toBe("query-secret");
+	expect(vm.getState().tokens[0]).toEqual(queryToken);
+	expect(filterTokens(vm.getState().tokens, "", "query")).toEqual([queryToken]);
+	expect(filterTokens(vm.getState().tokens, "", "watchlist")).toEqual([watchlist]);
+	const access = { mode: "selected" as const, watchlistIds: [1], channelIds: [3] };
+	expect(await vm.updateQuery(queryToken, " Selected reader ", access)).toBe(true);
+	expect(api.updateQueryToken).toHaveBeenCalledWith(7, { label: "Selected reader", access });
+	expect(vm.getState().tokens[0]).toEqual({
+		...queryToken,
+		label: "Selected reader",
+		queryAccess: access,
+	});
+	expect(await vm.rename(queryToken, "No bypass")).toBeUndefined();
+	expect(vm.getState().error).toContain("query token settings");
+	api.updateQueryToken.mockRejectedValueOnce(new Error("Source not found"));
+	expect(await vm.updateQuery(queryToken, "Failed", access)).toBeUndefined();
+	expect(vm.getState().tokens[0]?.label).toBe("Selected reader");
+	expect(await vm.revoke(queryToken)).toBe(true);
+	expect(api.revokeQueryToken).toHaveBeenCalledWith(7);
+	expect(vm.getState().tokens).toEqual([watchlist, channel]);
+	expect(api.revokeWatchlistToken).not.toHaveBeenCalled();
+});
 function deferred<T>() {
 	let resolve!: (value: T) => void;
 	let reject!: (reason: unknown) => void;

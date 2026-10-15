@@ -28,7 +28,7 @@ xray/
 | Hostname | CF Access | Traffic |
 |----------|-----------|---------|
 | **`xray.hexly.ai`** (prod browser) | **Required** (Google IdP) | SPA + browser `/api/*` |
-| **`xray-ingest.worker.hexly.ai`** (prod agents) | **No interactive Access login** | Bearer agent: graph, watchlist push, channel articles; public live |
+| **`xray-ingest.worker.hexly.ai`** (prod agents) | **No interactive Access login** | Bearer agent: graph, watchlist push, channel articles, read-only queries; public live |
 | **`xray-staging.hexly.ai`** (pre-cutover smoke) | **Same Access app/AUD as prod browser** (R6-01) | SPA + browser APIs |
 | **`xray-ingest-staging.worker.hexly.ai`** | **No interactive Access login** | Same restricted agent routes |
 | **`xray.dev.hexly.ai`** (local Caddy) | Verified fixture JWT for Demo/E2E; real Access for local Prod | Managed gateway + Vite or built SPA |
@@ -50,7 +50,8 @@ Agent  ──HTTPS + Bearer──► xray-ingest.worker.hexly.ai ──► same 
                               ├─ GET  /api/live
                               ├─ GET  /api/v1/ingest/graph   (ingest:read)
                               ├─ POST /api/v1/ingest/push    (ingest:push)
-                              └─ POST /api/v1/ingest/articles (articles:write)
+                              ├─ POST /api/v1/ingest/articles (articles:write)
+                              └─ GET  /api/v1/query          (query:read)
                                  (pushTokenAuth → user_id;
                                   reject all other paths with 404)
 ```
@@ -58,7 +59,7 @@ Agent  ──HTTPS + Bearer──► xray-ingest.worker.hexly.ai ──► same 
 **Locked rules**
 
 1. Agents **must not** call `xray.hexly.ai` (Access would block Bearer-only clients). Graph and push both stay on the **ingest** host (or local wrangler).
-2. Ingest host **must not** serve the SPA dashboard. Worker allowlist: live + graph + push + channel article submission only.
+2. Ingest host **must not** serve the SPA dashboard. Worker allowlist: live + graph + push + channel article submission + read-only content queries only.
 3. Token **mint/list/revoke** only on browser host under Access — never on ingest host. Bearer **cannot** mint/revoke.
 4. Production smoke: (a) browser login on `xray.hexly.ai`; (b) Bearer `GET /api/v1/ingest/graph` and `POST /api/v1/ingest/push` on `xray-ingest.worker.hexly.ai` succeed; (c) same Bearer calls to `xray.hexly.ai` fail at Access or 404.
 5. `workers.dev` preview: document separately; default off for prod data.
@@ -118,12 +119,14 @@ Push token is **agent authentication**, not a write-only capability.
   - `GET /api/v1/ingest/graph` — requires scope `ingest:read`. Returns that user's watchlists + `x.com` members (shape = producer `parseMembersGraph`).
   - `POST /api/v1/ingest/push` — requires scope `ingest:push`.
   - `POST /api/v1/ingest/articles` — requires a channel-bound key with `articles:write`.
+  - `GET /api/v1/query` — requires `query:read` and explicit all/selected access; bounded mixed post/article results, never read-state mutations. [Contract](16-query-tokens.md).
 - Mint default scopes: `["ingest:read","ingest:push"]`. Missing scope → 403. Tokens minted with only `ingest:push` do **not** gain read; remint.
 - Token does **not** unlock browser CRUD, Groups, AI, settings, zhe.to, or token admin.
 
 ### Token CRUD — browser host only
 
 - `GET /api/tokens` (all active account tokens), `GET/POST /api/push-tokens`, `PATCH/DELETE /api/push-tokens/:id`
+- `POST /api/query-tokens`, `PATCH/DELETE /api/query-tokens/:id` — browser-only query credential and source access management.
 - Access session required; Bearer tokens **cannot** mint/revoke tokens.
 
 ### Local authentication and external resources
@@ -277,14 +280,14 @@ AAD := utf8(user_id || ":" || field_name)   # e.g. userId:ai.api_key
 - M8 checklist must verify PREV emptied after reencrypt job.
 - Corrupt/decrypt fail → 500 `secrets_corrupt`; never return ciphertext to client.
 
-## 8. Push tokens
+## 8. Agent tokens
 
 | Concern | Design |
 |---------|--------|
 | Table | `push_tokens` (see 03) |
 | Mint | Browser + Access only; return plaintext once |
-| API | `GET /api/tokens`, `GET /api/push-tokens`, `POST /api/push-tokens`, `PATCH/DELETE /api/push-tokens/:id` |
-| UI | Settings sidebar → Tokens manages Watchlist and Channel tokens globally; Channels → channel settings also manages that channel's tokens |
+| API | `GET /api/tokens`, `GET /api/push-tokens`, `POST /api/push-tokens`, `PATCH/DELETE /api/push-tokens/:id`, `POST /api/query-tokens`, `PATCH/DELETE /api/query-tokens/:id` |
+| UI | Settings sidebar → Tokens manages Query, Watchlist and Channel tokens in separate tables globally; Channels → channel settings also manages that channel's tokens |
 
 ## 9. zhe.to
 

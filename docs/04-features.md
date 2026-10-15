@@ -164,9 +164,9 @@ Worker uses encrypted secrets for translate/summary.
 
 Profile (email from Access); `ingest.windowHours` (**1–168**, default 24) via `GET/PATCH /api/settings`.
 
-### Producer tokens (`/tokens`)
+### Agent tokens (`/tokens`)
 
-The Settings sidebar group's Tokens page manages active Watchlist and Channel credentials across the account. It supports creation, renaming, revocation, type/search filters and channel-token tags. Channel article tokens are also managed at `/channels/:channelId/settings` and carry only `articles:write`; see [Channels](11-channels.md). Account and AI configuration remain separate at `/settings`.
+The Settings sidebar group's Tokens page manages active Query, Watchlist and Channel credentials in three independent tables. It supports creation, editing, revocation, shared search and channel-token tags. Each table offers a preview and one-click copy of its agent instructions without credential values. Query credentials default to all current/future sources or allow a multi-select combination of watchlists and channels; the owner can edit that access. [Query API contract](16-query-tokens.md). Channel article tokens are also managed at `/channels/:channelId/settings` and carry only `articles:write`; see [Channels](11-channels.md). Account and AI configuration remain separate at `/settings`.
 
 | Action | Auth | Behavior |
 |--------|------|----------|

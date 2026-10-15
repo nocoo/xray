@@ -43,6 +43,12 @@ import { articleLinkPreviewRoute } from "./routes/link-preview.js";
 import { liveRoute } from "./routes/live.js";
 import { meRoute } from "./routes/me.js";
 import { mediaProxyRoute } from "./routes/media-proxy.js";
+import { queryRoute } from "./routes/query.js";
+import {
+	createQueryTokenRoute,
+	patchQueryTokenRoute,
+	revokeQueryTokenRoute,
+} from "./routes/query-tokens.js";
 import { getSettingsRoute, patchSettingsRoute } from "./routes/settings.js";
 import { deleteTagRoute, patchTagRoute, putChannelTagsRoute } from "./routes/tags.js";
 import {
@@ -153,6 +159,9 @@ app.put("/api/integrations/zheto", putZhetoSettingsRoute);
 app.post("/api/integrations/zheto/save", zhetoSaveRoute);
 
 app.get("/api/tokens", listManagedTokensRoute);
+app.post("/api/query-tokens", createQueryTokenRoute);
+app.patch("/api/query-tokens/:id", patchQueryTokenRoute);
+app.delete("/api/query-tokens/:id", revokeQueryTokenRoute);
 app.get("/api/push-tokens", listTokensRoute);
 app.post("/api/push-tokens", createTokenRoute);
 app.patch("/api/push-tokens/:id", patchTokenRoute);
@@ -174,6 +183,7 @@ app.delete("/api/channels/:id/keys/:keyId", revokeChannelKeyRoute);
 app.get("/api/v1/ingest/graph", ingestGraphRoute);
 app.post("/api/v1/ingest/push", ingestPushRoute);
 app.post("/api/v1/ingest/articles", ingestArticlesRoute);
+app.get("/api/v1/query", queryRoute);
 
 // Browser/local SPA via ASSETS binding
 app.all("*", async (c) => {

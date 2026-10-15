@@ -9,9 +9,11 @@ export type PushTokenAuthOk = {
 	user: AuthUser;
 	tokenId: number;
 	scopes: string[];
-	/** Channel binding for articles:write keys; null for watchlist tokens */
+	/** Channel binding for articles:write keys; null for watchlist/query tokens. */
 	channelId: number | null;
 	label: string;
+	queryAccessJson: string | null;
+	cursorKey: string;
 };
 
 export type PushTokenAuthErr = {
@@ -46,6 +48,15 @@ export async function authenticatePushToken(
 	if (!scopes.includes(requiredScope)) {
 		return { ok: false, status: 403, error: `Missing ${requiredScope} scope` };
 	}
+	if (
+		(requiredScope === "query:read" &&
+			(row.query_access == null ||
+				scopes.length !== 1 ||
+				!/^[a-f0-9]{64}$/.test(row.query_cursor_key ?? ""))) ||
+		(requiredScope !== "query:read" && (row.query_access != null || scopes.includes("query:read")))
+	) {
+		return { ok: false, status: 403, error: "Token kind does not permit this operation" };
+	}
 
 	const rl = await checkIngestRateLimit(c.env, `token:${row.id}`);
 	if (!rl.allowed) {
@@ -69,6 +80,8 @@ export async function authenticatePushToken(
 		scopes,
 		channelId: row.channel_id ?? null,
 		label: row.label,
+		queryAccessJson: row.query_access ?? null,
+		cursorKey: row.query_cursor_key ?? "",
 	};
 }
 

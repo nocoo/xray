@@ -19,12 +19,13 @@ Rewrite design package (v2). Legacy vinext/Railway docs live under [`legacy/`](l
 | 13 | [Environment fixtures](13-environment-fixtures.md) | Synthetic catalog, provider scenarios, media provenance and feature coverage |
 | 14 | [Immersive mobile reading](14-immersive-mobile-reading.md) | Basalt layout boundary, mobile document reading, delivery and verification |
 | 15 | [UI polish and Basalt 3](15-ui-polish-basalt-3.md) | Lucide hierarchy, package migration and browser verification |
+| 16 | [Query tokens](16-query-tokens.md) | Read-only content API, source grants, pagination and agent guides |
 
 ## Locked constraints
 
 1. **Stack**: TypeScript 7, Biome, Vite SPA + Hono Worker (`../bat`), CF Workers + D1.
 2. **Auth**: **Cloudflare Access** (Google IdP) on browser host `xray.hexly.ai`; Worker trusts Access JWT (`ALLOWED_EMAILS` optional extra filter).
-3. **Ingest host**: `xray-ingest.worker.hexly.ai` — Bearer agent auth for graph, watchlist push and channel article submission. Browser management routes remain unavailable here. The canonical hostname is live in production.
+3. **Ingest host**: `xray-ingest.worker.hexly.ai` — Bearer agent auth for graph, watchlist push, channel article submission and read-only content queries. Browser management routes remain unavailable here. The canonical hostname is live in production.
 4. **UI/CSS**: full visual retain.
 5. **Ingest**: **push-first**, versioned canonical body. No CF Cron auto-refresh.
 6. **Sources**: typed (`x.com` | `custom`); mix timeline; source-aware members.

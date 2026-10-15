@@ -112,10 +112,18 @@ export {
 	X_HANDLE_RE,
 	XRAY_SECRET_ENV_KEYS,
 } from "./producer-utils.js";
+export type { ContentQuery, QueryArticle, QueryItem, QueryPage, QueryPost } from "./query.js";
+export { parseContentQuery } from "./query.js";
 export type { SourceType } from "./source.js";
 export { isSourceType, SOURCE_TYPE_LABELS, SOURCE_TYPES } from "./source.js";
-export type { ManagedToken } from "./tokens.js";
-export { parseTokenLabel, TOKEN_LABEL_MAX } from "./tokens.js";
+export type { ManagedToken, QueryTokenAccess, QueryTokenInput, TokenKind } from "./tokens.js";
+export {
+	parseQueryTokenAccess,
+	parseQueryTokenInput,
+	parseTokenLabel,
+	QUERY_TOKEN_SOURCE_MAX,
+	TOKEN_LABEL_MAX,
+} from "./tokens.js";
 /** @deprecated internal */
 export type {
 	EnvelopeMapResult,

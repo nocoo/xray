@@ -5,6 +5,24 @@ afterEach(() => {
 	vi.unstubAllGlobals();
 	sessionStorage.clear();
 });
+test("query token APIs keep management on authenticated browser paths", async () => {
+	const fetch = vi
+		.fn()
+		.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: {} }) });
+	vi.stubGlobal("fetch", fetch);
+	const input = {
+		label: "Reader",
+		access: { mode: "selected" as const, watchlistIds: [1, 2], channelIds: [3] },
+	};
+	await api.createQueryToken(input);
+	await api.updateQueryToken(8, input);
+	await api.revokeQueryToken(8);
+	expect(fetch.mock.calls.map(([path, init]) => [path, init.method, init.body])).toEqual([
+		["/api/query-tokens", "POST", JSON.stringify(input)],
+		["/api/query-tokens/8", "PATCH", JSON.stringify(input)],
+		["/api/query-tokens/8", "DELETE", undefined],
+	]);
+});
 test("global and watchlist token APIs use browser client methods and never Bearer administration", async () => {
 	const fetch = vi
 		.fn()

@@ -10,8 +10,10 @@ export type PushTokenRow = {
 	created_at_ms: number;
 	last_used_at_ms: number | null;
 	revoked_at_ms: number | null;
-	/** Channel-scoped key (articles:write only); NULL = watchlist ingest token */
+	/** Channel-scoped key; query and watchlist tokens have no channel binding. */
 	channel_id: number | null;
+	query_access?: string | null;
+	query_cursor_key?: string | null;
 };
 
 export type PushTokenDto = {
@@ -52,7 +54,7 @@ export async function listPushTokens(db: D1Database, userId: string): Promise<Pu
 	const { results } = await db
 		.prepare(
 			`SELECT * FROM push_tokens
-			 WHERE user_id = ? AND revoked_at_ms IS NULL AND channel_id IS NULL
+			 WHERE user_id = ? AND revoked_at_ms IS NULL AND channel_id IS NULL AND query_access IS NULL
 			 ORDER BY id DESC`,
 		)
 		.bind(userId)
@@ -100,7 +102,7 @@ export async function revokePushToken(
 	const result = await db
 		.prepare(
 			`UPDATE push_tokens SET revoked_at_ms = ?
-       WHERE id = ? AND user_id = ? AND revoked_at_ms IS NULL`,
+       WHERE id = ? AND user_id = ? AND revoked_at_ms IS NULL AND query_access IS NULL`,
 		)
 		.bind(now, id, userId)
 		.run();
@@ -209,6 +211,7 @@ export async function revokeChannelKey(
 }
 
 type ManagedTokenRow = {
+	query_access?: string | null;
 	id: number;
 	label: string;
 	token_prefix: string;
@@ -220,11 +223,11 @@ type ManagedTokenRow = {
 	tags_json?: string | null;
 };
 
-/** Active watchlist + channel tokens for one tenant. Never selects hashes or plaintext. */
+/** Active tokens for one tenant. Never selects hashes or plaintext. */
 export async function listManagedTokens(db: D1Database, userId: string): Promise<ManagedToken[]> {
 	const { results } = await db
 		.prepare(
-			`SELECT t.id, t.label, t.token_prefix, t.scopes, t.created_at_ms, t.last_used_at_ms,
+			`SELECT t.id, t.label, t.token_prefix, t.scopes, t.created_at_ms, t.last_used_at_ms, t.query_access,
  t.channel_id, c.name AS channel_name,
  (SELECT json_group_array(json_object('id', tg.id, 'name', tg.name)) FROM channel_key_tags kt
  JOIN tags tg ON tg.id = kt.tag_id WHERE kt.key_id = t.id AND tg.user_id = t.user_id) AS tags_json
@@ -236,6 +239,8 @@ export async function listManagedTokens(db: D1Database, userId: string): Promise
 		.bind(userId)
 		.all<ManagedTokenRow>();
 	return (results ?? []).map((r) => ({
+		kind: r.query_access != null ? "query" : r.channel_id != null ? "channel" : "watchlist",
+		queryAccess: r.query_access != null ? JSON.parse(r.query_access) : null,
 		id: r.id,
 		label: r.label,
 		tokenPrefix: r.token_prefix,
@@ -257,7 +262,7 @@ export async function renamePushToken(
 	const result = await db
 		.prepare(
 			`UPDATE push_tokens SET label = ?
-			 WHERE id = ? AND user_id = ? AND revoked_at_ms IS NULL AND channel_id IS NULL`,
+			 WHERE id = ? AND user_id = ? AND revoked_at_ms IS NULL AND channel_id IS NULL AND query_access IS NULL`,
 		)
 		.bind(label, id, userId)
 		.run();

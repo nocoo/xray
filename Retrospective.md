@@ -393,3 +393,20 @@ overlapped. Document-level overflow checks could not catch that. Column visibili
 now follows a named table container, with auxiliary details disclosed below the
 identity when space is limited. Browser regression measures the identity cell's
 minimum width and action reachability, not just the overall table bounds.
+
+## 2026-10-15: Query pagination needs native SQL validation
+
+The first browser query journey returned HTTP 500 because SQLite's compound
+SELECT required an explicit result alias for the final ordering column. The
+query now aliases its projected ordering fields and materializes only the
+bounded ID/time page before joining content payloads. Native SQLite route tests
+and the browser pagination journey cover the executed statement; TypeScript
+checks alone cannot validate dialect-specific SQL behavior.
+
+Independent review also caught a cryptographic boundary mistake: using the
+stored Bearer hash for cursor HMACs lets the credential holder derive that key.
+The final implementation generates a separate server-only 256-bit random key
+per query token. A regression test signs a forged cursor with the Bearer hash
+and requires rejection, and verifies that neither creation nor list responses
+expose the signing key. An authentication verifier is not a server-only secret
+against an authenticated caller.

@@ -1,15 +1,18 @@
-import { type ManagedToken, parseTokenLabel, type Tag } from "@xray/shared";
+import {
+	type ManagedToken,
+	parseTokenLabel,
+	type QueryTokenAccess,
+	type Tag,
+	type TokenKind,
+} from "@xray/shared";
 import type * as tokensApi from "@/api/tokens";
 import { createStore, errMsg } from "./store";
 
-export type TokenKind = "all" | "watchlist" | "channel";
-
-export function filterTokens(tokens: ManagedToken[], query: string, kind: TokenKind) {
+export function filterTokens(tokens: ManagedToken[], query: string, kind: TokenKind | "all") {
 	const search = query.trim().toLocaleLowerCase();
 	return tokens.filter(
 		(token) =>
-			(kind === "all" ||
-				(kind === "watchlist" ? token.channelId === null : token.channelId !== null)) &&
+			(kind === "all" || kind === token.kind) &&
 			[
 				token.label,
 				token.tokenPrefix,
@@ -31,6 +34,8 @@ export function tokenLabel(label: string) {
 export function createTokensVm(api: typeof tokensApi) {
 	const store = createStore({
 		tokens: [] as ManagedToken[],
+		watchlists: [] as { id: number; name: string }[],
+		channels: [] as { id: number; name: string }[],
 		loading: true,
 		busy: false,
 		error: null as string | null,
@@ -56,8 +61,12 @@ export function createTokensVm(api: typeof tokensApi) {
 			const request = ++revision;
 			store.setState({ loading: true, error: null });
 			try {
-				const tokens = await api.fetchTokens();
-				if (request === revision) store.setState({ tokens });
+				const [tokens, watchlists, channels] = await Promise.all([
+					api.fetchTokens(),
+					api.fetchWatchlists(),
+					api.fetchChannels(),
+				]);
+				if (request === revision) store.setState({ tokens, watchlists, channels });
 			} catch (error) {
 				if (request === revision) store.setState({ error: errMsg(error) });
 			} finally {
@@ -75,6 +84,8 @@ export function createTokensVm(api: typeof tokensApi) {
 					: await api.createWatchlistToken(name);
 				const { token, ...metadata } = result;
 				const created: ManagedToken = {
+					kind: channel ? "channel" : "watchlist",
+					queryAccess: null,
 					id: metadata.id,
 					label: metadata.label,
 					tokenPrefix: metadata.tokenPrefix,
@@ -89,9 +100,33 @@ export function createTokensVm(api: typeof tokensApi) {
 				return true;
 			});
 		},
+		createQuery(label: string, access: QueryTokenAccess) {
+			return mutate(async () => {
+				const { token, ...created } = await api.createQueryToken({
+					label: tokenLabel(label),
+					access,
+				});
+				store.setState((s) => ({ tokens: [created, ...s.tokens], secret: token }));
+				return true;
+			});
+		},
+		updateQuery(token: ManagedToken, label: string, access: QueryTokenAccess) {
+			return mutate(async () => {
+				const name = tokenLabel(label);
+				await api.updateQueryToken(token.id, { label: name, access });
+				store.setState((s) => ({
+					tokens: s.tokens.map((item) =>
+						item.id === token.id ? { ...item, label: name, queryAccess: access } : item,
+					),
+				}));
+				return true;
+			});
+		},
 		rename(token: ManagedToken, label: string) {
 			return mutate(async () => {
 				const name = tokenLabel(label);
+				if (token.kind === "query")
+					throw new Error("Use query token settings to edit its name and access.");
 				if (token.channelId === null) await api.renameWatchlistToken(token.id, name);
 				else await api.renameChannelKey(token.channelId, token.id, name);
 				store.setState((s) => ({
@@ -102,7 +137,8 @@ export function createTokensVm(api: typeof tokensApi) {
 		},
 		revoke(token: ManagedToken) {
 			return mutate(async () => {
-				if (token.channelId === null) await api.revokeWatchlistToken(token.id);
+				if (token.kind === "query") await api.revokeQueryToken(token.id);
+				else if (token.channelId === null) await api.revokeWatchlistToken(token.id);
 				else await api.revokeChannelKey(token.channelId, token.id);
 				store.setState((s) => ({ tokens: s.tokens.filter((item) => item.id !== token.id) }));
 				return true;

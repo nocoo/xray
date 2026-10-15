@@ -34,7 +34,7 @@ test("global token management shares channel changes and separates producer perm
 	{
 		await page.goto(`${BROWSER}/tokens`);
 		await expect(page.locator('[data-nav-label="Tokens"]')).toHaveAttribute("aria-current", "page");
-		await expect(page.getByRole("heading", { name: "Active credentials" })).toBeVisible();
+		await expect(page.getByRole("heading", { name: "Read-only query" })).toBeVisible();
 		await page.getByRole("button", { name: "Create token", exact: true }).click();
 		let dialog = page.getByRole("dialog");
 		await dialog.getByLabel("Token name").fill(watchName);
@@ -216,13 +216,11 @@ test("tokens remain usable on narrow screens with empty filters, dialogs and ret
 	).data;
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto(`${BROWSER}/tokens`);
-	await expect(page.getByRole("heading", { name: "Active credentials" })).toBeVisible();
+	await expect(page.getByRole("heading", { name: "Read-only query" })).toBeVisible();
 	await page.getByRole("textbox", { name: "Search tokens" }).fill("no-token-matches-this-search");
-	await expect(page.getByText("No matching tokens", { exact: true })).toBeVisible();
+	await expect(page.getByRole("region", { name: "Watchlist token management" }).getByText("No matching tokens", { exact: true })).toBeVisible();
 	await page.getByRole("textbox", { name: "Search tokens" }).clear();
-	await page.getByRole("combobox", { name: "Filter token type" }).click();
-	await page.getByRole("option", { name: "Watchlist", exact: true }).click();
-	await page.getByRole("button", { name: "Create token", exact: true }).click();
+		await page.getByRole("button", { name: "Create token", exact: true }).click();
 	const dialog = page.getByRole("dialog");
 	await expect(dialog.getByRole("button", { name: "Create token", exact: true })).toBeDisabled();
 	await dialog.getByLabel("Token name").fill("Cancelled token");
@@ -232,7 +230,7 @@ test("tokens remain usable on narrow screens with empty filters, dialogs and ret
 	await page.getByRole("button", { name: `Rename ${fixtureName}`, exact: true }).click();
 	await page.getByRole("dialog").getByLabel("Token name").fill(renamedName);
 	await page.getByRole("dialog").getByRole("button", { name: "Save name" }).click();
-	await expect(page.getByText("No matching tokens", { exact: true })).toBeVisible();
+	await expect(page.getByRole("region", { name: "Watchlist token management" }).getByText("No matching tokens", { exact: true })).toBeVisible();
 	await expect(page.getByRole("button", { name: "Create token", exact: true })).toBeFocused();
 	await page.getByRole("textbox", { name: "Search tokens" }).clear();
 	await expect(
@@ -253,7 +251,7 @@ test("tokens remain usable on narrow screens with empty filters, dialogs and ret
 			await page.getByRole("button", { name: /Toggle theme/ }).click();
 		}
 		await expect(page.locator("html")).toHaveClass(new RegExp(theme));
-		const stats = page.getByRole("img", { name: /^(Active tokens|Watchlist|Channel) \d/ });
+		const stats = page.getByRole("img", { name: /^(Query|Watchlist|Channel) \d/ });
 		await expect(stats).toHaveCount(3);
 		await expect
 			.poll(() =>
@@ -297,13 +295,16 @@ test("token table uses aligned columns and container-aware details", async ({ pa
 	try {
 		await page.goto(`${BROWSER}/tokens`);
 		await page.getByRole("textbox", { name: "Search tokens" }).fill(suffix);
-		const table = page.getByRole("table", { name: "Active tokens", exact: true });
-		await expect(table.locator("tbody tr")).toHaveCount(2);
+		const table = page.getByRole("table", { name: "Channel tokens", exact: true });
+		const watchTable = page.getByRole("table", { name: "Watchlist tokens", exact: true });
+		await expect(table.locator("tbody tr")).toHaveCount(1);
+		await expect(watchTable.locator("tbody tr")).toHaveCount(1);
 		for (const width of [1440, 1024, 768, 390, 320]) {
 			await page.setViewportSize({ width, height: 1000 });
 			await expect.poll(() => table.evaluate(node => node.parentElement!.scrollWidth <= node.parentElement!.clientWidth)).toBe(true);
 			await expect.poll(() => table.locator("tbody td:first-child").evaluateAll(cells => cells.every(cell => cell.getBoundingClientRect().width >= 140))).toBe(true);
 			const row = table.getByRole("row").filter({ hasText: channelLabel });
+			await row.scrollIntoViewIfNeeded();
 			for (const action of ["Rename", "Revoke"]) {
 				const button = row.getByRole("button", { name: `${action} ${channelLabel}`, exact: true });
 				await expect(button).toBeInViewport();
@@ -317,7 +318,7 @@ test("token table uses aligned columns and container-aware details", async ({ pa
 				await expect(table.getByRole("columnheader")).toHaveText(["Token", "Access", "Tags", "Last used", "Actions"]);
 				await expect(table.getByRole("columnheader", { name: "Tags", exact: true })).toBeVisible();
 				const heights = await table.locator("tbody tr").evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height));
-				expect(heights[0]).toBe(heights[1]);
+				expect(heights[0]).toBe(await watchTable.locator("tbody tr").evaluate(row => row.getBoundingClientRect().height));
 				expect(heights[0]).toBeLessThanOrEqual(90);
 			} else {
 				const details = row.getByRole("button", { name: `Details for ${channelLabel}`, exact: true });

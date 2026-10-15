@@ -184,6 +184,12 @@ CREATE TABLE push_tokens (
 CREATE INDEX push_tokens_user_idx ON push_tokens(user_id);
 ```
 
+Later migrations add `channel_id` for one-channel publishing credentials and
+`query_access` for explicit all/selected query grants. Query credentials also
+store an independent server-only `query_cursor_key`; it is neither derived from
+the Bearer value nor included in API metadata. The query marker requires a null
+channel binding. See [query tokens](16-query-tokens.md) and migration `0007`.
+
 **Token format (locked)**: `xray_pt_<8-char-prefix>_<32-byte-base64url-secret>`  
 Lookup: parse prefix → candidate rows by prefix optional; verify `SHA-256(full_token) == token_hash` (constant-time). **Not** argon2 (unsuitable for direct hash lookup at request rate).
 
@@ -477,10 +483,13 @@ pushTokenAuth → size/rate limits → parse API v1 canonical envelope (R4-06)
 
 | Method | Path | Host | Auth |
 |--------|------|------|------|
+| GET | `/api/v1/query` | **ingest** | Bearer `query:read`; [query contract](16-query-tokens.md) |
 | GET | `/api/v1/ingest/graph` | **ingest** | Bearer `ingest:read` |
 | POST | `/api/v1/ingest/push` | **ingest** | Bearer `ingest:push` |
 | GET | `/api/watchlists/:id/items` | browser | Access |
 | POST | `/api/watchlists/:id/translate` | browser | Access |
+| POST | `/api/query-tokens` | browser | Access + Origin |
+| PATCH/DELETE | `/api/query-tokens/:id` | browser | Access + Origin |
 | GET/POST | `/api/push-tokens` | browser | Access |
 | DELETE | `/api/push-tokens/:id` | browser | Access |
 | GET | `/api/live` | both | public |

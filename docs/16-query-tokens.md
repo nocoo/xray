@@ -1,0 +1,166 @@
+# Query Tokens
+
+Query tokens let an authenticated account owner give agents read-only access to
+stored watchlist posts and channel reports. They reuse the existing `push_tokens`
+credential store, cryptographic minting, SHA-256 hashes, Bearer authentication and
+rate-limit binding. Plaintext appears only in the creation response.
+
+## Capabilities And Hosts
+
+| Credential | Allowed agent capability | Binding |
+|---|---|---|
+| Watchlist | `ingest:read`, `ingest:push` | Account producer graph and ingestion |
+| Channel | `articles:write` | One channel |
+| Query | `query:read` only | Account-wide or selected sources |
+
+`GET /api/v1/query` is available on `xray-ingest.worker.hexly.ai`, the staging
+ingest hostname, and the managed local Worker. It is unavailable on browser
+hosts, even with an Access JWT. Watchlist/channel credentials cannot query;
+query credentials cannot ingest, obtain a producer graph, or administer tokens.
+Mixed query/producer scopes fail closed. Unknown hosts are rejected.
+
+Administration requires the browser owner's verified Cloudflare Access
+identity. Mutations retain the normal browser Origin guard. Bearer authentication
+never authorizes administration. Token lists, agent instructions and logs must
+never contain stored hashes or plaintext credentials.
+
+## Management Contract
+
+All management responses use `{ success: true, data: ... }`. Validation and
+ownership errors use the existing API error envelope. The shared contract is:
+
+```ts
+type TokenKind = "watchlist" | "channel" | "query";
+type QueryTokenAccess = {
+  mode: "all" | "selected";
+  watchlistIds: number[];
+  channelIds: number[];
+};
+type QueryTokenInput = { label: string; access: QueryTokenAccess };
+```
+
+| Endpoint | Request | Success |
+|---|---|---|
+| `POST /api/query-tokens` | Complete `QueryTokenInput` | 201, `ManagedToken & { token: string }` |
+| `PATCH /api/query-tokens/:id` | Complete `QueryTokenInput` | 200, `{ updated: true }` |
+| `DELETE /api/query-tokens/:id` | None | 200, `{ revoked: true }` |
+| `GET /api/tokens` | None | All active account token metadata |
+
+`ManagedToken` requires `kind` and `queryAccess`. Non-query tokens have
+`queryAccess: null`; query tokens have `channelId: null`, `channelName: null`,
+`tags: []` and `scopes: ["query:read"]`. Existing watchlist-only listing, renaming
+and revocation cannot classify or modify query credentials. Query management
+cannot modify producer credentials. Revoked and foreign credentials return 404
+on management operations; revoked Bearer credentials return 401 on queries.
+
+Labels are trimmed and must contain 1..64 characters. Grants reject unknown
+fields, non-positive/unsafe integer IDs and unknown modes. IDs are deduplicated
+and sorted. `all` requires empty ID arrays; it grants all current and future
+watchlists and channels owned by the account. `selected` requires at least one
+source, with at most 100 source IDs total in the submitted arrays. Watchlists and
+channels may be combined freely. `selected` never means `all`, including after
+a resource deletion. Deleted IDs can remain in metadata but match no content;
+replacement grants must name existing owned resources. A label/grant edit
+preserves the credential, creation time and scope.
+
+Tenancy validation and each grant insert/update occur in one SQL statement.
+A mixed owned/foreign selection changes nothing. Selection is stored as JSON;
+`json_each` uses fixed bind counts rather than one bind per selected source.
+There is no new credential/authentication infrastructure and no producer
+checkpoint store.
+
+## Read Contract
+
+The request accepts only these optional query parameters:
+
+| Parameter | Meaning |
+|---|---|
+| `start` | Inclusive content-time lower bound |
+| `end` | Exclusive content-time upper bound |
+| `order` | `asc` or `desc`; default `desc` |
+| `limit` | Integer 1..100; default 100 |
+| `cursor` | Opaque continuation from the previous response |
+
+`start` and `end` must be real RFC3339 UTC timestamps ending in uppercase `Z`,
+with seconds and zero to three fractional-second digits. Date-only values,
+offsets, more than three fractional digits, nonexistent calendar dates,
+24:00 and leap-second values are rejected. If both bounds are supplied,
+`start < end` is required. Unknown parameters and invalid cursors return 400.
+
+Posts use their original `created_at_ms`. Reports use `report_date` at UTC
+midnight, never submission time. The total sort key is `(timeMs, kind, id)`;
+`article` precedes `post` in ascending order, with the reverse ordering in
+descending mode. Resource-specific integer IDs therefore cannot collide in the
+combined ordering. All authorization and time predicates apply before pagination.
+
+```ts
+type QueryPage = { items: QueryItem[]; nextCursor: string | null };
+type QueryItem =
+  | { kind: "post"; timeMs: number; post: QueryPost }
+  | { kind: "article"; timeMs: number; article: QueryArticle };
+```
+
+Success is `{ success: true, data: QueryPage }`. `QueryPost` includes
+`id`, `watchlistId`, `sourceType`, `externalId`, `authorUsername`, `title`,
+`text`, `createdAtMs`, the stored canonical `payload`, `translatedText`,
+`quotedTranslatedText` and `summaryText`. `QueryArticle` includes `id`,
+`channelId`, `externalId`, `title`, `reportDate`, `summary`, `author`, full
+`markdown`, historical `sourceLabel` and `createdAtMs`. Neither projection
+contains tenant identifiers, hashes or secret configuration. Article read
+status is not part of this export.
+
+The query materializes a bounded page of skinny IDs/kinds/timestamps before
+joining and serializing content. At most `limit + 1` records are hydrated for
+lookahead; whole-account Markdown/payloads are not serialized for sorting.
+Both content rows and their parent resources must belong to the authenticated
+tenant. The same SQL statement requires the token to remain active and its
+stored access to match the authenticated grants, preventing an intervening
+revocation/grant edit from exposing content under stale permissions.
+
+Cursors are versioned and HMAC-authenticated, bound to the token, grants,
+normalized time range and order. Each query token has an independent random
+256-bit signing key stored only in `push_tokens.query_cursor_key`, never returned
+in credential creation or metadata responses. It is not derived from the Bearer
+credential, so credential holders cannot re-sign invented positions or contexts.
+Changing any bound context requires starting a
+new traversal. Changing the page size is allowed. Cursors contain a position,
+not a row lookup, so deleting the previously returned row does not break
+continuation. No offset pagination is used. Concurrent insertions/deletions or
+content-date edits are not a snapshot: an insertion behind the position may
+appear on a later page, while an insertion ahead requires restarting the query.
+Consumers needing a fixed export should set an explicit `end` and avoid editing
+content while traversing it.
+
+Reading never marks reports read, deletes content, changes AI state, adds
+ingest logs, or writes a consumer checkpoint. Successful reads update only the
+existing token `lastUsedAtMs` metadata and rate-limit accounting. Clients own
+continuation storage. The server makes no automatic AI calls.
+
+## Verification
+
+L1 exercises real SQLite migrations and HTTP handlers with signed fixture
+identities, all/selected future-source behavior, multi-source tie pagination in
+both directions, date boundaries, grant ownership/atomicity, deletion behavior,
+metadata secrecy, scope/host isolation, cursor tampering/context changes and
+revocation. SQL assertions verify unchanged unread state, AI state and ingest
+logs. Shared tests validate grant/input/time parsing; cursor tests cover malformed
+signed positions as well as HMAC binding.
+
+`packages/worker/test/e2e/query-tokens.http.test.ts` exercises the same critical
+flows over the managed native Worker/D1 HTTP runtime. The route inventory
+includes all four new endpoints. Production is never a test target.
+
+Browser coverage in `e2e/query-tokens.pw.ts` creates a credential through the UI,
+queries both content kinds, edits mixed-source grants, follows a cursor, checks
+unchanged unread state and write rejection, copies all three credential-free
+guides, reloads the saved selection, and revokes the credential. The journey runs
+in Chromium and WebKit. Existing token tests retain channel/global synchronization,
+responsive table alignment, keyboard focus, error recovery and narrow dialogs.
+
+Local acceptance on 2026-10-15 used Chrome 155 through
+`https://xray.dev.hexly.ai` with the isolated E2E environment: light/dark layouts
+at 1440, 1024, 768, 390 and 320 pixels, actual clipboard reads for all three
+guides, and persisted mixed-source editing. No horizontal table/page overflow or
+uncaught browser errors was observed. Full managed L3 passed 45/45 tests; L1
+passed 177 shared, 503 Worker and 286 UI tests, with all four package coverage
+metrics above 95%. These are local checks, not production deployment evidence.
