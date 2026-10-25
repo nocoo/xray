@@ -8,13 +8,13 @@ Direction: [rewrite charter](docs/01-rewrite-charter.md), [architecture](docs/02
 
 This file is the contract; hooks, CI and config are enforcement. Raise weaker gates rather than lower the contract.
 
-| Fact | Where |
-|---|---|
-| Human docs | [README.md](README.md), [docs index](docs/README.md) |
-| Version / dependencies | Root `package.json`, `bun.lock`; bare SemVer, display `v` prefix |
-| Quality | [6DQ](docs/06-testing-6dq.md), `.husky/`, `.github/workflows/ci.yml`, package Vitest configs |
-| Secret management | [local producer](docs/09-local-producer-twitter-cli.md); values stay outside Git |
-| Machine rules / accidents | Global `AGENTS.md` and `rules/`; [Retrospective.md](Retrospective.md) |
+| Fact                      | Where                                                                                        |
+| ------------------------- | -------------------------------------------------------------------------------------------- |
+| Human docs                | [README.md](README.md), [docs index](docs/README.md)                                         |
+| Version / dependencies    | Root `package.json`, `bun.lock`; bare SemVer, display `v` prefix                             |
+| Quality                   | [6DQ](docs/06-testing-6dq.md), `.husky/`, `.github/workflows/ci.yml`, package Vitest configs |
+| Secret management         | [local producer](docs/09-local-producer-twitter-cli.md); values stay outside Git             |
+| Machine rules / accidents | Global `AGENTS.md` and `rules/`; [Retrospective.md](Retrospective.md)                        |
 
 ## Project Invariants
 
@@ -34,12 +34,12 @@ This file is the contract; hooks, CI and config are enforcement. Raise weaker ga
 
 ## Stack / Layout
 
-| Component | Location / choice |
-|---|---|
-| Shared contracts | `packages/shared/`; pure TypeScript DTOs/mappers |
-| UI | `packages/ui/`; React, Vite, MVVM, browser API client |
-| API / storage | `packages/worker/`; Hono, Access/Bearer middleware, repositories, D1 migrations |
-| Producer / quality | `scripts/`, `skills/`, package Vitest runners and `e2e/*.pw.ts` |
+| Component          | Location / choice                                                               |
+| ------------------ | ------------------------------------------------------------------------------- |
+| Shared contracts   | `packages/shared/`; pure TypeScript DTOs/mappers                                |
+| UI                 | `packages/ui/`; React, Vite, MVVM, browser API client                           |
+| API / storage      | `packages/worker/`; Hono, Access/Bearer middleware, repositories, D1 migrations |
+| Producer / quality | `scripts/`, `skills/`, package Vitest runners and `e2e/*.pw.ts`                 |
 
 ## Local Preview
 
@@ -84,18 +84,18 @@ osv-scanner scan --lockfile=bun.lock
 
 6DQ = unified L1 (absorbing former G1) + L2/L3 + G2 + D1 isolation. Status: `enforced`, `planned`, `manual`, `N/A`; no skipped/focused tests.
 
-| Piece | Required proof and current reality | Status | Evidence / gap |
-|---|---|---|---|
-| L1 — complete unified contract | All four coverage metrics ≥95% plus strict static lanes on an installed index-snapshot hook with proven rejection, under 30s | planned | Snapshot scope, rejection proof and timing are unverified; the subcheck rows below describe what is configured today |
-| L1 subcheck — shared/UI coverage | Statements/branches/functions/lines each ≥95% over the declared non-View scope | enforced | Package Vitest configs, `test:coverage`, pre-commit and CI |
-| L1 subcheck — Worker coverage | All four metrics ≥95% over the declared production scope | enforced | Worker config and `check-coverage.sh`; no per-package branch exception |
-| L2 | Real HTTP plus full endpoint/method inventory and cross-tenant/SQL assertions | enforced | Worker `test/e2e/`, `check-route-coverage.ts`; pre-push and CI |
-| L3 | Critical browser/agent journeys against an isolated local stack | enforced | Managed harness and CI Chromium/WebKit job configured; installed Basalt 2.2.0 local run passed 36/36 tests in 4.8 minutes on 2026-10-02 with cleanup. Scoped Chrome/Caddy light/dark mobile/desktop acceptance passed; corrected revision `8c20d4e` passed CI `37015863843` and deployment `37016438221`; physical iPhone remains unverified |
-| L1 subcheck — static lanes (former G1) | Strict types and lint/format, zero errors/warnings | enforced | Turbo typecheck, Biome, pre-commit and CI; these static lanes run on the working tree, so unified L1 is not snapshot-based |
-| G2 | Dependency + secret scanners, required tools fail closed | enforced | Pre-push gitleaks + OSV and CI; pre-commit gitleaks is optional, push-ref scoping remains a gap |
-| D1 | Per-run local state with guards/marker before writes and cleanup | enforced | Managed runtime owns generated config/secrets, unique E2E state and guarded cleanup. Full native L2 passed 41/41 on 2026-10-02 with 62/62 routes, including six concurrency/ownership/cleanup tests |
-| Build | Build shared/UI/Worker output | manual | `bun run build`; exact-revision CI `37015863843` and deployment `37016438221` both built corrected revision `8c20d4e` |
-| Docs | Keep route/tenant matrices and architecture current | manual | Numbered docs and full diff review |
+| Piece                                  | Required proof and current reality                                                                                           | Status   | Evidence / gap                                                                                                                                                                                                                                                                                                                               |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L1 — complete unified contract         | All four coverage metrics ≥95% plus strict static lanes on an installed index-snapshot hook with proven rejection, under 30s | planned  | Snapshot scope, rejection proof and timing are unverified; the subcheck rows below describe what is configured today                                                                                                                                                                                                                         |
+| L1 subcheck — shared/UI coverage       | Statements/branches/functions/lines each ≥95% over the declared non-View scope                                               | enforced | Package Vitest configs, `test:coverage`, pre-commit and CI                                                                                                                                                                                                                                                                                   |
+| L1 subcheck — Worker coverage          | All four metrics ≥95% over the declared production scope                                                                     | enforced | Worker config and `check-coverage.sh`; no per-package branch exception                                                                                                                                                                                                                                                                       |
+| L2                                     | Real HTTP plus full endpoint/method inventory and cross-tenant/SQL assertions                                                | enforced | Worker `test/e2e/`, `check-route-coverage.ts`; pre-push and CI                                                                                                                                                                                                                                                                               |
+| L3                                     | Critical browser/agent journeys against an isolated local stack                                                              | enforced | Managed harness and CI Chromium/WebKit job configured; installed Basalt 2.2.0 local run passed 36/36 tests in 4.8 minutes on 2026-10-02 with cleanup. Scoped Chrome/Caddy light/dark mobile/desktop acceptance passed; corrected revision `8c20d4e` passed CI `37015863843` and deployment `37016438221`; physical iPhone remains unverified |
+| L1 subcheck — static lanes (former G1) | Strict types and lint/format, zero errors/warnings                                                                           | enforced | Turbo typecheck, Biome, pre-commit and CI; these static lanes run on the working tree, so unified L1 is not snapshot-based                                                                                                                                                                                                                   |
+| G2                                     | Dependency + secret scanners, required tools fail closed                                                                     | enforced | Pre-push gitleaks + OSV and CI; pre-commit gitleaks is optional, push-ref scoping remains a gap                                                                                                                                                                                                                                              |
+| D1                                     | Per-run local state with guards/marker before writes and cleanup                                                             | enforced | Managed runtime owns generated config/secrets, unique E2E state and guarded cleanup. Full native L2 passed 41/41 on 2026-10-02 with 62/62 routes, including six concurrency/ownership/cleanup tests                                                                                                                                          |
+| Build                                  | Build shared/UI/Worker output                                                                                                | manual   | `bun run build`; exact-revision CI `37015863843` and deployment `37016438221` both built corrected revision `8c20d4e`                                                                                                                                                                                                                        |
+| Docs                                   | Keep route/tenant matrices and architecture current                                                                          | manual   | Numbered docs and full diff review                                                                                                                                                                                                                                                                                                           |
 
 Pre-commit runs working-tree lint, types and coverage, then optional staged gitleaks. Target: all of unified L1 on an index snapshot, <30s.
 Pre-push runs L2 then required gitleaks/OSV sequentially and scans repository history, not stdin push refs. Target: L2/G2 parallel, exact pushed refs, <3min.

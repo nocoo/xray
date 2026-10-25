@@ -1,6 +1,6 @@
 {
 	"name": "@xray/worker",
-	"version": "2.8.2",
+	"version": "2.8.3",
 	"private": true,
 	"type": "module",
 	"scripts": {
@@ -17,10 +17,10 @@
 		"jose": "6.2.13"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "5.20261019.1",
+		"@cloudflare/workers-types": "5.20261024.1",
 		"@vitest/coverage-v8": "5.0.5",
 		"typescript": "^7.0.2",
 		"vitest": "5.0.5",
-		"wrangler": "4.151.3"
+		"wrangler": "4.152.0"
 	}
 }

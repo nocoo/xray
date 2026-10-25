@@ -5,21 +5,25 @@ All notable changes to X-Ray are documented in this file.
 ## v2.8.1
 
 ### Fixed
+
 - Query one authorized source per request
 
 ## v2.8.0
 
 ### Added
+
 - Add scoped read-only query tokens
 - Refine token table layout and hierarchy
 
 ## v2.7.0
 
 ### Added
+
 - Polish ui with basalt 3.1 and lucide
 - Add account-wide token management
 
 ### Changed
+
 - Upgrade base-ci to v2026.9
 - Bump vitest and @vitest/coverage-v8 to 5.0.4
 - Bump wrangler to 4.149.0
@@ -33,16 +37,19 @@ All notable changes to X-Ray are documented in this file.
 - Bump @cloudflare/workers-types to 5.20261012.1
 
 ### Fixed
+
 - Align shell and page spacing with basalt
 - Preserve pagination when marking reports read
 
 ## v2.6.0
 
 ### Changed
+
 - Record corrected production delivery
 - Record corrective release verification
 
 ### Fixed
+
 - Contain touch-sized environment segments
 - Unify mobile reader action popovers
 - Restore reading position after content edits
@@ -51,15 +58,18 @@ All notable changes to X-Ray are documented in this file.
 ## v2.5.7
 
 ### Added
+
 - Integrate immersive mobile reader
 - Support document reading positions
 - Disclose mobile reader actions
 
 ### Changed
+
 - Record published reader acceptance
 - Define immersive mobile reading contract
 
 ### Fixed
+
 - Preserve build validation controls
 - Keep local validation offline
 
@@ -83,44 +93,53 @@ All notable changes to X-Ray are documented in this file.
 ## v2.5.5
 
 ### Changed
+
 - Bump wrangler to 4.136.3 (#595)
 - Bump turbo to 2.11.3 (#594)
 - Bump workers types (#592)
 
 ### Fixed
+
 - Render cjk markdown emphasis correctly
 
 ## v2.5.4
 
 ### Added
+
 - Persist channel article reading state
 - Add channel article refresh button
 
 ### Changed
+
 - Merge g1 into unified l1
 
 ### Fixed
+
 - Align green unread indicators
 - Restore compact mobile channel reading
 
 ## v2.5.3
 
 ### Added
+
 - Add content loading skeletons
 
 ## v2.5.2
 
 ### Fixed
+
 - Keep related links beside the reader
 
 ## v2.5.1
 
 ### Fixed
+
 - Show reader links and centered empty states
 
 ## v2.5.0
 
 ### Added
+
 - Refine channel reader and settings
 - Expand mock watchlists and groups
 - Expand mock channel and tag scenarios
@@ -131,14 +150,17 @@ All notable changes to X-Ray are documented in this file.
 ## v2.4.1
 
 ### Added
+
 - Add article editing and channel tags
 
 ### Fixed
+
 - Synchronize workspace versions in the release lockfile
 
 ## v2.4.0
 
 ### Added
+
 - Centralize channel management
 - Add channels markdown reader
 - Add channel article ingestion api
@@ -146,6 +168,7 @@ All notable changes to X-Ray are documented in this file.
 - Add Hexly project link and header tooltips
 
 ### Changed
+
 - Record channel management verification
 - Record channels delivery and verification
 - Align ingest hostname with worker domain
@@ -184,6 +207,7 @@ All notable changes to X-Ray are documented in this file.
 - Migrate workflows to base-ci
 
 ### Fixed
+
 - Refine channel surfaces and reader controls
 - Disable worker default and preview urls
 - Complete shared header content
@@ -191,46 +215,56 @@ All notable changes to X-Ray are documented in this file.
 - Add release proof permissions
 
 ### Removed
+
 - Drop unused ci secrets inherit
 
 ## v2.3.5
 
 ### Changed
+
 - Upgrade basalt to 2.1.7
 
 ### Fixed
+
 - Add no-store cache-control header to live route
 
 ## v2.3.4
 
 ### Fixed
+
 - Drop unavatar avatar fallback
 - Restore video poster frame capture
 
 ## v2.3.3
 
 ### Added
+
 - Translate quoted and reply card text
 
 ### Fixed
+
 - Stop hover jitter on media buttons
 
 ## v2.3.2
 
 ### Added
+
 - Merge settings pages into one
 
 ### Fixed
+
 - Use full-width cards on settings
 
 ## v2.3.1
 
 ### Fixed
+
 - Hide source filter legend and align
 
 ## v2.3.0
 
 ### Added
+
 - Play feed videos in popup
 - Add lightbox gallery with 80% stage
 - Prefix html title with page name
@@ -242,6 +276,7 @@ All notable changes to X-Ray are documented in this file.
 - Adopt xray family identity
 
 ### Changed
+
 - Override sharp to 0.35.4
 - Add local debug feed seeder
 - Add @nocoo/basalt 2.1.2
@@ -277,6 +312,7 @@ All notable changes to X-Ray are documented in this file.
 - Hono 4.13.3 → 4.13.4
 
 ### Fixed
+
 - Put short source filter beside page actions
 - Polish lightbox media preview
 - Drop lightbox panel, keep overlay blur
@@ -309,39 +345,47 @@ All notable changes to X-Ray are documented in this file.
 - Replace leftover native controls
 
 ### Removed
+
 - Remove unused watchlist post card
 - Drop unused local ui kit
 
 ## v2.2.2
 
 ### Added
+
 - Add expandable post text clamp
 
 ### Changed
+
 - Upgrade lucide-react 1.33.0 → 1.34.0 (#443)
 
 ## v2.2.1
 
 ### Fixed
+
 - Rebalance masonry after media settles
 - Restore continuous masonry for posts
 
 ### Changed
+
 - Bump lucide-react 1.33.0 → 1.34.0
 
 ## v2.2.0
 
 ### Added
+
 - Add dashboard ingest and item trends
 - Add recharts for dashboard charts
 - Add worker release cd workflow
 
 ### Changed
+
 - Restyle dashboard with charts and table
 
 ## v2.1.9
 
 ### Changed
+
 - Bind columns pages to production path
 - Cover css columns page stability
 - Use css columns for posts feed
@@ -369,29 +413,35 @@ All notable changes to X-Ray are documented in this file.
 - Bump @cloudflare/workers-types to 5.20260817.1
 
 ### Fixed
+
 - Isolate css column pages on loadmore
 
 ## v2.1.8
 
 ### Fixed
+
 - Query author profile on lizheng.blog
 
 ## v2.1.7
 
 ### Added
+
 - Fill me profile from firefly
 
 ### Changed
+
 - Mark s6 ingest graph done
 
 ## v2.1.6
 
 ### Added
+
 - Live-fetch watchlist graph at start
 - Add ingest graph bearer route
 - Accept empty ingest members graph
 
 ### Changed
+
 - Expand ingest graph l2 matrix
 - Prove live graph before mode branches
 - Send host header in graph l2
@@ -412,6 +462,7 @@ All notable changes to X-Ray are documented in this file.
 - Tighten refresh skill from second dry-run
 
 ### Fixed
+
 - Keep live graph if members file missing
 - Let --env override ingest base env
 - Enforce nanoid ^3.3.18 for GHSA-2v37-7h3g-55p8
@@ -420,9 +471,11 @@ All notable changes to X-Ray are documented in this file.
 ## v2.1.5
 
 ### Added
+
 - Show quote embeds and rt attribution
 
 ### Changed
+
 - Clarify refresh skill from agent dry-run
 - Point claude.md at refresh skill
 - Add xray-refresh-watchlists agent skill
@@ -430,11 +483,13 @@ All notable changes to X-Ray are documented in this file.
 ## v2.1.4
 
 ### Added
+
 - Infinite scroll feed flush to bottom
 - Watchlist side panels and card scroll-snap
 - Add right-edge slide panel primitive
 
 ### Fixed
+
 - Give x source chip more logo padding
 - Use official x blue verified badge svg
 - Unify settings and activity panel width
@@ -449,12 +504,14 @@ All notable changes to X-Ray are documented in this file.
 ## v2.1.3
 
 ### Fixed
+
 - Restore worker static gitkeep for l2
 - Lengthen l2 wrangler startup and log
 
 ## v2.1.2
 
 ### Added
+
 - Restore media proxy for images and video
 - 60m spread schedule for watchlist refresh
 - Structured debug logs for refresh failures
@@ -462,6 +519,7 @@ All notable changes to X-Ray are documented in this file.
 - Extract page viewmodels for mvvm
 
 ### Changed
+
 - Flock lock and 429 retry wording
 - Align refresh lock, 429, capacity contracts
 - Note last-success written after push
@@ -480,6 +538,7 @@ All notable changes to X-Ray are documented in this file.
 - Raise l1 coverage gate to 95%
 
 ### Fixed
+
 - Reject zhe.to nondefault port; fresh clock
 - Parse zhe.to urls before path allowlist
 - Harden media proxy redirects and mime
@@ -509,17 +568,20 @@ All notable changes to X-Ray are documented in this file.
 - Ai settings test ui and kek errors
 
 ### Removed
+
 - Remove unused worker static keepfile
 
 ## v2.1.1
 
 ### Added
+
 - Wire card translate to real api
 - Add worker ai client for translate
 
 ## v2.1.0
 
 ### Added
+
 - Member edit dialog with tags
 - Custom zheto save and member tags
 - Ai test connection and summary fill
@@ -532,6 +594,7 @@ All notable changes to X-Ray are documented in this file.
 - Dynamic watchlist group sidebar items
 
 ### Changed
+
 - Add release script for monorepo
 - Product gap routes and docs honesty
 - P5 mentions member edit tags
@@ -551,6 +614,7 @@ All notable changes to X-Ray are documented in this file.
 - Bind xray.hexly.ai as worker custom domain
 
 ### Fixed
+
 - Copy chunk 14 rows for d1 binds
 - Bulk batch and ai host validation
 - Draft ai test and tag load errors
@@ -577,4 +641,5 @@ All notable changes to X-Ray are documented in this file.
 - Trust access jwt without email allowlist
 
 ### Removed
+
 - Drop useless catch in bunSpawn

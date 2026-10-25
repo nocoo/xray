@@ -8,7 +8,7 @@ export function parseLineHeightPx(lineHeight: string, fontSizePx: number): numbe
 		return Number.isFinite(n) && n > 0 ? n : fallback;
 	}
 	const n = Number.parseFloat(lineHeight);
-	if (Number.isFinite(n) && n > 0) return n * (fontSizePx > 0 ? fontSizePx : 0);
+	if (Number.isFinite(n) && n > 0) return n * Math.max(fontSizePx, 0);
 	return fallback;
 }
 

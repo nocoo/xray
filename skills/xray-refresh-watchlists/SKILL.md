@@ -1,10 +1,7 @@
 ---
+
 name: xray-refresh-watchlists
-description: >
-  Refresh xray watchlist timelines via the stable producer script
-  (twitter-cli → cache → canonical → ingest push). Use for cron, "刷新 watchlist",
-  "refresh 活跃用户", local/prod ingest, or any agent that must pull X posts into
-  xray D1 without re-implementing the pipeline. Orchestrates only; never reimplements fetch/push.
+description: "Refresh xray watchlist timelines via the stable producer script (twitter-cli → cache → canonical → ingest push). Use for cron, \"刷新 watchlist\", \"refresh 活跃用户\", local/prod ingest, or any agent that must pull X posts into xray D1 without re-implementing the pipeline. Orchestrates only; never reimplements fetch/push."
 ---
 
 # xray-refresh-watchlists
@@ -25,15 +22,15 @@ Canonical docs (read if behavior is unclear):
 
 ## 0. Cold-start assumptions
 
-| Item | Value |
-|------|--------|
-| **Repo root (cwd)** | Absolute path to the **xray** monorepo (contains `package.json` with `"name": "xray"` and `scripts/refresh-watchlists.ts`) |
-| **Runtime** | `bun` on PATH; `packageManager` in root `package.json` |
-| **Twitter CLI** | `twitter` on PATH (or `TWITTER_BIN` / `--twitter-bin`) — install: `uv tool install twitter-cli` |
-| **Secrets file** | `~/.config/xray/push.env` (`chmod 600`, **never commit**) |
-| **Prod ingest host** | `https://xray-ingest.worker.hexly.ai` |
-| **Prod browser host** | `https://xray.hexly.ai` |
-| **Local worker** | The active launcher descriptor `ingestBase`; port is allocated per instance |
+| Item                  | Value                                                                                                                      |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **Repo root (cwd)**   | Absolute path to the **xray** monorepo (contains `package.json` with `"name": "xray"` and `scripts/refresh-watchlists.ts`) |
+| **Runtime**           | `bun` on PATH; `packageManager` in root `package.json`                                                                     |
+| **Twitter CLI**       | `twitter` on PATH (or `TWITTER_BIN` / `--twitter-bin`) — install: `uv tool install twitter-cli`                            |
+| **Secrets file**      | `~/.config/xray/push.env` (`chmod 600`, **never commit**)                                                                  |
+| **Prod ingest host**  | `https://xray-ingest.worker.hexly.ai`                                                                                      |
+| **Prod browser host** | `https://xray.hexly.ai`                                                                                                    |
+| **Local worker**      | The active launcher descriptor `ingestBase`; port is allocated per instance                                                |
 
 If cwd is wrong, `cd` to repo root first. All commands below assume repo root.
 
@@ -54,10 +51,10 @@ resolve graph (members file OR browser API)
 
 Auth roles (two secrets):
 
-| Secret | Purpose |
-|--------|---------|
-| **twitter-cli cookies / env** | Read X (GraphQL via CLI) |
-| **`XRAY_PUSH_TOKEN`** | Ingest **auth**: `GET /api/v1/ingest/graph` + `POST /api/v1/ingest/push` |
+| Secret                        | Purpose                                                                  |
+| ----------------------------- | ------------------------------------------------------------------------ |
+| **twitter-cli cookies / env** | Read X (GraphQL via CLI)                                                 |
+| **`XRAY_PUSH_TOKEN`**         | Ingest **auth**: `GET /api/v1/ingest/graph` + `POST /api/v1/ingest/push` |
 
 Do **not** use `XRAY_CF_AUTHORIZATION` or browser CRUD to list members.
 
@@ -80,12 +77,12 @@ XRAY_INGEST_BASE=https://xray-ingest.worker.hexly.ai
 XRAY_WINDOW_HOURS=24
 ```
 
-| Key | Required? | Notes |
-|-----|-----------|--------|
-| `XRAY_PUSH_TOKEN` | **Yes** | Graph read + push write (same token) |
-| `XRAY_INGEST_BASE` | **Yes** | Prod `https://xray-ingest.worker.hexly.ai` or the current local descriptor `ingestBase`. Graph and push share this. |
-| `XRAY_MEMBERS_FILE` | Optional | Override only if the file exists; default is token graph |
-| `XRAY_WINDOW_HOURS` | Optional | Default 24 |
+| Key                 | Required? | Notes                                                                                                               |
+| ------------------- | --------- | ------------------------------------------------------------------------------------------------------------------- |
+| `XRAY_PUSH_TOKEN`   | **Yes**   | Graph read + push write (same token)                                                                                |
+| `XRAY_INGEST_BASE`  | **Yes**   | Prod `https://xray-ingest.worker.hexly.ai` or the current local descriptor `ingestBase`. Graph and push share this. |
+| `XRAY_MEMBERS_FILE` | Optional  | Override only if the file exists; default is token graph                                                            |
+| `XRAY_WINDOW_HOURS` | Optional  | Default 24                                                                                                          |
 
 Load into the shell (every run):
 
@@ -104,6 +101,7 @@ test -n "${XRAY_INGEST_BASE:-}" && echo "XRAY_INGEST_BASE=$XRAY_INGEST_BASE" || 
 2. **Settings → Push tokens** → create with a label (e.g. `cli-refresh` / `cron-refresh`).
 3. UI returns the **full secret once** (`xray_pt_…`). Copy immediately.
 4. Write/update `~/.config/xray/push.env`:
+
    ```bash
    umask 077
    cat > ~/.config/xray/push.env <<'EOF'
@@ -150,15 +148,13 @@ Do not call browser `/api/watchlists` or require `XRAY_CF_AUTHORIZATION`.
 
 ```json
 {
-  "watchlists": [
-    {
-      "id": 9,
-      "name": "活跃用户",
-      "members": [
-        { "handle": "sama", "sourceType": "x.com" }
-      ]
-    }
-  ]
+	"watchlists": [
+		{
+			"id": 9,
+			"name": "活跃用户",
+			"members": [{ "handle": "sama", "sourceType": "x.com" }]
+		}
+	]
 }
 ```
 
@@ -226,9 +222,9 @@ curl -sS -o /dev/null -w "%{http_code}\n" "$XRAY_INGEST_BASE/api/live"
 WARNING twitter_cli.client: Failed to init ClientTransaction: 'NoneType' object has no attribute 'group'
 ```
 
-| Check | Action |
-|-------|--------|
-| stdout JSON: `"ok": true` and `data.authenticated: true` | **Ignore** the WARNING; continue preflight |
+| Check                                                      | Action                                                                                   |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| stdout JSON: `"ok": true` and `data.authenticated: true`   | **Ignore** the WARNING; continue preflight                                               |
 | `"authenticated": false` / missing cookies / exit non-zero | **Fail** preflight — re-login x.com in browser or set `TWITTER_AUTH_TOKEN`+`TWITTER_CT0` |
 
 Do not treat the ClientTransaction WARNING alone as auth failure.
@@ -325,13 +321,13 @@ Filter the members snapshot to one `{ id, name, members }` entry (correct env id
 
 ## 6. Exit codes
 
-| Code | Meaning | Agent action |
-|------|---------|--------------|
-| **0** | Success (incl. empty graph no-op; recovered single 429 defer in-epoch) | Report green |
-| **1** | Partial failure (handle errors, push errors, rejects, zero ok handles, fatal push) | Report red + summary; do not retry blindly in a tight loop |
-| **2** | Preflight / config (no twitter, not authenticated, bad flags, missing token for push) | Fix env; human may need browser re-login |
-| **3** | `epoch.lock` busy or lock error | Another run holds flock — wait; **never rm** lock |
-| **130 / 143** | SIGINT / SIGTERM | Interrupted |
+| Code          | Meaning                                                                               | Agent action                                               |
+| ------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| **0**         | Success (incl. empty graph no-op; recovered single 429 defer in-epoch)                | Report green                                               |
+| **1**         | Partial failure (handle errors, push errors, rejects, zero ok handles, fatal push)    | Report red + summary; do not retry blindly in a tight loop |
+| **2**         | Preflight / config (no twitter, not authenticated, bad flags, missing token for push) | Fix env; human may need browser re-login                   |
+| **3**         | `epoch.lock` busy or lock error                                                       | Another run holds flock — wait; **never rm** lock          |
+| **130 / 143** | SIGINT / SIGTERM                                                                      | Interrupted                                                |
 
 Lock path: `.cache/twitter-cli/epoch.lock` (under `XRAY_CACHE_DIR` / `--cache-dir`).
 
@@ -347,29 +343,30 @@ After the script finishes, parse stdout/stderr (see **§4.2** for stream shape):
 
 ### 7.1 Map script fields → report lines
 
-| Report line | Source |
-|-------------|--------|
-| **ingest** | Env `XRAY_INGEST_BASE` after source, **or** `plan.ingestBase` / `refresh_done.ingestBase` if present |
-| **graph** | Token `GET {ingest}/api/v1/ingest/graph`, or `members-file <path>` if override used. Dry-run: `plan.watchlists` = list count |
-| **mode** | `plan.refreshMode` + flags: `plan.dryRun` / `fromCache` / `cacheOnly` / `noSpread` |
-| **handles selected** | `plan.selectedHandles` (or `uniqueHandles`) |
-| **handles ok / errors** | Full run: `refresh_done` / report — `handleErrors`, `permanentlyFailed`; count ok from summary or handlesPlanned semantics |
-| **mapped / windowDropped / skipped** | `refresh_done.totalMapped`, `totalWindowDropped`, `totalSkipped` (names as in report JSON) |
-| **per watchlist** | `refresh_done.summary[]` or report file `summary[]`: `watchlist_id`, `name`, `items`, `accepted`, `deduped`, `rejected` |
-| **pushErrors** | `refresh_done.pushErrors` |
-| **report file** | stdout line `report: …` |
-| **debugDir** | `refresh_done.debugDir` |
+| Report line                          | Source                                                                                                                       |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| **ingest**                           | Env `XRAY_INGEST_BASE` after source, **or** `plan.ingestBase` / `refresh_done.ingestBase` if present                         |
+| **graph**                            | Token `GET {ingest}/api/v1/ingest/graph`, or `members-file <path>` if override used. Dry-run: `plan.watchlists` = list count |
+| **mode**                             | `plan.refreshMode` + flags: `plan.dryRun` / `fromCache` / `cacheOnly` / `noSpread`                                           |
+| **handles selected**                 | `plan.selectedHandles` (or `uniqueHandles`)                                                                                  |
+| **handles ok / errors**              | Full run: `refresh_done` / report — `handleErrors`, `permanentlyFailed`; count ok from summary or handlesPlanned semantics   |
+| **mapped / windowDropped / skipped** | `refresh_done.totalMapped`, `totalWindowDropped`, `totalSkipped` (names as in report JSON)                                   |
+| **per watchlist**                    | `refresh_done.summary[]` or report file `summary[]`: `watchlist_id`, `name`, `items`, `accepted`, `deduped`, `rejected`      |
+| **pushErrors**                       | `refresh_done.pushErrors`                                                                                                    |
+| **report file**                      | stdout line `report: …`                                                                                                      |
+| **debugDir**                         | `refresh_done.debugDir`                                                                                                      |
 
 ### 7.2 Human report template
 
 ```markdown
 ## xray refresh report
+
 - **when**: <ISO time>
 - **cwd**: <repo root>
 - **target**: prod | local
 - **ingest**: <from env or plan.ingestBase>
 - **graph**: ingest-graph <base> | members-file <path>
-- **mode**: full | incremental | from-cache | dry-run | cache-only  (from plan.*)
+- **mode**: full | incremental | from-cache | dry-run | cache-only (from plan.*)
 - **exit**: <code>
 - **handles**: selected=<plan.selectedHandles> ok=<…> errors=<handleErrors|permanentlyFailed>
 - **mapped / windowDropped / skipped**: <refresh_done totals>
@@ -382,16 +379,16 @@ After the script finishes, parse stdout/stderr (see **§4.2** for stream shape):
 
 ### 7.3 Fields to highlight
 
-| Field | Meaning |
-|-------|---------|
-| `summary[].accepted` | New rows written |
-| `summary[].deduped` | Already present (ok) |
-| `summary[].rejected` | Server rejected (investigate) |
-| `totalWindowDropped` | Posts older than `windowHours` (default 24h) dropped **client-side before push**. Large ratios (e.g. 706/960) are **normal** when timelines are sparse/old — not a fetch or push failure. Compare to `totalMapped` / `accepted`; only worry if mapped is near-zero while handles ok |
-| `totalMapped` / `totalSkipped` | Mapped into canonical / mapper skips |
-| `handleErrors` / `permanentlyFailed` | twitter-cli failures |
-| `pushErrors` | ingest transport/API failures |
-| `watermarkPersist` | `ok` expected on successful push path |
+| Field                                | Meaning                                                                                                                                                                                                                                                                             |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `summary[].accepted`                 | New rows written                                                                                                                                                                                                                                                                    |
+| `summary[].deduped`                  | Already present (ok)                                                                                                                                                                                                                                                                |
+| `summary[].rejected`                 | Server rejected (investigate)                                                                                                                                                                                                                                                       |
+| `totalWindowDropped`                 | Posts older than `windowHours` (default 24h) dropped **client-side before push**. Large ratios (e.g. 706/960) are **normal** when timelines are sparse/old — not a fetch or push failure. Compare to `totalMapped` / `accepted`; only worry if mapped is near-zero while handles ok |
+| `totalMapped` / `totalSkipped`       | Mapped into canonical / mapper skips                                                                                                                                                                                                                                                |
+| `handleErrors` / `permanentlyFailed` | twitter-cli failures                                                                                                                                                                                                                                                                |
+| `pushErrors`                         | ingest transport/API failures                                                                                                                                                                                                                                                       |
+| `watermarkPersist`                   | `ok` expected on successful push path                                                                                                                                                                                                                                               |
 
 On exit ≠ 0, include last ~40 lines of script output and the report JSON `event` block.
 
@@ -407,18 +404,18 @@ bun run refresh:watchlists -- 2>&1 | tee -a "$LOG_DIR/refresh-$(date -u +%Y%m%dT
 
 ## 8. Failure playbook (short)
 
-| Symptom | Fix |
-|---------|-----|
-| `twitter` missing | `uv tool install twitter-cli`; ensure `~/.local/bin` on PATH |
-| Cookie expired | Login x.com in browser; re-run `twitter status --json` |
-| `ClientTransaction` WARNING on `twitter status` | **Ignore** if `authenticated: true` (§4.1) |
-| `XRAY_PUSH_TOKEN required` | source `push.env` or export token |
-| Ingest 401 | Re-mint token; update `push.env` |
-| Wrong/empty posts on a named WL | Snapshot **id** mismatch — re-export graph from **that** env |
-| Mass 429 | Prod: use default spread only; wait; do not tighten delay |
-| exit 3 lock | Wait for other run; check no crashed holder still alive |
-| `config/members.json` overrides token graph | Expected if `XRAY_MEMBERS_FILE` points at an existing file |
-| `jq` fails on full dry-run log | Stream is multi-line JSON + human lines, not NDJSON (§4.2) |
+| Symptom                                         | Fix                                                          |
+| ----------------------------------------------- | ------------------------------------------------------------ |
+| `twitter` missing                               | `uv tool install twitter-cli`; ensure `~/.local/bin` on PATH |
+| Cookie expired                                  | Login x.com in browser; re-run `twitter status --json`       |
+| `ClientTransaction` WARNING on `twitter status` | **Ignore** if `authenticated: true` (§4.1)                   |
+| `XRAY_PUSH_TOKEN required`                      | source `push.env` or export token                            |
+| Ingest 401                                      | Re-mint token; update `push.env`                             |
+| Wrong/empty posts on a named WL                 | Snapshot **id** mismatch — re-export graph from **that** env |
+| Mass 429                                        | Prod: use default spread only; wait; do not tighten delay    |
+| exit 3 lock                                     | Wait for other run; check no crashed holder still alive      |
+| `config/members.json` overrides token graph     | Expected if `XRAY_MEMBERS_FILE` points at an existing file   |
+| `jq` fails on full dry-run log                  | Stream is multi-line JSON + human lines, not NDJSON (§4.2)   |
 
 ---
 
