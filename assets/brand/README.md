@@ -4,14 +4,14 @@ A field for color. The exact existing transparent source bytes and native canvas
 
 ## Use by surface
 
-| Surface | Asset | Treatment |
-| --- | --- | --- |
-| README / large gallery | `assets/brand/icon-rounded.png` | Selected rounded presentation at 128 px in README |
-| Sidebar, both states | `packages/ui/public/logo-24.png` | Transparent at 24 px; no mask |
-| Worker mirrors | `packages/worker/static/logo*.png` | Exact retained full source and transparent small derivatives |
-| Browser favicon | `packages/ui/public/favicon.png and favicon.ico` | Transparent 32 px PNG and decoded 16/32/48 ICO |
-| Apple touch | `packages/ui/public/apple-touch-icon.png` | Opaque square 180 px presentation |
-| Social | `packages/ui/public/opengraph-image.png` | Rounded presentation on a 1200 × 630 canvas |
+| Surface                | Asset                                            | Treatment                                                    |
+| ---------------------- | ------------------------------------------------ | ------------------------------------------------------------ |
+| README / large gallery | `assets/brand/icon-rounded.png`                  | Selected rounded presentation at 128 px in README            |
+| Sidebar, both states   | `packages/ui/public/logo-24.png`                 | Transparent at 24 px; no mask                                |
+| Worker mirrors         | `packages/worker/static/logo*.png`               | Exact retained full source and transparent small derivatives |
+| Browser favicon        | `packages/ui/public/favicon.png and favicon.ico` | Transparent 32 px PNG and decoded 16/32/48 ICO               |
+| Apple touch            | `packages/ui/public/apple-touch-icon.png`        | Opaque square 180 px presentation                            |
+| Social                 | `packages/ui/public/opengraph-image.png`         | Rounded presentation on a 1200 × 630 canvas                  |
 
 Root `logo.png` is the canonical 2048 × 2048 transparent foreground. `assets/brand/icon.png` and `icon-rounded.png` preserve the independent square and rounded presentation. Small UI and browser marks use the foreground with its original proportions and alpha, without a background tile, glow, color filter or additional mask. Native app and touch icons follow their platform's separate masking contract.
 

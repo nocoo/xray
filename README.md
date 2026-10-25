@@ -57,16 +57,16 @@ bun run dev
 
 `bun run dev` builds the shared package and starts the managed gateway. Open **https://xray.dev.hexly.ai** through Caddy for local preview and HMR. The gateway listens on 7007; native Worker and inspector ports are allocated dynamically.
 
-| Command | Purpose |
-| --- | --- |
-| `bun run dev` | Resolve launcher mode, valid saved preference, then Demo |
-| `bun run dev -- --mode demo` | Explicit persistent Demo session |
-| `bun run dev -- --mode e2e` | Fresh manual E2E session; switching remains available |
-| `bun run preview -- --mode demo` | Build and serve the same UI from `packages/worker/static` |
-| `bun run env:db -- init --mode demo` | Initialize owned Demo storage and fixtures |
-| `bun run env:db -- migrate --mode demo` | Apply current migrations to Demo |
-| `bun run env:db -- seed --mode demo` | Seed only an unseeded Demo store |
-| `bun run env:db -- reset --mode demo` | Explicitly replace Demo data and discard its edits |
+| Command                                 | Purpose                                                   |
+| --------------------------------------- | --------------------------------------------------------- |
+| `bun run dev`                           | Resolve launcher mode, valid saved preference, then Demo  |
+| `bun run dev -- --mode demo`            | Explicit persistent Demo session                          |
+| `bun run dev -- --mode e2e`             | Fresh manual E2E session; switching remains available     |
+| `bun run preview -- --mode demo`        | Build and serve the same UI from `packages/worker/static` |
+| `bun run env:db -- init --mode demo`    | Initialize owned Demo storage and fixtures                |
+| `bun run env:db -- migrate --mode demo` | Apply current migrations to Demo                          |
+| `bun run env:db -- seed --mode demo`    | Seed only an unseeded Demo store                          |
+| `bun run env:db -- reset --mode demo`   | Explicitly replace Demo data and discard its edits        |
 
 Stop the active Demo session before database commands. Demo persists in `packages/worker/.wrangler/environments/demo`; normal restarts retain edits. E2E uses a new owned `e2e-*` directory and cleans it up on shutdown. The retired `.wrangler/state-mock` store is preserved untouched.
 
@@ -104,11 +104,11 @@ legacy/v1/         旧版 vinext 应用
 
 安装依赖并运行 `bun run build:shared` 后，从仓库根目录执行：
 
-| 测试层 | 命令 |
-| --- | --- |
-| 共享逻辑、UI 与 Worker 单元测试 | `bun run test` |
+| 测试层                                    | 命令              |
+| ----------------------------------------- | ----------------- |
+| 共享逻辑、UI 与 Worker 单元测试           | `bun run test`    |
 | Worker HTTP integration + route inventory | `bun run test:l2` |
-| 浏览器端到端测试 | `bun run test:l3` |
+| 浏览器端到端测试                          | `bun run test:l3` |
 
 L2 and L3 own their fresh native E2E resources and reject inherited production credentials. Use `bun run test:l2` for HTTP tests plus the endpoint inventory gate. Install Chromium with `bun x --no-install playwright install chromium`; `bun run test:l3` builds the application, starts its own gateway and Worker, supplies signed identities and addresses, and cleans up afterward. Direct unmanaged Playwright invocation is rejected. Do not point tests at daily Demo or Prod.
 
@@ -123,12 +123,12 @@ On 2026-09-27, the full native L2 suite passed 41 tests across six files with cl
 ![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?logo=cloudflareworkers&logoColor=white)
 ![D1](https://img.shields.io/badge/D1-F38020?logo=cloudflare&logoColor=white)
 
-| 部分 | 实现 |
-| --- | --- |
-| Web 界面 | React、Vite、React Router、Tailwind CSS、Recharts |
-| API 与数据 | Hono、Cloudflare Workers、D1；Cloudflare Access 登录 |
-| 采集 | Bun / TypeScript 脚本、twitter-cli 适配器、Python 进程锁 |
-| 开发与测试 | Bun workspace、Turborepo、Biome、Vitest、Playwright |
+| 部分       | 实现                                                     |
+| ---------- | -------------------------------------------------------- |
+| Web 界面   | React、Vite、React Router、Tailwind CSS、Recharts        |
+| API 与数据 | Hono、Cloudflare Workers、D1；Cloudflare Access 登录     |
+| 采集       | Bun / TypeScript 脚本、twitter-cli 适配器、Python 进程锁 |
+| 开发与测试 | Bun workspace、Turborepo、Biome、Vitest、Playwright      |
 
 ## 文档
 

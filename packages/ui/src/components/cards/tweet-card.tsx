@@ -761,7 +761,7 @@ function MediaGrid({
 	const handlePhotoClick = onPhotoClick
 		? (id: string, opener: HTMLElement) => {
 				const index = galleryPhotos.findIndex((photo) => photo.id === id);
-				onPhotoClick(galleryPhotos, index < 0 ? 0 : index, opener);
+				onPhotoClick(galleryPhotos, Math.max(index, 0), opener);
 			}
 		: undefined;
 	const gridHeight = compact ? "h-44" : "h-60";
