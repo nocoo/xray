@@ -1,20 +1,92 @@
 #!/usr/bin/env sh
-# 6DQ pre-commit: G1 (lint + typecheck) + L1 (unit + coverage)
+# 6DQ pre-commit (L1): lint + typecheck + coverage against the Git index snapshot.
 set -e
-cd "$(dirname "$0")/.."
 
-echo "━━━ lint (G1) ━━━"
-bun run lint
+command -v git >/dev/null 2>&1 || {
+	echo "pre-commit: git is required" >&2
+	exit 1
+}
+command -v bun >/dev/null 2>&1 || {
+	echo "pre-commit: bun is required" >&2
+	exit 1
+}
 
-echo "━━━ typecheck (G1) ━━━"
+snapshot=
+cleanup() {
+	status=$?
+	trap - EXIT INT TERM HUP
+	if [ -n "$snapshot" ]; then
+		rm -rf "$snapshot" || :
+		snapshot=
+	fi
+	exit "$status"
+}
+trap cleanup EXIT
+trap "exit 130" INT
+trap "exit 143" TERM
+trap "exit 129" HUP
+
+repo=$(git rev-parse --show-toplevel)
+snapshot=$(mktemp -d "${TMPDIR:-/tmp}/xray-index-XXXXXX")
+
+if command -v gitleaks >/dev/null 2>&1; then
+	echo "━━━ gitleaks (staged) ━━━"
+	gitleaks protect --staged --no-banner
+else
+	echo "⚠ gitleaks not installed — skip"
+fi
+
+git checkout-index --all --prefix="$snapshot/"
+
+for f in package.json bun.lock; do
+	if [ ! -f "$snapshot/$f" ]; then
+		echo "pre-commit: staged $f is required" >&2
+		exit 1
+	fi
+	if ! cmp -s "$snapshot/$f" "$repo/$f"; then
+		echo "pre-commit: staged $f differs from the worktree copy — stage the installed state before committing" >&2
+		exit 1
+	fi
+done
+for m in "$snapshot"/packages/*/package.json; do
+	[ -f "$m" ] || continue
+	rel="packages/${m##*/packages/}"
+	if ! cmp -s "$m" "$repo/$rel"; then
+		echo "pre-commit: staged $rel differs from the worktree copy — stage the installed state before committing" >&2
+		exit 1
+	fi
+done
+
+if [ ! -d "$repo/node_modules" ]; then
+	echo "pre-commit: node_modules is required — run 'bun install --frozen-lockfile'" >&2
+	exit 1
+fi
+
+if ! (cd "$snapshot" && bun install --frozen-lockfile --dry-run --ignore-scripts >/dev/null 2>&1); then
+	echo "pre-commit: staged package.json/bun.lock are out of sync — run 'bun install' and commit the updated bun.lock" >&2
+	exit 1
+fi
+rm -rf "$snapshot/node_modules"
+
+sh "$repo/scripts/snapshot-node-modules.sh" "$repo" "$snapshot"
+mkdir -p "$snapshot/node_modules/.vite" "$snapshot/node_modules/.vitest" "$snapshot/.cache"
+
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+unset GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+export XDG_CACHE_HOME="$snapshot/.cache"
+export XDG_STATE_HOME="$snapshot/.cache"
+export TURBO_TELEMETRY_DISABLED=1
+PATH="$snapshot/node_modules/.bin:$PATH"
+cd "$snapshot"
+
+echo "━━━ build:shared (staged) ━━━"
+bun run build:shared
+
+echo "━━━ typecheck (L1) ━━━"
 bun run typecheck
+
+echo "━━━ lint (L1) ━━━"
+bun run lint
 
 echo "━━━ L1 unit + coverage (≥95% lines/funcs/branches) ━━━"
 bun run test:coverage
-
-if command -v gitleaks >/dev/null 2>&1; then
-  echo "━━━ gitleaks (staged) ━━━"
-  gitleaks protect --staged --no-banner
-else
-  echo "⚠ gitleaks not installed — skip"
-fi
