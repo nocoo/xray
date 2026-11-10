@@ -1,3 +1,5 @@
+# CI slot standard v1 (nocoo/base-ci docs/slots.md): impl S1, S2, S3, G1, G2, L1, L2, L3, Z1 via quality.yml;
+# na B1, L1.5, P1 in slot-status. nocoo/base-ci v2026.12: top-level slot jobs, L2/L3 folded into quality.yml.
 name: CI
 
 on:
@@ -7,45 +9,49 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   quality:
-    uses: nocoo/base-ci/.github/workflows/quality.yml@633a5545fcfec91b688840650d4edf3e9cc1abbd # v2026.10
+    uses: nocoo/base-ci/.github/workflows/quality.yml@1ea10ecab22b72512399485391603fe03a161016 # v2026.12
     with:
       runtime-version: "1.3.14"
-      install-policy: "trusted"
-      coverage-path: "packages/*/coverage"
-      lint-command: "bun run lint"
-      typecheck-command: "bun run typecheck"
+      install-policy: trusted
+      coverage-path: packages/*/coverage
+      lint-command: bun run lint
+      typecheck-command: bun run typecheck
       test-command: |
         bun run test
         bun run test:coverage
-
-  l2:
-    name: L2 real-HTTP + routes
-    uses: nocoo/base-ci/.github/workflows/test-job.yml@633a5545fcfec91b688840650d4edf3e9cc1abbd # v2026.10
-    with:
-      runtime-version: "1.3.14"
-      install-policy: "trusted"
-      timeout-minutes: 15
-      pre-command: |
+      gitleaks-config: .gitleaks.toml
+      workflow-lint: true
+      workflow-lint-required-workflow: nocoo/base-ci/.github/workflows/deploy-worker.yml
+      workflow-lint-yamllint: true
+      l2: true
+      l2-command: |
         bun run check:wrangler-version
         bun run build:shared
-      command: "bun run test:l2"
+        env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID -u CF_API_TOKEN bun run test:l2
+      l3: true
+      l3-browsers: "chromium webkit"
+      l3-prepare-command: bun run check:wrangler-version
+      l3-command: env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID -u CF_API_TOKEN bun run test:l3
       env-json: |-
         {
-          "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "1"
+          "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "1",
+          "CI": "true"
         }
-
-  l3:
-    name: L3 managed Chromium + WebKit + build
-    uses: nocoo/base-ci/.github/workflows/test-job.yml@633a5545fcfec91b688840650d4edf3e9cc1abbd # v2026.10
-    with:
-      runtime-version: "1.3.14"
-      install-policy: "trusted"
-      timeout-minutes: 20
-      browser: chromium
-      pre-command: |
-        bun run check:wrangler-version
-        bun x --no-install playwright install --with-deps webkit
-      command: "bun run test:l3"
-      env-json: '{"CI":"true"}'
+      slot-status: >-
+        {"S1": {"status": "impl"},
+        "S2": {"status": "impl"},
+        "S3": {"status": "impl"},
+        "G1": {"status": "impl"},
+        "G2": {"status": "impl"},
+        "B1": {"status": "na", "reason": "产物构建未作独立 CI 门禁；L2 仅 build:shared，L3 由 test:l3 内含 bun run build"},
+        "L1": {"status": "impl"},
+        "L1.5": {"status": "na", "reason": "无 @cloudflare/vitest-pool-workers / miniflare Worker 运行时测试套件；L2 为 Worker HTTP E2E"},
+        "L2": {"status": "impl"},
+        "L3": {"status": "impl"},
+        "P1": {"status": "na", "reason": "根 package.json 为 private，不发布 npm 包"},
+        "Z1": {"status": "impl"}}
