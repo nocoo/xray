@@ -123,7 +123,6 @@ function AppShellInner({ children }: AppShellProps) {
 										<Button
 											variant="ghost"
 											size="icon"
-											className="[&_svg]:size-basalt-icon-lg"
 											onClick={() => setMobileOpen(true)}
 											aria-label="Open navigation menu"
 										>
@@ -139,12 +138,7 @@ function AppShellInner({ children }: AppShellProps) {
 									<EnvironmentSwitch />
 									{!isMobile && (
 										<HeaderTooltip label="GitHub repository">
-											<Button
-												variant="ghost"
-												size="icon"
-												className="[&_svg]:size-basalt-icon-lg"
-												asChild
-											>
+											<Button variant="ghost" size="icon" asChild>
 												<a
 													href="https://github.com/nocoo/xray"
 													target="_blank"

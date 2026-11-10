@@ -57,8 +57,8 @@ test("page icon hierarchy and bright statistics survive themes and narrow layout
 					width === 1440 ? "32px" : width === 768 ? "24px" : "16px",
 				);
 				for (const icon of await page.locator("[data-basalt-header-actions] svg").all()) {
-					await expect(icon).toHaveCSS("width", "16px");
-					await expect(icon).toHaveCSS("height", "16px");
+					await expect(icon).toHaveCSS("width", "14px");
+					await expect(icon).toHaveCSS("height", "14px");
 				}
 				await expect(page.locator("[data-basalt-header] h1")).toHaveCSS("font-size", "14px");
 				await expect(title).toHaveCSS("font-size", "24px");
@@ -110,7 +110,7 @@ test("page icon hierarchy and bright statistics survive themes and narrow layout
 				const sidebar = page.getByTestId("app-sidebar");
 				const footer = sidebar.locator('[data-slot="sidebar-footer"]');
 				await expect(sidebar).not.toHaveAttribute("data-collapsed");
-				await expect(footer).toHaveCSS("padding", "12px 16px");
+				await expect(footer).toHaveCSS("padding", "8px 16px 16px");
 				const avatar = footer.locator("img").first();
 				await expect(avatar).toBeVisible();
 				const outer = await sidebar.boundingBox();
@@ -122,7 +122,7 @@ test("page icon hierarchy and bright statistics survive themes and narrow layout
 				await expect(sidebar).toHaveAttribute("data-collapsed", "");
 				await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(68);
 				await expect.poll(async () => (await avatar.boundingBox())!.x).toBe(inner!.x);
-				await expect(footer).toHaveCSS("padding", "12px 16px");
+				await expect(footer).toHaveCSS("padding", "8px 16px 16px");
 				await page.getByRole("button", { name: "Expand sidebar", exact: true }).click();
 			}
 		}

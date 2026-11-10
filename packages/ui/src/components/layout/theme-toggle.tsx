@@ -18,11 +18,10 @@ export function ThemeToggle({ "aria-label": ariaLabel = "Toggle theme" }: ThemeT
 			<Button
 				variant="ghost"
 				size="icon"
-				className="[&_svg]:size-basalt-icon-lg"
 				onClick={() => setTheme(nextTheme)}
 				aria-label={ariaLabel}
 			>
-				<Icon className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
+				<Icon aria-hidden="true" strokeWidth={1.5} />
 			</Button>
 		</HeaderTooltip>
 	);
