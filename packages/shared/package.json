@@ -1,6 +1,6 @@
 {
 	"name": "@xray/shared",
-	"version": "2.8.4",
+	"version": "2.8.5",
 	"private": true,
 	"type": "module",
 	"main": "./dist/index.js",
@@ -19,9 +19,9 @@
 	},
 	"devDependencies": {
 		"@types/mdast": "4.0.4",
-		"@vitest/coverage-v8": "5.0.5",
+		"@vitest/coverage-v8": "5.1.0",
 		"typescript": "^7.0.2",
-		"vitest": "5.0.5"
+		"vitest": "5.1.0"
 	},
 	"dependencies": {
 		"remark-gfm": "4.0.1",

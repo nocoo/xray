@@ -115,4 +115,5 @@ Authorized releases use `bun run release` (patch default, `-- minor`/`-- major` 
 ## Retrospective
 
 Narratives: [Retrospective.md](Retrospective.md); brief recurring rules here, cross-project lessons in global rules/nmem and deterministic checks in hooks/tests.
+
 - Keep browser and ingest host capabilities distinct in every new route and test.
