@@ -57,8 +57,8 @@ test("page icon hierarchy and bright statistics survive themes and narrow layout
 					width === 1440 ? "32px" : width === 768 ? "24px" : "16px",
 				);
 				for (const icon of await page.locator("[data-basalt-header-actions] svg").all()) {
-					await expect(icon).toHaveCSS("width", "16px");
-					await expect(icon).toHaveCSS("height", "16px");
+					await expect(icon).toHaveCSS("width", "14px");
+					await expect(icon).toHaveCSS("height", "14px");
 				}
 				await expect(page.locator("[data-basalt-header] h1")).toHaveCSS("font-size", "14px");
 				await expect(title).toHaveCSS("font-size", "24px");
