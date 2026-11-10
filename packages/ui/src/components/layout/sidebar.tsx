@@ -160,9 +160,9 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 	const flatItems = navGroups.flatMap((g) => (g.dynamic === "channels" ? [] : g.items));
 
 	const avatar = (
-		<Avatar className="h-9 w-9 shrink-0">
+		<Avatar>
 			{user.image ? <AvatarImage src={user.image} alt={user.name} /> : null}
-			<AvatarFallback className={cn("text-xs text-white", getAvatarColor(user.name))}>
+			<AvatarFallback className={cn("text-white", getAvatarColor(user.name))}>
 				{user.initial}
 			</AvatarFallback>
 		</Avatar>
@@ -291,7 +291,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 	);
 
 	const sidebarFooter = collapsed ? (
-		<SidebarFooter className="px-basalt-panel-x py-basalt-panel-y">
+		<SidebarFooter>
 			<Tooltip delayDuration={0}>
 				<TooltipTrigger asChild>
 					<span className="inline-flex">{avatar}</span>
@@ -302,8 +302,8 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 			</Tooltip>
 		</SidebarFooter>
 	) : (
-		<SidebarFooter className="px-basalt-panel-x py-basalt-panel-y">
-			<SidebarUser className="w-full min-w-0" name={user.name} email={user.email} avatar={avatar} />
+		<SidebarFooter>
+			<SidebarUser name={user.name} email={user.email} avatar={avatar} />
 		</SidebarFooter>
 	);
 
