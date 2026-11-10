@@ -152,7 +152,6 @@ Historical incident narratives, including the retired v1 Next.js/vinext runtime.
 - **Why:** Locking was derived from the data mode rather than whether the launcher owned an automated test run. The owner clarified that only scripted E2E should be locked.
 - **Follow-up:** Derive the immutable lock from the trusted `automated` startup option. Cover manual startup, selection, fresh reentry, preference persistence and draft protection separately from local/hosted automated lock enforcement. Environment browser checks now use the same exact external-media fixture helper as other specs; real APIs remain intact.
 
-
 ## 2026-09-27: Dashboard logs retain nullable watchlist references
 
 The first real-SQL dashboard test incorrectly inserted an orphan watchlist ID.
@@ -409,7 +408,6 @@ per query token. A regression test signs a forged cursor with the Bearer hash
 and requires rejection, and verifies that neither creation nor list responses
 expose the signing key. An authentication verifier is not a server-only secret
 against an authenticated caller.
-
 
 ## 2026-10-15 - Separate query selection from token authorization
 
