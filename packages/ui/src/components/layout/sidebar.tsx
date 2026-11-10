@@ -72,7 +72,7 @@ function useSidebarGroups(listVersion: number) {
 }
 
 function XrayMark() {
-	return <img src="/logo-24.png" alt="X-Ray" width={24} height={24} className="shrink-0" />;
+	return <img src="/logo-24.png" alt="X-Ray" width={20} height={20} className="h-5 w-5 shrink-0" />;
 }
 
 function navItemClass(active: boolean, className?: string) {
@@ -168,165 +168,161 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 		</Avatar>
 	);
 
-	if (collapsed) {
-		return (
-			<BasaltSidebar collapsed aria-label="Main navigation" data-testid="app-sidebar">
-				<SidebarHeader className="justify-start px-0 pl-6">
+	const sidebarHeader = collapsed ? (
+		<SidebarHeader>
+			<XrayMark />
+		</SidebarHeader>
+	) : (
+		<SidebarHeader>
+			<div className="flex w-full items-center justify-between">
+				<div className="flex min-w-0 items-center gap-basalt-space-lg">
 					<XrayMark />
-				</SidebarHeader>
+					<span className="truncate text-lg font-semibold text-basalt-foreground md:text-xl">
+						X-Ray
+					</span>
+					<span className="shrink-0 rounded-md bg-basalt-secondary px-basalt-space-md py-basalt-space-xs text-basalt-xs leading-none font-medium text-basalt-muted-foreground">
+						v{APP_VERSION}
+					</span>
+				</div>
+				<Button variant="ghost" size="icon" onClick={onToggle} aria-label="Collapse sidebar">
+					<PanelLeft aria-hidden="true" strokeWidth={1.5} />
+				</Button>
+			</div>
+		</SidebarHeader>
+	);
+
+	const sidebarNav = collapsed ? (
+		<SidebarNav className="w-full items-center gap-1 pt-1">
+			{flatItems.map((item: UiNavItem) => (
+				<Tooltip key={item.href} delayDuration={0}>
+					<TooltipTrigger asChild>
+						<Link
+							to={item.href}
+							aria-label={item.label}
+							aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
+							data-nav-label={item.label}
+							className={navIconClass(isActivePath(pathname, item.href), "self-center")}
+						>
+							<item.icon className="h-4 w-4" strokeWidth={1.5} />
+							{item.href === "/channels" && channels.some((channel) => channel.hasUnread) && (
+								<span className="absolute right-1 top-1">
+									<UnreadDot />
+								</span>
+							)}
+						</Link>
+					</TooltipTrigger>
+					<TooltipContent side="right" sideOffset={8}>
+						{item.label}
+					</TooltipContent>
+				</Tooltip>
+			))}
+		</SidebarNav>
+	) : (
+		<SidebarNav className="pt-1" data-testid="sidebar-nav">
+			{navGroups.map((group) => {
+				if (group.dynamic === "watchlists") {
+					return (
+						<SidebarGroup key={group.label} label={group.label} defaultOpen={group.defaultOpen}>
+							{watchlists.map((wl) => (
+								<EntityNavItem
+									key={wl.id}
+									href={`/watchlist/${wl.id}`}
+									name={wl.name}
+									icon={wl.icon}
+									pathname={pathname}
+								/>
+							))}
+							<NewEntityItem label="New watchlist" onClick={openCreateWatchlist} />
+						</SidebarGroup>
+					);
+				}
+				if (group.dynamic === "channels") {
+					return (
+						<SidebarGroup key={group.label} label={group.label} defaultOpen={group.defaultOpen}>
+							{channels.map((channel) => (
+								<EntityNavItem
+									key={channel.id}
+									href={`/channels/${channel.id}`}
+									name={channel.name}
+									unread={channel.hasUnread}
+									icon="radio"
+									pathname={pathname}
+								/>
+							))}
+							<NewEntityItem label="New channel" onClick={() => void navigate("/channels?new=1")} />
+						</SidebarGroup>
+					);
+				}
+				if (group.dynamic === "groups") {
+					return (
+						<SidebarGroup key={group.label} label={group.label} defaultOpen={group.defaultOpen}>
+							{entityGroups.map((g) => (
+								<EntityNavItem
+									key={g.id}
+									href={`/groups?id=${g.id}`}
+									name={g.name}
+									icon={g.icon}
+									pathname={pathname}
+									search={search}
+								/>
+							))}
+							<NewEntityItem label="New group" onClick={openCreateGroup} />
+						</SidebarGroup>
+					);
+				}
+				return (
+					<SidebarGroup key={group.label} label={group.label} defaultOpen={group.defaultOpen}>
+						{group.items.map((item) => (
+							<Link
+								key={item.href}
+								to={item.href}
+								aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
+								data-nav-label={item.label}
+								className={navItemClass(isActivePath(pathname, item.href))}
+							>
+								<item.icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+								<span className="flex-1 truncate text-left">{item.label}</span>
+							</Link>
+						))}
+					</SidebarGroup>
+				);
+			})}
+		</SidebarNav>
+	);
+
+	const sidebarFooter = collapsed ? (
+		<SidebarFooter className="px-basalt-panel-x py-basalt-panel-y">
+			<Tooltip delayDuration={0}>
+				<TooltipTrigger asChild>
+					<span className="inline-flex">{avatar}</span>
+				</TooltipTrigger>
+				<TooltipContent side="right" sideOffset={8}>
+					{user.name}
+				</TooltipContent>
+			</Tooltip>
+		</SidebarFooter>
+	) : (
+		<SidebarFooter className="px-basalt-panel-x py-basalt-panel-y">
+			<SidebarUser className="w-full min-w-0" name={user.name} email={user.email} avatar={avatar} />
+		</SidebarFooter>
+	);
+
+	return (
+		<BasaltSidebar collapsed={collapsed} aria-label="Main navigation" data-testid="app-sidebar">
+			{sidebarHeader}
+			{collapsed ? (
 				<Button
 					variant="ghost"
 					size="icon"
-					className="mb-basalt-space-sm self-center [&_svg]:size-basalt-icon-lg"
+					className="mb-basalt-space-sm self-center"
 					onClick={onToggle}
 					aria-label="Expand sidebar"
 				>
 					<PanelLeft aria-hidden="true" strokeWidth={1.5} />
 				</Button>
-				<SidebarNav className="w-full items-center gap-1 pt-1">
-					{flatItems.map((item: UiNavItem) => (
-						<Tooltip key={item.href} delayDuration={0}>
-							<TooltipTrigger asChild>
-								<Link
-									to={item.href}
-									aria-label={item.label}
-									aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
-									data-nav-label={item.label}
-									className={navIconClass(isActivePath(pathname, item.href), "self-center")}
-								>
-									<item.icon className="h-4 w-4" strokeWidth={1.5} />
-									{item.href === "/channels" && channels.some((channel) => channel.hasUnread) && (
-										<span className="absolute right-1 top-1">
-											<UnreadDot />
-										</span>
-									)}
-								</Link>
-							</TooltipTrigger>
-							<TooltipContent side="right" sideOffset={8}>
-								{item.label}
-							</TooltipContent>
-						</Tooltip>
-					))}
-				</SidebarNav>
-				<SidebarFooter className="px-basalt-panel-x py-basalt-panel-y">
-					<Tooltip delayDuration={0}>
-						<TooltipTrigger asChild>
-							<span className="inline-flex">{avatar}</span>
-						</TooltipTrigger>
-						<TooltipContent side="right" sideOffset={8}>
-							{user.name}
-						</TooltipContent>
-					</Tooltip>
-				</SidebarFooter>
-			</BasaltSidebar>
-		);
-	}
-
-	return (
-		<BasaltSidebar collapsed={false} aria-label="Main navigation" data-testid="app-sidebar">
-			<SidebarHeader>
-				<div className="flex w-full items-center justify-between">
-					<div className="flex min-w-0 items-center gap-3 pl-3">
-						<XrayMark />
-						<span className="truncate font-mono text-lg font-bold tracking-tighter text-basalt-foreground">
-							X-Ray
-						</span>
-						<span className="shrink-0 rounded-md bg-basalt-secondary px-1.5 py-0.5 text-[10px] leading-none font-medium text-basalt-muted-foreground">
-							v{APP_VERSION}
-						</span>
-					</div>
-					<Button
-						variant="ghost"
-						size="icon"
-						className="[&_svg]:size-basalt-icon-lg"
-						onClick={onToggle}
-						aria-label="Collapse sidebar"
-					>
-						<PanelLeft aria-hidden="true" strokeWidth={1.5} />
-					</Button>
-				</div>
-			</SidebarHeader>
-			<SidebarNav className="pt-1" data-testid="sidebar-nav">
-				{navGroups.map((group) => {
-					if (group.dynamic === "watchlists") {
-						return (
-							<SidebarGroup key={group.label} label={group.label} defaultOpen={group.defaultOpen}>
-								{watchlists.map((wl) => (
-									<EntityNavItem
-										key={wl.id}
-										href={`/watchlist/${wl.id}`}
-										name={wl.name}
-										icon={wl.icon}
-										pathname={pathname}
-									/>
-								))}
-								<NewEntityItem label="New watchlist" onClick={openCreateWatchlist} />
-							</SidebarGroup>
-						);
-					}
-					if (group.dynamic === "channels") {
-						return (
-							<SidebarGroup key={group.label} label={group.label} defaultOpen={group.defaultOpen}>
-								{channels.map((channel) => (
-									<EntityNavItem
-										key={channel.id}
-										href={`/channels/${channel.id}`}
-										name={channel.name}
-										unread={channel.hasUnread}
-										icon="radio"
-										pathname={pathname}
-									/>
-								))}
-								<NewEntityItem
-									label="New channel"
-									onClick={() => void navigate("/channels?new=1")}
-								/>
-							</SidebarGroup>
-						);
-					}
-					if (group.dynamic === "groups") {
-						return (
-							<SidebarGroup key={group.label} label={group.label} defaultOpen={group.defaultOpen}>
-								{entityGroups.map((g) => (
-									<EntityNavItem
-										key={g.id}
-										href={`/groups?id=${g.id}`}
-										name={g.name}
-										icon={g.icon}
-										pathname={pathname}
-										search={search}
-									/>
-								))}
-								<NewEntityItem label="New group" onClick={openCreateGroup} />
-							</SidebarGroup>
-						);
-					}
-					return (
-						<SidebarGroup key={group.label} label={group.label} defaultOpen={group.defaultOpen}>
-							{group.items.map((item) => (
-								<Link
-									key={item.href}
-									to={item.href}
-									aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
-									data-nav-label={item.label}
-									className={navItemClass(isActivePath(pathname, item.href))}
-								>
-									<item.icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
-									<span className="flex-1 truncate text-left">{item.label}</span>
-								</Link>
-							))}
-						</SidebarGroup>
-					);
-				})}
-			</SidebarNav>
-			<SidebarFooter className="px-basalt-panel-x py-basalt-panel-y">
-				<SidebarUser
-					className="w-full min-w-0"
-					name={user.name}
-					email={user.email}
-					avatar={avatar}
-				/>
-			</SidebarFooter>
+			) : null}
+			{sidebarNav}
+			{sidebarFooter}
 		</BasaltSidebar>
 	);
 }
