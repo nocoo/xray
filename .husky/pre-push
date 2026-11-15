@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# 6DQ pre-push: L2 (real-HTTP worker e2e + route gate) ‖ G2 (gitleaks + osv)
+# pre-push: L2 (real-HTTP worker e2e + route gate) ‖ G2 (gitleaks + osv)
 set -e
 cd "$(dirname "$0")/.."
 

@@ -8,13 +8,13 @@ Direction: [rewrite charter](docs/01-rewrite-charter.md), [architecture](docs/02
 
 This file is the contract; hooks, CI and config are enforcement. Raise weaker gates rather than lower the contract.
 
-| Fact                      | Where                                                                                        |
-| ------------------------- | -------------------------------------------------------------------------------------------- |
-| Human docs                | [README.md](README.md), [docs index](docs/README.md)                                         |
-| Version / dependencies    | Root `package.json`, `bun.lock`; bare SemVer, display `v` prefix                             |
-| Quality                   | [6DQ](docs/06-testing-6dq.md), `.husky/`, `.github/workflows/ci.yml`, package Vitest configs |
-| Secret management         | [local producer](docs/09-local-producer-twitter-cli.md); values stay outside Git             |
-| Machine rules / accidents | Global `AGENTS.md` and `rules/`; [Retrospective.md](Retrospective.md)                        |
+| Fact                      | Where                                                                                                            |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Human docs                | [README.md](README.md), [docs index](docs/README.md)                                                             |
+| Version / dependencies    | Root `package.json`, `bun.lock`; bare SemVer, display `v` prefix                                                 |
+| Quality                   | [quality docs](docs/06-testing-6dq.md), `.husky/`, `.github/workflows/quality-slots.yml`, package Vitest configs |
+| Secret management         | [local producer](docs/09-local-producer-twitter-cli.md); values stay outside Git                                 |
+| Machine rules / accidents | Global `AGENTS.md` and `rules/`; [Retrospective.md](Retrospective.md)                                            |
 
 ## Project Invariants
 
@@ -82,7 +82,7 @@ osv-scanner scan --lockfile=bun.lock
 
 ## Verification
 
-6DQ = unified L1 (absorbing former G1) + L2/L3 + G2 + D1 isolation. Status: `enforced`, `planned`, `manual`, `N/A`; no skipped/focused tests.
+Quality slots are enforced via `.github/workflows/quality-slots.yml` (`quality / Z1: Gate`, System1 v1.3.0 / `nocoo/base-ci v2026.15`). Status: `enforced`, `planned`, `manual`, `N/A`; no skipped/focused tests.
 
 | Piece                                  | Required proof and current reality                                                                                           | Status   | Evidence / gap                                                                                                                                                                                                                                                                                                                                                           |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -99,7 +99,7 @@ osv-scanner scan --lockfile=bun.lock
 
 Pre-commit gates unified L1 on the index snapshot (`git checkout-index` + staged `@xray/shared` build), then optional staged gitleaks. Measured warm wall time ~17s on the cloud agent; target remains <30s on the declared machine.
 Pre-push runs L2 then required gitleaks/OSV sequentially and scans repository history, not stdin push refs. Target: L2/G2 parallel, exact pushed refs, <3min.
-Hooks are check-only. No `--no-verify`, disabled gates, autofix gates or reduced thresholds. The owner merged former G1 into L1 on 2026-09-21; the framework keeps the 6DQ name.
+Hooks are check-only. No `--no-verify`, disabled gates, autofix gates or reduced thresholds. The owner merged former G1 into L1 on 2026-09-21.
 
 ## Resources / Isolation
 

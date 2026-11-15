@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# 6DQ pre-commit (L1): lint + typecheck + coverage against the Git index snapshot.
+# pre-commit (L1): lint + typecheck + coverage against the Git index snapshot.
 set -e
 
 command -v git >/dev/null 2>&1 || {
