@@ -12,7 +12,7 @@ import { Banner } from "@nocoo/basalt/components/banner";
 import { InputArea } from "@nocoo/basalt/components/input-area";
 import { TagBadge } from "@nocoo/basalt/components/tag-badge";
 import { ToggleGroup, ToggleGroupItem } from "@nocoo/basalt/components/toggle-group";
-import { Pencil } from "lucide-react";
+import { Pencil } from "@nocoo/basalt/icons";
 import { useEffect, useId, useState } from "react";
 import { fetchTags, type Member, patchMember, type Tag } from "@/api/watchlists";
 import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";

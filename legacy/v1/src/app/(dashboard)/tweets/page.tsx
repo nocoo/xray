@@ -2,11 +2,11 @@
 
 import { useState, useCallback } from "react";
 import { useBreadcrumbs } from "@/components/layout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@nocoo/basalt/components/button";
+import { Input } from "@nocoo/basalt/components/input";
 import { TweetCard } from "@/components/twitter/tweet-card";
-import { ErrorBanner, EmptyState } from "@/components/ui/feedback";
-import { Search, ArrowUpDown, Loader2 } from "lucide-react";
+import { ErrorBanner, EmptyState } from "@/components/feedback";
+import { Search, ArrowUpDown, Loader2 } from "@nocoo/basalt/icons";
 import { useSearch } from "@/hooks/use-api";
 
 import type { Tweet } from "../../../../shared/types";

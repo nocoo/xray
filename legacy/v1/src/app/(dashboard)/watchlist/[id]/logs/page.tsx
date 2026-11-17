@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useBreadcrumbs } from "@/components/layout";
-import { LoadingSpinner, ErrorBanner, EmptyState } from "@/components/ui/feedback";
-import { Button } from "@/components/ui/button";
+import { LoadingSpinner, ErrorBanner, EmptyState } from "@/components/feedback";
+import { Button } from "@nocoo/basalt/components/button";
 import {
   ScrollText,
   RefreshCw,
@@ -13,7 +13,7 @@ import {
   ChevronDown,
   ChevronRight,
   ArrowLeft,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
 import Link from "next/link";
 
 // =============================================================================

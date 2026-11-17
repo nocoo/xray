@@ -1,5 +1,4 @@
 import { Button, Field, Input, LayerCard } from "@nocoo/basalt";
-import { StatCard, StatGrid } from "@nocoo/basalt/charts/stat-card";
 import { Banner } from "@nocoo/basalt/components/banner";
 import {
 	Dialog,
@@ -13,6 +12,7 @@ import {
 import { InputArea } from "@nocoo/basalt/components/input-area";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { SkeletonLine } from "@nocoo/basalt/components/skeleton-line";
+import { StatCard, StatGrid } from "@nocoo/basalt/components/stat-card";
 import {
 	Table,
 	TableBody,
@@ -32,7 +32,7 @@ import {
 	Radio,
 	RefreshCw,
 	Settings,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useChannels } from "@/components/channels-context";
@@ -122,7 +122,7 @@ export function ChannelsManagePage() {
 							key={stat.label}
 							label={stat.label}
 							value={stat.value}
-							icon={stat.icon}
+							icon={<stat.icon aria-hidden="true" strokeWidth={1.5} />}
 							iconColor="hidden text-basalt-muted-foreground sm:block"
 							className="bg-basalt-bright! p-3 sm:p-4 [&_[data-slot=stat-card-heading]]:gap-2 [&_[data-slot=stat-card-value]]:text-xl sm:[&_[data-slot=stat-card-value]]:text-4xl"
 							status={

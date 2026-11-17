@@ -1,5 +1,4 @@
 import { Button, ConfirmDialog, Field, Input, LayerCard } from "@nocoo/basalt";
-import { StatCard, StatGrid } from "@nocoo/basalt/charts/stat-card";
 import { Banner } from "@nocoo/basalt/components/banner";
 import { CodeBlock } from "@nocoo/basalt/components/code";
 import {
@@ -14,6 +13,7 @@ import {
 import { InputArea } from "@nocoo/basalt/components/input-area";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { SectionRule } from "@nocoo/basalt/components/section-rule";
+import { StatCard, StatGrid } from "@nocoo/basalt/components/stat-card";
 import {
 	Table,
 	TableBody,
@@ -22,7 +22,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@nocoo/basalt/components/table";
-import type { Channel, ChannelKey } from "@xray/shared";
 import {
 	ArrowLeft,
 	BookOpen,
@@ -36,7 +35,8 @@ import {
 	Send,
 	Settings,
 	Trash2,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
+import type { Channel, ChannelKey } from "@xray/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import * as tagsApi from "@/api/tags";
@@ -175,7 +175,7 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 						key={stat.label}
 						label={stat.label}
 						value={stat.value}
-						icon={stat.icon}
+						icon={<stat.icon aria-hidden="true" strokeWidth={1.5} />}
 						iconColor="hidden text-basalt-tag-rose-foreground sm:block"
 						className={`bg-basalt-bright! max-sm:p-3 max-sm:[&_[data-slot=stat-card-heading]_p]:text-xs ${typeof stat.value === "string" ? "[&_[data-slot=stat-card-value]]:text-base" : "max-sm:[&_[data-slot=stat-card-value]]:text-2xl"}`}
 					/>

@@ -14,7 +14,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@nocoo/basalt";
-import { PanelLeft, Plus } from "lucide-react";
+import { PanelLeft, Plus } from "@nocoo/basalt/icons";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { fetchGroups, type Group } from "@/api/groups";

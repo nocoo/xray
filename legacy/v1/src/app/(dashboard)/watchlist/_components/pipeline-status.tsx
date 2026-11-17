@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "@nocoo/basalt/icons";
 import type { PipelinePhase, TranslateProgress } from "../_lib";
 
 // =============================================================================

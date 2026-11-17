@@ -3,7 +3,7 @@ import {
   WATCHLIST_ICONS,
   WATCHLIST_ICON_KEYS,
   resolveIcon,
-} from "@/components/ui/icon-picker";
+} from "@/components/watchlist-icon-picker";
 
 describe("icon-picker exports", () => {
   test("WATCHLIST_ICONS has 24 curated icons", () => {

@@ -5,8 +5,8 @@ import {
 	AppSkipLink,
 	AppShell as BasaltAppShell,
 } from "@nocoo/basalt/components/app-shell";
+import { Menu } from "@nocoo/basalt/icons";
 import { useTheme } from "@nocoo/basalt/providers/theme";
-import { Menu } from "lucide-react";
 import {
 	createContext,
 	type ReactNode,

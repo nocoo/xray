@@ -10,8 +10,8 @@ import {
   ChevronDown,
   ChevronRight,
   RefreshCw,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+} from "@nocoo/basalt/icons";
+import { Button } from "@nocoo/basalt/components/button";
 import type { MemberProgress, TranslateProgress, PipelinePhase } from "../_lib";
 
 // =============================================================================

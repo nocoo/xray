@@ -25,7 +25,7 @@ import {
 	TrendingUp,
 	Users,
 	Zap,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
 
 /** Icon keys stored on watchlists/groups (legacy-compatible). */
 export const WATCHLIST_ICONS: Record<string, LucideIcon> = {

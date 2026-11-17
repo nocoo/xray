@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useBreadcrumbs } from "@/components/layout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { StatusMessage, SectionSkeleton } from "@/components/ui/feedback";
+import { Button } from "@nocoo/basalt/components/button";
+import { Input } from "@nocoo/basalt/components/input";
+import { Label } from "@nocoo/basalt/components/label";
+import { Badge } from "@nocoo/basalt/components/badge";
+import { Separator } from "@nocoo/basalt/components/separator";
+import { StatusMessage, SectionSkeleton } from "@/components/feedback";
 import {
   Key,
   Cookie,
@@ -16,7 +16,7 @@ import {
   EyeOff,
   Shield,
   Coins,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
 import { formatDate } from "@/lib/utils";
 
 // =============================================================================

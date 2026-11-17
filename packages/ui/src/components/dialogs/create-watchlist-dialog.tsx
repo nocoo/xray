@@ -10,7 +10,7 @@ import {
 	Input,
 } from "@nocoo/basalt";
 import { InputArea } from "@nocoo/basalt/components/input-area";
-import { Eye } from "lucide-react";
+import { Eye } from "@nocoo/basalt/icons";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { createWatchlist } from "@/api/watchlists";

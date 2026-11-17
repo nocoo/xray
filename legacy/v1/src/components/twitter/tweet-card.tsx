@@ -2,7 +2,7 @@
 
 import { memo, useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@nocoo/basalt/components/badge";
 import {
   Heart,
   Repeat2,
@@ -23,7 +23,7 @@ import {
   Search,
   MessageSquareQuote,
   Trash2,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
 import { cn, formatCount, formatTimeAgo } from "@/lib/utils";
 
 import type { Tweet, TweetMedia } from "../../../shared/types";

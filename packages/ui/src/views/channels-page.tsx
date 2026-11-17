@@ -9,7 +9,6 @@ import {
 	DialogTitle,
 } from "@nocoo/basalt/components/dialog";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
-import { extractArticleLinks } from "@xray/shared";
 import {
 	AArrowDown,
 	AArrowUp,
@@ -31,7 +30,8 @@ import {
 	Trash2,
 	TriangleAlert,
 	Type,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
+import { extractArticleLinks } from "@xray/shared";
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
 	Link,

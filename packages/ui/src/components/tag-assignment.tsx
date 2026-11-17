@@ -10,8 +10,8 @@ import {
 	PopoverTrigger,
 } from "@nocoo/basalt/components/popover";
 import { TagBadge } from "@nocoo/basalt/components/tag-badge";
+import { Plus, X } from "@nocoo/basalt/icons";
 import type { Tag } from "@xray/shared";
-import { Plus, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { OptionsSkeleton } from "@/components/loading-skeletons";
 import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";

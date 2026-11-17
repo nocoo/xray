@@ -1,6 +1,6 @@
 import { Button, LayerCard } from "@nocoo/basalt";
 import { TagBadge } from "@nocoo/basalt/components/tag-badge";
-import { Pencil, RefreshCw, Trash2, Users } from "lucide-react";
+import { Pencil, RefreshCw, Trash2, Users } from "@nocoo/basalt/icons";
 import { memo } from "react";
 import { XVerified } from "@/components/icons/x-verified";
 import { SourceChip } from "@/components/source-chip";

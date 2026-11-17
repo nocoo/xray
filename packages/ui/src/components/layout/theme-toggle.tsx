@@ -1,8 +1,8 @@
 "use client";
 
 import { Button } from "@nocoo/basalt/components/button";
+import { Monitor, Moon, Sun } from "@nocoo/basalt/icons";
 import { useTheme } from "@nocoo/basalt/providers/theme";
-import { Monitor, Moon, Sun } from "lucide-react";
 import { HeaderTooltip } from "./header-links";
 
 export type ThemeToggleProps = { "aria-label"?: string };

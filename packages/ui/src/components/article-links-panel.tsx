@@ -1,6 +1,6 @@
 import { Badge, Button, LayerCard } from "@nocoo/basalt";
+import { ArrowUpRight, Link2, X } from "@nocoo/basalt/icons";
 import type { ArticleLink, ChannelArticle } from "@xray/shared";
-import { ArrowUpRight, Link2, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { fetchArticleLinkPreview } from "@/api/article-links";
 import {

@@ -23,19 +23,19 @@ import {
   ChevronUp,
   Plus,
   LinkIcon,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
 import { cn, getAvatarColor } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/version";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@nocoo/basalt/components/avatar";
+import { Badge } from "@nocoo/basalt/components/badge";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { resolveIcon } from "@/components/ui/icon-picker";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+} from "@nocoo/basalt/components/tooltip";
+import { resolveIcon } from "@/components/watchlist-icon-picker";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@nocoo/basalt/components/collapsible";
 import { useSidebar } from "./sidebar-context";
 
 // =============================================================================

@@ -1,8 +1,8 @@
 import { Button, Field, Input } from "@nocoo/basalt";
 import { DialogFooter } from "@nocoo/basalt/components/dialog";
 import { InputArea } from "@nocoo/basalt/components/input-area";
+import { Save } from "@nocoo/basalt/icons";
 import { ARTICLE_LIMITS, type ArticleInput, type ChannelArticle } from "@xray/shared";
-import { Save } from "lucide-react";
 import { useState } from "react";
 import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 

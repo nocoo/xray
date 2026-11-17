@@ -1,6 +1,6 @@
 import { Button } from "@nocoo/basalt";
 import type { ButtonProps } from "@nocoo/basalt/components/button";
-import { Check, Copy, TriangleAlert } from "lucide-react";
+import { Check, Copy, TriangleAlert } from "@nocoo/basalt/icons";
 import { useEffect, useState } from "react";
 import { HeaderTooltip } from "@/components/layout/header-links";
 import { copyChannelText } from "@/lib/channel-reader";

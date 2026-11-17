@@ -3,11 +3,11 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useBreadcrumbs } from "@/components/layout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@nocoo/basalt/components/button";
+import { Input } from "@nocoo/basalt/components/input";
 import { UserCard } from "@/components/twitter/user-card";
-import { ErrorBanner, EmptyState } from "@/components/ui/feedback";
-import { Search, Loader2 } from "lucide-react";
+import { ErrorBanner, EmptyState } from "@/components/feedback";
+import { Search, Loader2 } from "@nocoo/basalt/icons";
 import { useSearch } from "@/hooks/use-api";
 
 import type { UserInfo } from "../../../../shared/types";

@@ -1,5 +1,4 @@
 import { Badge, Button, ConfirmDialog, LayerCard } from "@nocoo/basalt";
-import { StatCard, StatGrid } from "@nocoo/basalt/charts/stat-card";
 import { Banner } from "@nocoo/basalt/components/banner";
 import {
 	Collapsible,
@@ -9,7 +8,7 @@ import {
 import { InputGroup } from "@nocoo/basalt/components/input-group";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { SkeletonLine } from "@nocoo/basalt/components/skeleton-line";
-import type { ManagedToken, TokenKind } from "@xray/shared";
+import { StatCard, StatGrid } from "@nocoo/basalt/components/stat-card";
 import {
 	BookOpen,
 	Eye,
@@ -20,7 +19,8 @@ import {
 	ScanSearch,
 	Search,
 	ShieldCheck,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
+import type { ManagedToken, TokenKind } from "@xray/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as tagsApi from "@/api/tags";
 import * as tokensApi from "@/api/tokens";
@@ -170,7 +170,7 @@ export function TokensPage() {
 						key={section.kind}
 						label={section.label}
 						value={state.tokens.filter((token) => token.kind === section.kind).length}
-						icon={section.icon}
+						icon={<section.icon aria-hidden="true" strokeWidth={1.5} />}
 						iconColor={`hidden xl:block ${section.tone}`}
 						className="bg-basalt-bright! max-sm:p-3 max-sm:[&_[data-slot=stat-card-heading]]:min-h-basalt-control-lg max-sm:[&_[data-slot=stat-card-heading]_p]:text-xs max-sm:[&_[data-slot=stat-card-value]]:text-2xl"
 						status={state.loading && !state.tokens.length ? <SkeletonLine /> : undefined}

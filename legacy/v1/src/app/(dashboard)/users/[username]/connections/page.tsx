@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useBreadcrumbs } from "@/components/layout";
 import { UserCardCompact } from "@/components/twitter/user-card";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "@nocoo/basalt/icons";
 
 import type { UserInfo } from "../../../../../../shared/types";
 

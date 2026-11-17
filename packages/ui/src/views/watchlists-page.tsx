@@ -1,7 +1,7 @@
 import { Button, LayerCard } from "@nocoo/basalt";
 import { Empty } from "@nocoo/basalt/components/empty";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
-import { Brain, Eye, Languages, Plus, Server, TrendingUp, Users } from "lucide-react";
+import { Brain, Eye, Languages, Plus, Server, TrendingUp, Users } from "@nocoo/basalt/icons";
 import { useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router";
 import * as watchlistsApi from "@/api/watchlists";

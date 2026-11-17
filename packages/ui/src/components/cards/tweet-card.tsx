@@ -9,7 +9,6 @@ import {
 	DialogTitle,
 	LayerCard,
 } from "@nocoo/basalt";
-import type { SourceType } from "@xray/shared";
 import {
 	ArrowLeftRight,
 	AtSign,
@@ -32,7 +31,8 @@ import {
 	Search,
 	Trash2,
 	X,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
+import type { SourceType } from "@xray/shared";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExpandableText } from "@/components/expandable-text";
 import { XVerified } from "@/components/icons/x-verified";
@@ -244,7 +244,7 @@ export const TweetCard = memo(function TweetCard({
 
 			{(tweet.is_retweet || tweet.is_reply || tweet.is_quote) && (
 				<div
-					className="flex items-center gap-1.5 pr-14 text-xs font-medium text-muted-foreground"
+					className="flex items-center gap-1.5 pr-14 text-xs font-medium text-basalt-muted-foreground"
 					data-testid="tweet-context"
 				>
 					{tweet.is_retweet && (
@@ -302,7 +302,7 @@ export const TweetCard = memo(function TweetCard({
 						/>
 					</a>
 				) : (
-					<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium">
+					<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-basalt-muted text-sm font-medium">
 						{tweet.author.name[0]}
 					</div>
 				)}
@@ -320,7 +320,7 @@ export const TweetCard = memo(function TweetCard({
 							</a>
 							{tweet.author.is_verified && <XVerified className="h-4 w-4" />}
 						</div>
-						<div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+						<div className="flex items-center gap-1.5 text-sm text-basalt-muted-foreground">
 							<a
 								href={`https://x.com/${tweet.author.username}`}
 								target="_blank"
@@ -392,7 +392,7 @@ export const TweetCard = memo(function TweetCard({
 										className="h-5 w-5 shrink-0 rounded-full"
 									/>
 								) : (
-									<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
+									<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-basalt-muted text-[10px] font-medium">
 										{tweet.quoted_tweet.author.name[0]}
 									</div>
 								)}
@@ -405,15 +405,15 @@ export const TweetCard = memo(function TweetCard({
 								href={`https://x.com/${tweet.quoted_tweet.author.username}`}
 								target="_blank"
 								rel="noopener noreferrer"
-								className="truncate text-xs text-muted-foreground hover:underline"
+								className="truncate text-xs text-basalt-muted-foreground hover:underline"
 								onClick={(e) => e.stopPropagation()}
 							>
 								@{tweet.quoted_tweet.author.username}
 							</a>
 							{tweet.quoted_tweet.created_at ? (
 								<>
-									<span className="text-xs text-muted-foreground">·</span>
-									<span className="shrink-0 text-xs text-muted-foreground">
+									<span className="text-xs text-basalt-muted-foreground">·</span>
+									<span className="shrink-0 text-xs text-basalt-muted-foreground">
 										{formatTimeAgo(tweet.quoted_tweet.created_at, "compact", nowMs)}
 									</span>
 								</>
@@ -422,7 +422,7 @@ export const TweetCard = memo(function TweetCard({
 								href={tweet.quoted_tweet.url}
 								target="_blank"
 								rel="noopener noreferrer"
-								className="ml-auto rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+								className="ml-auto rounded-md p-0.5 text-basalt-muted-foreground transition-colors hover:bg-basalt-accent hover:text-basalt-foreground"
 								title={tweet.is_quote ? "Open quoted post on X" : "Open original post on X"}
 								onClick={(e) => e.stopPropagation()}
 							>
@@ -433,7 +433,7 @@ export const TweetCard = memo(function TweetCard({
 						<ExpandableText
 							key={displayTweet.quoted_tweet?.text ?? tweet.quoted_tweet.text}
 							lines={QUOTED_TEXT_CLAMP_LINES}
-							className="text-sm leading-relaxed whitespace-pre-wrap text-foreground/90"
+							className="text-sm leading-relaxed whitespace-pre-wrap text-basalt-foreground/90"
 						>
 							{linkifyText(displayTweet.quoted_tweet?.text ?? tweet.quoted_tweet.text)}
 						</ExpandableText>
@@ -447,7 +447,7 @@ export const TweetCard = memo(function TweetCard({
 							/>
 						)}
 
-						<div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+						<div className="flex items-center gap-3 text-[10px] text-basalt-muted-foreground">
 							<span className="flex items-center gap-0.5">
 								<Heart className="h-3 w-3" /> {formatCount(tweet.quoted_tweet.metrics.like_count)}
 							</span>
@@ -467,7 +467,7 @@ export const TweetCard = memo(function TweetCard({
 
 	const metricRow = (
 		<div
-			className="flex h-8 items-center gap-1 overflow-hidden text-xs text-muted-foreground"
+			className="flex h-8 items-center gap-1 overflow-hidden text-xs text-basalt-muted-foreground"
 			style={{
 				maskImage: "linear-gradient(to right, black 80%, transparent 100%)",
 				WebkitMaskImage: "linear-gradient(to right, black 80%, transparent 100%)",
@@ -496,7 +496,7 @@ export const TweetCard = memo(function TweetCard({
 					href={tweet.url}
 					target="_blank"
 					rel="noopener noreferrer"
-					className="inline-flex h-8 items-center gap-1.5 rounded-md bg-transparent px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+					className="inline-flex h-8 items-center gap-1.5 rounded-md bg-transparent px-2 text-xs text-basalt-muted-foreground transition-colors hover:bg-basalt-accent hover:text-basalt-foreground"
 					onClick={(e) => e.stopPropagation()}
 				>
 					<ExternalLink className="h-3.5 w-3.5" />
@@ -518,7 +518,7 @@ export const TweetCard = memo(function TweetCard({
 							"h-8 px-2 text-xs font-medium focus-visible:ring-offset-0",
 							lang === "zh"
 								? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-								: "bg-transparent text-muted-foreground",
+								: "bg-transparent text-basalt-muted-foreground",
 						)}
 						title={lang === "zh" ? "Show original" : "Show translation"}
 					>
@@ -537,7 +537,7 @@ export const TweetCard = memo(function TweetCard({
 						}}
 						loading={translating}
 						icon={<Languages className="h-3.5 w-3.5" />}
-						className="h-8 bg-transparent px-2 text-xs text-muted-foreground focus-visible:ring-offset-0"
+						className="h-8 bg-transparent px-2 text-xs text-basalt-muted-foreground focus-visible:ring-offset-0"
 						title="Translate this post"
 					>
 						{translating ? "Translating..." : "Translate"}
@@ -568,7 +568,7 @@ export const TweetCard = memo(function TweetCard({
 							? "text-emerald-600 dark:text-emerald-400"
 							: zhetoStatus === "error"
 								? "text-red-500 dark:text-red-400"
-								: "text-muted-foreground",
+								: "text-basalt-muted-foreground",
 					)}
 					title="Save to zhe.to"
 				>
@@ -591,7 +591,7 @@ export const TweetCard = memo(function TweetCard({
 							e.preventDefault();
 							onRemove();
 						}}
-						className="ml-auto h-8 bg-transparent px-2 text-xs text-muted-foreground focus-visible:ring-offset-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+						className="ml-auto h-8 bg-transparent px-2 text-xs text-basalt-muted-foreground focus-visible:ring-offset-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
 						title="Remove this post"
 					>
 						<Trash2 className="h-3.5 w-3.5" />
@@ -612,7 +612,7 @@ export const TweetCard = memo(function TweetCard({
 					<span className="text-xs font-semibold uppercase tracking-wider text-violet-600/80 dark:text-violet-400/80">
 						AI Insight
 					</span>
-					<p className="mt-0.5 text-sm text-foreground/80 leading-relaxed">{commentText}</p>
+					<p className="mt-0.5 text-sm text-basalt-foreground/80 leading-relaxed">{commentText}</p>
 				</div>
 			</div>
 		</LayerCard.Body>
@@ -829,7 +829,7 @@ function MediaGrid({
 	// 1 image (full-width) or 5+ images (horizontal scroll) or mixed media types
 	if (allPhotos && media.length === 1) {
 		return (
-			<div className={`overflow-hidden ${roundedClass} bg-muted`}>
+			<div className={`overflow-hidden ${roundedClass} bg-basalt-muted`}>
 				<PhotoItem
 					media={at(media, 0)}
 					className={`w-full ${roundedClass}`}
@@ -843,7 +843,7 @@ function MediaGrid({
 	if (media.length === 1 && (at(media, 0).type === "VIDEO" || at(media, 0).type === "GIF")) {
 		const m = at(media, 0);
 		return (
-			<div className={`overflow-hidden ${roundedClass} bg-muted`}>
+			<div className={`overflow-hidden ${roundedClass} bg-basalt-muted`}>
 				<VideoMedia
 					key={m.id}
 					media={m}
@@ -862,7 +862,7 @@ function MediaGrid({
 	return (
 		<div className={compact ? "flex gap-1.5 overflow-x-auto" : "flex gap-2 overflow-x-auto"}>
 			{media.map((m) => {
-				const containerClass = `relative shrink-0 overflow-hidden ${roundedClass} bg-muted`;
+				const containerClass = `relative shrink-0 overflow-hidden ${roundedClass} bg-basalt-muted`;
 
 				if (m.type === "PHOTO") {
 					return (
@@ -885,10 +885,13 @@ function MediaGrid({
 				}
 
 				return (
-					<div key={m.id} className={`relative shrink-0 overflow-hidden ${roundedClass} bg-muted`}>
+					<div
+						key={m.id}
+						className={`relative shrink-0 overflow-hidden ${roundedClass} bg-basalt-muted`}
+					>
 						<div className="flex h-40 w-40 items-center justify-center">
-							<ImageIcon className="h-8 w-8 text-muted-foreground" />
-							<span className="ml-1 text-xs text-muted-foreground">{m.type}</span>
+							<ImageIcon className="h-8 w-8 text-basalt-muted-foreground" />
+							<span className="ml-1 text-xs text-basalt-muted-foreground">{m.type}</span>
 						</div>
 					</div>
 				);

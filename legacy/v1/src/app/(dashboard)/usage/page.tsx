@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useBreadcrumbs } from "@/components/layout";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@nocoo/basalt/components/badge";
 import {
   BarChart3,
   Activity,
@@ -10,7 +10,7 @@ import {
   Clock,
   TrendingUp,
   Coins,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
 import {
   BarChart,
   Bar,

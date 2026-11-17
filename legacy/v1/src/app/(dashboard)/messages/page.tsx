@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useBreadcrumbs } from "@/components/layout";
-import { LoadingSpinner, ErrorBanner, EmptyState } from "@/components/ui/feedback";
-import { Inbox, MessageSquare, Circle } from "lucide-react";
+import { LoadingSpinner, ErrorBanner, EmptyState } from "@/components/feedback";
+import { Inbox, MessageSquare, Circle } from "@nocoo/basalt/icons";
 import { useFetch } from "@/hooks/use-api";
 import { formatTimeAgo } from "@/lib/utils";
 

@@ -5,10 +5,10 @@ import { useRouter, useParams } from "next/navigation";
 import { useBreadcrumbs } from "@/components/layout";
 import {
   ErrorBanner,
-} from "@/components/ui/feedback";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/feedback";
+import { Button } from "@nocoo/basalt/components/button";
+import { Input } from "@nocoo/basalt/components/input";
+import { Badge } from "@nocoo/basalt/components/badge";
 import {
   Users,
   UserPlus,
@@ -18,7 +18,7 @@ import {
   Check,
   Loader2,
   Play,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
 import { cn, formatCount } from "@/lib/utils";
 import { parseTwitterExportFile } from "@/lib/twitter-export";
 

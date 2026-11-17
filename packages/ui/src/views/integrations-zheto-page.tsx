@@ -2,7 +2,7 @@ import { Button, Field, Input, LayerCard } from "@nocoo/basalt";
 import { Banner } from "@nocoo/basalt/components/banner";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { SensitiveInput } from "@nocoo/basalt/components/sensitive-input";
-import { Bookmark, Save, ShieldCheck, Webhook } from "lucide-react";
+import { Bookmark, Save, ShieldCheck, Webhook } from "@nocoo/basalt/icons";
 import { useEffect, useMemo } from "react";
 import * as zhetoApi from "@/api/zheto";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";

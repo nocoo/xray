@@ -7,15 +7,15 @@ import {
   LoadingSpinner,
   ErrorBanner,
   EmptyState,
-} from "@/components/ui/feedback";
-import { Button } from "@/components/ui/button";
+} from "@/components/feedback";
+import { Button } from "@nocoo/basalt/components/button";
 import {
   Eye,
   Plus,
   RefreshCw,
   Loader2,
   Settings,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
 import {
   MemberCard,
   WatchlistPostCard,

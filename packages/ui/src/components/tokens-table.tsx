@@ -5,7 +5,6 @@ import {
 	CollapsibleTrigger,
 } from "@nocoo/basalt/components/collapsible";
 import { DataTable, type DataTableColumn } from "@nocoo/basalt/components/data-table";
-import type { ManagedToken, Tag, TokenKind } from "@xray/shared";
 import {
 	Activity,
 	ArrowUpRight,
@@ -19,7 +18,8 @@ import {
 	ShieldCheck,
 	Tags,
 	Trash2,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
+import type { ManagedToken, Tag, TokenKind } from "@xray/shared";
 import type { MouseEvent } from "react";
 import { Link } from "react-router";
 import type { TagsVm } from "@/viewmodels/tags-vm";

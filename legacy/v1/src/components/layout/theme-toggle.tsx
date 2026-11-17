@@ -1,8 +1,8 @@
 "use client";
 
-import { Moon, Sun, Monitor } from "lucide-react";
+import { Moon, Sun, Monitor } from "@nocoo/basalt/icons";
 import { useCallback, useSyncExternalStore } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@nocoo/basalt/components/button";
 
 type Theme = "light" | "dark" | "system";
 

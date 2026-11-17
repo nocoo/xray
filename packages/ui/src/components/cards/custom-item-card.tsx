@@ -1,12 +1,12 @@
 import { Button, LayerCard } from "@nocoo/basalt";
-import type { SourceType } from "@xray/shared";
 import {
 	ArrowLeftRight,
 	Bookmark,
 	ExternalLink,
 	Languages,
 	MessageSquareQuote,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
+import type { SourceType } from "@xray/shared";
 import { useCallback, useEffect, useState } from "react";
 import { ExpandableText } from "@/components/expandable-text";
 import { SourceChip } from "@/components/source-chip";
@@ -153,21 +153,23 @@ export function CustomItemCard({
 
 				<div className="flex flex-wrap items-center gap-2 pr-16">
 					{producer && (
-						<span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+						<span className="rounded-full bg-basalt-accent px-2 py-0.5 text-[10px] font-medium tracking-wide text-basalt-muted-foreground uppercase">
 							{producer}
 						</span>
 					)}
-					<span className="text-xs text-muted-foreground">
+					<span className="text-xs text-basalt-muted-foreground">
 						{formatTimeAgo(createdAt, "compact", nowMs)}
 					</span>
-					{authorName && <span className="text-xs text-muted-foreground">· {authorName}</span>}
+					{authorName && (
+						<span className="text-xs text-basalt-muted-foreground">· {authorName}</span>
+					)}
 				</div>
 
 				{title && <h3 className="pr-14 text-sm font-semibold">{title}</h3>}
 				<ExpandableText
 					key={displayBody}
 					lines={POST_TEXT_CLAMP_LINES}
-					className="text-sm leading-relaxed whitespace-pre-wrap text-foreground/90"
+					className="text-sm leading-relaxed whitespace-pre-wrap text-basalt-foreground/90"
 				>
 					{displayBody}
 				</ExpandableText>
@@ -181,7 +183,9 @@ export function CustomItemCard({
 							<span className="text-xs font-semibold tracking-wider text-violet-600/80 uppercase dark:text-violet-400/80">
 								AI Insight
 							</span>
-							<p className="mt-0.5 text-sm leading-relaxed text-foreground/80">{summaryText}</p>
+							<p className="mt-0.5 text-sm leading-relaxed text-basalt-foreground/80">
+								{summaryText}
+							</p>
 						</div>
 					</div>
 				</LayerCard.Body>
@@ -200,7 +204,7 @@ export function CustomItemCard({
 							href={url}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="inline-flex h-8 items-center gap-1.5 rounded-md bg-transparent px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+							className="inline-flex h-8 items-center gap-1.5 rounded-md bg-transparent px-2 text-xs text-basalt-muted-foreground transition-colors hover:bg-basalt-accent hover:text-basalt-foreground"
 						>
 							<ExternalLink className="h-3.5 w-3.5" />
 							Open
@@ -216,7 +220,7 @@ export function CustomItemCard({
 								"h-8 px-2 text-xs font-medium focus-visible:ring-offset-0",
 								lang === "zh"
 									? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-									: "bg-transparent text-muted-foreground",
+									: "bg-transparent text-basalt-muted-foreground",
 							)}
 							title={lang === "zh" ? "Show original" : "Show translation"}
 						>
@@ -231,7 +235,7 @@ export function CustomItemCard({
 							onClick={() => void handleTranslate()}
 							loading={translating}
 							icon={<Languages className="h-3.5 w-3.5" />}
-							className="h-8 bg-transparent px-2 text-xs text-muted-foreground focus-visible:ring-offset-0"
+							className="h-8 bg-transparent px-2 text-xs text-basalt-muted-foreground focus-visible:ring-offset-0"
 							title="Translate this post"
 						>
 							{translating ? "Translating..." : "Translate"}
@@ -251,8 +255,8 @@ export function CustomItemCard({
 								zhetoStatus === "saved"
 									? "text-emerald-600"
 									: zhetoStatus === "error"
-										? "text-destructive"
-										: "text-muted-foreground",
+										? "text-basalt-destructive"
+										: "text-basalt-muted-foreground",
 							)}
 						>
 							{zhetoStatus === "saving"
@@ -270,7 +274,7 @@ export function CustomItemCard({
 							variant="ghost"
 							size="sm"
 							onClick={onRemove}
-							className="ml-auto h-8 bg-transparent px-2 text-xs text-muted-foreground focus-visible:ring-offset-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+							className="ml-auto h-8 bg-transparent px-2 text-xs text-basalt-muted-foreground focus-visible:ring-offset-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
 						>
 							Remove
 						</Button>

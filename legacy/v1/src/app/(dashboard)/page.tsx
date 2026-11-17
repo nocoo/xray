@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@nocoo/basalt/components/badge";
 import {
   Radar,
   Activity,
@@ -13,7 +13,7 @@ import {
   CheckCircle2,
   XCircle,
   Zap,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
 import Link from "next/link";
 
 // =============================================================================

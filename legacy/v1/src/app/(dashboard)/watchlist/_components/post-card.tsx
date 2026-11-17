@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, memo } from "react";
-import { AlertTriangle, RotateCw, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, RotateCw, Loader2, ChevronDown, ChevronUp } from "@nocoo/basalt/icons";
 import { TweetCard } from "@/components/twitter/tweet-card";
 import type { FetchedPostData } from "../_lib/types";
 

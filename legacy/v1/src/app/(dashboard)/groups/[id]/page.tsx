@@ -7,10 +7,10 @@ import {
   LoadingSpinner,
   ErrorBanner,
   EmptyState,
-} from "@/components/ui/feedback";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/feedback";
+import { Button } from "@nocoo/basalt/components/button";
+import { Input } from "@nocoo/basalt/components/input";
+import { Badge } from "@nocoo/basalt/components/badge";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +18,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog";
+} from "@nocoo/basalt/components/dialog";
 import {
   Users,
   Plus,
@@ -31,9 +31,9 @@ import {
   Pencil,
   X,
   Minus,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
 import { cn, getAvatarColor, formatCount, formatTimeAgo } from "@/lib/utils";
-import { resolveIcon } from "@/components/ui/icon-picker";
+import { resolveIcon } from "@/components/watchlist-icon-picker";
 import type { MemberProfileData } from "@/app/(dashboard)/watchlist/_lib/types";
 
 // =============================================================================

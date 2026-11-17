@@ -1,4 +1,3 @@
-import { type NavGroupDef, V2_NAV_GROUPS } from "@xray/shared";
 import {
 	Eye,
 	KeyRound,
@@ -9,7 +8,8 @@ import {
 	Settings,
 	Tag,
 	Users,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
+import { type NavGroupDef, V2_NAV_GROUPS } from "@xray/shared";
 
 const ICON_MAP: Record<string, LucideIcon> = {
 	KeyRound,

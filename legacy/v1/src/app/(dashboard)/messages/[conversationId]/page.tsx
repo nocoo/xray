@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useBreadcrumbs } from "@/components/layout";
-import { Loader2, ArrowLeft, MessageSquare } from "lucide-react";
+import { Loader2, ArrowLeft, MessageSquare } from "@nocoo/basalt/icons";
 
 import type { Conversation } from "../../../../../shared/types";
 

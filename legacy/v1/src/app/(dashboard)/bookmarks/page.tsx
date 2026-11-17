@@ -3,9 +3,9 @@
 import { useCallback } from "react";
 import { useBreadcrumbs } from "@/components/layout";
 import { TweetCard } from "@/components/twitter/tweet-card";
-import { MasonryGrid } from "@/components/ui/masonry-grid";
-import { LoadingSpinner, ErrorBanner, EmptyState } from "@/components/ui/feedback";
-import { Bookmark } from "lucide-react";
+import { MasonryGrid } from "@/components/masonry-grid";
+import { LoadingSpinner, ErrorBanner, EmptyState } from "@/components/feedback";
+import { Bookmark } from "@nocoo/basalt/icons";
 import { useFetch } from "@/hooks/use-api";
 import { estimateTweetHeight } from "@/lib/utils";
 

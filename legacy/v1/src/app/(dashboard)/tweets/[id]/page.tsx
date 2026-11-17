@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useBreadcrumbs } from "@/components/layout";
 import { TweetCard } from "@/components/twitter/tweet-card";
-import { Loader2, MessageCircle } from "lucide-react";
+import { Loader2, MessageCircle } from "@nocoo/basalt/icons";
 
 import type { Tweet } from "../../../../../shared/types";
 

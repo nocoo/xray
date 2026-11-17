@@ -1,4 +1,14 @@
-import { StackedBarChart } from "@nocoo/basalt/charts/stacked-bar";
+import {
+	BAR_RADIUS,
+	CHART_PLOT_MARGIN,
+	ChartFrame,
+	ChartLegend,
+	cartesianAxisProps,
+	chartTooltipProps,
+	GRID_PROPS,
+	getChartColor,
+	RESPONSIVE_CONTAINER_PROPS,
+} from "@nocoo/basalt/components/chart";
 import {
 	Table,
 	TableBody,
@@ -7,26 +17,23 @@ import {
 	TableHeader,
 	TableRow,
 } from "@nocoo/basalt/components/table";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { DashboardVm } from "@/viewmodels/dashboard-vm";
 
+const series = [
+	{ key: "watchlists", label: "Watchlists", color: getChartColor(0) },
+	{ key: "channels", label: "Channels", color: getChartColor(1) },
+];
+
 export function ContentTrendChart({ activity }: { activity: ReturnType<DashboardVm["activity"]> }) {
+	const valueFormatter = (value: number) =>
+		Number.isInteger(value) ? value.toLocaleString("en-US") : "";
+
 	return (
-		<StackedBarChart
-			data={activity.points}
-			series={[
-				{ key: "watchlists", label: "Watchlists" },
-				{ key: "channels", label: "Channels" },
-			]}
+		<ChartFrame
 			ariaLabel="Daily content by watchlists and channels"
-			className="h-64 w-full sm:h-72"
-			showAxes
-			showLegend
-			yDomain={[
-				0,
-				Math.max(4, ...activity.points.map((point) => point.watchlists + point.channels)),
-			]}
-			xValueFormatter={(date) => String(date).slice(5)}
-			valueFormatter={(value) => (Number.isInteger(value) ? value.toLocaleString("en-US") : "")}
+			size="h-64 w-full sm:h-72"
+			legend={<ChartLegend items={series} shape="bar" />}
 			summary={
 				activity.total === 0
 					? "No content added in the last 14 days. Watchlist items and channel reports will appear here."
@@ -61,6 +68,43 @@ export function ContentTrendChart({ activity }: { activity: ReturnType<Dashboard
 					</div>
 				</details>
 			}
-		/>
+		>
+			<ResponsiveContainer {...RESPONSIVE_CONTAINER_PROPS}>
+				<BarChart accessibilityLayer data={activity.points} margin={CHART_PLOT_MARGIN}>
+					<CartesianGrid {...GRID_PROPS} />
+					<XAxis
+						dataKey="x"
+						tickFormatter={(date) => String(date).slice(5)}
+						{...cartesianAxisProps()}
+					/>
+					<YAxis
+						domain={[
+							0,
+							Math.max(4, ...activity.points.map((point) => point.watchlists + point.channels)),
+						]}
+						allowDecimals={false}
+						tickFormatter={valueFormatter}
+						width={32}
+						{...cartesianAxisProps()}
+					/>
+					<Tooltip {...chartTooltipProps({ formatter: valueFormatter })} />
+					<Bar
+						dataKey="watchlists"
+						name="Watchlists"
+						stackId="content"
+						fill={series[0].color}
+						isAnimationActive={false}
+					/>
+					<Bar
+						dataKey="channels"
+						name="Channels"
+						stackId="content"
+						fill={series[1].color}
+						radius={BAR_RADIUS.vertical}
+						isAnimationActive={false}
+					/>
+				</BarChart>
+			</ResponsiveContainer>
+		</ChartFrame>
 	);
 }

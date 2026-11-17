@@ -16,7 +16,7 @@ import {
 	Settings,
 	Trash2,
 	Type,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
 import { type ReactNode, type RefObject, useRef, useState } from "react";
 import { Link } from "react-router";
 import type { readPreferences } from "@/lib/channel-reader";

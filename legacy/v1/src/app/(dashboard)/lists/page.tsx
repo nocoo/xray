@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useBreadcrumbs } from "@/components/layout";
-import { Loader2, List, Users, Eye } from "lucide-react";
+import { Loader2, List, Users, Eye } from "@nocoo/basalt/icons";
 
 import type { TwitterList } from "../../../../shared/types";
 

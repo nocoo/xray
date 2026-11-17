@@ -4,7 +4,7 @@ import { InputArea } from "@nocoo/basalt/components/input-area";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { SectionRule } from "@nocoo/basalt/components/section-rule";
 import { SensitiveInput } from "@nocoo/basalt/components/sensitive-input";
-import { Bot, PlugZap, Save, Settings2, UserRound } from "lucide-react";
+import { Bot, PlugZap, Save, Settings2, UserRound } from "@nocoo/basalt/icons";
 import { useEffect, useMemo } from "react";
 import * as aiApi from "@/api/ai";
 import * as settingsApi from "@/api/settings";

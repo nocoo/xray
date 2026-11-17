@@ -19,7 +19,6 @@ import {
 } from "@nocoo/basalt/components/select";
 import { SkeletonLine } from "@nocoo/basalt/components/skeleton-line";
 import { TAG_COLORS, TagBadge, tagColorFor } from "@nocoo/basalt/components/tag-badge";
-import type { Tag } from "@xray/shared";
 import {
 	ArrowDownAZ,
 	Pencil,
@@ -29,7 +28,8 @@ import {
 	Tag as TagIcon,
 	Trash2,
 	X,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
+import type { Tag } from "@xray/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as api from "@/api/tags";
 import { LoadingSkeleton } from "@/components/loading-skeletons";

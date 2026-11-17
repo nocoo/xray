@@ -10,7 +10,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@nocoo/basalt/components/select";
-import { Check, Copy, Pencil, Plus, Trash2, Upload, Users } from "lucide-react";
+import { Check, Copy, Pencil, Plus, Trash2, Upload, Users } from "@nocoo/basalt/icons";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { Group } from "@/api/groups";

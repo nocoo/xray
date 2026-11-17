@@ -8,8 +8,8 @@ import {
 	PopoverTitle,
 	PopoverTrigger,
 } from "@nocoo/basalt/components/popover";
+import { ArrowRight, RotateCcw, Search, SlidersHorizontal, Tags } from "@nocoo/basalt/icons";
 import { type ArticleFilters, parseArticlePageQuery } from "@xray/shared";
-import { ArrowRight, RotateCcw, Search, SlidersHorizontal, Tags } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import * as tagsApi from "@/api/tags";
 import { OptionsSkeleton } from "@/components/loading-skeletons";

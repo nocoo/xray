@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "@nocoo/basalt/icons";
 
 interface BreadcrumbItem {
   label: string;

@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@nocoo/basalt/components/badge";
 import {
   Users,
   UserPlus,
   MapPin,
   Calendar,
   ExternalLink,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
 
 import type { UserInfo } from "../../../shared/types";
 

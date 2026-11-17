@@ -5,9 +5,9 @@ import { useParams } from "next/navigation";
 import { useBreadcrumbs } from "@/components/layout";
 import { UserCard } from "@/components/twitter/user-card";
 import { TweetCard } from "@/components/twitter/tweet-card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Loader2, Search } from "lucide-react";
+import { Input } from "@nocoo/basalt/components/input";
+import { Button } from "@nocoo/basalt/components/button";
+import { Loader2, Search } from "@nocoo/basalt/icons";
 
 import type { UserInfo, Tweet } from "../../../../../shared/types";
 

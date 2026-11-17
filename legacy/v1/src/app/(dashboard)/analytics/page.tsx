@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useBreadcrumbs } from "@/components/layout";
-import { Badge } from "@/components/ui/badge";
-import { LoadingSpinner, ErrorBanner } from "@/components/ui/feedback";
+import { Badge } from "@nocoo/basalt/components/badge";
+import { LoadingSpinner, ErrorBanner } from "@/components/feedback";
 import { useFetch } from "@/hooks/use-api";
 import {
   TrendingUp,
@@ -17,7 +17,7 @@ import {
   UserMinus,
   Users,
   UserCheck,
-} from "lucide-react";
+} from "@nocoo/basalt/icons";
 import {
   AreaChart,
   Area,

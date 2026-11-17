@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBreadcrumbs } from "@/components/layout";
-import { LoadingSpinner, EmptyState } from "@/components/ui/feedback";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { LoadingSpinner, EmptyState } from "@/components/feedback";
+import { Button } from "@nocoo/basalt/components/button";
+import { Input } from "@nocoo/basalt/components/input";
 import {
   Dialog,
   DialogContent,
@@ -14,10 +14,10 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Eye, Plus, Trash2, Pencil, Languages } from "lucide-react";
+} from "@nocoo/basalt/components/dialog";
+import { Eye, Plus, Trash2, Pencil, Languages } from "@nocoo/basalt/icons";
 import { cn, getAvatarColor } from "@/lib/utils";
-import { IconPicker, resolveIcon } from "@/components/ui/icon-picker";
+import { IconPicker, resolveIcon } from "@/components/watchlist-icon-picker";
 
 // =============================================================================
 // Types

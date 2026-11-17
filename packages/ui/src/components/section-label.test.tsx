@@ -1,5 +1,5 @@
+import { Eye } from "@nocoo/basalt/icons";
 import { cleanup, render, screen } from "@testing-library/react";
-import { Eye } from "lucide-react";
 import { afterEach, expect, test } from "vitest";
 import { SectionLabel } from "./section-label";
 

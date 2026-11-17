@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useBreadcrumbs } from "@/components/layout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@nocoo/basalt/components/button";
+import { Input } from "@nocoo/basalt/components/input";
+import { Label } from "@nocoo/basalt/components/label";
 import {
   SectionSkeleton,
   StatusMessage,
-} from "@/components/ui/feedback";
-import { Save, Loader2, ExternalLink } from "lucide-react";
+} from "@/components/feedback";
+import { Save, Loader2, ExternalLink } from "@nocoo/basalt/icons";
 
 // =============================================================================
 // Types

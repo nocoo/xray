@@ -7,8 +7,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@nocoo/basalt/components/select";
+import { Eye, Radio } from "@nocoo/basalt/icons";
 import type { QueryTokenAccess } from "@xray/shared";
-import { Eye, Radio } from "lucide-react";
 
 export function QueryTokenAccessFields({
 	access,

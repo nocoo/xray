@@ -4,7 +4,16 @@ import { Dock, DockBody } from "@nocoo/basalt/components/dock";
 import { Empty } from "@nocoo/basalt/components/empty";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { SkeletonLine } from "@nocoo/basalt/components/skeleton-line";
-import { Eye, Languages, Plus, RefreshCw, ScrollText, Settings, Users, X } from "lucide-react";
+import {
+	Eye,
+	Languages,
+	Plus,
+	RefreshCw,
+	ScrollText,
+	Settings,
+	Users,
+	X,
+} from "@nocoo/basalt/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
 import * as aiApi from "@/api/ai";

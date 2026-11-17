@@ -9,7 +9,7 @@ import {
 	Input,
 	Label,
 } from "@nocoo/basalt";
-import { Pencil } from "lucide-react";
+import { Pencil } from "@nocoo/basalt/icons";
 import { useEffect, useId, useState } from "react";
 import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
 

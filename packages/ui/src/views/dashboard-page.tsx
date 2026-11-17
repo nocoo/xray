@@ -1,8 +1,8 @@
 import { LayerCard } from "@nocoo/basalt";
-import { StatCard, StatGrid } from "@nocoo/basalt/charts/stat-card";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { SectionRule } from "@nocoo/basalt/components/section-rule";
-import { Activity, ChartNoAxesCombined, Eye, Layers, Radio, TrendingUp } from "lucide-react";
+import { StatCard, StatGrid } from "@nocoo/basalt/components/stat-card";
+import { Activity, ChartNoAxesCombined, Eye, Layers, Radio, TrendingUp } from "@nocoo/basalt/icons";
 import { useEffect, useMemo } from "react";
 import type { DashboardAggregates } from "@/api/dashboard";
 import * as dashboardApi from "@/api/dashboard";
@@ -65,7 +65,12 @@ function DashboardSkeleton() {
 	);
 }
 
-const icons = { content: Layers, recent: TrendingUp, watchlists: Eye, channels: Radio };
+const icons = {
+	content: <Layers aria-hidden="true" strokeWidth={1.5} />,
+	recent: <TrendingUp aria-hidden="true" strokeWidth={1.5} />,
+	watchlists: <Eye aria-hidden="true" strokeWidth={1.5} />,
+	channels: <Radio aria-hidden="true" strokeWidth={1.5} />,
+};
 const iconColors = {
 	content: "text-basalt-tag-blue-foreground",
 	recent: "text-basalt-tag-teal-foreground",

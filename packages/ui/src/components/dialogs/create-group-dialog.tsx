@@ -10,7 +10,7 @@ import {
 	Input,
 } from "@nocoo/basalt";
 import { InputArea } from "@nocoo/basalt/components/input-area";
-import { Users } from "lucide-react";
+import { Users } from "@nocoo/basalt/icons";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { createGroup } from "@/api/groups";

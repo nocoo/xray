@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tag, X, Plus } from "lucide-react";
+import { Button } from "@nocoo/basalt/components/button";
+import { Input } from "@nocoo/basalt/components/input";
+import { Tag, X, Plus } from "@nocoo/basalt/icons";
 import type { TagData } from "../_lib/types";
 
 export function TagInput({
