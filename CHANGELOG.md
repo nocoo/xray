@@ -2,6 +2,62 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.8.6
+
+### Added
+
+- Run L1 pre-commit on git index snapshot
+
+### Changed
+
+- Bump @nocoo/basalt to 3.5.1
+- Migrate to basalt 3.5
+- Upgrade @nocoo/basalt from 3.2.1 to 3.3.6
+- Migrate to System1 v1.3.0 native mode (base-ci v2026.15)
+- Pin deploy-worker to base-ci v2026.12
+- Migrate to base-ci v2026.12 quality.yml with strict slot-status
+- Pin base-ci to v2026.10
+- Assert basalt SidebarFooter default padding
+- Release v2.8.5
+- Bump entities 8.1.0 → 9.0.0
+- Expect basalt default header action icon size
+- Bump @playwright/test 1.64.1 → 1.65.0
+- Bump @biomejs/biome 2.6.4 → 2.6.6
+- Bump remark-cjk-friendly 2.3.3 → 2.3.4
+- Bump vitest and @vitest/coverage-v8 5.0.5 → 5.1.0
+- Bump tailwindcss and @tailwindcss/vite 4.3.3 → 4.3.5
+- Bump lucide-react 1.61.0 → 1.70.0
+- Bump hono 4.13.13 → 4.13.17
+- Use basalt SidebarFooter and SidebarUser defaults
+- Use basalt defaults for AppHeader actions
+- Align sidebar header with basalt catalog defaults
+- Release v2.8.4
+- Bump @biomejs/biome 2.6.3 → 2.6.4
+- Bump react-router 8.5.0 → 8.5.1
+- Bump wrangler 4.152.0 → 4.156.0
+- Release v2.8.3
+- Override undici to 7.30.1
+- Bump wrangler to 4.152.0
+- Bump remark-cjk-friendly to 2.3.3
+- Bump lucide-react to 1.61.0
+- Bump @cloudflare/workers-types to 5.20261024.1
+- Bump @biomejs/biome to 2.6.3
+- Bump happy-dom to 21.0.4
+- Repin base-ci for node 26.12.1
+- Bump @nocoo/basalt to 3.2.1
+- Release v2.8.2
+- Override vite to 8.2.4 for security fixes
+- Bump jose to 6.2.13
+- Bump @nocoo/basalt to 3.2.0
+- Bump react-router to 8.5.0
+- Bump react and react-dom to 19.3.1
+- Bump vitest and @vitest/coverage-v8 to 5.0.5
+- Bump @playwright/test to 1.64.1
+- Bump wrangler to 4.151.3
+- Bump turbo to 2.11.10
+- Bump lucide-react to 1.60.0
+- Bump @cloudflare/workers-types to 5.20261019.1
+
 ## v2.8.1
 
 ### Fixed
