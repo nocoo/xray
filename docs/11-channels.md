@@ -88,7 +88,7 @@ The list toolbar combines keyword search with a Basalt filter Popover for inclus
 
 Use Basalt controls and existing theme tokens. Render GFM with `react-markdown` and `remark-gfm`, without raw HTML or MDX. Images accept only HTTPS external URLs, retain aspect ratio, lazy load and show alternative text on failure. Tables and code scroll within the document. Links use safe protocols and new-tab isolation.
 
-The article byline shows the calendar report date and, separately, the full receipt timestamp in the reader's local time zone. Article lists and date filters still use the report date.
+The article byline shows the calendar report date (`YYYY-MM-DD`) and a clock icon with the receipt timestamp (`YYYY-MM-DD HH:mm:ss`) in the reader's local time zone. Article lists and date filters still use the report date.
 
 Typography follows Kami and GeekHub: Chinese `TsangerJinKai02`, English Charter, 18px body, 1.65 line height, maximum prose width 1020px, or full available width. Interface text stays sans serif; code stays monospace. Reuse GeekHub's local WOFF2 subsets and preserve its font notice; these font assets are not MIT licensed. Provide serif/sans, size and width preferences. PageHeader places outlined Lucide controls for font, size, width and channel settings in one row at the top right; date controls live in the list filter Popover, with no floating reader toolbar. Keep the title and byline compact without reserved toolbar clearance. PageHeader supplies the page title and subtitle. Channel management and settings use the brightest Basalt surface for statistics and restrained Lucide accents for titles, metrics and sections.
 

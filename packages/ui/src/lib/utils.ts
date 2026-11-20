@@ -12,6 +12,14 @@ export function formatCount(n: number): string {
 	return n.toLocaleString();
 }
 
+export function formatLocalDateTime(date: Date): string {
+	const twoDigits = (part: number) => String(part).padStart(2, "0");
+	const year = String(date.getFullYear()).padStart(4, "0");
+	const monthDay = [date.getMonth() + 1, date.getDate()].map(twoDigits).join("-");
+	const time = [date.getHours(), date.getMinutes(), date.getSeconds()].map(twoDigits).join(":");
+	return `${year}-${monthDay} ${time}`;
+}
+
 export type TimeAgoStyle = "compact" | "long" | "coarse";
 
 /**

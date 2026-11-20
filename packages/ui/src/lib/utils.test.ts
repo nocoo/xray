@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { cn, formatCount, formatTimeAgo, getAvatarColor } from "./utils";
+import { cn, formatCount, formatLocalDateTime, formatTimeAgo, getAvatarColor } from "./utils";
 
 describe("utils", () => {
 	test("cn merges classes", () => {
@@ -11,6 +11,11 @@ describe("utils", () => {
 		expect(formatCount(999)).toBe("999");
 		expect(formatCount(1_200)).toBe("1.2K");
 		expect(formatCount(1_500_000)).toBe("1.5M");
+	});
+
+	test("formats local dates and 24-hour times with zero padding", () => {
+		expect(formatLocalDateTime(new Date(2026, 8, 5, 0, 7, 9))).toBe("2026-09-05 00:07:09");
+		expect(formatLocalDateTime(new Date(2026, 10, 20, 19, 58, 42))).toBe("2026-11-20 19:58:42");
 	});
 
 	test("formatTimeAgo styles", () => {

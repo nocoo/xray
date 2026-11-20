@@ -16,6 +16,7 @@ import {
 	BookOpen,
 	CalendarDays,
 	CheckCheck,
+	Clock,
 	Columns2,
 	Inbox,
 	Link2,
@@ -70,6 +71,7 @@ import {
 	readPreferences,
 	writeReaderValue,
 } from "@/lib/channel-reader";
+import { formatLocalDateTime } from "@/lib/utils";
 import { useVm } from "@/viewmodels/use-vm";
 
 export function ChannelsPage() {
@@ -735,10 +737,11 @@ export function ChannelsPage() {
 													{article.reportDate}
 												</time>
 											</span>
-											<span>
-												Received{" "}
+											<span className="inline-flex items-center gap-1.5" title="Received">
+												<Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+												<span className="sr-only">Received</span>
 												<time dateTime={new Date(article.createdAtMs).toISOString()}>
-													{new Date(article.createdAtMs).toLocaleString()}
+													{formatLocalDateTime(new Date(article.createdAtMs))}
 												</time>
 											</span>
 											<span>

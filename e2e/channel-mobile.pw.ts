@@ -93,8 +93,11 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
 			const receipt = content.locator(`time[datetime="${new Date(createdAtMs).toISOString()}"]`);
 			await expect(receipt).toBeVisible();
 			await expect(receipt).toHaveText(
-				await page.evaluate((timestamp) => new Date(timestamp).toLocaleString(), createdAtMs as number),
+				await page.evaluate((timestamp) => new Intl.DateTimeFormat("sv-SE", {
+					dateStyle: "short", timeStyle: "medium", hourCycle: "h23",
+				}).format(timestamp), createdAtMs as number),
 			);
+			await expect(content.getByTitle("Received", { exact: true }).locator("svg")).toBeVisible();
 			await expect.poll(() => content.evaluate(node => node.clientHeight)).toBeGreaterThan(viewport.height / 2);
 			await expect(page.locator(".channel-header")).toHaveCount(0);
 			await expect(page.locator("[data-basalt-header]")).toHaveCount(1);
