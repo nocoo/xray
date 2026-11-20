@@ -2,6 +2,13 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.8.8
+
+### Added
+
+- Show dashboard channel breakdown
+- Add channel article author icon
+
 ## v2.8.7
 
 ### Added
