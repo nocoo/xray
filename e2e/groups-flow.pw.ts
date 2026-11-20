@@ -22,9 +22,14 @@ test.describe("L3 groups flow", () => {
 			timeout: 15_000,
 		});
 		await expect(
-			page.locator("[data-basalt-surface-root]").getByRole("button", { name: new RegExp(name) }),
+			page.locator("[data-basalt-surface-root]").getByRole("button", { name: new RegExp(`^${name}`) }),
 		).toBeVisible({
 			timeout: 15_000,
 		});
+		for (const label of ["Rename", "Delete"]) {
+			const action = page.getByRole("button", { name: `${label} ${name}`, exact: true });
+			await expect(action).toHaveText("");
+			await expect(action).toHaveCSS("width", "28px");
+		}
 	});
 });

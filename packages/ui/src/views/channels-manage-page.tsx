@@ -36,6 +36,7 @@ import {
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useChannels } from "@/components/channels-context";
+import { InlineAction } from "@/components/inline-action";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { TableSkeleton } from "@/components/loading-skeletons";
 import { SectionLabel } from "@/components/section-label";
@@ -291,21 +292,15 @@ export function ChannelsManagePage() {
 											</TableCell>
 											<TableCell textAlign="end">
 												<div className="grid grid-cols-2 justify-end gap-1 sm:flex sm:items-center">
-													<Button
-														variant="outline"
-														size="icon"
-														className="h-8 w-8"
+													<InlineAction
 														aria-label={`Move ${channel.name} up`}
 														title="Move up"
 														disabled={state.busy || state.catalogLoading || index === 0}
 														onClick={() => void vm.move(channel.id, -1)}
 													>
-														<ArrowUp className="h-4 w-4" />
-													</Button>
-													<Button
-														variant="outline"
-														size="icon"
-														className="h-8 w-8"
+														<ArrowUp aria-hidden="true" />
+													</InlineAction>
+													<InlineAction
 														aria-label={`Move ${channel.name} down`}
 														title="Move down"
 														disabled={
@@ -315,26 +310,26 @@ export function ChannelsManagePage() {
 														}
 														onClick={() => void vm.move(channel.id, 1)}
 													>
-														<ArrowDown className="h-4 w-4" />
-													</Button>
-													<Button variant="outline" size="icon" className="h-8 w-8" asChild>
-														<Link
-															to={`/channels/${channel.id}`}
-															aria-label={`Read ${channel.name}`}
-															title="Read reports"
-														>
-															<BookOpen className="h-4 w-4" />
+														<ArrowDown aria-hidden="true" />
+													</InlineAction>
+													<InlineAction
+														asChild
+														aria-label={`Read ${channel.name}`}
+														title="Read reports"
+													>
+														<Link to={`/channels/${channel.id}`}>
+															<BookOpen aria-hidden="true" />
 														</Link>
-													</Button>
-													<Button variant="outline" size="icon" className="h-8 w-8" asChild>
-														<Link
-															to={`/channels/${channel.id}/settings`}
-															aria-label={`Manage ${channel.name}`}
-															title="Channel settings"
-														>
-															<Settings className="h-4 w-4" aria-hidden="true" />
+													</InlineAction>
+													<InlineAction
+														asChild
+														aria-label={`Manage ${channel.name}`}
+														title="Channel settings"
+													>
+														<Link to={`/channels/${channel.id}/settings`}>
+															<Settings aria-hidden="true" />
 														</Link>
-													</Button>
+													</InlineAction>
 												</div>
 											</TableCell>
 										</TableRow>

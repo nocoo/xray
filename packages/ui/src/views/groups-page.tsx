@@ -18,6 +18,7 @@ import * as groupsApi from "@/api/groups";
 import * as watchlistsApi from "@/api/watchlists";
 import { useCreateDialogs } from "@/components/dialogs/create-dialogs-context";
 import { RenameDialog } from "@/components/dialogs/rename-dialog";
+import { InlineAction } from "@/components/inline-action";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { CardsSkeleton, RowsSkeleton } from "@/components/loading-skeletons";
 import { SectionLabel } from "@/components/section-label";
@@ -187,21 +188,22 @@ export function GroupsPage() {
 								)}
 							</Button>
 						</LayerCard>
-						<div className="mt-2 flex flex-wrap gap-2">
-							<Button type="button" size="sm" variant="outline" onClick={() => setRenameTarget(g)}>
-								<Pencil className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
-								Rename
-							</Button>
-							<Button
-								type="button"
-								size="sm"
-								variant="outline"
-								className="text-basalt-destructive"
+						<div className="mt-2 flex justify-end gap-1">
+							<InlineAction
+								aria-label={`Rename ${g.name}`}
+								title="Rename group"
+								onClick={() => setRenameTarget(g)}
+							>
+								<Pencil aria-hidden="true" />
+							</InlineAction>
+							<InlineAction
+								destructive
+								aria-label={`Delete ${g.name}`}
+								title="Delete group"
 								onClick={() => setDeleteTarget(g)}
 							>
-								<Trash2 className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
-								Delete
-							</Button>
+								<Trash2 aria-hidden="true" />
+							</InlineAction>
 						</div>
 					</li>
 				))}
@@ -277,16 +279,14 @@ export function GroupsPage() {
 											<span className="text-basalt-muted-foreground">{m.sourceType}</span> · @
 											{m.handle}
 										</span>
-										<Button
-											type="button"
-											size="icon"
-											variant="outline"
-											className="h-7 w-7 text-basalt-muted-foreground hover:text-basalt-destructive"
+										<InlineAction
+											destructive
 											onClick={() => void vm.removeMember(m.id)}
 											aria-label="Remove member"
+											title="Remove member"
 										>
-											<Trash2 className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
-										</Button>
+											<Trash2 aria-hidden="true" />
+										</InlineAction>
 									</li>
 								))}
 							</ul>

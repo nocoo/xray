@@ -32,6 +32,7 @@ import {
 import type { Tag } from "@xray/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as api from "@/api/tags";
+import { InlineAction } from "@/components/inline-action";
 import { LoadingSkeleton } from "@/components/loading-skeletons";
 import { SectionLabel } from "@/components/section-label";
 import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
@@ -233,12 +234,12 @@ export function TagsSettings() {
 								<SkeletonLine className="h-6 rounded-full" minWidth={25} maxWidth={45} />
 								<div className="flex shrink-0 gap-1">
 									<SkeletonLine
-										className="h-8 rounded-basalt-md"
-										style={{ width: "calc(var(--spacing) * 16)" }}
+										className="h-basalt-control-sm rounded-basalt-md max-sm:min-h-basalt-touch max-sm:min-w-basalt-touch"
+										style={{ width: "var(--basalt-size-control-sm)" }}
 									/>
 									<SkeletonLine
-										className="h-8 rounded-basalt-md"
-										style={{ width: "calc(var(--spacing) * 8)" }}
+										className="h-basalt-control-sm rounded-basalt-md max-sm:min-h-basalt-touch max-sm:min-w-basalt-touch"
+										style={{ width: "var(--basalt-size-control-sm)" }}
 									/>
 								</div>
 							</LayerCard.Well>
@@ -264,16 +265,13 @@ export function TagsSettings() {
 										/>
 									</div>
 									<div className="flex shrink-0 items-center justify-end gap-1">
-										<Button
-											size="sm"
-											variant="ghost"
-											className="h-8 px-2"
+										<InlineAction
 											aria-label={`Rename ${tag.name}`}
+											title="Rename tag"
 											onClick={(event) => edit(tag, event.currentTarget)}
 										>
-											<Pencil className="h-4 w-4" aria-hidden="true" />
-											<span className="hidden md:inline">Rename</span>
-										</Button>
+											<Pencil aria-hidden="true" />
+										</InlineAction>
 										<ConfirmDialog
 											open={deleting?.id === tag.id}
 											onOpenChange={(open) => {
@@ -299,14 +297,13 @@ export function TagsSettings() {
 											variant="destructive"
 											loading={state.busy}
 											trigger={
-												<Button
-													size="sm"
-													variant="ghost"
-													className="h-8 w-8 p-0 text-basalt-muted-foreground hover:text-basalt-destructive"
+												<InlineAction
+													destructive
 													aria-label={`Delete ${tag.name}`}
+													title="Delete tag"
 												>
-													<Trash2 className="h-4 w-4" aria-hidden="true" />
-												</Button>
+													<Trash2 aria-hidden="true" />
+												</InlineAction>
 											}
 											onConfirm={async () => {
 												if (await vm.remove(tag.id)) {

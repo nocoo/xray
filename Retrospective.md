@@ -437,3 +437,10 @@ fixed presentation date. Native ingest uses the real clock and rejected both
 items before the page could render. Refresh top-level `created_at` when pushing
 through native ingest, and assert accepted and rejected counts before opening the
 UI. Keep fixed dates for seeded presentation fixtures.
+
+## 2026-11-20 - Use Basalt's native compact action size
+
+The first inline-action regression expected the Tailwind `size-8` class to
+override Basalt's compact icon button. Its logical minimum and maximum size
+kept it at 28px. Use the native compact preset, override only the touch minimum,
+and verify the computed size rather than relying on a utility class name.

@@ -42,6 +42,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import * as tagsApi from "@/api/tags";
 import { useChannels } from "@/components/channels-context";
 import { CopyTextButton } from "@/components/copy-text-button";
+import { InlineAction } from "@/components/inline-action";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { FormSkeleton, TableSkeleton } from "@/components/loading-skeletons";
 import { SectionLabel } from "@/components/section-label";
@@ -439,34 +440,34 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 												: "Never used"}
 										</TableCell>
 										<TableCell textAlign="end">
-											<Button
-												variant="ghost"
-												size="icon"
-												aria-label={`Rename ${key.label}`}
-												title="Rename token"
-												disabled={state.busy}
-												onClick={(event) => {
-													renameButton.current = event.currentTarget;
-													vm.setState({ error: null });
-													setEditingKey(key);
-												}}
-											>
-												<Pencil className="h-4 w-4" aria-hidden="true" />
-											</Button>
-											<Button
-												variant="outline"
-												size="sm"
-												aria-label={`Revoke ${key.label}`}
-												disabled={state.busy}
-												onClick={(event) => {
-													event.currentTarget.focus();
-													revokeButton.current = event.currentTarget;
-													vm.setState({ error: null });
-													setRevoking(key);
-												}}
-											>
-												Revoke
-											</Button>
+											<div className="flex justify-end gap-basalt-space-sm">
+												<InlineAction
+													aria-label={`Rename ${key.label}`}
+													title="Rename token"
+													disabled={state.busy}
+													onClick={(event) => {
+														renameButton.current = event.currentTarget;
+														vm.setState({ error: null });
+														setEditingKey(key);
+													}}
+												>
+													<Pencil aria-hidden="true" />
+												</InlineAction>
+												<InlineAction
+													destructive
+													aria-label={`Revoke ${key.label}`}
+													title="Revoke token"
+													disabled={state.busy}
+													onClick={(event) => {
+														event.currentTarget.focus();
+														revokeButton.current = event.currentTarget;
+														vm.setState({ error: null });
+														setRevoking(key);
+													}}
+												>
+													<Trash2 aria-hidden="true" />
+												</InlineAction>
+											</div>
 										</TableCell>
 									</TableRow>
 								))}

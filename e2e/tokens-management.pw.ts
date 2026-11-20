@@ -103,11 +103,19 @@ test("global token management shares channel changes and separates producer perm
 		await expect(
 			page.getByRole("button", { name: `Rename ${reportName} global`, exact: true }),
 		).toBeVisible();
+		const renameAction = page.getByRole("button", { name: `Rename ${reportName} global`, exact: true });
+		const revokeAction = page.getByRole("button", { name: `Revoke ${reportName} global`, exact: true });
+		const idleColor = await renameAction.evaluate((button) => getComputedStyle(button).color);
 		await page.goto(`${BROWSER}/channels/${channel.id}/settings`);
-		await expect(
-			page.getByRole("button", { name: `Rename ${reportName} global`, exact: true }),
-		).toBeVisible();
-		await page.getByRole("button", { name: `Rename ${reportName} global`, exact: true }).click();
+		for (const action of [renameAction, revokeAction]) {
+			await expect(action).toBeVisible();
+			await expect(action).toHaveText("");
+			await expect(action).toHaveCSS("width", "28px");
+			await expect(action).toHaveCSS("height", "28px");
+			await expect(action).toHaveCSS("color", idleColor);
+			await expect(action.locator("svg")).toHaveCSS("stroke-width", "1.5px");
+		}
+		await renameAction.click();
 		dialog = page.getByRole("dialog");
 		await dialog.getByLabel("Token name").fill(`${reportName} channel`);
 		await dialog.getByRole("button", { name: "Save name" }).click();

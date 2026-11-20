@@ -682,6 +682,12 @@ test("Tags page and popovers manage live deduplicated article tags with stable c
 
 	await page.goto(`${BROWSER}/tags`);
 	const renameButton = page.getByRole("button", { name: `Rename ${sharedTag}`, exact: true });
+	const deleteButton = page.getByRole("button", { name: `Delete ${sharedTag}`, exact: true });
+	await expect(renameButton).toHaveText("");
+	for (const action of [renameButton, deleteButton]) {
+		await expect(action).toHaveCSS("width", "28px");
+		await expect(action).toHaveCSS("height", "28px");
+	}
 	await renameButton.click();
 	const rename = page.getByRole("dialog", { name: "Rename tag", exact: true });
 	await rename.getByRole("textbox", { name: `Rename ${sharedTag}`, exact: true }).fill(channelTag);

@@ -23,6 +23,7 @@ import type { ManagedToken, Tag, TokenKind } from "@xray/shared";
 import type { MouseEvent } from "react";
 import { Link } from "react-router";
 import type { TagsVm } from "@/viewmodels/tags-vm";
+import { InlineAction } from "./inline-action";
 import { TagAssignment } from "./tag-assignment";
 
 function TokenAccess({
@@ -309,28 +310,23 @@ export function TokensTable({
 			cellClassName: "align-top @min-[36rem]/tokens:align-middle",
 			accessor: (token) => (
 				<div className="flex justify-end gap-basalt-space-sm">
-					<Button
-						variant="ghost"
-						size="icon"
-						className="max-sm:min-h-basalt-touch max-sm:min-w-basalt-touch text-basalt-tag-blue-foreground"
+					<InlineAction
 						aria-label={`${token.kind === "query" ? "Edit" : "Rename"} ${token.label}`}
 						title={token.kind === "query" ? "Edit name and access" : "Rename token"}
 						disabled={busy}
 						onClick={(event) => onRename(token, event)}
 					>
-						<Pencil className="size-basalt-icon" aria-hidden="true" strokeWidth={1.5} />
-					</Button>
-					<Button
-						variant="ghost"
-						size="icon"
-						className="max-sm:min-h-basalt-touch max-sm:min-w-basalt-touch text-basalt-muted-foreground hover:text-basalt-destructive"
+						<Pencil aria-hidden="true" />
+					</InlineAction>
+					<InlineAction
+						destructive
 						aria-label={`Revoke ${token.label}`}
 						title="Revoke token"
 						disabled={busy}
 						onClick={(event) => onRevoke(token, event)}
 					>
-						<Trash2 className="size-basalt-icon" aria-hidden="true" strokeWidth={1.5} />
-					</Button>
+						<Trash2 aria-hidden="true" />
+					</InlineAction>
 				</div>
 			),
 		},
