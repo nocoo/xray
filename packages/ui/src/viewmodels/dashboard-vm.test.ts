@@ -11,8 +11,21 @@ const data: DashboardAggregates = {
 	content24h: 6,
 	pendingAi: 5,
 	contentTrend: [
-		{ date: "2026-09-26", watchlists: 2, channels: 4 },
-		{ date: "2026-09-27", watchlists: 1, channels: 5 },
+		{
+			date: "2026-09-26",
+			watchlists: 2,
+			channels: 4,
+			channelReports: [{ id: 8, name: "Research", count: 4 }],
+		},
+		{
+			date: "2026-09-27",
+			watchlists: 1,
+			channels: 5,
+			channelReports: [
+				{ id: 2, name: "Reports", count: 2 },
+				{ id: 8, name: "Research", count: 3 },
+			],
+		},
 	],
 	recentIngestLogs: [],
 };
@@ -31,8 +44,12 @@ describe("createDashboardVm", () => {
 		expect(vm.cards()[2]?.subtitle).toBe("Groups 1 · Members 3");
 		expect(vm.activity()).toEqual({
 			points: [
-				{ x: "2026-09-26", watchlists: 2, channels: 4 },
-				{ x: "2026-09-27", watchlists: 1, channels: 5 },
+				{ x: "2026-09-26", watchlists: 2, channels: 4, total: 6, channelCounts: { 8: 4 } },
+				{ x: "2026-09-27", watchlists: 1, channels: 5, total: 6, channelCounts: { 2: 2, 8: 3 } },
+			],
+			channelSeries: [
+				[2, "Reports"],
+				[8, "Research"],
 			],
 			watchlists: 3,
 			channels: 9,
@@ -47,14 +64,27 @@ describe("createDashboardVm", () => {
 		await pending;
 		expect(vm.getState().error).toBe("down");
 		expect(vm.cards()).toEqual([]);
-		expect(vm.activity()).toEqual({ points: [], watchlists: 0, channels: 0, total: 0 });
+		expect(vm.activity()).toEqual({
+			points: [],
+			channelSeries: [],
+			watchlists: 0,
+			channels: 0,
+			total: 0,
+		});
 	});
 
 	test("channel-only data and recovery preserve zero watchlist values", async () => {
 		const channelOnly = {
 			...data,
 			watchlistCount: 0,
-			contentTrend: [{ date: "2026-09-27", watchlists: 0, channels: 2 }],
+			contentTrend: [
+				{
+					date: "2026-09-27",
+					watchlists: 0,
+					channels: 2,
+					channelReports: [{ id: 8, name: "Research", count: 2 }],
+				},
+			],
 		};
 		const api = {
 			fetchDashboard: vi.fn().mockRejectedValueOnce("offline").mockResolvedValue(channelOnly),

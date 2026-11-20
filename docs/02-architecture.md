@@ -219,8 +219,9 @@ publication time or report date. Both query branches scope `user_id` to the veri
 owner. Retries do not add records; all-time totals count currently stored content,
 including records outside the chart window.
 
-The UI uses one Basalt stacked bar chart with Watchlists and Channels series,
-category totals, keyboard tooltips and expandable daily counts. Overview cards show
+The UI uses stacked bars for Watchlists and each channel with receipts in the period,
+overlaid by a line for the daily total. Keyboard tooltips and expandable daily counts
+show the per-channel breakdown. Overview cards show
 total content, additions in 24 hours, watchlists and channels. Groups, members and
 pending AI remain visible; ingest diagnostics describe watchlist delivery separately.
 Demo/E2E retain their fixed presentation clock; arrival-time boundary tests arrange

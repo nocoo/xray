@@ -100,9 +100,7 @@ function DashboardBody({ data, vm }: { data: DashboardAggregates; vm: DashboardV
 						<SectionLabel icon={TrendingUp} tone="green">
 							Content added (14d)
 						</SectionLabel>
-						<span className="text-xs font-normal text-basalt-muted-foreground">
-							One item or report = one record · UTC
-						</span>
+						<span className="text-xs font-normal text-basalt-muted-foreground">UTC</span>
 					</div>
 				</LayerCard.Header>
 				<LayerCard.Body>

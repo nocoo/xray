@@ -1,8 +1,9 @@
 import {
-	BAR_RADIUS,
+	CHART_COLORS,
 	CHART_PLOT_MARGIN,
 	ChartFrame,
 	ChartLegend,
+	ChartTooltipContent,
 	cartesianAxisProps,
 	chartTooltipProps,
 	GRID_PROPS,
@@ -17,26 +18,51 @@ import {
 	TableHeader,
 	TableRow,
 } from "@nocoo/basalt/components/table";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+	Bar,
+	CartesianGrid,
+	ComposedChart,
+	Line,
+	ResponsiveContainer,
+	Tooltip,
+	XAxis,
+	YAxis,
+} from "recharts";
 import type { DashboardVm } from "@/viewmodels/dashboard-vm";
 
-const series = [
-	{ key: "watchlists", label: "Watchlists", color: getChartColor(0) },
-	{ key: "channels", label: "Channels", color: getChartColor(1) },
-];
+const totalSeries = { key: "total", label: "Total", color: "hsl(var(--basalt-foreground))" };
+
+function channelColor(index: number) {
+	const color = getChartColor(index);
+	const tint = Math.min(42, Math.floor(index / CHART_COLORS.length) * 14);
+	return tint ? `color-mix(in srgb, ${color}, ${totalSeries.color} ${tint}%)` : color;
+}
 
 export function ContentTrendChart({ activity }: { activity: ReturnType<DashboardVm["activity"]> }) {
 	const valueFormatter = (value: number) =>
 		Number.isInteger(value) ? value.toLocaleString("en-US") : "";
+	const series = [
+		{ key: "watchlists", label: "Watchlists", color: "hsl(var(--basalt-muted-foreground))" },
+		...activity.channelSeries.map(([id, label], index) => ({
+			key: `channelCounts.${id}`,
+			label,
+			color: channelColor(index),
+		})),
+	];
 
 	return (
 		<ChartFrame
 			ariaLabel="Daily content by watchlists and channels"
-			size="h-64 w-full sm:h-72"
-			legend={<ChartLegend items={series} shape="bar" />}
+			size="w-full"
+			legend={
+				<div className="flex min-w-0 flex-wrap gap-x-4 [overflow-wrap:anywhere]">
+					<ChartLegend items={[totalSeries]} shape="line" />
+					<ChartLegend items={series} shape="bar" />
+				</div>
+			}
 			summary={
 				activity.total === 0
-					? "No content added in the last 14 days. Watchlist items and channel reports will appear here."
+					? "No content added in the last 14 days."
 					: `${activity.total.toLocaleString("en-US")} added · Watchlists ${activity.watchlists.toLocaleString("en-US")} · Channels ${activity.channels.toLocaleString("en-US")}`
 			}
 			dataAlternative={
@@ -59,8 +85,21 @@ export function ContentTrendChart({ activity }: { activity: ReturnType<Dashboard
 									<TableRow key={point.x}>
 										<TableCell className="whitespace-nowrap">{point.x}</TableCell>
 										<TableCell>{point.watchlists}</TableCell>
-										<TableCell>{point.channels}</TableCell>
-										<TableCell>{point.watchlists + point.channels}</TableCell>
+										<TableCell>
+											{point.channels}
+											{point.channels > 0 && (
+												<ul aria-label="Channel breakdown" className="text-basalt-muted-foreground">
+													{activity.channelSeries.map(([id, name]) =>
+														point.channelCounts[id] ? (
+															<li key={id}>
+																{name}: {point.channelCounts[id]}
+															</li>
+														) : null,
+													)}
+												</ul>
+											)}
+										</TableCell>
+										<TableCell>{point.total}</TableCell>
 									</TableRow>
 								))}
 							</TableBody>
@@ -69,42 +108,60 @@ export function ContentTrendChart({ activity }: { activity: ReturnType<Dashboard
 				</details>
 			}
 		>
-			<ResponsiveContainer {...RESPONSIVE_CONTAINER_PROPS}>
-				<BarChart accessibilityLayer data={activity.points} margin={CHART_PLOT_MARGIN}>
-					<CartesianGrid {...GRID_PROPS} />
-					<XAxis
-						dataKey="x"
-						tickFormatter={(date) => String(date).slice(5)}
-						{...cartesianAxisProps()}
-					/>
-					<YAxis
-						domain={[
-							0,
-							Math.max(4, ...activity.points.map((point) => point.watchlists + point.channels)),
-						]}
-						allowDecimals={false}
-						tickFormatter={valueFormatter}
-						width={32}
-						{...cartesianAxisProps()}
-					/>
-					<Tooltip {...chartTooltipProps({ formatter: valueFormatter })} />
-					<Bar
-						dataKey="watchlists"
-						name="Watchlists"
-						stackId="content"
-						fill={series[0].color}
-						isAnimationActive={false}
-					/>
-					<Bar
-						dataKey="channels"
-						name="Channels"
-						stackId="content"
-						fill={series[1].color}
-						radius={BAR_RADIUS.vertical}
-						isAnimationActive={false}
-					/>
-				</BarChart>
-			</ResponsiveContainer>
+			<div className="h-64 w-full sm:h-72">
+				<ResponsiveContainer {...RESPONSIVE_CONTAINER_PROPS}>
+					<ComposedChart accessibilityLayer data={activity.points} margin={CHART_PLOT_MARGIN}>
+						<CartesianGrid {...GRID_PROPS} />
+						<XAxis
+							dataKey="x"
+							tickFormatter={(date) => String(date).slice(5)}
+							{...cartesianAxisProps()}
+						/>
+						<YAxis
+							domain={[0, Math.max(4, ...activity.points.map((point) => point.total))]}
+							allowDecimals={false}
+							tickFormatter={valueFormatter}
+							width={32}
+							{...cartesianAxisProps()}
+						/>
+						<Tooltip
+							{...chartTooltipProps({
+								customTooltip: ({ active, label, payload }) => (
+									<ChartTooltipContent
+										active={active}
+										label={label}
+										payload={payload?.filter(
+											(item) => item.dataKey === "total" || Number(item.value) > 0,
+										)}
+										formatter={valueFormatter}
+									/>
+								),
+							})}
+						/>
+						{series.map(({ key, label, color }) => (
+							<Bar
+								key={key}
+								dataKey={key}
+								name={label}
+								stackId="content"
+								fill={color}
+								stroke="hsl(var(--basalt-card))"
+								strokeWidth={0.75}
+								isAnimationActive={false}
+							/>
+						))}
+						<Line
+							dataKey={totalSeries.key}
+							name={totalSeries.label}
+							type="monotone"
+							stroke={totalSeries.color}
+							strokeWidth={2}
+							dot={{ r: 2 }}
+							isAnimationActive={false}
+						/>
+					</ComposedChart>
+				</ResponsiveContainer>
+			</div>
 		</ChartFrame>
 	);
 }

@@ -3,12 +3,21 @@ import type { ContentDayPoint, DashboardAggregates, DashboardLog } from "@xray/s
 export const DASHBOARD_TREND_DAYS = 14;
 
 const CONTENT_SQL = `WITH content AS (
-  SELECT ingested_at_ms AS received_at_ms, 'watchlists' AS category
+  SELECT ingested_at_ms AS received_at_ms
   FROM items WHERE user_id = ?
   UNION ALL
-  SELECT created_at_ms, 'channels'
+  SELECT created_at_ms
   FROM channel_articles WHERE user_id = ?
 )`;
+
+type TrendRow = { date: string; count: number } & (
+	| { channelId: null; channelName: null }
+	| { channelId: number; channelName: string }
+);
+
+function emptyDay(date: string): ContentDayPoint {
+	return { date, watchlists: 0, channels: 0, channelReports: [] };
+}
 
 export function utcDateKey(ms: number): string {
 	return new Date(ms).toISOString().slice(0, 10);
@@ -80,15 +89,30 @@ export async function getDashboardAggregates(
 		.first<{ c: number }>();
 	const trendSince = Date.parse(`${eachUtcDay(nowMs, DASHBOARD_TREND_DAYS)[0]}T00:00:00Z`);
 	const { results: contentDays } = await db
-		.prepare(`${CONTENT_SQL}
-      SELECT strftime('%Y-%m-%d', received_at_ms / 1000, 'unixepoch') AS date,
-             SUM(category = 'watchlists') AS watchlists,
-             SUM(category = 'channels') AS channels
-      FROM content
-      WHERE received_at_ms >= ? AND received_at_ms <= ?
-      GROUP BY date ORDER BY date`)
-		.bind(userId, userId, trendSince, nowMs)
-		.all<ContentDayPoint>();
+		.prepare(`SELECT strftime('%Y-%m-%d', ingested_at_ms / 1000, 'unixepoch') AS date,
+             NULL AS channelId, NULL AS channelName, COUNT(*) AS count
+      FROM items WHERE user_id = ? AND ingested_at_ms BETWEEN ? AND ?
+      GROUP BY date
+      UNION ALL
+      SELECT strftime('%Y-%m-%d', a.created_at_ms / 1000, 'unixepoch') AS date,
+             a.channel_id, c.name, COUNT(*)
+      FROM channel_articles a
+      JOIN channels c ON c.id = a.channel_id AND c.user_id = a.user_id
+      WHERE a.user_id = ? AND a.created_at_ms BETWEEN ? AND ?
+      GROUP BY date, a.channel_id
+      ORDER BY date, channelId`)
+		.bind(userId, trendSince, nowMs, userId, trendSince, nowMs)
+		.all<TrendRow>();
+	const byDate = new Map<string, ContentDayPoint>();
+	for (const row of contentDays ?? []) {
+		const point = byDate.get(row.date) ?? emptyDay(row.date);
+		if (row.channelId === null) point.watchlists = row.count;
+		else {
+			point.channels += row.count;
+			point.channelReports.push({ id: row.channelId, name: row.channelName, count: row.count });
+		}
+		byDate.set(row.date, point);
+	}
 
 	const { results: logRows } = await db
 		.prepare(
@@ -133,16 +157,7 @@ export async function getDashboardAggregates(
 		contentCount: Number(content?.total ?? 0),
 		content24h: Number(content?.recent ?? 0),
 		pendingAi: Number(pendingAi?.c ?? 0),
-		contentTrend: fillUtcDays(
-			nowMs,
-			DASHBOARD_TREND_DAYS,
-			(contentDays ?? []).map((r) => ({
-				date: r.date,
-				watchlists: Number(r.watchlists),
-				channels: Number(r.channels),
-			})),
-			(date) => ({ date, watchlists: 0, channels: 0 }),
-		),
+		contentTrend: fillUtcDays(nowMs, DASHBOARD_TREND_DAYS, [...byDate.values()], emptyDay),
 		recentIngestLogs,
 	};
 }

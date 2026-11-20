@@ -464,3 +464,10 @@ The v2.8.7 release stopped at the index gate because generated Markdown omitted
 blank lines after section headings. Generate formatter-compliant notes rather
 than bypassing the hook, and pass the dry-run notes through the Markdown formatter
 before publishing.
+
+## 2026-11-20 - Keep growing chart legends outside the plot budget
+
+The first per-channel chart left its wrapping legend inside ChartFrame's fixed
+height. At 320px the legend consumed most of the plot. Give the plot its own
+responsive height and allow the frame to grow with the legend; check the real
+SVG bounds with the rich catalog at the narrowest viewport.

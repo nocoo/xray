@@ -1,4 +1,11 @@
-export type ContentDayPoint = { date: string; watchlists: number; channels: number };
+export type ChannelDayCount = { id: number; name: string; count: number };
+
+export type ContentDayPoint = {
+	date: string;
+	watchlists: number;
+	channels: number;
+	channelReports: ChannelDayCount[];
+};
 
 export type DashboardLog = {
 	id: number;

@@ -61,10 +61,24 @@ export function createDashboardVm(api: DashboardApi) {
 		},
 		activity() {
 			const points = store.getState().data?.contentTrend ?? [];
+			const names = new Map<number, string>();
 			const watchlists = points.reduce((sum, point) => sum + point.watchlists, 0);
 			const channels = points.reduce((sum, point) => sum + point.channels, 0);
+			const chartPoints = points.map(({ date, watchlists, channels, channelReports }) => ({
+				x: date,
+				watchlists,
+				channels,
+				total: watchlists + channels,
+				channelCounts: Object.fromEntries(
+					channelReports.map(({ id, name, count }) => {
+						names.set(id, name);
+						return [id, count];
+					}),
+				),
+			}));
 			return {
-				points: points.map(({ date, ...counts }) => ({ x: date, ...counts })),
+				points: chartPoints,
+				channelSeries: [...names].sort(([first], [second]) => first - second),
 				watchlists,
 				channels,
 				total: watchlists + channels,

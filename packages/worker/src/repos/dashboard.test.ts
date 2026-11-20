@@ -41,8 +41,13 @@ async function item(
 		.run();
 }
 
-async function report(db: D1Database, id: string, received: number, userId = "u1") {
-	const channelId = userId === "u1" ? 1 : 2;
+async function report(
+	db: D1Database,
+	id: string,
+	received: number,
+	userId = "u1",
+	channelId = userId === "u1" ? 1 : 2,
+) {
 	await db
 		.prepare(`INSERT INTO channel_articles (user_id,channel_id,external_id,title,report_date,markdown,source_key_id,source_label,created_at_ms)
  VALUES (?,?,?,?,'2000-01-01','# Report',?,'Reporter',?)`)
@@ -76,8 +81,13 @@ describe("dashboard aggregates", () => {
 		});
 		expect(result.contentTrend).toHaveLength(DASHBOARD_TREND_DAYS);
 		expect(result.contentTrend.slice(-2)).toEqual([
-			{ date: "2026-09-26", watchlists: 1, channels: 0 },
-			{ date: "2026-09-27", watchlists: 3, channels: 1 },
+			{ date: "2026-09-26", watchlists: 1, channels: 0, channelReports: [] },
+			{
+				date: "2026-09-27",
+				watchlists: 3,
+				channels: 1,
+				channelReports: [{ id: 1, name: "Reports", count: 1 }],
+			},
 		]);
 		expect(result.recentIngestLogs).toHaveLength(1);
 		expect(result.recentIngestLogs[0]).toMatchObject({
@@ -85,6 +95,33 @@ describe("dashboard aggregates", () => {
 			deduped: 10,
 			rejected: 6,
 		});
+	});
+
+	test("separates active channels and never returns another tenant's channel series", async () => {
+		const db = await seededDb();
+		await db.exec(`
+  INSERT INTO channels (id,user_id,name,created_at_ms) VALUES (3,'u1','Research',0),(4,'u1','Empty',0);
+  INSERT INTO push_tokens (id,user_id,token_prefix,token_hash,label,scopes,created_at_ms,channel_id)
+    VALUES (3,'u1','three','three','Researcher','["articles:write"]',0,3);
+`);
+		await report(db, "first", now);
+		await report(db, "second", now, "u1", 3);
+		await report(db, "third", now, "u1", 3);
+		await report(db, "foreign", now, "u2");
+		const result = await getDashboardAggregates(db, "u1", now);
+		expect(result.channelCount).toBe(3);
+		expect(result.contentTrend.at(-1)).toEqual({
+			date: "2026-09-27",
+			watchlists: 0,
+			channels: 3,
+			channelReports: [
+				{ id: 1, name: "Reports", count: 1 },
+				{ id: 3, name: "Research", count: 2 },
+			],
+		});
+		expect(
+			(await getDashboardAggregates(db, "u2", now)).contentTrend.at(-1)?.channelReports,
+		).toEqual([{ id: 2, name: "Other", count: 1 }]);
 	});
 
 	test("uses exact UTC calendar and rolling 24-hour bounds for both categories", async () => {
@@ -104,8 +141,17 @@ describe("dashboard aggregates", () => {
 		const result = await getDashboardAggregates(db, "u1", now);
 		expect(result.contentCount).toBe(12);
 		expect(result.content24h).toBe(4);
-		expect(result.contentTrend[0]).toEqual({ date: "2026-09-14", watchlists: 1, channels: 1 });
-		expect(result.contentTrend.at(-1)).toEqual({ date: "2026-09-27", watchlists: 1, channels: 1 });
+		for (const [point, date] of [
+			[result.contentTrend[0], "2026-09-14"],
+			[result.contentTrend.at(-1), "2026-09-27"],
+		]) {
+			expect(point).toEqual({
+				date,
+				watchlists: 1,
+				channels: 1,
+				channelReports: [{ id: 1, name: "Reports", count: 1 }],
+			});
+		}
 		expect(result.contentTrend.reduce((sum, p) => sum + p.watchlists + p.channels, 0)).toBe(8);
 		expect(result.contentTrend.filter((p) => p.watchlists === 0 && p.channels === 0)).toHaveLength(
 			11,
@@ -136,7 +182,12 @@ describe("dashboard aggregates", () => {
 			content24h: 1,
 			pendingAi: 0,
 		});
-		expect(result.contentTrend.at(-1)).toEqual({ date: "2026-09-27", watchlists: 0, channels: 1 });
+		expect(result.contentTrend.at(-1)).toEqual({
+			date: "2026-09-27",
+			watchlists: 0,
+			channels: 1,
+			channelReports: [{ id: 1, name: "Reports", count: 1 }],
+		});
 	});
 
 	test("preserves diagnostics for deleted watchlists and limits recent rows", async () => {

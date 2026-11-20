@@ -134,7 +134,12 @@ test("dashboard counts real channel and watchlist submissions equally, including
 			channelCount: 1,
 			watchlistCount: 1,
 		});
-		expect(result.contentTrend.at(-1)).toEqual({ date: "2026-09-27", watchlists: 2, channels: 1 });
+		expect(result.contentTrend.at(-1)).toEqual({
+			date: "2026-09-27",
+			watchlists: 2,
+			channels: 1,
+			channelReports: [{ id: channelId, name: "Dashboard reports", count: 1 }],
+		});
 		expect(
 			result.contentTrend
 				.slice(0, -1)
@@ -143,12 +148,14 @@ test("dashboard counts real channel and watchlist submissions equally, including
 		const other = await request.get(`${runtime.url}/api/dashboard`, {
 			headers: { "Cf-Access-Jwt-Assertion": runtime.jwtB },
 		});
-		expect((await other.json()).data).toMatchObject({
+		const otherData = (await other.json()).data as DashboardAggregates;
+		expect(otherData).toMatchObject({
 			contentCount: 0,
 			content24h: 0,
 			watchlistCount: 0,
 			channelCount: 0,
 		});
+		expect(otherData.contentTrend.flatMap((point) => point.channelReports)).toEqual([]);
 		expect((await runtime.sql("SELECT COUNT(*) AS c FROM items"))[0]?.results).toEqual([{ c: 2 }]);
 		expect((await runtime.sql("SELECT COUNT(*) AS c FROM channel_articles"))[0]?.results).toEqual([
 			{ c: 1 },
@@ -165,14 +172,20 @@ test("dashboard counts real channel and watchlist submissions equally, including
 			page.getByText("3 added · Watchlists 2 · Channels 1", { exact: true }),
 		).toBeVisible();
 		const chart = page.getByRole("group", { name: chartName, exact: true });
+		await expect(chart.locator(".recharts-line-curve")).toHaveCount(1);
+		await chart.locator(".recharts-line-dot").last().hover();
+		const tooltip = chart.getByTestId("chart-tooltip");
+		await expect(tooltip).toContainText("2026-09-27");
+		await expect(tooltip).toContainText("Watchlists");
+		await expect(tooltip).toContainText("Dashboard reports");
+		await expect(tooltip).toContainText("Total");
 		await chart.locator("summary").click();
 		await expect(chart.getByRole("row")).toHaveCount(15);
-		await expect(chart.getByRole("row").last().getByRole("cell")).toHaveText([
-			"2026-09-27",
-			"2",
-			"1",
-			"3",
-		]);
+		const cells = chart.getByRole("row").last().getByRole("cell");
+		await expect(cells.nth(0)).toHaveText("2026-09-27");
+		await expect(cells.nth(1)).toHaveText("2");
+		await expect(cells.nth(2).getByRole("list", { name: "Channel breakdown" })).toHaveText("Dashboard reports: 1");
+		await expect(cells.nth(3)).toHaveText("3");
 		await page.setViewportSize({ width: 320, height: 844 });
 		await expectFits(page);
 		await chart.locator("summary").click();
@@ -185,8 +198,9 @@ test("dashboard counts real channel and watchlist submissions equally, including
 	}
 });
 
-test("rich dashboard shows two series in one chart across themes and viewport sizes", async ({
+test("rich dashboard shows channel stacks and a total line across themes and viewport sizes", async ({
 	page,
+	request,
 }) => {
 	const app = await startLocalServer({
 		mode: "e2e",
@@ -196,6 +210,15 @@ test("rich dashboard shows two series in one chart across themes and viewport si
 		built: true,
 	});
 	try {
+		const runtime = app.runtime;
+		if (!runtime) throw new Error("Missing owned runtime");
+		const dashboard = await request.get(`${runtime.url}/api/dashboard`, {
+			headers: { "Cf-Access-Jwt-Assertion": runtime.jwtA },
+		});
+		expect(dashboard.ok()).toBe(true);
+		const data = (await dashboard.json()).data as DashboardAggregates;
+		const names = new Set(data.contentTrend.flatMap((point) => point.channelReports.map(({ name }) => name)));
+		expect(names.size).toBeGreaterThan(1);
 		await installExternalMedia(page);
 		const errors: string[] = [];
 		page.on("pageerror", (error) => errors.push(error.message));
@@ -203,7 +226,9 @@ test("rich dashboard shows two series in one chart across themes and viewport si
 		await page.goto(app.url);
 		const chart = page.getByRole("group", { name: chartName, exact: true });
 		await expect(chart).toBeVisible();
-		await expect(chart.locator(".recharts-bar")).toHaveCount(2);
+		await expect(chart.locator(".recharts-bar")).toHaveCount(names.size + 1);
+		await expect(chart.locator(".recharts-line-curve")).toHaveCount(1);
+		for (const name of names) await expect(chart.getByTestId("chart-legend").getByText(name, { exact: true })).toBeVisible();
 		await expect(page.locator(".recharts-wrapper")).toHaveCount(1);
 		for (const theme of ["light", "dark"] as const) {
 			await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
@@ -217,8 +242,8 @@ test("rich dashboard shows two series in one chart across themes and viewport si
 		await chart.locator(".recharts-surface").focus();
 		await page.keyboard.press("ArrowRight");
 		await expect(chart.getByTestId("chart-tooltip")).toBeVisible();
-		await expect(chart.getByTestId("chart-tooltip")).toContainText("Watchlists");
-		await expect(chart.getByTestId("chart-tooltip")).toContainText("Channels");
+		await expect(chart.getByTestId("chart-tooltip")).toContainText("Total");
+		await page.keyboard.press("Tab");
 		for (const width of [320, 390, 768]) {
 			await page.setViewportSize({ width, height: 900 });
 			await expectFits(page);
