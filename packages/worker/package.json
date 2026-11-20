@@ -13,7 +13,7 @@
 	"dependencies": {
 		"@xray/shared": "workspace:*",
 		"entities": "9.0.0",
-		"hono": "4.13.17",
+		"hono": "4.13.19",
 		"jose": "6.2.13"
 	},
 	"devDependencies": {
