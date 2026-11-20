@@ -26,6 +26,10 @@ never contain stored hashes or plaintext credentials.
 
 ## Management Contract
 
+In the UI, `/tokens` (in the Settings sidebar group) manages active Query, Watchlist
+and Channel tokens in three independent tables, each with credential-free copyable
+agent instructions.
+
 All management responses use `{ success: true, data: ... }`. Validation and
 ownership errors use the existing API error envelope. The shared contract is:
 

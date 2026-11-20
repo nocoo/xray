@@ -23,6 +23,8 @@ preferences, read state, filters, focus, and reading-position persistence.
   never reaches outside its components to override application markup.
 - The shell owns safe areas; the HTML document opts into `viewport-fit=cover`.
   Bottom protection belongs to the trailing document, not a fixed empty strip.
+  Do not duplicate safe padding, hardcode browser toolbar heights, or introduce
+  JS viewport sizing.
 - One mobile `AppHeader` may replace the normal framework/page-header pair.
   Desktop can retain `PageHeader`. Sticky navigation must respect the shell's
   top safe area without double-insetting.

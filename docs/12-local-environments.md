@@ -9,19 +9,23 @@ Implementation baseline: `9b4e775bd65658c559e8ab1f72563dc5cdfa2a08` (2.5.5).
   `.wrangler/state-mock` without importing or deleting it.
 - Use the production application, migrations and authorization in every mode.
   Replace local auth bypass with signed fixture identities and real JWT verification.
-- Keep one interactive session at `https://xray.dev.hexly.ai`. Accepted switches
-  invalidate old instance requests instead of redirecting them to another backend.
+- Keep one interactive session at `https://xray.dev.hexly.ai` (Caddy proxies to the
+  local gateway on `127.0.0.1:7007`, which allocates Worker and inspector ports
+  dynamically). Accepted switches invalidate old instance requests instead of
+  redirecting them to another backend.
 - Only script-launched automated E2E is locked until shutdown. Manual E2E can
   switch to Demo/Prod; leaving it cleans up its disposable state. Automated E2E
   has no production credentials. This follows the owner clarification on
   2026-09-27, superseding the shared plan's original manual-E2E lock rule for Xray.
-- The local launcher serves both Vite and built assets. Hosted bundles have no local
+- The local launcher serves both Vite/HMR (`bun run dev`) and built assets from
+  `packages/worker/static` (`bun run preview`). Hosted bundles have no local
   capability and never read environment preferences.
 - Production verification and publication are outside this implementation.
 
 ## Runtime/UI contract
 
-Mode values are `demo`, `e2e`, `prod`; visible segments are `Demo`, `E2E`, `Prod`.
+Mode values are `demo`, `e2e`, `prod`; visible segments are `Demo`, `E2E`, `Prod`
+with no visible label.
 The local launcher injects `window.__XRAY_LOCAL__ = true` into HTML only.
 The UI initializes before mounting React. Hosted HTML has no injected capability.
 
@@ -86,11 +90,14 @@ Authentication clocks remain real; presentation time is separately injected.
 
 Demo persists at `packages/worker/.wrangler/environments/demo`; every E2E run
 gets an `e2e-*` sibling. The runtime validates the canonical path and persisted
-owner metadata, takes an exclusive lock, and writes a private per-run Wrangler
-configuration. It uses native local D1 and the production migrations. A matching
-owner/mode `_test_marker` is required before seeded writes and cleanup. Stale
-metadata, symlinks, foreign paths, active owners and inherited Prod credentials
-are rejected. Daily `.dev.vars` and the retired store are untouched.
+owner metadata, takes an exclusive lock (keeping one active owner per store;
+concurrency and failure evidence must be recorded rather than inferred from
+guards), and writes a private per-run Wrangler configuration and `.dev.vars`
+inside the owned run directory. It uses native local D1 and the production
+migrations. A matching owner/mode `_test_marker` is required before seeded writes
+and cleanup. Stale metadata, symlinks, foreign paths, active owners and inherited
+Prod credentials are rejected. Daily `.dev.vars` and the retired store are
+untouched.
 
 Initial rich seed uses plain inserts. Restarts preserve edits; catalog replacement
 requires explicit reset. Fixture AI/webhook settings pass through the real

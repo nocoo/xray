@@ -1,6 +1,6 @@
 # Retrospective
 
-Historical incident narratives, including the retired v1 Next.js/vinext runtime. These are not current architecture instructions; use [AGENTS.md](AGENTS.md) for the active contract. Route cross-project lessons to global rules/nmem and deterministic checks to tests/hooks.
+Historical incident narratives, including the retired v1 Next.js/vinext runtime. These are not current architecture instructions; use [AGENTS.md](AGENTS.md) for the active contract. Route cross-project lessons to global rules and deterministic checks to tests/hooks.
 
 ## Undated — migrated from the previous handbook
 
