@@ -457,3 +457,10 @@ untouched.
 Removing the standalone ingest address initially removed the import still used
 to build token guides. Search all references before removing a display helper,
 and verify the copied guide still targets the current environment.
+
+## 2026-11-20 - Format generated release notes before committing
+
+The v2.8.7 release stopped at the index gate because generated Markdown omitted
+blank lines after section headings. Generate formatter-compliant notes rather
+than bypassing the hook, and pass the dry-run notes through the Markdown formatter
+before publishing.
