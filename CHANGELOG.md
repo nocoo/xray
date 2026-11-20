@@ -2,6 +2,13 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.8.9
+
+### Fixed
+
+- Use candy colors in dashboard charts
+- Distinguish author and agent in article byline
+
 ## v2.8.8
 
 ### Added
