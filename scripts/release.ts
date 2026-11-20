@@ -91,11 +91,21 @@ export function run(
 	opts?: { cwd?: string; inherit?: boolean; timeoutMs?: number },
 ): Promise<RunResult> {
 	return new Promise((resolve) => {
+		let timer: ReturnType<typeof setTimeout> | undefined;
 		const child = spawn(cmd, args, {
 			cwd: opts?.cwd ?? PROJECT_ROOT,
 			stdio: opts?.inherit ? "inherit" : ["ignore", "pipe", "pipe"],
 			timeout: opts?.timeoutMs,
 		});
+		if (opts?.timeoutMs !== undefined && opts.timeoutMs > 0) {
+			timer = setTimeout(() => {
+				try {
+					child.kill("SIGTERM");
+				} catch {
+					// Ignore if already dead
+				}
+			}, opts.timeoutMs);
+		}
 		let stdout = "";
 		let stderr = "";
 		if (!opts?.inherit) {
@@ -107,6 +117,7 @@ export function run(
 			});
 		}
 		child.on("error", (err: Error) => {
+			if (timer) clearTimeout(timer);
 			resolve({
 				code: SPAWN_FAILURE_EXIT_CODE,
 				stdout,
@@ -114,6 +125,7 @@ export function run(
 			});
 		});
 		child.on("close", (code, signal) => {
+			if (timer) clearTimeout(timer);
 			if (code === null) {
 				resolve({
 					code: SIGNAL_FAILURE_EXIT_CODE,

@@ -152,12 +152,12 @@ describe("run", () => {
 	});
 
 	test("reports a timed-out process with a non-1 exit code", async () => {
-		const result = await run("sh", ["-c", "sleep 5"], { timeoutMs: 200 });
+		const result = await run("sh", ["-c", "sleep 2"], { timeoutMs: 100 });
 
 		expect(result.code).toBe(SIGNAL_FAILURE_EXIT_CODE);
 		expect(result.code).not.toBe(1);
 		expect(result.code).not.toBe(0);
-	});
+	}, 10_000);
 });
 
 describe("classifyStaleVersionScan", () => {
