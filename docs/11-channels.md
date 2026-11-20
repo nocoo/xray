@@ -68,6 +68,8 @@ The key, not request fields, determines the tenant and channel. Capture the sour
 
 Primary report bodies use `LayerCard.Well` at the brightest surface level (white in light mode); their list, action bars and page chrome remain lower in the hierarchy. The same hierarchy applies to watchlist content and dashboard metrics.
 
+Token tables show relative creation and last-used times. Hovering a timestamp reveals `YYYY-MM-DD HH:mm:ss` in the browser's local time zone; assistive technology also receives the full timestamp.
+
 ## Tags and report editing
 
 The Tags page provides a bright responsive catalog, name search and sorting, six palette filters with real counts, and Basalt creation/rename dialogs and deletion confirmation. Long names truncate within the catalog and remain fully editable in the dialog. Tag names are trimmed, unique per tenant, and limited to 64 characters. Channels and individual active tokens each support up to 20 tags. Their plus controls open a compact Basalt Popover for selection and creation. Tag creation and assignment are separate requests: if assignment fails, the created tag remains available for selection. Deleting a tag removes its channel, token and watchlist-member associations but keeps all resources.

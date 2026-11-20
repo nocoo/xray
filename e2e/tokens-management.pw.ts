@@ -301,12 +301,23 @@ test("token table uses aligned columns and container-aware details", async ({ pa
 		headers: browserApiHeaders, data: { label: watchLabel },
 	})).json()).data;
 	try {
+		const watchCreatedAt = new Date(watch.createdAtMs);
+		await page.clock.setFixedTime(watchCreatedAt.getTime() + 3 * 86_400_000);
+		await page.setViewportSize({ width: 1440, height: 1000 });
 		await page.goto(`${BROWSER}/tokens`);
 		await page.getByRole("textbox", { name: "Search tokens" }).fill(suffix);
 		const table = page.getByRole("table", { name: "Channel tokens", exact: true });
 		const watchTable = page.getByRole("table", { name: "Watchlist tokens", exact: true });
 		await expect(table.locator("tbody tr")).toHaveCount(1);
 		await expect(watchTable.locator("tbody tr")).toHaveCount(1);
+		const createdTime = watchTable.locator(`time[datetime="${watchCreatedAt.toISOString()}"]:visible`);
+		await expect(createdTime).toContainText("3 days ago");
+		await createdTime.hover();
+		const expectedTime = await page.evaluate((timestamp) => new Intl.DateTimeFormat("sv-SE", {
+			dateStyle: "short", timeStyle: "medium", hourCycle: "h23",
+		}).format(timestamp), watchCreatedAt.getTime());
+		await expect(page.getByRole("tooltip")).toHaveText(expectedTime);
+		await page.mouse.move(0, 0);
 		for (const width of [1440, 1024, 768, 390, 320]) {
 			await page.setViewportSize({ width, height: 1000 });
 			await expect.poll(() => table.evaluate(node => node.parentElement!.scrollWidth <= node.parentElement!.clientWidth)).toBe(true);

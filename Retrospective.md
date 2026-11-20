@@ -444,3 +444,10 @@ The first inline-action regression expected the Tailwind `size-8` class to
 override Basalt's compact icon button. Its logical minimum and maximum size
 kept it at 28px. Use the native compact preset, override only the touch minimum,
 and verify the computed size rather than relying on a utility class name.
+
+## 2026-11-20 - Run formatter unit tests before browser checks
+
+The table timestamp browser checks passed, but the staged unit suite still
+expected `10d ago` from the long formatter. Run the focused formatter test
+first and update every assertion for the changed style, leaving other styles
+untouched.

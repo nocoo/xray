@@ -35,10 +35,11 @@ describe("utils", () => {
 		expect(formatTimeAgo(new Date(now - 400 * 86400_000).toISOString(), "coarse")).toMatch(/y ago/);
 
 		expect(formatTimeAgo(new Date(now - 30_000).toISOString())).toBe("just now");
-		expect(formatTimeAgo(new Date(now - 5 * 60_000).toISOString())).toBe("5m ago");
-		expect(formatTimeAgo(new Date(now - 3 * 3600_000).toISOString())).toBe("3h ago");
-		expect(formatTimeAgo(new Date(now - 10 * 86400_000).toISOString())).toBe("10d ago");
-		expect(formatTimeAgo(new Date(now - 60 * 86400_000).toISOString()).length).toBeGreaterThan(0);
+		expect(formatTimeAgo(new Date(now - 5 * 60_000).toISOString())).toBe("5 minutes ago");
+		expect(formatTimeAgo(new Date(now - 3 * 3600_000).toISOString())).toBe("3 hours ago");
+		expect(formatTimeAgo(new Date(now - 86400_000).toISOString())).toBe("1 day ago");
+		expect(formatTimeAgo(new Date(now - 10 * 86400_000).toISOString())).toBe("10 days ago");
+		expect(formatTimeAgo(new Date(now - 60 * 86400_000).toISOString())).toBe("60 days ago");
 	});
 
 	test("getAvatarColor stable", () => {

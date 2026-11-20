@@ -24,6 +24,7 @@ import type { MouseEvent } from "react";
 import { Link } from "react-router";
 import type { TagsVm } from "@/viewmodels/tags-vm";
 import { InlineAction } from "./inline-action";
+import { RelativeTimestamp } from "./relative-timestamp";
 import { TagAssignment } from "./tag-assignment";
 
 function TokenAccess({
@@ -96,16 +97,7 @@ function TokenActivity({ token }: { token: ManagedToken }) {
 							aria-hidden="true"
 							strokeWidth={1.5}
 						/>
-						<time
-							dateTime={new Date(token.lastUsedAtMs).toISOString()}
-							title={new Date(token.lastUsedAtMs).toLocaleString()}
-						>
-							{new Date(token.lastUsedAtMs).toLocaleDateString(undefined, {
-								year: "numeric",
-								month: "short",
-								day: "numeric",
-							})}
-						</time>
+						<RelativeTimestamp timestamp={token.lastUsedAtMs} />
 					</>
 				) : (
 					<span className="inline-flex items-center gap-basalt-space-sm text-basalt-tag-amber-foreground">
@@ -114,12 +106,7 @@ function TokenActivity({ token }: { token: ManagedToken }) {
 				)}
 			</div>
 			<p className="text-basalt-muted-foreground">
-				Created{" "}
-				{new Date(token.createdAtMs).toLocaleDateString(undefined, {
-					month: "short",
-					day: "numeric",
-					year: "numeric",
-				})}
+				Created <RelativeTimestamp timestamp={token.createdAtMs} />
 			</p>
 		</div>
 	);

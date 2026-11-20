@@ -45,6 +45,7 @@ import { CopyTextButton } from "@/components/copy-text-button";
 import { InlineAction } from "@/components/inline-action";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
 import { FormSkeleton, TableSkeleton } from "@/components/loading-skeletons";
+import { RelativeTimestamp } from "@/components/relative-timestamp";
 import { SectionLabel } from "@/components/section-label";
 import { TagAssignment } from "@/components/tag-assignment";
 import { TokenRenameDialog } from "@/components/token-rename-dialog";
@@ -432,12 +433,14 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 											</div>
 										</TableCell>
 										<TableCell className="hidden whitespace-nowrap text-basalt-muted-foreground md:table-cell">
-											{new Date(key.createdAtMs).toLocaleDateString()}
+											<RelativeTimestamp timestamp={key.createdAtMs} />
 										</TableCell>
 										<TableCell className="hidden whitespace-nowrap text-basalt-muted-foreground sm:table-cell">
-											{key.lastUsedAtMs
-												? new Date(key.lastUsedAtMs).toLocaleString()
-												: "Never used"}
+											{key.lastUsedAtMs !== null ? (
+												<RelativeTimestamp timestamp={key.lastUsedAtMs} />
+											) : (
+												"Never used"
+											)}
 										</TableCell>
 										<TableCell textAlign="end">
 											<div className="flex justify-end gap-basalt-space-sm">

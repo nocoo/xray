@@ -8,8 +8,8 @@ import {
 	TableRow,
 } from "@nocoo/basalt/components/table";
 import type { IngestLog } from "@/api/dashboard";
-import { useNow } from "@/hooks/use-now";
-import { cn, formatTimeAgo } from "@/lib/utils";
+import { RelativeTimestamp } from "@/components/relative-timestamp";
+import { cn } from "@/lib/utils";
 
 function Metric({
 	label,
@@ -35,8 +35,6 @@ function Metric({
 }
 
 export function IngestTable({ logs }: { logs: IngestLog[] }) {
-	const nowMs = useNow();
-
 	if (logs.length === 0) {
 		return <Empty title="No ingest activity yet." />;
 	}
@@ -79,7 +77,7 @@ export function IngestTable({ logs }: { logs: IngestLog[] }) {
 								{log.attempted}
 							</TableCell>
 							<TableCell className="text-basalt-muted-foreground">
-								{formatTimeAgo(new Date(log.createdAtMs).toISOString(), "long", nowMs)}
+								<RelativeTimestamp timestamp={log.createdAtMs} />
 							</TableCell>
 						</TableRow>
 					))}

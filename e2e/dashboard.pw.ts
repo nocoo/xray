@@ -157,6 +157,10 @@ test("dashboard counts real channel and watchlist submissions equally, including
 		await page.reload();
 		await expect(page.getByRole("img", { name: /^Total content 3 / })).toBeVisible();
 		await expect(page.getByRole("img", { name: /^Added \(24h\) 3 / })).toBeVisible();
+		const log = result.recentIngestLogs[0];
+		expect(log).toBeDefined();
+		const logTime = page.locator(`time[datetime="${new Date(log.createdAtMs).toISOString()}"]`).first();
+		await expect(logTime).toContainText("just now");
 		await expect(
 			page.getByText("3 added · Watchlists 2 · Channels 1", { exact: true }),
 		).toBeVisible();

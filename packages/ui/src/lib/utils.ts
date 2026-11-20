@@ -22,6 +22,8 @@ export function formatLocalDateTime(date: Date): string {
 
 export type TimeAgoStyle = "compact" | "long" | "coarse";
 
+const relativeTime = new Intl.RelativeTimeFormat("en");
+
 /**
  * Relative time for tweet cards / lists (legacy v1 parity).
  * Diff is always `nowMs − postTime` — pass `nowMs` from a ticking hook so the
@@ -59,10 +61,9 @@ export function formatTimeAgo(
 	}
 
 	if (mins < 1) return "just now";
-	if (mins < 60) return `${mins}m ago`;
-	if (hours < 24) return `${hours}h ago`;
-	if (days < 30) return `${days}d ago`;
-	return new Date(iso).toLocaleDateString();
+	if (mins < 60) return relativeTime.format(-mins, "minute");
+	if (hours < 24) return relativeTime.format(-hours, "hour");
+	return relativeTime.format(-days, "day");
 }
 
 const AVATAR_COLORS = [
