@@ -25,6 +25,7 @@ import {
 	Trash2,
 	TriangleAlert,
 	Type,
+	UserRound,
 } from "@nocoo/basalt/icons";
 import { extractArticleLinks } from "@xray/shared";
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -731,9 +732,14 @@ export function ChannelsPage() {
 													{formatLocalDateTime(new Date(article.createdAtMs))}
 												</time>
 											</span>
-											<span>
-												{article.author ? `${article.author} · ` : ""}
-												{article.sourceLabel}
+											<span className="inline-flex items-center gap-1.5">
+												{article.author && (
+													<UserRound className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+												)}
+												<span>
+													{article.author ? `${article.author} · ` : ""}
+													{article.sourceLabel}
+												</span>
 											</span>
 										</div>
 									</header>

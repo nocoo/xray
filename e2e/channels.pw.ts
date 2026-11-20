@@ -144,6 +144,8 @@ test("channel creation, one-time key, delivery, reader navigation and revocation
 	await expect(page).toHaveURL(new RegExp(`/channels/${channelId}/articles/${ids[1]}`));
 	const content = page.getByRole("document", { name: "Article content" });
 	await expect(content.getByRole("heading", { name: "今日进展" })).toBeVisible();
+	const byline = content.getByText("Fundly Research · Fundly Agent", { exact: true });
+	await expect(byline.locator("..").locator('svg[aria-hidden="true"]')).toBeVisible();
 	await expect(content.getByRole("table")).toBeVisible();
 	await expect(content.getByRole("img", { name: "趋势图" })).toBeVisible();
 	await expect.poll(() => content.getByRole("img", { name: "趋势图" }).evaluate((node) => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
