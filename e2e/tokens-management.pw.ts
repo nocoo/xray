@@ -35,6 +35,8 @@ test("global token management shares channel changes and separates producer perm
 		await page.goto(`${BROWSER}/tokens`);
 		await expect(page.locator('[data-nav-label="Tokens"]')).toHaveAttribute("aria-current", "page");
 		await expect(page.getByRole("heading", { name: "Read-only query" })).toBeVisible();
+		await expect(page.getByText(/Keys are shown once and stored as hashes/)).toHaveCount(0);
+		await expect(page.getByText(INGEST, { exact: true })).toHaveCount(0);
 		await page.getByRole("button", { name: "Create token", exact: true }).click();
 		let dialog = page.getByRole("dialog");
 		await dialog.getByLabel("Token name").fill(watchName);

@@ -2,7 +2,6 @@ import {
 	Button,
 	Dialog,
 	DialogContent,
-	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -17,14 +16,12 @@ export function RenameDialog({
 	open,
 	onOpenChange,
 	title = "Rename",
-	description,
 	initialName,
 	onSubmit,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	title?: string;
-	description?: string;
 	initialName: string;
 	onSubmit: (name: string) => Promise<void>;
 }) {
@@ -66,17 +63,14 @@ export function RenameDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent aria-describedby={undefined}>
 				<form onSubmit={(e) => void submit(e)} className="grid gap-5">
 					<DialogHeader>
 						<div className="mb-1 flex items-center gap-3">
 							<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-basalt-primary/15 text-basalt-primary">
 								<Pencil className="h-5 w-5" strokeWidth={2} />
 							</div>
-							<div>
-								<DialogTitle>{title}</DialogTitle>
-								{description ? <DialogDescription>{description}</DialogDescription> : null}
-							</div>
+							<DialogTitle>{title}</DialogTitle>
 						</div>
 					</DialogHeader>
 

@@ -87,7 +87,7 @@ export function EditMemberDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent {...(!handleLabel && { "aria-describedby": undefined })}>
 				<form onSubmit={(e) => void submit(e)} className="grid gap-5">
 					<DialogHeader>
 						<div className="mb-1 flex items-center gap-3">
@@ -96,9 +96,7 @@ export function EditMemberDialog({
 							</div>
 							<div>
 								<DialogTitle>Edit member</DialogTitle>
-								<DialogDescription>
-									Update note and tags for {handleLabel || "member"}.
-								</DialogDescription>
+								{handleLabel && <DialogDescription>{handleLabel}</DialogDescription>}
 							</div>
 						</div>
 					</DialogHeader>

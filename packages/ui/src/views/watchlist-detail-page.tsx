@@ -183,7 +183,7 @@ export function WatchlistDetailPage() {
 								Auto translate
 							</p>
 							<p className="text-xs text-basalt-muted-foreground">
-								When on, untranslated posts are translated when you open this watchlist.
+								Runs when you open this watchlist.
 							</p>
 							<Switch
 								aria-label="Auto translate"
@@ -191,20 +191,6 @@ export function WatchlistDetailPage() {
 								disabled={!s.wl || s.settingsSaving}
 								onCheckedChange={(next) => void vm.setTranslateEnabled(next === true)}
 							/>
-						</div>
-						<div className="space-y-1 border-t border-basalt-border pt-4 text-xs text-basalt-muted-foreground">
-							<p>
-								<span className="font-medium text-basalt-foreground">Members</span> ·{" "}
-								{s.members.length}
-							</p>
-							<p>
-								<span className="font-medium text-basalt-foreground">Posts loaded</span> ·{" "}
-								{s.items.length}
-							</p>
-							<p>
-								<span className="font-medium text-basalt-foreground">Source model</span> · mix
-								(x.com + custom)
-							</p>
 						</div>
 					</div>
 				</DockBody>
@@ -383,7 +369,6 @@ export function WatchlistDetailPage() {
 										<Empty
 											icon={<Users aria-hidden="true" strokeWidth={1.5} />}
 											title="No members yet."
-											description="Add an x.com or custom handle."
 										/>
 									</LayerCard>
 								)}
@@ -410,7 +395,7 @@ export function WatchlistDetailPage() {
 								<Empty
 									icon={<Eye className="h-8 w-8 text-basalt-muted-foreground" />}
 									title="No items yet."
-									description="Posts will appear here after your producer sends items to this watchlist."
+									description="Push posts with a watchlist token."
 								/>
 							</LayerCard>
 						)}

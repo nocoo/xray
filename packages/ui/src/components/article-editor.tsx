@@ -80,11 +80,7 @@ export function ArticleEditor({
 						onChange={(e) => setDraft({ ...draft, summary: e.target.value })}
 					/>
 				</Field>
-				<Field
-					label="Markdown"
-					required
-					hint="Use Markdown for formatting and HTTPS links for images."
-				>
+				<Field label="Markdown" required hint="Images require HTTPS URLs.">
 					<InputArea
 						required
 						rows={10}

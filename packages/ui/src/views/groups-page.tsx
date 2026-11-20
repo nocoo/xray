@@ -130,7 +130,7 @@ export function GroupsPage() {
 						Groups
 					</SectionLabel>
 				}
-				description="Source-aware member pools you can copy into watchlists."
+				description="Member groups you can copy into watchlists."
 				actions={
 					<Button size="sm" type="button" onClick={openCreateGroup}>
 						<Plus className="h-4 w-4" />
@@ -150,7 +150,6 @@ export function GroupsPage() {
 					<Empty
 						icon={<Users className="h-10 w-10" aria-hidden="true" strokeWidth={1.5} />}
 						title="No groups yet."
-						description="Create a reusable member pool to copy into watchlists."
 						action={
 							<Button size="sm" type="button" onClick={openCreateGroup}>
 								<Plus className="h-4 w-4" />
@@ -228,7 +227,6 @@ export function GroupsPage() {
 					if (!o) setRenameTarget(null);
 				}}
 				title="Rename group"
-				description="Update the display name for this member pool."
 				initialName={renameTarget?.name ?? ""}
 				onSubmit={async (name) => {
 					if (!renameTarget) return;
@@ -253,7 +251,6 @@ export function GroupsPage() {
 							<LayerCard.Empty
 								icon={<Users aria-hidden="true" />}
 								title="Members unavailable"
-								description="Try loading this group again."
 								action={
 									<Button
 										variant="outline"

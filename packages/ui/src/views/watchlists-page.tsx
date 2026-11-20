@@ -52,7 +52,7 @@ export function WatchlistsPage() {
 						Watchlists
 					</SectionLabel>
 				}
-				description="Create and manage collections of Twitter/X and custom sources."
+				description="Collections of X and custom sources."
 				actions={
 					<Button size="sm" type="button" onClick={openCreateWatchlist}>
 						<Plus className="h-4 w-4" />
@@ -69,7 +69,6 @@ export function WatchlistsPage() {
 					<Empty
 						icon={<Eye className="h-10 w-10" aria-hidden="true" strokeWidth={1.5} />}
 						title="No watchlists yet."
-						description="Create one to start the mix timeline."
 						action={
 							<Button size="sm" type="button" onClick={openCreateWatchlist}>
 								<Plus className="h-4 w-4" />

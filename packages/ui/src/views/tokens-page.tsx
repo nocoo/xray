@@ -18,7 +18,6 @@ import {
 	RefreshCw,
 	ScanSearch,
 	Search,
-	ShieldCheck,
 } from "@nocoo/basalt/icons";
 import type { ManagedToken, TokenKind } from "@xray/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -42,8 +41,6 @@ const sections = [
 		kind: "query",
 		label: "Query",
 		title: "Read-only query",
-		description:
-			"Authorize all or selected sources. Query one watchlist or channel at a time, up to 100 items per page.",
 		icon: ScanSearch,
 		tone: "text-basalt-tag-teal-foreground",
 	},
@@ -51,7 +48,6 @@ const sections = [
 		kind: "watchlist",
 		label: "Watchlist",
 		title: "Watchlist ingestion",
-		description: "Read the collection graph and push posts to your watchlists.",
 		icon: Eye,
 		tone: "text-basalt-tag-blue-foreground",
 	},
@@ -59,7 +55,6 @@ const sections = [
 		kind: "channel",
 		label: "Channel",
 		title: "Channel publishing",
-		description: "Publish Markdown reports. Each credential is bound to one channel.",
 		icon: Radio,
 		tone: "text-basalt-tag-rose-foreground",
 	},
@@ -67,7 +62,6 @@ const sections = [
 	kind: TokenKind;
 	label: string;
 	title: string;
-	description: string;
 	icon: typeof Eye;
 	tone: string;
 }[];
@@ -115,7 +109,7 @@ export function TokensPage() {
 						Tokens
 					</SectionLabel>
 				}
-				description="Separate credentials for reading, collecting, and publishing. Give every agent the right access."
+				description="Credentials for queries, ingestion, and publishing."
 				actions={
 					<>
 						<Button
@@ -188,21 +182,16 @@ export function TokensPage() {
 						<Collapsible>
 							<LayerCard padding="none">
 								<LayerCard.Header className="flex flex-wrap items-center justify-between gap-basalt-layout">
-									<div className="min-w-0 space-y-basalt-space-sm">
-										<div className="flex items-center gap-basalt-content-gap">
-											<section.icon
-												className={`size-basalt-icon-lg shrink-0 ${section.tone}`}
-												aria-hidden="true"
-												strokeWidth={1.5}
-											/>
-											<h2 className="text-sm font-medium">{section.title}</h2>
-											<Badge variant="secondary" className="tabular-nums">
-												{filtered.length}
-											</Badge>
-										</div>
-										<p className="text-basalt-sm text-basalt-muted-foreground">
-											{section.description}
-										</p>
+									<div className="flex min-w-0 items-center gap-basalt-content-gap">
+										<section.icon
+											className={`size-basalt-icon-lg shrink-0 ${section.tone}`}
+											aria-hidden="true"
+											strokeWidth={1.5}
+										/>
+										<h2 className="text-sm font-medium">{section.title}</h2>
+										<Badge variant="secondary" className="tabular-nums">
+											{filtered.length}
+										</Badge>
 									</div>
 									<div className="flex flex-wrap items-center gap-basalt-content-gap">
 										<CollapsibleTrigger asChild>
@@ -230,9 +219,6 @@ export function TokensPage() {
 								<CollapsibleContent unstyled>
 									<LayerCard.Body>
 										<LayerCard.Well>
-											<p className="mb-basalt-content-gap text-sm font-medium">
-												Agent instructions · no credentials included
-											</p>
 											<pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words font-mono text-basalt-sm text-basalt-muted-foreground">
 												{guide}
 											</pre>
@@ -270,13 +256,6 @@ export function TokensPage() {
 													? "No matching tokens"
 													: `No ${section.kind} tokens`
 										}
-										description={
-											state.error
-												? "Refresh to try again. No credentials have been changed."
-												: query.trim()
-													? "Try another name, prefix, channel, or tag."
-													: `Create a token to get started with ${section.title.toLowerCase()}.`
-										}
 									/>
 								)}
 							</LayerCard>
@@ -284,20 +263,6 @@ export function TokensPage() {
 					</section>
 				);
 			})}
-			<div className="flex items-start gap-basalt-content-gap text-sm text-basalt-muted-foreground">
-				<ShieldCheck
-					className="mt-0.5 size-basalt-icon shrink-0"
-					aria-hidden="true"
-					strokeWidth={1.5}
-				/>
-				<div className="min-w-0 space-y-basalt-space-sm">
-					<p>
-						Keys are shown once and stored as hashes. Revocation blocks new requests without
-						deleting content.
-					</p>
-					<p className="break-all font-mono text-xs">{ingestBase()}</p>
-				</div>
-			</div>
 			{(creating || editing?.kind === "query") && (
 				<TokenEditorDialog
 					vm={vm}

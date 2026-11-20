@@ -99,9 +99,7 @@ export function TagAssignment({
 						{state.loading && !state.tags.length ? (
 							<OptionsSkeleton label="Loading tags" />
 						) : state.tags.length === 0 ? (
-							<p className="p-2 text-sm text-basalt-muted-foreground">
-								Create your first tag below.
-							</p>
+							<p className="p-2 text-sm text-basalt-muted-foreground">No tags yet.</p>
 						) : (
 							state.tags.map((tag) => {
 								const checked = ids.includes(tag.id);

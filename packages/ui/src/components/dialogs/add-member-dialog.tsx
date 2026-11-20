@@ -2,7 +2,6 @@ import {
 	Button,
 	Dialog,
 	DialogContent,
-	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -121,19 +120,14 @@ export function AddMemberDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent aria-describedby={undefined}>
 				<form onSubmit={(e) => void submit(e)} className="grid gap-5">
 					<DialogHeader>
 						<div className="mb-1 flex items-center gap-3">
 							<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-basalt-primary/15 text-basalt-primary">
 								<UserPlus className="h-5 w-5" strokeWidth={2} />
 							</div>
-							<div>
-								<DialogTitle>{title}</DialogTitle>
-								<DialogDescription>
-									Add an x.com account or a custom source handle.
-								</DialogDescription>
-							</div>
+							<DialogTitle>{title}</DialogTitle>
 						</div>
 					</DialogHeader>
 

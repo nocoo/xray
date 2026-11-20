@@ -48,10 +48,7 @@ export function TokenRenameDialog({
 			>
 				<DialogHeader>
 					<DialogTitle>Rename token</DialogTitle>
-					<DialogDescription>
-						Change the producer name without rotating its credential. Existing reports keep their
-						original source name.
-					</DialogDescription>
+					<DialogDescription>Existing reports keep their source label.</DialogDescription>
 				</DialogHeader>
 				<form
 					className="mt-5 space-y-4"

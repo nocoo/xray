@@ -120,7 +120,7 @@ export function ArticleFiltersBar({
 						<div className="border-b border-basalt-border px-4 py-3">
 							<PopoverTitle id={`${id}-title`}>Filter reports</PopoverTitle>
 							<PopoverDescription id={`${id}-description`}>
-								Combine dates, keywords and any selected tag.
+								Matches any selected tag.
 							</PopoverDescription>
 						</div>
 						<div className="space-y-4 p-4">

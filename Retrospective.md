@@ -451,3 +451,9 @@ The table timestamp browser checks passed, but the staged unit suite still
 expected `10d ago` from the long formatter. Run the focused formatter test
 first and update every assertion for the changed style, leaving other styles
 untouched.
+
+## 2026-11-20 - Keep address helpers used by copyable guides
+
+Removing the standalone ingest address initially removed the import still used
+to build token guides. Search all references before removing a display helper,
+and verify the copied guide still targets the current environment.

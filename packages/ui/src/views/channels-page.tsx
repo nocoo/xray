@@ -1,13 +1,7 @@
 import { Badge, Button, ConfirmDialog, LayerCard } from "@nocoo/basalt";
 import { AppHeader } from "@nocoo/basalt/components/app-header";
 import { Banner } from "@nocoo/basalt/components/banner";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-} from "@nocoo/basalt/components/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@nocoo/basalt/components/dialog";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import {
 	AArrowDown,
@@ -383,7 +377,7 @@ export function ChannelsPage() {
 						}
 						description={
 							<span className="channel-description" title={channel?.description ?? undefined}>
-								{channel?.description || "Published reports, ready to read."}
+								{channel?.description || "Published reports."}
 							</span>
 						}
 						actions={
@@ -675,13 +669,6 @@ export function ChannelsPage() {
 											? "No matching reports"
 											: "No reports yet"
 								}
-								description={
-									state.error
-										? "Please try loading this channel again."
-										: filterQuery
-											? "Try another keyword, date range, or tag."
-											: "New reports will appear here when they arrive."
-								}
 								action={
 									state.error ? (
 										<Button
@@ -776,15 +763,6 @@ export function ChannelsPage() {
 													: "Ready for your first report"
 												: "Select a report"
 									}
-									description={
-										state.error
-											? "Please try loading this report again."
-											: emptyList
-												? filterQuery
-													? "Adjust the filters to find something to read."
-													: "Once a report arrives, it opens here for reading."
-												: "Choose a report from the list to start reading."
-									}
 									action={
 										state.error && articleId ? (
 											<Button
@@ -815,6 +793,7 @@ export function ChannelsPage() {
 						<DialogContent
 							size="xl"
 							disablePointerDismissal
+							aria-describedby={undefined}
 							onCloseAutoFocus={(event) => {
 								event.preventDefault();
 								(isMobile ? moreButton : editButton).current?.focus({ preventScroll: true });
@@ -822,9 +801,6 @@ export function ChannelsPage() {
 						>
 							<DialogHeader>
 								<DialogTitle>Edit article</DialogTitle>
-								<DialogDescription>
-									Update the report details and Markdown content.
-								</DialogDescription>
 							</DialogHeader>
 							{state.error && (
 								<Banner

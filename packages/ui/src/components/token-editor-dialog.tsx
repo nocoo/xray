@@ -1,4 +1,4 @@
-import { Button, Field, Input, LayerCard } from "@nocoo/basalt";
+import { Button, Field, Input } from "@nocoo/basalt";
 import { Banner } from "@nocoo/basalt/components/banner";
 import {
 	Dialog,
@@ -73,6 +73,7 @@ export function TokenEditorDialog({
 			<DialogContent
 				size="lg"
 				disablePointerDismissal
+				{...(!state.secret && !editing && { "aria-describedby": undefined })}
 				onEscapeKeyDown={(event) => {
 					if (state.busy) event.preventDefault();
 				}}
@@ -85,13 +86,13 @@ export function TokenEditorDialog({
 					<DialogTitle>
 						{state.secret ? "Token created" : editing ? "Edit query token" : "Create token"}
 					</DialogTitle>
-					<DialogDescription>
-						{state.secret
-							? "Copy this key now. You cannot view it again after closing."
-							: editing
-								? "Access changes take effect on the next request and invalidate existing pagination cursors."
-								: "Give each agent a separate credential with only the access it needs."}
-					</DialogDescription>
+					{(state.secret || editing) && (
+						<DialogDescription>
+							{state.secret
+								? "This key is shown only once."
+								: "Access changes invalidate existing query cursors."}
+						</DialogDescription>
+					)}
 				</DialogHeader>
 				{state.secret ? (
 					<div className="mt-basalt-layout space-y-basalt-layout">
@@ -106,10 +107,6 @@ export function TokenEditorDialog({
 							/>
 						</Field>
 						<CopyTextButton text={state.secret} label="Copy key" className="w-full" />
-						<p className="text-sm text-basalt-muted-foreground">
-							Store it in your agent's secret configuration. Agent guides on this page contain
-							placeholders only.
-						</p>
 						<DialogFooter>
 							<Button onClick={close}>Done</Button>
 						</DialogFooter>
@@ -138,7 +135,11 @@ export function TokenEditorDialog({
 							/>
 						</Field>
 						{!editing && (
-							<Field label="Token type" htmlFor="token-type">
+							<Field
+								label="Token type"
+								htmlFor="token-type"
+								hint={kind === "watchlist" ? "Applies to all watchlists." : undefined}
+							>
 								<Select
 									value={kind}
 									onValueChange={(value) => setKind(value as TokenKind)}
@@ -156,7 +157,14 @@ export function TokenEditorDialog({
 							</Field>
 						)}
 						{kind === "channel" && (
-							<Field label="Channel" htmlFor="token-channel" required>
+							<Field
+								label="Channel"
+								htmlFor="token-channel"
+								hint={
+									state.channels.length ? "Cannot be changed later." : "Create a channel first."
+								}
+								required
+							>
 								<Select
 									value={channelId}
 									onValueChange={setChannelId}
@@ -183,18 +191,6 @@ export function TokenEditorDialog({
 								channels={state.channels}
 								disabled={state.busy || state.loading}
 							/>
-						)}
-						<LayerCard className="text-sm text-basalt-muted-foreground">
-							{kind === "query"
-								? "Read-only. Grants define allowed sources; each request queries one watchlist or channel, up to 100 items per page. No publishing, read-state changes, or token administration."
-								: kind === "channel"
-									? "Publish Markdown reports to one channel. The destination cannot be changed later."
-									: "Read the collection graph and push content to any watchlist in your account. No stored-content query or channel access."}
-						</LayerCard>
-						{kind === "channel" && !state.channels.length && (
-							<p className="text-sm">
-								Create a channel from Channels before issuing a publishing token.
-							</p>
 						)}
 						{state.error && (
 							<Banner role="alert" variant="error" size="sm" description={state.error} />

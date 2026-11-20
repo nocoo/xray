@@ -50,7 +50,7 @@ import { SectionLabel } from "@/components/section-label";
 import { TagAssignment } from "@/components/tag-assignment";
 import { TokenRenameDialog } from "@/components/token-rename-dialog";
 import { useUnsavedDraft } from "@/hooks/use-unsaved-draft";
-import { channelRequest, ingestEndpoint, reportExample } from "@/lib/channel-reader";
+import { channelRequest, reportExample } from "@/lib/channel-reader";
 import { createTagsVm } from "@/viewmodels/tags-vm";
 import { useVm } from "@/viewmodels/use-vm";
 
@@ -79,7 +79,7 @@ export function ChannelSettingsPage() {
 			<div className="space-y-basalt-layout-lg">
 				<PageHeader
 					title="Channel settings"
-					description="Manage this channel and its push tokens."
+					description="Profile and push tokens."
 					actions={
 						<Button variant="outline" size="sm" asChild>
 							<Link to="/channels">All channels</Link>
@@ -91,10 +91,7 @@ export function ChannelSettingsPage() {
 					{state.catalogLoading ? (
 						<FormSkeleton label="Loading channel settings" paragraphs={1} />
 					) : (
-						<LayerCard.Empty
-							title="Channel not found"
-							description="Choose a channel from the management page."
-						/>
+						<LayerCard.Empty title="Channel not found" />
 					)}
 				</LayerCard>
 			</div>
@@ -141,7 +138,7 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 						{channel.name}
 					</SectionLabel>
 				}
-				description="Channel settings · Profile, activity, and push tokens."
+				description="Profile and push tokens."
 				actions={
 					<>
 						<Button variant="outline" size="sm" asChild>
@@ -237,12 +234,7 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 							</div>
 						</form>
 						<div className="min-w-0 space-y-3 border-t border-basalt-border pt-4 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
-							<div>
-								<h3 className="text-sm font-medium">Tags</h3>
-								<p className="mt-1 text-sm text-basalt-muted-foreground">
-									Organize this channel with shared labels. Changes save immediately.
-								</p>
-							</div>
+							<h3 className="text-sm font-medium">Tags</h3>
 							<TagAssignment
 								vm={tagsVm}
 								tags={channel.tags}
@@ -267,118 +259,110 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 						Push tokens
 					</SectionLabel>
 				}
-				hint="Each token can submit reports only to this channel."
-			>
-				<LayerCard padding="none">
-					<LayerCard.Header className="flex flex-wrap items-center justify-between gap-3">
-						<div>
-							<h3 className="text-sm font-medium text-basalt-foreground">Named push tokens</h3>
-							<p className="mt-1 text-sm">Use a separate token for each producer.</p>
-						</div>
-						<Dialog
-							open={creatingToken}
-							onOpenChange={(open) => {
-								if (state.busy) return;
-								setCreatingToken(open);
-								vm.setState({ token: null, error: null });
-								if (open) {
-									setLabel("");
-								}
+				actions={
+					<Dialog
+						open={creatingToken}
+						onOpenChange={(open) => {
+							if (state.busy) return;
+							setCreatingToken(open);
+							vm.setState({ token: null, error: null });
+							if (open) {
+								setLabel("");
+							}
+						}}
+					>
+						<DialogTrigger asChild>
+							<Button
+								ref={createTokenButton}
+								size="sm"
+								disabled={state.busy || state.keysLoading || !managing}
+							>
+								<Plus className="h-4 w-4" aria-hidden="true" />
+								Create token
+							</Button>
+						</DialogTrigger>
+						<DialogContent
+							disablePointerDismissal
+							{...(!token && { "aria-describedby": undefined })}
+							onEscapeKeyDown={(event) => {
+								if (state.busy) event.preventDefault();
 							}}
 						>
-							<DialogTrigger asChild>
-								<Button
-									ref={createTokenButton}
-									size="sm"
-									disabled={state.busy || state.keysLoading || !managing}
+							<DialogHeader>
+								<DialogTitle>{token ? "Token created" : "Create push token"}</DialogTitle>
+								{token && <DialogDescription>This key is shown only once.</DialogDescription>}
+							</DialogHeader>
+							{token ? (
+								<div className="mt-5 space-y-4">
+									<Field label="API key" htmlFor="channel-api-key">
+										<Input
+											id="channel-api-key"
+											ref={tokenInput}
+											value={token}
+											readOnly
+											className="font-mono text-xs"
+											onFocus={(event) => event.target.select()}
+										/>
+									</Field>
+									<CopyTextButton text={token} label="Copy key" className="w-full" />
+									<DialogFooter>
+										<Button
+											disabled={state.busy}
+											onClick={() => {
+												setCreatingToken(false);
+												vm.setState({ token: null });
+											}}
+										>
+											Done
+										</Button>
+									</DialogFooter>
+								</div>
+							) : (
+								<form
+									className="mt-5 space-y-4"
+									onSubmit={async (event) => {
+										event.preventDefault();
+										if (!state.busy) await vm.createKey(label);
+									}}
 								>
-									<Plus className="h-4 w-4" aria-hidden="true" />
-									Create token
-								</Button>
-							</DialogTrigger>
-							<DialogContent
-								disablePointerDismissal
-								onEscapeKeyDown={(event) => {
-									if (state.busy) event.preventDefault();
-								}}
-							>
-								<DialogHeader>
-									<DialogTitle>{token ? "Token created" : "Create push token"}</DialogTitle>
-									<DialogDescription>
-										{token
-											? "Copy this key now. You will not be able to view it again after closing."
-											: "Name the agent or integration that will submit reports to this channel."}
-									</DialogDescription>
-								</DialogHeader>
-								{token ? (
-									<div className="mt-5 space-y-4">
-										<Field label="API key" htmlFor="channel-api-key">
-											<Input
-												id="channel-api-key"
-												ref={tokenInput}
-												value={token}
-												readOnly
-												className="font-mono text-xs"
-												onFocus={(event) => event.target.select()}
-											/>
-										</Field>
-										<CopyTextButton text={token} label="Copy key" className="w-full" />
-										<DialogFooter>
-											<Button
-												disabled={state.busy}
-												onClick={() => {
-													setCreatingToken(false);
-													vm.setState({ token: null });
-												}}
-											>
-												Done
-											</Button>
-										</DialogFooter>
-									</div>
-								) : (
-									<form
-										className="mt-5 space-y-4"
-										onSubmit={async (event) => {
-											event.preventDefault();
-											if (!state.busy) await vm.createKey(label);
-										}}
-									>
-										<Field label="Token name" htmlFor="channel-token-name" required>
-											<Input
-												id="channel-token-name"
-												placeholder="Daily research agent"
-												value={label}
-												required
-												maxLength={64}
-												disabled={state.busy}
-												onChange={(event) => setLabel(event.target.value)}
-											/>
-										</Field>
-										{state.error && (
-											<Banner role="alert" variant="error" size="sm" description={state.error} />
-										)}
-										<DialogFooter>
-											<Button
-												type="button"
-												variant="outline"
-												disabled={state.busy}
-												onClick={() => setCreatingToken(false)}
-											>
-												Cancel
-											</Button>
-											<Button
-												type="submit"
-												loading={state.busy}
-												disabled={!label.trim() || state.keysLoading || !managing}
-											>
-												Create token
-											</Button>
-										</DialogFooter>
-									</form>
-								)}
-							</DialogContent>
-						</Dialog>
-					</LayerCard.Header>
+									<Field label="Token name" htmlFor="channel-token-name" required>
+										<Input
+											id="channel-token-name"
+											placeholder="Daily research agent"
+											value={label}
+											required
+											maxLength={64}
+											disabled={state.busy}
+											onChange={(event) => setLabel(event.target.value)}
+										/>
+									</Field>
+									{state.error && (
+										<Banner role="alert" variant="error" size="sm" description={state.error} />
+									)}
+									<DialogFooter>
+										<Button
+											type="button"
+											variant="outline"
+											disabled={state.busy}
+											onClick={() => setCreatingToken(false)}
+										>
+											Cancel
+										</Button>
+										<Button
+											type="submit"
+											loading={state.busy}
+											disabled={!label.trim() || state.keysLoading || !managing}
+										>
+											Create token
+										</Button>
+									</DialogFooter>
+								</form>
+							)}
+						</DialogContent>
+					</Dialog>
+				}
+			>
+				<LayerCard padding="none">
 					{(state.keysLoading && !keys.length) || !managing ? (
 						<TableSkeleton
 							label="Loading push tokens"
@@ -480,7 +464,6 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 						<LayerCard.Empty
 							icon={<KeyRound aria-hidden="true" strokeWidth={1.5} />}
 							title="No push tokens"
-							description="Create a named token for each agent or page that sends reports here."
 						/>
 					)}
 				</LayerCard>
@@ -499,15 +482,7 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 					/>
 				}
 			>
-				<LayerCard className="space-y-3">
-					<p className="text-sm text-basalt-muted-foreground">
-						Send Markdown text and external image URLs. Each token delivers only to this channel.
-					</p>
-					<p className="text-sm text-basalt-muted-foreground">
-						Copied examples use <code className="font-mono text-xs">YOUR_CHANNEL_TOKEN</code> as a
-						placeholder. Replace it with your push token before sending.
-					</p>
-					<p className="break-all font-mono text-xs">POST {ingestEndpoint()}</p>
+				<LayerCard>
 					<div className="grid min-w-0 gap-3 xl:grid-cols-2">
 						<div className="flex min-w-0 flex-col gap-2">
 							<h3 className="text-sm font-medium">1. Save as report.json</h3>
@@ -523,14 +498,10 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 			<SectionRule
 				title={
 					<SectionLabel icon={Trash2} tone="neutral">
-						Delete channel
+						Danger zone
 					</SectionLabel>
 				}
-			>
-				<LayerCard className="flex flex-wrap items-center justify-between gap-4">
-					<p className="text-sm text-basalt-muted-foreground">
-						Permanently delete this channel, its reports, and all of its push tokens.
-					</p>
+				actions={
 					<Button
 						variant="outline"
 						className="text-basalt-destructive"
@@ -543,8 +514,8 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 					>
 						Delete channel
 					</Button>
-				</LayerCard>
-			</SectionRule>
+				}
+			/>
 			{editingKey && (
 				<TokenRenameDialog
 					key={editingKey.id}

@@ -3,7 +3,6 @@ import { Banner } from "@nocoo/basalt/components/banner";
 import {
 	Dialog,
 	DialogContent,
-	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -85,7 +84,7 @@ export function ChannelsManagePage() {
 							Channels
 						</SectionLabel>
 					}
-					description="Organize your reports, arrange the sidebar, and manage each channel’s push tokens."
+					description="Report channels and sidebar order."
 					actions={
 						<>
 							<Button
@@ -136,10 +135,9 @@ export function ChannelsManagePage() {
 						/>
 					))}
 				</StatGrid>
-				<DialogContent size="lg" disablePointerDismissal>
+				<DialogContent size="lg" disablePointerDismissal aria-describedby={undefined}>
 					<DialogHeader>
 						<DialogTitle>New channel</DialogTitle>
-						<DialogDescription>Create a home for reports from your agents.</DialogDescription>
 					</DialogHeader>
 					<form
 						className="mt-5 space-y-4"
@@ -197,15 +195,10 @@ export function ChannelsManagePage() {
 				</DialogContent>
 				<LayerCard padding="none">
 					<LayerCard.Header className="flex flex-wrap items-center justify-between gap-3">
-						<div>
-							<h2 className="flex items-center gap-2 text-base font-semibold">
-								<ListOrdered className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" />{" "}
-								Your channels
-							</h2>
-							<p className="text-sm text-basalt-muted-foreground">
-								Use the arrows to set the sidebar order.
-							</p>
-						</div>
+						<h2 className="flex items-center gap-2 text-base font-semibold">
+							<ListOrdered className="h-4 w-4 text-basalt-muted-foreground" aria-hidden="true" />
+							Your channels
+						</h2>
 						<Input
 							aria-label="Search channels"
 							placeholder="Search channels…"
@@ -229,11 +222,6 @@ export function ChannelsManagePage() {
 						<LayerCard.Empty
 							icon={<Radio className="h-6 w-6" aria-hidden="true" strokeWidth={1.5} />}
 							title={query ? "No matching channels" : "No channels yet"}
-							description={
-								query
-									? "Try a different name or description."
-									: "Create a channel to start collecting reports from your agents."
-							}
 						/>
 					) : (
 						<Table
@@ -294,7 +282,7 @@ export function ChannelsManagePage() {
 												<div className="grid grid-cols-2 justify-end gap-1 sm:flex sm:items-center">
 													<InlineAction
 														aria-label={`Move ${channel.name} up`}
-														title="Move up"
+														title="Move up in sidebar"
 														disabled={state.busy || state.catalogLoading || index === 0}
 														onClick={() => void vm.move(channel.id, -1)}
 													>
@@ -302,7 +290,7 @@ export function ChannelsManagePage() {
 													</InlineAction>
 													<InlineAction
 														aria-label={`Move ${channel.name} down`}
-														title="Move down"
+														title="Move down in sidebar"
 														disabled={
 															state.busy ||
 															state.catalogLoading ||

@@ -132,7 +132,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
 				expect(row.font).toBe("14px");
 			}
 			await expect.poll(() => actions.getByRole("heading").evaluate(node => getComputedStyle(node).fontSize)).toBe("14px");
-			await expect.poll(() => actions.getByText("Article tools and navigation.", { exact: true }).evaluate(node => getComputedStyle(node).fontSize)).toBe("12px");
+			await expect(actions.getByText("Article tools and navigation.", { exact: true })).toHaveCount(0);
 			await page.screenshot({ path: test.info().outputPath(`xray-mobile-${viewport.width}-actions.png`) });
 			for (const button of await page.locator(".channel-mobile-utilities button").all()) {
 				const bounds = await button.boundingBox();

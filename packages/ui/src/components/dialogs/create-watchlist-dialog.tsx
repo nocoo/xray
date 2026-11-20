@@ -2,7 +2,6 @@ import {
 	Button,
 	Dialog,
 	DialogContent,
-	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -74,7 +73,7 @@ export function CreateWatchlistDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent aria-describedby={undefined}>
 				<form onSubmit={(e) => void submit(e)} className="grid gap-5">
 					<DialogHeader>
 						<div className="mb-1 flex items-center gap-3">
@@ -86,10 +85,7 @@ export function CreateWatchlistDialog({
 							>
 								<PreviewIcon className="h-5 w-5 text-white" strokeWidth={2} />
 							</div>
-							<div>
-								<DialogTitle>New watchlist</DialogTitle>
-								<DialogDescription>Track people and sources in one timeline.</DialogDescription>
-							</div>
+							<DialogTitle>New watchlist</DialogTitle>
 						</div>
 					</DialogHeader>
 

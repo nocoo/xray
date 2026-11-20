@@ -73,13 +73,12 @@ export function QueryTokenAccessFields({
 						</Field>
 					))}
 					<p className="text-basalt-sm text-basalt-muted-foreground">
-						Select 1-100 sources in any combination. New sources are not added automatically. Remove
-						deleted sources before saving.
+						Select 1–100 sources. Remove deleted sources before saving.
 					</p>
 				</>
 			) : (
 				<p className="text-basalt-sm text-basalt-muted-foreground">
-					Reads every post and article in your account, including future watchlists and channels.
+					Includes future watchlists and channels.
 				</p>
 			)}
 		</div>

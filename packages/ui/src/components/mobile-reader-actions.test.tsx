@@ -128,5 +128,5 @@ test("action disclosure uses one borderless row style and no decorative arrow", 
 		expect(row.querySelector(":scope > svg + span")).not.toBeNull();
 	}
 	expect(screen.getByRole("heading", { name: "Channel actions" }).className).toContain("text-sm");
-	expect(screen.getByText("Article tools and navigation.").className).toContain("text-xs");
+	expect(screen.queryByText("Article tools and navigation.")).toBeNull();
 });

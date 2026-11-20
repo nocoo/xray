@@ -92,14 +92,17 @@ test("channel creation, one-time key, delivery, reader navigation and revocation
 	await expect(page).toHaveURL(/\/channels\/\d+\/settings$/);
 	const channelId = Number(new URL(page.url()).pathname.split("/")[2]);
 	await expect(page.locator("header[aria-labelledby]").getByRole("heading", { name, exact: true })).toBeVisible();
-	await expect(page.getByText("Channel settings · Profile, activity, and push tokens.", { exact: true })).toBeVisible();
+	await expect(page.getByText("Profile and push tokens.", { exact: true })).toBeVisible();
 	await expect(page.getByRole("heading", { name: "Push tokens", exact: true })).toBeVisible();
+	await expect(page.getByText(/Organize this channel with shared labels|Copied examples use/)).toHaveCount(0);
+	await expect(page.getByText(`POST ${INGEST}/api/v1/ingest/articles`, { exact: true })).toHaveCount(0);
 	await page.getByRole("button", { name: "Create token", exact: true }).click();
 	const tokenDialog = page.getByRole("dialog", { name: "Create push token", exact: true });
 	await tokenDialog.getByLabel("Token name", { exact: true }).fill("Fundly Agent");
 	await tokenDialog.getByRole("button", { name: "Create token", exact: true }).click();
 	const keyField = page.getByLabel("API key", { exact: true });
 	await expect(keyField).toBeVisible();
+	await expect(page.getByText("This key is shown only once.", { exact: true })).toBeVisible();
 	const token = await keyField.inputValue();
 	expect(token).toMatch(/^xray_pt_/);
 	await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);

@@ -2,7 +2,7 @@ import { Button, Field, Input, LayerCard } from "@nocoo/basalt";
 import { Banner } from "@nocoo/basalt/components/banner";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { SensitiveInput } from "@nocoo/basalt/components/sensitive-input";
-import { Bookmark, Save, ShieldCheck, Webhook } from "@nocoo/basalt/icons";
+import { Bookmark, Save, Webhook } from "@nocoo/basalt/icons";
 import { useEffect, useMemo } from "react";
 import * as zhetoApi from "@/api/zheto";
 import { useBreadcrumbs } from "@/components/layout/breadcrumbs-context";
@@ -35,7 +35,7 @@ export function IntegrationsZhetoPage() {
 						zhe.to
 					</SectionLabel>
 				}
-				description="Webhook URL is stored encrypted. Path token lives only inside the URL."
+				description="Save posts to zhe.to."
 			/>
 
 			{error && <Banner variant="error" size="sm" description={error} />}
@@ -95,11 +95,6 @@ export function IntegrationsZhetoPage() {
 					)}
 				</LayerCard.Body>
 			</LayerCard>
-			<p className="flex max-w-lg items-start gap-2 text-sm text-basalt-muted-foreground">
-				<ShieldCheck className="mt-0.5 size-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
-				Save articles to your own library. Credentials stay encrypted and are never included in
-				copied links.
-			</p>
 		</div>
 	);
 }

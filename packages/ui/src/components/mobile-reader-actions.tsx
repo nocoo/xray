@@ -2,7 +2,6 @@ import { Button } from "@nocoo/basalt";
 import {
 	Popover,
 	PopoverContent,
-	PopoverDescription,
 	PopoverTitle,
 	PopoverTrigger,
 } from "@nocoo/basalt/components/popover";
@@ -78,9 +77,6 @@ export function MobileReaderActions({
 					aria-label="Reading settings"
 				>
 					<PopoverTitle className="text-sm font-semibold leading-5">Reading settings</PopoverTitle>
-					<PopoverDescription className="mt-0.5 text-xs leading-5">
-						Adjust the article typography.
-					</PopoverDescription>
 					<fieldset className="mt-3 space-y-3" aria-label="Reading preferences">
 						<div className="flex items-center justify-between gap-3">
 							<Button
@@ -149,9 +145,6 @@ export function MobileReaderActions({
 				>
 					<div className="px-3 py-2">
 						<PopoverTitle className="text-sm font-semibold leading-5">Channel actions</PopoverTitle>
-						<PopoverDescription className="mt-0.5 text-xs leading-5">
-							Article tools and navigation.
-						</PopoverDescription>
 					</div>
 					<div className="flex flex-col gap-0.5">
 						<CopyTextButton

@@ -4,7 +4,6 @@ import { ConfirmDialog } from "@nocoo/basalt/components/confirm-dialog";
 import {
 	Dialog,
 	DialogContent,
-	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -95,7 +94,7 @@ export function TagsSettings() {
 						Tags
 					</SectionLabel>
 				}
-				description="One collection of labels for your channels, push tokens, and watchlist members."
+				description="Shared labels for channels, tokens, and members."
 				actions={
 					<>
 						<Button
@@ -209,15 +208,11 @@ export function TagsSettings() {
 								</>
 							)}
 						</div>
-						{filtering ? (
+						{filtering && (
 							<Button size="sm" variant="ghost" className="h-7 px-2" onClick={clearFilters}>
 								<X className="h-3.5 w-3.5" aria-hidden="true" />
 								Clear filters
 							</Button>
-						) : (
-							<span className="text-xs text-basalt-muted-foreground">
-								Shared across your workspace
-							</span>
 						)}
 					</div>
 				</LayerCard.Header>
@@ -250,7 +245,6 @@ export function TagsSettings() {
 						className="py-8"
 						icon={<TagIcon className="h-6 w-6" aria-hidden="true" />}
 						title="Tags could not be loaded"
-						description="Your collection is still safe. Retry when the connection is available."
 					/>
 				) : filtered.length ? (
 					<ul aria-label="Tags" className="grid grid-cols-1 gap-3 px-4 pb-4 lg:grid-cols-2">
@@ -322,11 +316,6 @@ export function TagsSettings() {
 					<LayerCard.Empty
 						icon={<TagIcon className="h-6 w-6" aria-hidden="true" />}
 						title={filtering ? "No matching tags" : "No tags yet"}
-						description={
-							filtering
-								? "Try another name or color, or clear your filters."
-								: "Create your first tag to keep related resources organized."
-						}
 						action={
 							filtering ? (
 								<Button size="sm" variant="outline" onClick={clearFilters}>
@@ -353,6 +342,7 @@ export function TagsSettings() {
 			>
 				<DialogContent
 					disablePointerDismissal
+					aria-describedby={undefined}
 					onCloseAutoFocus={(event) => {
 						event.preventDefault();
 						if (opener.current?.isConnected) opener.current.focus();
@@ -361,11 +351,6 @@ export function TagsSettings() {
 				>
 					<DialogHeader>
 						<DialogTitle>{editor === "new" ? "New tag" : "Rename tag"}</DialogTitle>
-						<DialogDescription>
-							{editor === "new"
-								? "Create a shared label for your resources."
-								: "The new name will appear wherever this tag is used."}
-						</DialogDescription>
 					</DialogHeader>
 					<form
 						className="mt-5 space-y-4"
@@ -380,7 +365,7 @@ export function TagsSettings() {
 							}
 						}}
 					>
-						<Field label="Tag name" hint="Use 1–64 characters.">
+						<Field label="Tag name">
 							<Input
 								aria-label={editor === "new" ? "New tag name" : `Rename ${editor?.name ?? "tag"}`}
 								value={name}
@@ -391,20 +376,16 @@ export function TagsSettings() {
 								autoComplete="off"
 							/>
 						</Field>
-						<div className="min-w-0 space-y-2">
-							<p className="text-xs text-basalt-muted-foreground">Preview</p>
-							{name.trim() ? (
+						{name.trim() && (
+							<div className="min-w-0 space-y-2">
+								<p className="text-xs text-basalt-muted-foreground">Preview</p>
 								<TagBadge
 									name={name.trim()}
 									title={name.trim()}
 									className="inline-block truncate align-middle"
 								/>
-							) : (
-								<p className="text-sm text-basalt-muted-foreground">
-									Enter a name to preview your tag.
-								</p>
-							)}
-						</div>
+							</div>
+						)}
 						{state.error && (
 							<Banner role="alert" variant="error" size="sm" description={state.error} />
 						)}

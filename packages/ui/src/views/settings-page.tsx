@@ -45,11 +45,7 @@ export function SettingsPage() {
 				description="Account preferences and AI configuration."
 			/>
 
-			<SectionRule
-				id="account"
-				title={<SectionLabel icon={UserRound}>Account</SectionLabel>}
-				hint="Signed-in user and ingest lookback window."
-			>
+			<SectionRule id="account" title={<SectionLabel icon={UserRound}>Account</SectionLabel>}>
 				{account.error && <Banner variant="error" size="sm" description={account.error} />}
 				{account.saved && <Banner variant="default" size="sm" description="Saved." />}
 				<LayerCard padding="none">
@@ -99,7 +95,6 @@ export function SettingsPage() {
 						AI
 					</SectionLabel>
 				}
-				hint="Configure your provider, model, and prompts for manual AI actions."
 			>
 				<LayerCard padding="none">
 					<LayerCard.Body>
