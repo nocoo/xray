@@ -540,8 +540,8 @@ function printTagRecovery(
 	}
 	const verifyStep = pushBranch ? 2 : 1;
 	steps.push(
-		`${verifyStep}. Verify CI is green for ${sha} on ${CI_BRANCH}:`,
-		`     gh run list --workflow ${CI_WORKFLOW} --commit ${sha} --event push --branch ${CI_BRANCH} --limit 1`,
+		`${verifyStep}. Wait and verify CI is green for ${sha} on ${CI_BRANCH}:`,
+		`     gh run watch $(gh run list --workflow ${CI_WORKFLOW} --commit ${sha} --event push --branch ${CI_BRANCH} --limit 1 --json databaseId -q '.[0].databaseId') --exit-status`,
 		`${verifyStep + 1}. Only after CI is green, tag that exact commit and push that one ref:`,
 		`     git tag -a v${version} ${sha} -m "v${version}"`,
 		`     git push --no-follow-tags ${remote} refs/tags/v${version}`,
