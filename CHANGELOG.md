@@ -2,6 +2,25 @@
 
 All notable changes to X-Ray are documented in this file.
 
+## v2.8.7
+
+### Added
+
+- Show relative timestamps in tables
+- Show article receipt timestamps
+
+### Changed
+
+- Trim redundant interface copy
+- Unify inline management actions
+- Unify article timestamp styling
+- Show only the translate icon
+- Compact watchlist card footers
+
+### Fixed
+
+- Format generated changelog headings
+
 ## v2.8.6
 
 ### Added
