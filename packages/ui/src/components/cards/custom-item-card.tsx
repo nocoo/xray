@@ -1,11 +1,5 @@
-import { Button, LayerCard } from "@nocoo/basalt";
-import {
-	ArrowLeftRight,
-	Bookmark,
-	ExternalLink,
-	Languages,
-	MessageSquareQuote,
-} from "@nocoo/basalt/icons";
+import { LayerCard } from "@nocoo/basalt";
+import { MessageSquareQuote } from "@nocoo/basalt/icons";
 import type { SourceType } from "@xray/shared";
 import { useCallback, useEffect, useState } from "react";
 import { ExpandableText } from "@/components/expandable-text";
@@ -14,8 +8,9 @@ import { useNow } from "@/hooks/use-now";
 import { apiPath } from "@/lib/environment";
 import { POST_TEXT_CLAMP_LINES } from "@/lib/expandable-text";
 import { readTranslateRow } from "@/lib/translate-result";
-import { cn, formatTimeAgo } from "@/lib/utils";
+import { formatTimeAgo } from "@/lib/utils";
 import { canSaveToZheto, postZhetoSave, type ZhetoSaveState } from "@/lib/zheto-save";
+import { WatchlistCardFooter } from "./watchlist-card-footer";
 
 export type CustomItemCardProps = {
 	title: string | null;
@@ -137,8 +132,6 @@ export function CustomItemCard({
 
 	const showInsight = lang === "zh" && !!summaryText;
 
-	const hasActions = url || onRemove || canSave || watchlistId != null;
-
 	return (
 		<LayerCard
 			data-testid="custom-item-card"
@@ -197,90 +190,23 @@ export function CustomItemCard({
 				</div>
 			)}
 
-			{hasActions && (
-				<LayerCard.Footer className="items-center justify-start gap-1 px-2 py-1">
-					{url && (
-						<a
-							href={url}
-							target="_blank"
-							rel="noopener noreferrer"
-							className="inline-flex h-8 items-center gap-1.5 rounded-md bg-transparent px-2 text-xs text-basalt-muted-foreground transition-colors hover:bg-basalt-accent hover:text-basalt-foreground"
-						>
-							<ExternalLink className="h-3.5 w-3.5" />
-							Open
-						</a>
-					)}
-					{hasTranslation ? (
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							onClick={() => setLang((l) => (l === "zh" ? "en" : "zh"))}
-							className={cn(
-								"h-8 px-2 text-xs font-medium focus-visible:ring-offset-0",
-								lang === "zh"
-									? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-									: "bg-transparent text-basalt-muted-foreground",
-							)}
-							title={lang === "zh" ? "Show original" : "Show translation"}
-						>
-							<ArrowLeftRight className="h-3.5 w-3.5" />
-							{lang === "zh" ? "中文" : "EN"}
-						</Button>
-					) : (
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							onClick={() => void handleTranslate()}
-							loading={translating}
-							icon={<Languages className="h-3.5 w-3.5" />}
-							className="h-8 bg-transparent px-2 text-xs text-basalt-muted-foreground focus-visible:ring-offset-0"
-							title="Translate this post"
-						>
-							{translating ? "Translating..." : "Translate"}
-						</Button>
-					)}
-					{canSave && (
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							onClick={() => void onSave()}
-							loading={zhetoStatus === "saving"}
-							disabled={zhetoStatus === "saved"}
-							icon={<Bookmark className="h-3.5 w-3.5" />}
-							className={cn(
-								"h-8 bg-transparent px-2 text-xs focus-visible:ring-offset-0",
-								zhetoStatus === "saved"
-									? "text-emerald-600"
-									: zhetoStatus === "error"
-										? "text-basalt-destructive"
-										: "text-basalt-muted-foreground",
-							)}
-						>
-							{zhetoStatus === "saving"
-								? "Saving…"
-								: zhetoStatus === "saved"
-									? "Saved"
-									: zhetoStatus === "error"
-										? "Error"
-										: "zhe.to"}
-						</Button>
-					)}
-					{onRemove && (
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							onClick={onRemove}
-							className="ml-auto h-8 bg-transparent px-2 text-xs text-basalt-muted-foreground focus-visible:ring-offset-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
-						>
-							Remove
-						</Button>
-					)}
-				</LayerCard.Footer>
-			)}
+			<WatchlistCardFooter
+				url={url}
+				translation={
+					watchlistId != null || hasTranslation
+						? {
+								showing: hasTranslation ? (lang === "zh" ? "translated" : "original") : undefined,
+								loading: translating,
+								onClick: () => {
+									if (hasTranslation) setLang(lang === "zh" ? "en" : "zh");
+									else void handleTranslate();
+								},
+							}
+						: undefined
+				}
+				save={canSave ? { state: zhetoStatus, onClick: () => void onSave() } : undefined}
+				onRemove={onRemove}
+			/>
 		</LayerCard>
 	);
 }

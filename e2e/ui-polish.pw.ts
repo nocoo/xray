@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { BROWSER, WORKER, browserApiHeaders } from "./helpers";
+import { installExternalMedia } from "../fixtures/e2e";
+import { canonicalArticle, canonicalPost } from "../fixtures/primitives";
+import { BROWSER, browserApiHeaders, INGEST, WORKER } from "./helpers";
 
 test("page icon hierarchy and bright statistics survive themes and narrow layouts", async ({
 	page,
@@ -130,4 +132,94 @@ test("page icon hierarchy and bright statistics survive themes and narrow layout
 	expect(errors).toEqual([]);
 	await request.delete(`${WORKER}/api/channels/${channel.id}`, { headers: browserApiHeaders });
 	await request.delete(`${WORKER}/api/watchlists/${watchlist.id}`, { headers: browserApiHeaders });
+});
+
+test.describe("watchlist card footer", () => {
+	test.use({ hasTouch: true, locale: "en-US" });
+
+	test("keeps statistics and actions on one line, with details available", async ({ page, request }) => {
+		await installExternalMedia(page);
+		const watchlist = await request.post(`${WORKER}/api/watchlists`, {
+			headers: browserApiHeaders,
+			data: { name: `Card footer ${crypto.randomUUID()}` },
+		});
+		expect(watchlist.status()).toBe(201);
+		const { id } = (await watchlist.json()).data;
+		const issued = await request.post(`${WORKER}/api/push-tokens`, {
+			headers: browserApiHeaders,
+			data: { label: "Card footer producer" },
+		});
+		expect(issued.status()).toBe(201);
+		const key = (await issued.json()).data;
+		try {
+			const post = canonicalPost("123456789");
+			post.body.tweet.public_metrics = {
+				like_count: 128,
+				impression_count: 12_400,
+				reply_count: 3,
+				retweet_count: 7,
+				quote_count: 2,
+				bookmark_count: 16,
+			};
+			const note = canonicalArticle();
+			const createdAt = new Date().toISOString();
+			const items = [post, note].map((item) => ({ ...item, created_at: createdAt }));
+			const pushed = await request.post(`${INGEST}/api/v1/ingest/push`, {
+				headers: { host: "xray-ingest.worker.hexly.ai", authorization: `Bearer ${key.token}` },
+				data: { watchlist_id: id, items },
+			});
+			expect(await pushed.json()).toMatchObject({ accepted: 2, rejected: 0 });
+			await page.goto(`${BROWSER}/watchlist/${id}`);
+			const footers = page.locator('[data-testid="posts-masonry"] [data-slot="card-footer"]');
+			const postFooter = footers.filter({
+				has: page.locator('dl[aria-label="Key post statistics"]'),
+			});
+			const noteFooter = page.getByTestId("custom-item-card").locator('[data-slot="card-footer"]');
+			await expect(footers).toHaveCount(2);
+			await expect(postFooter.locator("dd")).toHaveText(["128", "12.4K"]);
+			await expect(noteFooter.locator("dl")).toHaveCount(0);
+			await expect(noteFooter.getByRole("link", { name: /Open source/ })).toHaveAttribute(
+				"href",
+				"https://developers.cloudflare.com/workers/",
+			);
+
+			for (const width of [1440, 320]) {
+				await page.setViewportSize({ width, height: 900 });
+				for (const footer of [postFooter, noteFooter]) {
+					await expect.poll(() =>
+						footer.evaluate((element) => {
+							const bounds = element.getBoundingClientRect();
+							return [...element.querySelectorAll("dl, a, button")].every((item) => {
+								const rect = item.getBoundingClientRect();
+								return (
+									rect.left >= bounds.left && rect.right <= bounds.right &&
+									Math.abs(rect.top + rect.height / 2 - (bounds.top + bounds.height / 2)) <= 1
+								);
+							});
+						}),
+					).toBe(true);
+					const translate = footer.getByRole("button", { name: "Translate", exact: true });
+					await expect(translate).toHaveCSS("height", "44px");
+					const label = translate.getByText("Translate", { exact: true });
+					if (width === 320) await expect(label).toBeHidden();
+					else await expect(label).toBeVisible();
+				}
+			}
+
+			const more = postFooter.getByRole("button", { name: "More post details" });
+			await more.click();
+			const details = page.getByRole("dialog", { name: "Post details" });
+			await expect(details.locator("dt")).toHaveText([
+				"Likes", "Views", "Replies", "Reposts", "Quotes", "Bookmarks",
+			]);
+			await expect(details.locator("dd")).toHaveText(["128", "12,400", "3", "7", "2", "16"]);
+			await expect(details.getByRole("button", { name: "Save to zhe.to" })).toBeVisible();
+			await page.keyboard.press("Escape");
+			await expect(details).toBeHidden();
+			await expect(more).toBeFocused();
+		} finally {
+			await request.delete(`${WORKER}/api/watchlists/${id}`, { headers: browserApiHeaders });
+			await request.delete(`${WORKER}/api/push-tokens/${key.id}`, { headers: browserApiHeaders });
+		}
+	});
 });

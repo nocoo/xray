@@ -429,3 +429,11 @@ though Chrome did. It failed before fixture writes. The corrected script uses
 same-origin browser fetch for fixture setup and the managed loopback descriptor
 for agent calls. Do not disable certificate verification or alter machine trust
 to make browser acceptance plumbing work.
+
+## 2026-11-20 - Keep live ingest fixtures within the real time window
+
+The Watchlist footer regression initially pushed canonical fixtures with their
+fixed presentation date. Native ingest uses the real clock and rejected both
+items before the page could render. Refresh top-level `created_at` when pushing
+through native ingest, and assert accepted and rejected counts before opening the
+UI. Keep fixed dates for seeded presentation fixtures.

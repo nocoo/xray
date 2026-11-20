@@ -10,10 +10,7 @@ import {
 	LayerCard,
 } from "@nocoo/basalt";
 import {
-	ArrowLeftRight,
 	AtSign,
-	Bookmark,
-	Check,
 	ChevronLeft,
 	ChevronRight,
 	ExternalLink,
@@ -21,15 +18,12 @@ import {
 	Hash,
 	Heart,
 	Image as ImageIcon,
-	Languages,
-	LinkIcon,
 	MessageCircle,
 	MessageSquareQuote,
 	Play,
 	Quote,
 	Repeat2,
 	Search,
-	Trash2,
 	X,
 } from "@nocoo/basalt/icons";
 import type { SourceType } from "@xray/shared";
@@ -43,6 +37,7 @@ import { POST_TEXT_CLAMP_LINES, QUOTED_TEXT_CLAMP_LINES } from "@/lib/expandable
 import { readTranslateRow } from "@/lib/translate-result";
 import type { Tweet, TweetMedia } from "@/lib/tweet-types";
 import { cn, formatCount, formatTimeAgo } from "@/lib/utils";
+import { WatchlistCardFooter } from "./watchlist-card-footer";
 
 // External Twitter media/avatars use plain <img>/<video> via /api/media/proxy
 // (twimg CDN hotlink protection).
@@ -465,143 +460,6 @@ export const TweetCard = memo(function TweetCard({
 		</LayerCard.Well>
 	);
 
-	const metricRow = (
-		<div
-			className="flex h-8 items-center gap-1 overflow-hidden text-xs text-basalt-muted-foreground"
-			style={{
-				maskImage: "linear-gradient(to right, black 80%, transparent 100%)",
-				WebkitMaskImage: "linear-gradient(to right, black 80%, transparent 100%)",
-			}}
-		>
-			<MetricItem
-				icon={<MessageCircle className="h-3.5 w-3.5" />}
-				value={tweet.metrics.reply_count}
-			/>
-			<MetricItem icon={<Repeat2 className="h-3.5 w-3.5" />} value={tweet.metrics.retweet_count} />
-			<MetricItem icon={<Quote className="h-3.5 w-3.5" />} value={tweet.metrics.quote_count} />
-			<MetricItem icon={<Heart className="h-3.5 w-3.5" />} value={tweet.metrics.like_count} />
-			<MetricItem icon={<Eye className="h-3.5 w-3.5" />} value={tweet.metrics.view_count} />
-			<MetricItem
-				icon={<Bookmark className="h-3.5 w-3.5" />}
-				value={tweet.metrics.bookmark_count}
-			/>
-		</div>
-	);
-
-	const actionBar = showActionBar ? (
-		<LayerCard.Footer className="flex-col items-stretch justify-start gap-0 px-2 py-1">
-			{metricRow}
-			<div className="flex h-8 items-center gap-1">
-				<a
-					href={tweet.url}
-					target="_blank"
-					rel="noopener noreferrer"
-					className="inline-flex h-8 items-center gap-1.5 rounded-md bg-transparent px-2 text-xs text-basalt-muted-foreground transition-colors hover:bg-basalt-accent hover:text-basalt-foreground"
-					onClick={(e) => e.stopPropagation()}
-				>
-					<ExternalLink className="h-3.5 w-3.5" />
-					Open
-				</a>
-
-				{/* Translate / Toggle language */}
-				{hasTranslation ? (
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						onClick={(e) => {
-							e.stopPropagation();
-							e.preventDefault();
-							setLang((l) => (l === "zh" ? "en" : "zh"));
-						}}
-						className={cn(
-							"h-8 px-2 text-xs font-medium focus-visible:ring-offset-0",
-							lang === "zh"
-								? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-								: "bg-transparent text-basalt-muted-foreground",
-						)}
-						title={lang === "zh" ? "Show original" : "Show translation"}
-					>
-						<ArrowLeftRight className="h-3.5 w-3.5" />
-						{lang === "zh" ? "中文" : "EN"}
-					</Button>
-				) : (
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						onClick={(e) => {
-							e.stopPropagation();
-							e.preventDefault();
-							void handleTranslate();
-						}}
-						loading={translating}
-						icon={<Languages className="h-3.5 w-3.5" />}
-						className="h-8 bg-transparent px-2 text-xs text-basalt-muted-foreground focus-visible:ring-offset-0"
-						title="Translate this post"
-					>
-						{translating ? "Translating..." : "Translate"}
-					</Button>
-				)}
-
-				<Button
-					type="button"
-					variant="ghost"
-					size="sm"
-					onClick={(e) => {
-						e.stopPropagation();
-						e.preventDefault();
-						void handleSaveToZheto();
-					}}
-					loading={zhetoStatus === "saving"}
-					disabled={zhetoStatus === "saved"}
-					icon={
-						zhetoStatus === "saved" ? (
-							<Check className="h-3.5 w-3.5" />
-						) : (
-							<LinkIcon className="h-3.5 w-3.5" />
-						)
-					}
-					className={cn(
-						"h-8 bg-transparent px-2 text-xs font-medium focus-visible:ring-offset-0",
-						zhetoStatus === "saved"
-							? "text-emerald-600 dark:text-emerald-400"
-							: zhetoStatus === "error"
-								? "text-red-500 dark:text-red-400"
-								: "text-basalt-muted-foreground",
-					)}
-					title="Save to zhe.to"
-				>
-					{zhetoStatus === "saving"
-						? "Saving..."
-						: zhetoStatus === "saved"
-							? "Saved"
-							: zhetoStatus === "error"
-								? "Failed"
-								: "zhe.to"}
-				</Button>
-
-				{onRemove && (
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						onClick={(e) => {
-							e.stopPropagation();
-							e.preventDefault();
-							onRemove();
-						}}
-						className="ml-auto h-8 bg-transparent px-2 text-xs text-basalt-muted-foreground focus-visible:ring-offset-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
-						title="Remove this post"
-					>
-						<Trash2 className="h-3.5 w-3.5" />
-						Remove
-					</Button>
-				)}
-			</div>
-		</LayerCard.Footer>
-	) : null;
-
 	// AI Insight — shown when viewing translated text and commentText exists
 	const showComment = lang === "zh" && !!commentText;
 	const aiInsight = showComment ? (
@@ -632,7 +490,22 @@ export const TweetCard = memo(function TweetCard({
 				{renderBeforeActionBar}
 				{errorBanner}
 				{aiInsight}
-				{actionBar}
+				{showActionBar && (
+					<WatchlistCardFooter
+						url={tweet.url}
+						metrics={tweet.metrics}
+						translation={{
+							showing: hasTranslation ? (lang === "zh" ? "translated" : "original") : undefined,
+							loading: translating,
+							onClick: () => {
+								if (hasTranslation) setLang(lang === "zh" ? "en" : "zh");
+								else void handleTranslate();
+							},
+						}}
+						save={{ state: zhetoStatus, onClick: () => void handleSaveToZheto() }}
+						onRemove={onRemove}
+					/>
+				)}
 			</LayerCard>
 			<ImageLightbox
 				photos={lightbox?.photos ?? []}
@@ -723,15 +596,6 @@ function linkifyText(text: string): React.ReactNode {
 
 	// If no URLs found, return the original string (no wrapper needed)
 	return parts.length === 0 ? text : parts;
-}
-
-function MetricItem({ icon, value }: { icon: React.ReactNode; value: number }) {
-	return (
-		<div className="inline-flex h-8 shrink-0 items-center gap-1.5 px-2">
-			{icon}
-			<span className="font-display">{formatCount(value)}</span>
-		</div>
-	);
 }
 
 // =============================================================================
