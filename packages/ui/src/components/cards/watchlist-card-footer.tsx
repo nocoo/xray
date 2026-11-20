@@ -37,7 +37,7 @@ const saveLabels = {
 } satisfies Record<ZhetoSaveState, string>;
 
 const toolClass =
-	"h-8 min-w-8 whitespace-nowrap px-2 text-basalt-muted-foreground max-sm:min-h-basalt-touch max-sm:min-w-basalt-touch pointer-coarse:min-h-basalt-touch pointer-coarse:min-w-basalt-touch";
+	"h-8 min-w-8 px-2 text-basalt-muted-foreground max-sm:min-h-basalt-touch max-sm:min-w-basalt-touch pointer-coarse:min-h-basalt-touch pointer-coarse:min-w-basalt-touch";
 
 export function WatchlistCardFooter({
 	url,
@@ -65,7 +65,7 @@ export function WatchlistCardFooter({
 	const TranslationIcon = showing ? ArrowLeftRight : Languages;
 
 	return (
-		<LayerCard.Footer className="@container/card-footer flex-nowrap items-center gap-2 px-2 py-1">
+		<LayerCard.Footer className="flex-nowrap items-center gap-2 px-2 py-1">
 			{metrics && (
 				<dl
 					aria-label="Key post statistics"
@@ -97,10 +97,9 @@ export function WatchlistCardFooter({
 				{translation && (
 					<Button
 						variant="ghost"
-						size="sm"
+						size="icon-sm"
 						className={cn(
 							toolClass,
-							"gap-1.5 text-xs",
 							showing === "translated" && "bg-basalt-accent text-basalt-accent-foreground",
 						)}
 						aria-label={translateLabel}
@@ -108,15 +107,7 @@ export function WatchlistCardFooter({
 						loading={translation.loading}
 						icon={<TranslationIcon aria-hidden="true" />}
 						onClick={translation.onClick}
-					>
-						<span className="hidden @min-[20rem]/card-footer:inline">
-							{showing === "translated"
-								? "Original"
-								: showing === "original"
-									? "Translation"
-									: "Translate"}
-						</span>
-					</Button>
+					/>
 				)}
 				{hasMore && (
 					<Popover>

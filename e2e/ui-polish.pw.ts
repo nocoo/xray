@@ -200,9 +200,8 @@ test.describe("watchlist card footer", () => {
 					).toBe(true);
 					const translate = footer.getByRole("button", { name: "Translate", exact: true });
 					await expect(translate).toHaveCSS("height", "44px");
-					const label = translate.getByText("Translate", { exact: true });
-					if (width === 320) await expect(label).toBeHidden();
-					else await expect(label).toBeVisible();
+					await expect(translate).toHaveText("");
+					await expect(translate.locator("svg")).toBeVisible();
 				}
 			}
 
