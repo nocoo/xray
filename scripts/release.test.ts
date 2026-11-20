@@ -16,6 +16,7 @@ import {
 	parseCiRun,
 	parseCiRuns,
 	run,
+	SIGNAL_FAILURE_EXIT_CODE,
 	SPAWN_FAILURE_EXIT_CODE,
 	waitForCiSuccess,
 } from "./release.ts";
@@ -140,6 +141,23 @@ describe("run", () => {
 		expect(result.code).toBe(0);
 		expect(result.stdout).toContain("git version");
 	});
+
+	test("reports a signal-terminated process with a non-1 exit code", async () => {
+		const result = await run("sh", ["-c", "kill -TERM $$"]);
+
+		expect(result.code).toBe(SIGNAL_FAILURE_EXIT_CODE);
+		expect(result.code).not.toBe(1);
+		expect(result.code).not.toBe(0);
+		expect(result.stderr).toContain("terminated by signal");
+	});
+
+	test("reports a timed-out process with a non-1 exit code", async () => {
+		const result = await run("sh", ["-c", "sleep 5"], { timeoutMs: 200 });
+
+		expect(result.code).toBe(SIGNAL_FAILURE_EXIT_CODE);
+		expect(result.code).not.toBe(1);
+		expect(result.code).not.toBe(0);
+	});
 });
 
 describe("classifyStaleVersionScan", () => {
@@ -171,6 +189,13 @@ describe("classifyStaleVersionScan", () => {
 
 		expect(result.outcome).toBe("failed");
 		expect(result.outcome === "failed" && result.reason).toContain("2");
+	});
+
+	test("fails closed when the scanner was terminated by a signal", () => {
+		const result = scan(SIGNAL_FAILURE_EXIT_CODE, "", "rg: terminated by signal SIGTERM");
+
+		expect(result.outcome).toBe("failed");
+		expect(result.outcome === "failed" && result.reason).toContain("128");
 	});
 });
 

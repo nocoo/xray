@@ -79,6 +79,12 @@ export interface RunResult {
 /** Conventional shell code for "command not found"; keeps spawn failures distinct from tool exit codes. */
 export const SPAWN_FAILURE_EXIT_CODE = 127;
 
+/**
+ * Exit code for a process killed by a signal. Must differ from 1, which is a
+ * meaningful success code for tools such as `rg` (no matches).
+ */
+export const SIGNAL_FAILURE_EXIT_CODE = 128;
+
 export function run(
 	cmd: string,
 	args: string[],
@@ -107,8 +113,16 @@ export function run(
 				stderr: `${stderr}${cmd}: ${err.message}`,
 			});
 		});
-		child.on("close", (code) => {
-			resolve({ code: code ?? 1, stdout, stderr });
+		child.on("close", (code, signal) => {
+			if (code === null) {
+				resolve({
+					code: SIGNAL_FAILURE_EXIT_CODE,
+					stdout,
+					stderr: `${stderr}${cmd}: terminated by signal ${signal ?? "unknown"}`,
+				});
+				return;
+			}
+			resolve({ code, stdout, stderr });
 		});
 	});
 }
@@ -506,8 +520,9 @@ async function resolvePushRemote(branch: string): Promise<string> {
 
 /**
  * Recovery guidance for a release that stopped after the commit was created.
- * Tagging is only safe once CI proved the exact commit on main, so the advice
- * never suggests pushing a tag directly.
+ * The steps are ordered so tagging is only reachable after CI has been verified
+ * green on the exact commit; `--no-follow-tags` keeps a `push.followTags=true`
+ * configuration from publishing unrelated local tags.
  */
 function printTagRecovery(
 	version: string,
@@ -516,16 +531,25 @@ function printTagRecovery(
 	branch: string,
 	pushBranch: boolean,
 ): void {
-	console.error(`   Recovery — do NOT tag before CI is green on ${CI_BRANCH} for ${sha}:`);
+	const steps: string[] = [];
 	if (pushBranch) {
-		console.error(`     git push ${remote} ${branch}`);
-		console.error(`     # wait for the CI workflow to pass on ${CI_BRANCH} for ${sha}`);
-	} else {
-		console.error(`     # wait for the CI workflow to pass on ${CI_BRANCH} for ${sha}`);
+		steps.push(
+			`1. Push the commit to ${remote}/${branch}:`,
+			`     git push --no-follow-tags ${remote} ${branch}`,
+		);
 	}
-	console.error(`     git tag -a v${version} ${sha} -m "v${version}"`);
-	console.error(`     git push ${remote} refs/tags/v${version}`);
-	console.error(`     gh release create v${version} --title "v${version}" --notes "..."`);
+	const verifyStep = pushBranch ? 2 : 1;
+	steps.push(
+		`${verifyStep}. Verify CI is green for ${sha} on ${CI_BRANCH}:`,
+		`     gh run list --workflow ${CI_WORKFLOW} --commit ${sha} --event push --branch ${CI_BRANCH} --limit 1`,
+		`${verifyStep + 1}. Only after CI is green, tag that exact commit and push that one ref:`,
+		`     git tag -a v${version} ${sha} -m "v${version}"`,
+		`     git push --no-follow-tags ${remote} refs/tags/v${version}`,
+		`${verifyStep + 2}. Create the GitHub release:`,
+		`     gh release create v${version} --title "v${version}" --notes "..."`,
+	);
+	console.error(`   Recovery for v${version} (commit ${sha}):`);
+	for (const step of steps) console.error(`     ${step}`);
 }
 
 async function main(): Promise<void> {
@@ -680,7 +704,7 @@ async function main(): Promise<void> {
 	const headSha = await runOrDie("git", ["rev-parse", "HEAD"], "Failed to resolve release commit");
 	const pushRemote = await resolvePushRemote(branch);
 
-	const pushResult = await run("git", ["push"], { inherit: true });
+	const pushResult = await run("git", ["push", "--no-follow-tags"], { inherit: true });
 	if (pushResult.code !== 0) {
 		console.error("❌ git push failed");
 		printTagRecovery(newVersion, headSha, pushRemote, branch, true);
@@ -719,11 +743,13 @@ async function main(): Promise<void> {
 		}
 		process.exit(1);
 	}
-	const pushTagResult = await run("git", ["push", pushRemote, `refs/tags/v${newVersion}`], {
-		inherit: true,
-	});
+	const pushTagResult = await run(
+		"git",
+		["push", "--no-follow-tags", pushRemote, `refs/tags/v${newVersion}`],
+		{ inherit: true },
+	);
 	if (pushTagResult.code !== 0) {
-		console.error(`❌ git push ${pushRemote} refs/tags/v${newVersion} failed`);
+		console.error(`❌ git push --no-follow-tags ${pushRemote} refs/tags/v${newVersion} failed`);
 		printTagRecovery(newVersion, headSha, pushRemote, branch, false);
 		process.exit(1);
 	}
