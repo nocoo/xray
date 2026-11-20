@@ -731,7 +731,15 @@ export function ChannelsPage() {
 										<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-basalt-muted-foreground">
 											<span className="inline-flex items-center gap-1.5">
 												<CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-												{article.reportDate}
+												<time dateTime={article.reportDate} title="Report date">
+													{article.reportDate}
+												</time>
+											</span>
+											<span>
+												Received{" "}
+												<time dateTime={new Date(article.createdAtMs).toISOString()}>
+													{new Date(article.createdAtMs).toLocaleString()}
+												</time>
 											</span>
 											<span>
 												{article.author ? `${article.author} · ` : ""}

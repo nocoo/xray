@@ -80,10 +80,21 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
 				expect(pushed.ok()).toBe(true);
 				ids.push((await pushed.json()).id);
 			}
+			const details = await request.get(`${WORKER}/api/channels/${channel.id}/articles/${ids[0]}`, {
+				headers: browserApiHeaders,
+			});
+			expect(details.ok()).toBe(true);
+			const { createdAtMs, reportDate } = (await details.json()).data;
 			await page.goto(`${BROWSER}/channels`);
 			await page.locator("main").getByRole("link", { name, exact: true }).tap();
 			const content = page.getByRole("document", { name: "Article content" });
 			await expect(content.getByRole("heading", { name: titles[0], exact: true })).toBeVisible();
+			await expect(content.locator(`time[datetime="${reportDate}"]`)).toHaveText(reportDate);
+			const receipt = content.locator(`time[datetime="${new Date(createdAtMs).toISOString()}"]`);
+			await expect(receipt).toBeVisible();
+			await expect(receipt).toHaveText(
+				await page.evaluate((timestamp) => new Date(timestamp).toLocaleString(), createdAtMs as number),
+			);
 			await expect.poll(() => content.evaluate(node => node.clientHeight)).toBeGreaterThan(viewport.height / 2);
 			await expect(page.locator(".channel-header")).toHaveCount(0);
 			await expect(page.locator("[data-basalt-header]")).toHaveCount(1);
