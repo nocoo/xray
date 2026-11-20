@@ -229,6 +229,14 @@ test("rich dashboard shows channel stacks and a total line across themes and vie
 		await expect(chart.locator(".recharts-bar")).toHaveCount(names.size + 1);
 		await expect(chart.locator(".recharts-line-curve")).toHaveCount(1);
 		for (const name of names) await expect(chart.getByTestId("chart-legend").getByText(name, { exact: true })).toBeVisible();
+		const swatches = chart.getByTestId("chart-legend").locator("rect");
+		await expect(swatches.first()).toHaveAttribute("fill", "hsl(var(--basalt-chart-blue))");
+		const channelFills = await swatches.evaluateAll((marks) =>
+			marks.slice(1).map((mark) => mark.getAttribute("fill")),
+		);
+		expect(channelFills).toHaveLength(names.size);
+		for (const fill of channelFills) expect(fill).toMatch(/^hsl\(var\(--basalt-accent-\d+\)\)$/);
+		expect(new Set(channelFills).size).toBe(Math.min(names.size, 10));
 		await expect(page.locator(".recharts-wrapper")).toHaveCount(1);
 		for (const theme of ["light", "dark"] as const) {
 			await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });

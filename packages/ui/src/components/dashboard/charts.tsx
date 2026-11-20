@@ -1,5 +1,4 @@
 import {
-	CHART_COLORS,
 	CHART_PLOT_MARGIN,
 	ChartFrame,
 	ChartLegend,
@@ -7,7 +6,6 @@ import {
 	cartesianAxisProps,
 	chartTooltipProps,
 	GRID_PROPS,
-	getChartColor,
 	RESPONSIVE_CONTAINER_PROPS,
 } from "@nocoo/basalt/components/chart";
 import {
@@ -31,22 +29,17 @@ import {
 import type { DashboardVm } from "@/viewmodels/dashboard-vm";
 
 const totalSeries = { key: "total", label: "Total", color: "hsl(var(--basalt-foreground))" };
-
-function channelColor(index: number) {
-	const color = getChartColor(index);
-	const tint = Math.min(42, Math.floor(index / CHART_COLORS.length) * 14);
-	return tint ? `color-mix(in srgb, ${color}, ${totalSeries.color} ${tint}%)` : color;
-}
+const channelSwatches = [9, 4, 6, 10, 3, 7, 11, 5, 8, 2];
 
 export function ContentTrendChart({ activity }: { activity: ReturnType<DashboardVm["activity"]> }) {
 	const valueFormatter = (value: number) =>
 		Number.isInteger(value) ? value.toLocaleString("en-US") : "";
 	const series = [
-		{ key: "watchlists", label: "Watchlists", color: "hsl(var(--basalt-muted-foreground))" },
+		{ key: "watchlists", label: "Watchlists", color: "hsl(var(--basalt-chart-blue))" },
 		...activity.channelSeries.map(([id, label], index) => ({
 			key: `channelCounts.${id}`,
 			label,
-			color: channelColor(index),
+			color: `hsl(var(--basalt-accent-${channelSwatches[index % channelSwatches.length]}))`,
 		})),
 	];
 
@@ -145,8 +138,6 @@ export function ContentTrendChart({ activity }: { activity: ReturnType<Dashboard
 								name={label}
 								stackId="content"
 								fill={color}
-								stroke="hsl(var(--basalt-card))"
-								strokeWidth={0.75}
 								isAnimationActive={false}
 							/>
 						))}
