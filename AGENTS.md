@@ -15,6 +15,7 @@ bun run env:db -- init --mode demo # migrate|seed|reset (stop Demo)
 bun run build:shared && bun run build
 bun run typecheck && bun run lint # S1 + S2 (0 warn)
 bun run test:coverage # L1 >=95% all 4 metrics
+bun run test:release # release CI-gate unit tests (scripts/release.test.ts)
 env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID -u CF_API_TOKEN bun run test:l2 # L3+routes
 bun x --no-install playwright install chromium webkit
 env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID -u CF_API_TOKEN bun run test:l3 # L4 E2E
@@ -41,7 +42,7 @@ Route inventory alone: `bun run gate:routes`. `test:l3` runs `scripts/test-l3.ts
 - **Mobile**: Responsive doc scroll, edge-to-edge island, sticky `AppHeader`, 44px targets, shell `viewport-fit=cover` safe areas—no JS viewport hacks ([14](docs/14-immersive-mobile-reading.md)).
 - **Packages**: `@xray/shared` pure; `@xray/ui` ViewModels avoid View/DOM; `@xray/worker` has no React. Root `package.json`/`bun.lock` use bare SemVer (`v` display prefix).
 - **Producers**: Run `refresh:watchlists` via [refresh skill](skills/xray-refresh-watchlists/SKILL.md) with `~/.config/xray/push.env` (600; [09](docs/09-local-producer-twitter-cli.md)); keep checkpoints.
-- **Release**: Authorized only via `bun run release` (patch default, `-- minor`/`-- major`); deploy/migrations in `.github/workflows/release.yml` and [07](docs/07-implementation-plan.md).
+- **Release**: Authorized only via `bun run release` from `main` (patch default, `-- minor`/`-- major`); requires an authenticated `gh` and waits for a successful CI run on `main` for the exact pushed commit before creating/pushing the tag; deploy/migrations in `.github/workflows/release.yml` and [07](docs/07-implementation-plan.md).
 
 ## Quality & Local Gates
 

@@ -100,7 +100,7 @@ jobs:
           package-manager: bun
           runtime-version: ${{ env.BUN_VERSION }}
           install-policy: trusted
-      - run: bun run test && bun run test:coverage
+      - run: bun run test && bun run test:coverage && bun run test:release
 
   l2-runtime:
     name: "L2: Runtime"

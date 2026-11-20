@@ -16,6 +16,7 @@
 		"lint": "biome check --error-on-warnings .",
 		"lint:fix": "biome check --write .",
 		"test": "turbo test",
+		"test:release": "bun test scripts/release.test.ts",
 		"prepare": "husky",
 		"test:coverage": "bash scripts/check-coverage.sh 95 95 95",
 		"test:l2": "bun run --filter @xray/worker test:e2e && bun run gate:routes",
