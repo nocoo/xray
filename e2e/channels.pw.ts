@@ -125,7 +125,7 @@ test("channel creation, one-time key, delivery, reader navigation and revocation
 	for (const [index, date] of ["2026-09-21", "2026-09-22"].entries()) {
 		const result = await request.post(`${INGEST}/api/v1/ingest/articles`, {
 			headers: { host: "xray-ingest.worker.hexly.ai", authorization: `Bearer ${token}` },
-			data: { external_id: `${name}-${index}`, title: `研发日报 · ${date}`, report_date: date, summary: "今日研发与阅读体验进展", author: "Fundly Research", markdown: reportBody },
+			data: { external_id: `${name}-${index}`, title: `研发日报 · ${date}`, report_date: date, summary: "今日研发与阅读体验进展", ...(index === 1 ? { author: "Fundly Research" } : {}), markdown: reportBody },
 		});
 		expect(result.status()).toBe(201);
 		ids.push((await result.json()).id);
@@ -144,8 +144,10 @@ test("channel creation, one-time key, delivery, reader navigation and revocation
 	await expect(page).toHaveURL(new RegExp(`/channels/${channelId}/articles/${ids[1]}`));
 	const content = page.getByRole("document", { name: "Article content" });
 	await expect(content.getByRole("heading", { name: "今日进展" })).toBeVisible();
-	const byline = content.getByText("Fundly Research · Fundly Agent", { exact: true });
-	await expect(byline.locator("..").locator('svg[aria-hidden="true"]')).toBeVisible();
+	const authorIcon = content.getByText("Fundly Research", { exact: true }).locator("..").locator('svg.lucide-user-round[aria-hidden="true"]');
+	const agentIcon = content.getByText("Fundly Agent", { exact: true }).locator("..").locator('svg.lucide-bot[aria-hidden="true"]');
+	await expect(authorIcon).toBeVisible();
+	await expect(agentIcon).toBeVisible();
 	await expect(content.getByRole("table")).toBeVisible();
 	await expect(content.getByRole("img", { name: "趋势图" })).toBeVisible();
 	await expect.poll(() => content.getByRole("img", { name: "趋势图" }).evaluate((node) => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
@@ -215,6 +217,8 @@ test("channel creation, one-time key, delivery, reader navigation and revocation
 	await expect(page).toHaveURL(new RegExp(`/articles/${ids[0]}`));
 	await expect(page.getByRole("button", { name: /研发日报 · 2026-09-21/ })).toBeFocused();
 	await expect(content).toHaveAttribute("aria-busy", "false");
+	await expect(authorIcon).toHaveCount(0);
+	await expect(agentIcon).toBeVisible();
 	await expect(page.getByRole("region", { name: "Articles", exact: true })).toHaveAttribute("aria-busy", "false");
 	const articleResponse = Promise.withResolvers<void>();
 	let articleRequestSeen = false;

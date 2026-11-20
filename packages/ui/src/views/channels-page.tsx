@@ -8,6 +8,7 @@ import {
 	AArrowUp,
 	ArrowLeft,
 	BookOpen,
+	Bot,
 	CalendarDays,
 	CheckCheck,
 	Clock,
@@ -732,14 +733,17 @@ export function ChannelsPage() {
 													{formatLocalDateTime(new Date(article.createdAtMs))}
 												</time>
 											</span>
-											<span className="inline-flex items-center gap-1.5">
-												{article.author && (
+											{article.author && (
+												<span className="inline-flex items-center gap-1.5">
 													<UserRound className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-												)}
-												<span>
-													{article.author ? `${article.author} · ` : ""}
-													{article.sourceLabel}
+													<span className="sr-only">Author:</span>
+													<span>{article.author}</span>
 												</span>
+											)}
+											<span className="inline-flex items-center gap-1.5">
+												<Bot className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+												<span className="sr-only">Agent:</span>
+												<span>{article.sourceLabel}</span>
 											</span>
 										</div>
 									</header>
