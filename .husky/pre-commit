@@ -90,3 +90,6 @@ bun run lint
 
 echo "━━━ L1 unit + coverage (≥95% lines/funcs/branches) ━━━"
 bun run test:coverage
+
+echo "━━━ release gate unit tests ━━━"
+bun run test:release

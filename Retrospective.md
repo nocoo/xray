@@ -471,3 +471,33 @@ The first per-channel chart left its wrapping legend inside ChartFrame's fixed
 height. At 320px the legend consumed most of the plot. Give the plot its own
 responsive height and allow the frame to grow with the legend; check the real
 SVG bounds with the rich catalog at the narrowest viewport.
+
+## 2026-11-21 - Tag releases must wait for CI on the pushed commit
+
+Releases `v2.8.7`, `v2.8.8` and `v2.8.9` produced failed `Release` runs on
+`push.tags` (run `44679918238`), each with
+`Release source error: No successful .github/workflows/ci.yml run on main for <sha>`.
+
+**Root cause:** `scripts/release.ts` pushed the release commit to `main` and
+immediately created and pushed the tag `vX.Y.Z` without waiting for the `CI`
+workflow. The `Release` workflow's `push.tags` trigger then ran while `CI` had
+been executing for only seconds, and `base-ci`'s `release-source` check
+fail-closed: it resolves the tag's commit SHA and requires a _successful,
+completed_ `ci.yml` run on `main` for exactly that SHA.
+
+**Why `workflow_run` succeeded while `push.tags` failed:** `release.yml` also
+triggers on `workflow_run` of `CI` with `branches: [main]`. That path carries
+the completed CI run as its source, so it satisfies `release-source`; the
+`push.tags` path has no such run yet and fails closed. `v2.8.9` was in fact
+deployed successfully by the `workflow_run` path (run `44680696317`) — the
+failed tag run left a red `X` on the tag, not a broken deployment.
+
+**Follow-up:** the release script now gates tagging on proof. It requires an
+authenticated `gh`, resolves the pushed commit SHA, and waits for a successful
+`CI` run on `main` for that exact SHA (5 min registration budget, 25 min watch
+budget, 10 s poll, 30 s per-call timeout) before creating and pushing the tag
+and creating the GitHub release. Any failed, cancelled, mismatched or timed-out
+run aborts the release without creating a tag, so an unproven commit can never
+be tagged. `scripts/release.test.ts` covers the gate: registration polling,
+in-progress polling, identity mismatch (commit/branch/event/workflow),
+verification errors, non-green conclusions and both deadlines.
