@@ -12,8 +12,11 @@ import {
 	CI_WORKFLOW_NAME,
 	type CiRunMetadata,
 	type CiWaitDeps,
+	classifyStaleVersionScan,
 	parseCiRun,
 	parseCiRuns,
+	run,
+	SPAWN_FAILURE_EXIT_CODE,
 	waitForCiSuccess,
 } from "./release.ts";
 
@@ -115,6 +118,62 @@ describe("assertCiRunIdentity", () => {
 	});
 });
 
+describe("run", () => {
+	test("reports a missing binary as a spawn failure with a message", async () => {
+		const result = await run("xray-no-such-binary-4d1f", ["--version"]);
+
+		expect(result.code).toBe(SPAWN_FAILURE_EXIT_CODE);
+		expect(result.code).not.toBe(0);
+		expect(result.stderr).toContain("xray-no-such-binary-4d1f");
+	});
+
+	test("reports a non-zero exit code from a real command", async () => {
+		const result = await run("git", ["rev-parse", "--verify", "refs/heads/xray-no-such-ref"]);
+
+		expect(result.code).not.toBe(0);
+		expect(result.code).not.toBe(SPAWN_FAILURE_EXIT_CODE);
+	});
+
+	test("captures stdout of a successful command", async () => {
+		const result = await run("git", ["--version"]);
+
+		expect(result.code).toBe(0);
+		expect(result.stdout).toContain("git version");
+	});
+});
+
+describe("classifyStaleVersionScan", () => {
+	function scan(code: number, stdout = "", stderr = "") {
+		return classifyStaleVersionScan({ code, stdout, stderr });
+	}
+
+	test("reports matches as stale", () => {
+		const result = scan(0, 'packages/shared/src/version.ts:const V = "1.0.0";\n');
+
+		expect(result.outcome).toBe("stale");
+		expect(result.outcome === "stale" && result.matches).toContain("version.ts");
+	});
+
+	test("treats a match-free exit as clean", () => {
+		expect(scan(1).outcome).toBe("clean");
+		expect(scan(0, "   \n").outcome).toBe("clean");
+	});
+
+	test("fails closed when the scanner could not be started", () => {
+		const result = scan(SPAWN_FAILURE_EXIT_CODE, "", "rg: command not found");
+
+		expect(result.outcome).toBe("failed");
+		expect(result.outcome === "failed" && result.reason).toContain("rg");
+	});
+
+	test("fails closed when the scanner errored", () => {
+		const result = scan(2, "", "rg: regex parse error");
+
+		expect(result.outcome).toBe("failed");
+		expect(result.outcome === "failed" && result.reason).toContain("2");
+	});
+});
+
 describe("waitForCiSuccess", () => {
 	const SHA = "aaf10fd0c0ffee";
 
@@ -136,6 +195,8 @@ describe("waitForCiSuccess", () => {
 		list: string[];
 		/** Advances the clock before each `gh run list` returns, like a stalled command. */
 		listDelayMs?: number;
+		/** Advances the clock before each `gh run view` returns, like a stalled command. */
+		viewDelayMs?: number;
 		/** Successive `gh run view` payloads; the last one repeats. */
 		views?: (CiRunMetadata | string)[];
 		view?: CiRunMetadata | string;
@@ -164,6 +225,7 @@ describe("waitForCiSuccess", () => {
 								? steps.views.shift()
 								: (steps.views?.[0] ?? steps.view);
 						const stdout = typeof next === "string" ? next : next ? JSON.stringify(next) : "";
+						state.now += steps.viewDelayMs ?? 0;
 						return { code: steps.viewCode ?? 0, stdout, stderr: "" };
 					}
 					default:
@@ -295,5 +357,58 @@ describe("waitForCiSuccess", () => {
 		await expect(waitForCiSuccess(SHA, deps, { watchMs: 30_000, pollMs: 10_000 })).rejects.toThrow(
 			/did not complete within 30000ms/,
 		);
+	});
+
+	test("clamps the view timeout to the remaining watch budget", async () => {
+		const { deps, timeouts } = fakeDeps({
+			list: [JSON.stringify([ciRun()])],
+			views: [ciRun(), ciRun({ status: "completed", conclusion: "success" })],
+		});
+
+		await waitForCiSuccess(SHA, deps, { watchMs: 25_000, pollMs: 10_000 });
+
+		const viewTimeouts = timeouts.slice(1);
+		expect(viewTimeouts[0]).toBe(25_000);
+		expect(viewTimeouts[1]).toBe(15_000);
+		for (const timeout of viewTimeouts) {
+			expect(timeout).toBeLessThanOrEqual(CI_VIEW_TIMEOUT_MS);
+		}
+	});
+
+	test("rejects a verdict that arrives after the watch deadline expired", async () => {
+		const { deps } = fakeDeps({
+			list: [JSON.stringify([ciRun()])],
+			view: ciRun({ status: "completed", conclusion: "success" }),
+			viewDelayMs: 40_000,
+		});
+
+		await expect(waitForCiSuccess(SHA, deps, { watchMs: 30_000, pollMs: 10_000 })).rejects.toThrow(
+			/did not complete within 30000ms/,
+		);
+	});
+
+	test("reports a deadline miss instead of a verification error when the poll times out", async () => {
+		const { deps } = fakeDeps({
+			list: [JSON.stringify([ciRun()])],
+			view: ciRun({ status: "in_progress" }),
+			viewDelayMs: 40_000,
+			viewCode: 1,
+		});
+
+		await expect(waitForCiSuccess(SHA, deps, { watchMs: 30_000, pollMs: 10_000 })).rejects.toThrow(
+			/did not complete within 30000ms/,
+		);
+	});
+
+	test("reports a registration deadline miss instead of a list error when the poll times out", async () => {
+		const { deps } = fakeDeps({
+			list: ["[]"],
+			listCode: 1,
+			listDelayMs: 40_000,
+		});
+
+		await expect(
+			waitForCiSuccess(SHA, deps, { registrationMs: 30_000, pollMs: 10_000 }),
+		).rejects.toThrow(/no CI run registered for commit .* within 30000ms/);
 	});
 });

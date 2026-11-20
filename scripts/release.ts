@@ -76,7 +76,10 @@ export interface RunResult {
 	stderr: string;
 }
 
-function run(
+/** Conventional shell code for "command not found"; keeps spawn failures distinct from tool exit codes. */
+export const SPAWN_FAILURE_EXIT_CODE = 127;
+
+export function run(
 	cmd: string,
 	args: string[],
 	opts?: { cwd?: string; inherit?: boolean; timeoutMs?: number },
@@ -98,7 +101,11 @@ function run(
 			});
 		}
 		child.on("error", (err: Error) => {
-			resolve({ code: 1, stdout, stderr: `${stderr}${err.message}` });
+			resolve({
+				code: SPAWN_FAILURE_EXIT_CODE,
+				stdout,
+				stderr: `${stderr}${cmd}: ${err.message}`,
+			});
 		});
 		child.on("close", (code) => {
 			resolve({ code: code ?? 1, stdout, stderr });
@@ -287,6 +294,33 @@ function updateChangelog(newSection: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// Stale version scan
+// ---------------------------------------------------------------------------
+
+export type StaleVersionScan =
+	| { outcome: "clean" }
+	| { outcome: "stale"; matches: string }
+	| { outcome: "failed"; reason: string };
+
+/**
+ * Classify a `rg` scan result. `rg` exits 0 with matches, 1 without matches and
+ * 2+ on a real error; a missing binary is a spawn failure. Anything other than
+ * "no matches" must fail closed — an unusable scanner must never be reported as
+ * a clean source tree.
+ */
+export function classifyStaleVersionScan(result: RunResult): StaleVersionScan {
+	if (result.code === 0) {
+		const matches = result.stdout.trim();
+		return matches ? { outcome: "stale", matches } : { outcome: "clean" };
+	}
+	if (result.code === 1) return { outcome: "clean" };
+	if (result.code === SPAWN_FAILURE_EXIT_CODE) {
+		return { outcome: "failed", reason: "`rg` could not be started" };
+	}
+	return { outcome: "failed", reason: `\`rg\` exited with code ${result.code}` };
+}
+
+// ---------------------------------------------------------------------------
 // CI gate before tagging
 // ---------------------------------------------------------------------------
 
@@ -389,6 +423,10 @@ export async function waitForCiSuccess(
 			remainingMs,
 		);
 		if (listed.code !== 0) {
+			// A list call that ran out of the registration budget is a deadline miss.
+			if (deps.now() >= deadline) {
+				throw new Error(`no CI run registered for commit ${sha} within ${registrationMs}ms`);
+			}
 			throw new Error(`\`gh run list\` failed (exit ${listed.code})`);
 		}
 		if (deps.now() >= deadline) {
@@ -407,13 +445,28 @@ export async function waitForCiSuccess(
 	const watchDeadline = deps.now() + watchMs;
 	let final: CiRunMetadata;
 	while (true) {
-		const viewed = await deps.run(["run", "view", id, "--json", CI_RUN_FIELDS], CI_VIEW_TIMEOUT_MS);
+		if (deps.now() >= watchDeadline) {
+			throw new Error(`CI run ${id} did not complete within ${watchMs}ms`);
+		}
+		// Never let one poll outlive the watch deadline.
+		const viewTimeoutMs = Math.min(CI_VIEW_TIMEOUT_MS, Math.max(1, watchDeadline - deps.now()));
+		const viewed = await deps.run(["run", "view", id, "--json", CI_RUN_FIELDS], viewTimeoutMs);
 		if (viewed.code !== 0) {
+			// A view call that ran out of the clamped budget is a deadline miss.
+			if (deps.now() >= watchDeadline) {
+				throw new Error(`CI run ${id} did not complete within ${watchMs}ms`);
+			}
 			throw new Error(`could not verify CI run ${id} (exit ${viewed.code})`);
 		}
 		final = parseCiRun(viewed.stdout, "gh run view");
 		assertCiRunIdentity(final, sha);
-		if (final.status === "completed") break;
+		if (final.status === "completed") {
+			// A verdict obtained after the budget expired is not trustworthy.
+			if (deps.now() >= watchDeadline) {
+				throw new Error(`CI run ${id} did not complete within ${watchMs}ms`);
+			}
+			break;
+		}
 		if (deps.now() >= watchDeadline) {
 			throw new Error(`CI run ${id} did not complete within ${watchMs}ms`);
 		}
@@ -430,6 +483,50 @@ export async function waitForCiSuccess(
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
+
+/**
+ * Resolve the remote a plain `git push` would use, following git's own
+ * precedence: `branch.<name>.pushRemote`, `remote.pushDefault`,
+ * `branch.<name>.remote`, then `origin`. The tag must reach the same remote
+ * that received the branch push.
+ */
+async function resolvePushRemote(branch: string): Promise<string> {
+	const candidates = [
+		["branch", `${branch}.pushRemote`],
+		["remote", "pushDefault"],
+		["branch", `${branch}.remote`],
+	];
+	for (const [scope, key] of candidates) {
+		const result = await run("git", ["config", "--get", `${scope}.${key}`]);
+		const value = result.code === 0 ? result.stdout.trim() : "";
+		if (value) return value;
+	}
+	return "origin";
+}
+
+/**
+ * Recovery guidance for a release that stopped after the commit was created.
+ * Tagging is only safe once CI proved the exact commit on main, so the advice
+ * never suggests pushing a tag directly.
+ */
+function printTagRecovery(
+	version: string,
+	sha: string,
+	remote: string,
+	branch: string,
+	pushBranch: boolean,
+): void {
+	console.error(`   Recovery — do NOT tag before CI is green on ${CI_BRANCH} for ${sha}:`);
+	if (pushBranch) {
+		console.error(`     git push ${remote} ${branch}`);
+		console.error(`     # wait for the CI workflow to pass on ${CI_BRANCH} for ${sha}`);
+	} else {
+		console.error(`     # wait for the CI workflow to pass on ${CI_BRANCH} for ${sha}`);
+	}
+	console.error(`     git tag -a v${version} ${sha} -m "v${version}"`);
+	console.error(`     git push ${remote} refs/tags/v${version}`);
+	console.error(`     gh release create v${version} --title "v${version}" --notes "..."`);
+}
 
 async function main(): Promise<void> {
 	const { packageManager } = JSON.parse(readFileSync(PACKAGE_JSON, "utf-8")) as {
@@ -464,7 +561,11 @@ async function main(): Promise<void> {
 
 	const ghResult = await run("gh", ["auth", "status"]);
 	if (ghResult.code !== 0) {
-		console.error("❌ gh CLI is not authenticated — cannot verify CI or create the release.");
+		if (ghResult.code === SPAWN_FAILURE_EXIT_CODE) {
+			console.error("❌ gh CLI is not installed — cannot verify CI or create the release.");
+		} else {
+			console.error("❌ gh CLI is not authenticated — cannot verify CI or create the release.");
+		}
 		console.error("   Run `gh auth login`, then retry. No tag was created.");
 		process.exit(1);
 	}
@@ -539,9 +640,17 @@ async function main(): Promise<void> {
 		"--glob",
 		"!**/*.test.ts",
 	]);
-	if (rgResult.code === 0 && rgResult.stdout.trim()) {
+	const scan = classifyStaleVersionScan(rgResult);
+	if (scan.outcome === "failed") {
+		console.error(`❌ Stale version scan failed: ${scan.reason}.`);
+		if (rgResult.stderr.trim()) console.error(rgResult.stderr.trim());
+		if (!isDryRun) {
+			console.error("   Aborting.");
+			process.exit(1);
+		}
+	} else if (scan.outcome === "stale") {
 		console.error(`❌ Found stale version "${currentVersion}" in source files:`);
-		console.error(rgResult.stdout.trim());
+		console.error(scan.matches);
 		if (!isDryRun) {
 			console.error("   Aborting.");
 			process.exit(1);
@@ -566,19 +675,19 @@ async function main(): Promise<void> {
 	}
 	console.info(`✅ Committed release: v${newVersion}`);
 
+	// Resolve the exact commit before pushing so the tag can never drift from
+	// the SHA that CI is asked to prove.
+	const headSha = await runOrDie("git", ["rev-parse", "HEAD"], "Failed to resolve release commit");
+	const pushRemote = await resolvePushRemote(branch);
+
 	const pushResult = await run("git", ["push"], { inherit: true });
 	if (pushResult.code !== 0) {
 		console.error("❌ git push failed");
-		console.error("   Recovery commands:");
-		console.error("     git push");
-		console.error(`     git tag -a v${newVersion} -m "v${newVersion}"`);
-		console.error("     git push --tags");
-		console.error(`     gh release create v${newVersion} --title "v${newVersion}" --notes "..."`);
+		printTagRecovery(newVersion, headSha, pushRemote, branch, true);
 		process.exit(1);
 	}
 
 	// CI gate: only tag source that CI proved on the exact pushed commit.
-	const headSha = await runOrDie("git", ["rev-parse", "HEAD"], "Failed to resolve pushed commit");
 	console.info(`⏳ Waiting for CI (${CI_WORKFLOW}) on ${headSha} ...`);
 	try {
 		await waitForCiSuccess(headSha, {
@@ -589,12 +698,20 @@ async function main(): Promise<void> {
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		console.error(`❌ CI gate failed for ${headSha}: ${message}`);
-		console.error(`   Tag v${newVersion} was NOT created. Fix CI, then rerun the release.`);
+		console.error(`   Tag v${newVersion} was NOT created.`);
+		printTagRecovery(newVersion, headSha, pushRemote, branch, false);
 		process.exit(1);
 	}
 	console.info("✅ CI passed for the pushed commit.");
 
-	const tagResult = await run("git", ["tag", "-a", `v${newVersion}`, "-m", `v${newVersion}`]);
+	const tagResult = await run("git", [
+		"tag",
+		"-a",
+		`v${newVersion}`,
+		headSha,
+		"-m",
+		`v${newVersion}`,
+	]);
 	if (tagResult.code !== 0) {
 		console.error(`❌ Failed to create tag v${newVersion}`);
 		if (tagResult.stderr.includes("already exists")) {
@@ -602,9 +719,12 @@ async function main(): Promise<void> {
 		}
 		process.exit(1);
 	}
-	const pushTagResult = await run("git", ["push", "--tags"], { inherit: true });
+	const pushTagResult = await run("git", ["push", pushRemote, `refs/tags/v${newVersion}`], {
+		inherit: true,
+	});
 	if (pushTagResult.code !== 0) {
-		console.error("❌ git push --tags failed");
+		console.error(`❌ git push ${pushRemote} refs/tags/v${newVersion} failed`);
+		printTagRecovery(newVersion, headSha, pushRemote, branch, false);
 		process.exit(1);
 	}
 
