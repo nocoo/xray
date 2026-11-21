@@ -95,16 +95,22 @@ interface BaseCiMention {
 	ref: string;
 }
 
-/** Every `nocoo/base-ci` mention, including ones that are not valid pinned references. */
+/** Every `nocoo/base-ci` mention on active (non-comment) lines. */
 function baseCiMentions(): BaseCiMention[] {
 	return workflowFiles().flatMap((file) =>
-		(workflow(file).match(/nocoo\/base-ci[^\s#]*/g) ?? []).map((raw) => ({
-			file,
-			ref: raw
-				.trim()
-				.replace(/^["']+/, "")
-				.replace(/["']+$/, ""),
-		})),
+		workflow(file)
+			.split("\n")
+			.filter((line) => !line.trimStart().startsWith("#"))
+			.flatMap((line) => {
+				const stripped = line.replace(/#.*$/, "");
+				return (stripped.match(/nocoo\/base-ci[^\s'"]*/g) ?? []).map((raw) => ({
+					file,
+					ref: raw
+						.trim()
+						.replace(/^["']+/, "")
+						.replace(/["']+$/, ""),
+				}));
+			}),
 	);
 }
 
@@ -165,7 +171,9 @@ describe("release workflow contract", () => {
 		expect(gate?.name).toBe("Z1: Gate");
 		const checkName = `${caller?.name ?? caller?.key} / ${gate?.name}`;
 		expect(checkName).toBe("quality / Z1: Gate");
-		expect(workflow("release.yml")).toContain(`required-quality-check: "${checkName}"`);
+		const match = workflow("release.yml").match(/required-quality-check:\s*["']?([^"'\n#]+)/);
+		const configuredCheck = match ? match[1].trim() : "";
+		expect(configuredCheck).toBe(checkName);
 	});
 
 	test("pins every base-ci action in the quality slots to the same revision", () => {
