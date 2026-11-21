@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readdirSync, readFileSync } from "node:fs";
+import { resolve as pathResolve } from "node:path";
 
 import {
 	assertCiRunIdentity,
@@ -36,6 +38,151 @@ describe("release CI gate constants", () => {
 		expect(CI_WATCH_TIMEOUT_MS).toBe(25 * 60_000);
 		expect(CI_POLL_MS).toBe(10_000);
 		expect(CI_VIEW_TIMEOUT_MS).toBe(30_000);
+	});
+});
+
+const WORKFLOW_DIR = pathResolve(import.meta.dirname as string, "..", ".github/workflows");
+/** Audited `nocoo/base-ci` revision; bumping it requires re-auditing the release contract. */
+const BASE_CI_SHA = "6424d395d36a815d931f10e557762eb635d511c0";
+const BASE_CI_VERSION = "v2026.16";
+/** 1 deploy workflow reference plus 7 quality-slot action references. */
+const BASE_CI_REFERENCE_COUNT = 8;
+
+function workflow(name: string): string {
+	return readFileSync(pathResolve(WORKFLOW_DIR, name), "utf8");
+}
+
+function workflowFiles(): string[] {
+	return readdirSync(WORKFLOW_DIR).filter((name) => /\.ya?ml$/.test(name));
+}
+
+interface WorkflowJob {
+	key: string;
+	name?: string;
+	uses?: string;
+}
+
+/** Top-level jobs of a workflow, with their `name:` and `uses:` values. */
+function workflowJobs(source: string): WorkflowJob[] {
+	const lines = source.split("\n");
+	const jobsStart = lines.indexOf("jobs:");
+	if (jobsStart === -1) return [];
+	const jobs: WorkflowJob[] = [];
+	let current: WorkflowJob | undefined;
+	for (const line of lines.slice(jobsStart + 1)) {
+		if (line.trim() === "") continue;
+		const indent = line.length - line.trimStart().length;
+		if (indent < 2) break;
+		if (indent === 2) {
+			current = { key: line.trim().replace(/:$/, "") };
+			jobs.push(current);
+			continue;
+		}
+		const property = line.trim().match(/^(name|uses):\s*(.+)$/);
+		if (!current || indent !== 4 || !property) continue;
+		const value = property[2]
+			.trim()
+			.replace(/^["']+/, "")
+			.replace(/["']+$/, "");
+		if (property[1] === "name") current.name = value;
+		else current.uses = value;
+	}
+	return jobs;
+}
+
+interface BaseCiMention {
+	file: string;
+	ref: string;
+}
+
+/** Every `nocoo/base-ci` mention on active (non-comment) lines. */
+function baseCiMentions(): BaseCiMention[] {
+	return workflowFiles().flatMap((file) =>
+		workflow(file)
+			.split("\n")
+			.filter((line) => !line.trimStart().startsWith("#"))
+			.flatMap((line) => {
+				const stripped = line.replace(/#.*$/, "");
+				return (stripped.match(/nocoo\/base-ci[^\s'"]*/g) ?? []).map((raw) => ({
+					file,
+					ref: raw
+						.trim()
+						.replace(/^["']+/, "")
+						.replace(/["']+$/, ""),
+				}));
+			}),
+	);
+}
+
+describe("release workflow contract", () => {
+	test("pins the deploy workflow to the audited base-ci revision", () => {
+		const release = workflow("release.yml");
+
+		expect(release).toContain(`nocoo/base-ci/.github/workflows/deploy-worker.yml@${BASE_CI_SHA}`);
+	});
+
+	test("pins every base-ci reference in the workflows to the audited revision", () => {
+		const mentions = baseCiMentions();
+
+		expect(mentions.length).toBe(BASE_CI_REFERENCE_COUNT);
+		expect(mentions.filter(({ file }) => file === "release.yml").length).toBe(1);
+		expect(mentions.filter(({ file }) => file === "quality-slots.yml").length).toBe(7);
+		expect(
+			mentions.filter(({ file }) => file !== "release.yml" && file !== "quality-slots.yml"),
+		).toEqual([]);
+		expect(
+			mentions.filter(({ ref }) => !/^nocoo\/base-ci\/[^@\s]+@[0-9a-f]{40}$/.test(ref)),
+		).toEqual([]);
+		expect(
+			mentions.filter(({ ref }) => /[0-9a-f]{40}$/.test(ref) && !ref.endsWith(`@${BASE_CI_SHA}`)),
+		).toEqual([]);
+	});
+
+	test("labels every base-ci pin with the audited version", () => {
+		const offenders: string[] = [];
+		for (const file of workflowFiles()) {
+			for (const line of workflow(file).split("\n")) {
+				if (!line.includes("nocoo/base-ci")) continue;
+				const markers = (line.match(/#\s*v[0-9]+(?:\.[0-9]+)*/g) ?? []).map((m) => m.trim());
+				if (markers.length !== 1 || markers[0] !== `# ${BASE_CI_VERSION}`) {
+					offenders.push(`${file}: ${line.trim()}`);
+				}
+			}
+		}
+
+		expect(offenders).toEqual([]);
+	});
+
+	test("passes the CI workflow identity the release script waits for", () => {
+		const release = workflow("release.yml");
+
+		expect(release).toContain(`expected-workflow-path: "${CI_WORKFLOW}"`);
+		expect(release).toContain(`expected-workflow-name: "${CI_WORKFLOW_NAME}"`);
+	});
+
+	test("requires the quality gate check that CI produces", () => {
+		const caller = workflowJobs(workflow("ci.yml")).find((job) => job.key === "quality");
+		const gate = workflowJobs(workflow("quality-slots.yml")).find((job) => job.key === "gate");
+
+		expect(caller).toBeDefined();
+		expect(gate).toBeDefined();
+		// The caller job must not rename itself: the check prefix is its display name.
+		expect(caller?.name ?? "quality").toBe("quality");
+		expect(gate?.name).toBe("Z1: Gate");
+		const checkName = `${caller?.name ?? caller?.key} / ${gate?.name}`;
+		expect(checkName).toBe("quality / Z1: Gate");
+		const match = workflow("release.yml").match(/required-quality-check:\s*["']?([^"'\n#]+)/);
+		const configuredCheck = match ? match[1].trim() : "";
+		expect(configuredCheck).toBe(checkName);
+	});
+
+	test("pins every base-ci action in the quality slots to the same revision", () => {
+		const pins = [
+			...workflow("quality-slots.yml").matchAll(/nocoo\/base-ci\/[^@\s]+@([0-9a-f]{40})/g),
+		].map((match) => match[1]);
+
+		expect(pins.length).toBeGreaterThan(0);
+		expect(new Set(pins)).toEqual(new Set([BASE_CI_SHA]));
 	});
 });
 
