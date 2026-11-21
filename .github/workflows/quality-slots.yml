@@ -5,7 +5,7 @@ on:
     outputs:
       tested-sha:
         description: Commit SHA verified by quality gate
-        value: ${{ jobs.z1-gate.outputs.tested-sha }}
+        value: ${{ jobs.gate.outputs.tested-sha }}
 
 env:
   BUN_VERSION: "1.3.14"
@@ -146,7 +146,7 @@ jobs:
     steps:
       - run: echo "N/A - Cloudflare Worker project, not published to npm"
 
-  z1-gate:
+  gate:
     name: "Z1: Gate"
     runs-on: ubuntu-latest
     if: always()

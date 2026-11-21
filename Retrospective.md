@@ -539,10 +539,17 @@ Cloudflare Worker through `deploy-worker.yml` and never touches the SSH path,
 so the failure is irrelevant here.
 
 **Follow-up:** `scripts/release.test.ts` audits the contract instead of leaving
-it in prose: every `nocoo/base-ci` reference in `.github/workflows` must be a
+it in prose. Every `nocoo/base-ci` reference in `.github/workflows` must be a
 full-SHA pin to the audited revision, must carry the matching version marker,
-and no stale or unpinned base-ci reference may remain; the deploy workflow pin,
-the expected workflow path and name (matched against the constants the release
-script waits for), and the quality gate check name derived from `ci.yml` plus
-`quality-slots.yml` are checked too. Bumping base-ci now fails the release
-test until the contract is re-audited.
+and no stale or unpinned reference may remain; the reference count is pinned to
+exactly 8 (1 deploy workflow plus 7 quality-slot actions) so a dropped or
+half-migrated action cannot slip through. The deploy workflow pin and the
+expected workflow path and name (matched against the constants the release
+script waits for) are checked, and the required quality check is derived from
+the workflows instead of hardcoded: the caller job `quality` in `ci.yml` must
+not rename itself, and the `gate` job in `quality-slots.yml` must be named
+`Z1: Gate`, so the displayed check is `quality / Z1: Gate` and must equal the
+`required-quality-check` the deploy workflow receives. The gate job key was
+renamed from `z1-gate` to `gate` to match that contract; the displayed check
+name is unchanged. Bumping base-ci now fails the release test until the
+contract is re-audited.
