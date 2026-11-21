@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { resolve as pathResolve } from "node:path";
 
 import {
 	assertCiRunIdentity,
@@ -36,6 +38,47 @@ describe("release CI gate constants", () => {
 		expect(CI_WATCH_TIMEOUT_MS).toBe(25 * 60_000);
 		expect(CI_POLL_MS).toBe(10_000);
 		expect(CI_VIEW_TIMEOUT_MS).toBe(30_000);
+	});
+});
+
+const WORKFLOW_DIR = pathResolve(import.meta.dirname as string, "..", ".github/workflows");
+/** Audited `nocoo/base-ci` revision; bumping it requires re-auditing the release contract. */
+const BASE_CI_SHA = "6424d395d36a815d931f10e557762eb635d511c0";
+
+function workflow(name: string): string {
+	return readFileSync(pathResolve(WORKFLOW_DIR, name), "utf8");
+}
+
+describe("release workflow contract", () => {
+	test("pins the deploy workflow to the audited base-ci revision", () => {
+		const release = workflow("release.yml");
+
+		expect(release).toContain(`nocoo/base-ci/.github/workflows/deploy-worker.yml@${BASE_CI_SHA}`);
+		expect(release).not.toContain("v2026.15");
+	});
+
+	test("passes the CI workflow identity the release script waits for", () => {
+		const release = workflow("release.yml");
+
+		expect(release).toContain(`expected-workflow-path: "${CI_WORKFLOW}"`);
+		expect(release).toContain(`expected-workflow-name: "${CI_WORKFLOW_NAME}"`);
+	});
+
+	test("requires the quality gate check that CI produces", () => {
+		const release = workflow("release.yml");
+
+		expect(release).toContain('required-quality-check: "quality / Z1: Gate"');
+		expect(workflow("ci.yml")).toContain("quality:");
+		expect(workflow("quality-slots.yml")).toContain('name: "Z1: Gate"');
+	});
+
+	test("pins every base-ci action in the quality slots to the same revision", () => {
+		const pins = [
+			...workflow("quality-slots.yml").matchAll(/nocoo\/base-ci\/[^@\s]+@([0-9a-f]{40})/g),
+		].map((match) => match[1]);
+
+		expect(pins.length).toBeGreaterThan(0);
+		expect(new Set(pins)).toEqual(new Set([BASE_CI_SHA]));
 	});
 });
 

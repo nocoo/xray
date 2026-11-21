@@ -501,3 +501,32 @@ run aborts the release without creating a tag, so an unproven commit can never
 be tagged. `scripts/release.test.ts` covers the gate: registration polling,
 in-progress polling, identity mismatch (commit/branch/event/workflow),
 verification errors, non-green conclusions and both deadlines.
+
+## 2026-11-22 - Upgrade base-ci to v2026.16 for release source resolution
+
+The client-side fix from PR #678 (wait for CI before tagging) removed the
+race on the tag, but the `push: tags` release runs still failed with
+`Release source error: No successful .github/workflows/ci.yml run on main for <sha>`.
+
+**Root cause:** `nocoo/base-ci` `v2026.15` resolves the release source by
+calling `/actions/workflows/ci.yml/runs?head_sha=<sha>&status=completed&per_page=100`.
+GitHub's Actions API frequently answers that combination with `total_count: 0`
+even when a completed run exists, so `release-source` failed closed on a
+workflow that had in fact run.
+
+**Fix:** `nocoo/base-ci` `v2026.16` (`6424d395d36a815d931f10e557762eb635d511c0`)
+drops `&status=completed` from the query and keeps the in-process
+`assertTrustedRun` verification, so a completed run is found and still checked
+for identity and conclusion. Every `nocoo/base-ci` pin in
+`.github/workflows/quality-slots.yml` and `.github/workflows/release.yml` now
+points at that revision. The reusable `deploy-worker.yml` input contract is
+unchanged between the two revisions, so `release.yml` keeps
+`expected-workflow-path: ".github/workflows/ci.yml"`,
+`expected-workflow-name: "CI"` and `required-quality-check: "quality / Z1: Gate"`.
+
+**Follow-up:** `scripts/release.test.ts` now audits the contract instead of
+leaving it in prose: the deploy workflow pin, the expected workflow path and
+name (matched against the constants the release script waits for), the quality
+gate check name derived from `ci.yml` plus `quality-slots.yml`, and the
+uniform base-ci revision across the quality slots. Bumping base-ci now fails
+the release test until the contract is re-audited.

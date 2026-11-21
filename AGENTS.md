@@ -42,7 +42,7 @@ Route inventory alone: `bun run gate:routes`. `test:l3` runs `scripts/test-l3.ts
 - **Mobile**: Responsive doc scroll, edge-to-edge island, sticky `AppHeader`, 44px targets, shell `viewport-fit=cover` safe areas—no JS viewport hacks ([14](docs/14-immersive-mobile-reading.md)).
 - **Packages**: `@xray/shared` pure; `@xray/ui` ViewModels avoid View/DOM; `@xray/worker` has no React. Root `package.json`/`bun.lock` use bare SemVer (`v` display prefix).
 - **Producers**: Run `refresh:watchlists` via [refresh skill](skills/xray-refresh-watchlists/SKILL.md) with `~/.config/xray/push.env` (600; [09](docs/09-local-producer-twitter-cli.md)); keep checkpoints.
-- **Release**: Authorized only via `bun run release` from `main` (patch default, `-- minor`/`-- major`); requires an authenticated `gh` and waits for a successful CI run on `main` for the exact pushed commit before creating/pushing the tag; deploy/migrations in `.github/workflows/release.yml` and [07](docs/07-implementation-plan.md).
+- **Release**: Authorized only via `bun run release` from `main` (patch default, `-- minor`/`-- major`); requires an authenticated `gh` and waits for a successful CI run on `main` for the exact pushed commit before creating/pushing the tag; deploy/migrations in `.github/workflows/release.yml` and [07](docs/07-implementation-plan.md); the `base-ci` pins and the release-source contract are audited by `scripts/release.test.ts`.
 
 ## Quality & Local Gates
 
