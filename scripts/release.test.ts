@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve as pathResolve } from "node:path";
 
 import {
@@ -44,9 +44,26 @@ describe("release CI gate constants", () => {
 const WORKFLOW_DIR = pathResolve(import.meta.dirname as string, "..", ".github/workflows");
 /** Audited `nocoo/base-ci` revision; bumping it requires re-auditing the release contract. */
 const BASE_CI_SHA = "6424d395d36a815d931f10e557762eb635d511c0";
+const BASE_CI_VERSION = "v2026.16";
 
 function workflow(name: string): string {
 	return readFileSync(pathResolve(WORKFLOW_DIR, name), "utf8");
+}
+
+function workflowFiles(): string[] {
+	return readdirSync(WORKFLOW_DIR).filter((name) => /\.ya?ml$/.test(name));
+}
+
+interface BaseCiMention {
+	file: string;
+	ref: string;
+}
+
+/** Every `nocoo/base-ci` mention, including ones that are not valid pinned references. */
+function baseCiMentions(): BaseCiMention[] {
+	return workflowFiles().flatMap((file) =>
+		(workflow(file).match(/nocoo\/base-ci[^\s#]*/g) ?? []).map((ref) => ({ file, ref })),
+	);
 }
 
 describe("release workflow contract", () => {
@@ -54,7 +71,33 @@ describe("release workflow contract", () => {
 		const release = workflow("release.yml");
 
 		expect(release).toContain(`nocoo/base-ci/.github/workflows/deploy-worker.yml@${BASE_CI_SHA}`);
-		expect(release).not.toContain("v2026.15");
+	});
+
+	test("pins every base-ci reference in the workflows to the audited revision", () => {
+		const mentions = baseCiMentions();
+
+		expect(mentions.length).toBeGreaterThan(0);
+		expect(
+			mentions.filter(({ ref }) => !/^nocoo\/base-ci\/[^@\s]+@[0-9a-f]{40}$/.test(ref)),
+		).toEqual([]);
+		expect(
+			mentions.filter(({ ref }) => /[0-9a-f]{40}$/.test(ref) && !ref.endsWith(`@${BASE_CI_SHA}`)),
+		).toEqual([]);
+	});
+
+	test("labels every base-ci pin with the audited version", () => {
+		const offenders: string[] = [];
+		for (const file of workflowFiles()) {
+			for (const line of workflow(file).split("\n")) {
+				if (!line.includes("nocoo/base-ci")) continue;
+				const markers = (line.match(/#\s*v[0-9]+(?:\.[0-9]+)*/g) ?? []).map((m) => m.trim());
+				if (markers.length !== 1 || markers[0] !== `# ${BASE_CI_VERSION}`) {
+					offenders.push(`${file}: ${line.trim()}`);
+				}
+			}
+		}
+
+		expect(offenders).toEqual([]);
 	});
 
 	test("passes the CI workflow identity the release script waits for", () => {

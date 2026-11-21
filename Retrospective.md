@@ -504,29 +504,45 @@ verification errors, non-green conclusions and both deadlines.
 
 ## 2026-11-22 - Upgrade base-ci to v2026.16 for release source resolution
 
-The client-side fix from PR #678 (wait for CI before tagging) removed the
-race on the tag, but the `push: tags` release runs still failed with
+Releases `v2.8.7`, `v2.8.8` and `v2.8.9` failed on `push: tags` (run
+`44679918238`) with
 `Release source error: No successful .github/workflows/ci.yml run on main for <sha>`.
 
-**Root cause:** `nocoo/base-ci` `v2026.15` resolves the release source by
-calling `/actions/workflows/ci.yml/runs?head_sha=<sha>&status=completed&per_page=100`.
-GitHub's Actions API frequently answers that combination with `total_count: 0`
-even when a completed run exists, so `release-source` failed closed on a
-workflow that had in fact run.
+**Primary cause — client-side tag race (fixed in PR #678):** `scripts/release.ts`
+pushed the release commit and immediately created and pushed the tag, so the
+`Release` workflow ran while `CI` had been executing for seconds and
+`release-source` fail-closed. The release script now waits for a successful
+`CI` run on `main` for the exact pushed commit before creating and pushing the
+tag. That fix is what made the `push: tags` path reliable.
 
-**Fix:** `nocoo/base-ci` `v2026.16` (`6424d395d36a815d931f10e557762eb635d511c0`)
-drops `&status=completed` from the query and keeps the in-process
-`assertTrustedRun` verification, so a completed run is found and still checked
-for identity and conclusion. Every `nocoo/base-ci` pin in
+**This change — upstream hardening:** `nocoo/base-ci` `v2026.15` resolves the
+release source with
+`/actions/workflows/ci.yml/runs?head_sha=<sha>&status=completed&per_page=100`.
+GitHub's Actions API frequently answers that combination with `total_count: 0`
+even when a completed run exists, so the query itself was a trap for every
+consumer — a completed CI run could be invisible to `release-source`.
+`nocoo/base-ci` `v2026.16` (`6424d395d36a815d931f10e557762eb635d511c0`) drops
+`&status=completed` and relies on `assertTrustedRun` plus the follow-up
+`GET /actions/runs/{id}` proof check, which removes the pitfall without
+weakening the fail-closed verification. Every `nocoo/base-ci` pin in
 `.github/workflows/quality-slots.yml` and `.github/workflows/release.yml` now
 points at that revision. The reusable `deploy-worker.yml` input contract is
 unchanged between the two revisions, so `release.yml` keeps
 `expected-workflow-path: ".github/workflows/ci.yml"`,
-`expected-workflow-name: "CI"` and `required-quality-check: "quality / Z1: Gate"`.
+`expected-workflow-name: "CI"` and
+`required-quality-check: "quality / Z1: Gate"`.
 
-**Follow-up:** `scripts/release.test.ts` now audits the contract instead of
-leaving it in prose: the deploy workflow pin, the expected workflow path and
-name (matched against the constants the release script waits for), the quality
-gate check name derived from `ci.yml` plus `quality-slots.yml`, and the
-uniform base-ci revision across the quality slots. Bumping base-ci now fails
-the release test until the contract is re-audited.
+**Upstream status of the pinned revision:** `v2026.16`'s own CI has one failing
+run — `Self Test — ssh-deploy` (run `44741457393`, job `ssh-deploy smoke
+tests`). That is the provider's SSH deployment self-test; xray deploys a
+Cloudflare Worker through `deploy-worker.yml` and never touches the SSH path,
+so the failure is irrelevant here.
+
+**Follow-up:** `scripts/release.test.ts` audits the contract instead of leaving
+it in prose: every `nocoo/base-ci` reference in `.github/workflows` must be a
+full-SHA pin to the audited revision, must carry the matching version marker,
+and no stale or unpinned base-ci reference may remain; the deploy workflow pin,
+the expected workflow path and name (matched against the constants the release
+script waits for), and the quality gate check name derived from `ci.yml` plus
+`quality-slots.yml` are checked too. Bumping base-ci now fails the release
+test until the contract is re-audited.
