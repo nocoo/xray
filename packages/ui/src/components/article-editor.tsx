@@ -1,6 +1,6 @@
 import { Button, Field, Input } from "@nocoo/basalt";
 import { DialogFooter } from "@nocoo/basalt/components/dialog";
-import { InputArea } from "@nocoo/basalt/components/input-area";
+import { Textarea } from "@nocoo/basalt/components/textarea";
 import { Save } from "@nocoo/basalt/icons";
 import { ARTICLE_LIMITS, type ArticleInput, type ChannelArticle } from "@xray/shared";
 import { useState } from "react";
@@ -72,7 +72,7 @@ export function ArticleEditor({
 					</Field>
 				</div>
 				<Field label="Summary" required={false}>
-					<InputArea
+					<Textarea
 						className="text-base md:text-sm"
 						rows={2}
 						maxLength={ARTICLE_LIMITS.summary}
@@ -81,7 +81,7 @@ export function ArticleEditor({
 					/>
 				</Field>
 				<Field label="Markdown" required hint="Images require HTTPS URLs.">
-					<InputArea
+					<Textarea
 						required
 						rows={10}
 						className="font-mono text-base md:text-sm"

@@ -67,7 +67,7 @@ export function TokenRenameDialog({
 							disabled={busy}
 						/>
 					</Field>
-					{error && <Banner role="alert" variant="error" size="sm" description={error} />}
+					{error && <Banner role="alert" tone="danger" size="sm" description={error} />}
 					<DialogFooter>
 						<Button type="button" variant="outline" disabled={busy} onClick={onClose}>
 							Cancel

@@ -38,8 +38,8 @@ export function IntegrationsZhetoPage() {
 				description="Save posts to zhe.to."
 			/>
 
-			{error && <Banner variant="error" size="sm" description={error} />}
-			{saved && <Banner variant="default" size="sm" description="Saved." />}
+			{error && <Banner tone="danger" size="sm" description={error} />}
+			{saved && <Banner tone="neutral" size="sm" description="Saved." />}
 			<LayerCard className="max-w-lg">
 				<LayerCard.Header>
 					<SectionLabel icon={Webhook} tone="green">

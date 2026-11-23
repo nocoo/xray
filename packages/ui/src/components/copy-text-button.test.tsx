@@ -36,7 +36,7 @@ test("copies complete text and keeps transient success and failure feedback on t
 test("forwards the requested action style without changing other copy buttons", () => {
 	render(
 		<>
-			<CopyTextButton text="article" label="Copy article" variant="ghost" size="default" />
+			<CopyTextButton text="article" label="Copy article" variant="ghost" size="md" />
 			<CopyTextButton text="key" label="Copy key" />
 		</>,
 	);

@@ -41,7 +41,10 @@ function LinkCard({ link, vm }: { link: ArticleLinkState; vm: ArticleLinksVm }) 
 	}, [link.url, vm]);
 	return (
 		<li ref={element} className="min-w-0">
-			<LayerCard.Secondary className="block rounded-basalt-lg bg-basalt-card p-0 text-basalt-foreground ring-1 ring-basalt-border/40">
+			<LayerCard
+				padding="none"
+				className="block rounded-basalt-lg bg-basalt-card p-0 text-basalt-foreground ring-1 ring-basalt-border/40"
+			>
 				<a
 					href={link.url}
 					target="_blank"
@@ -78,7 +81,7 @@ function LinkCard({ link, vm }: { link: ArticleLinkState; vm: ArticleLinksVm }) 
 						)}
 					</div>
 				</a>
-			</LayerCard.Secondary>
+			</LayerCard>
 		</li>
 	);
 }
@@ -135,10 +138,7 @@ export function ArticleLinksPanel({
 								Related links
 							</h2>
 							<div className="flex items-center gap-2">
-								<Badge
-									variant="secondary"
-									className="h-6 min-w-7 justify-center border-basalt-border/40 px-2 py-0 tabular-nums text-basalt-muted-foreground"
-								>
+								<Badge className="h-6 min-w-7 justify-center border-basalt-border/40 px-2 py-0 tabular-nums text-basalt-muted-foreground">
 									{links.length}
 									<span className="sr-only"> related links</span>
 								</Badge>

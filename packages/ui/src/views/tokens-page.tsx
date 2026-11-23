@@ -7,7 +7,7 @@ import {
 } from "@nocoo/basalt/components/collapsible";
 import { InputGroup } from "@nocoo/basalt/components/input-group";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
-import { SkeletonLine } from "@nocoo/basalt/components/skeleton-line";
+import { Skeleton } from "@nocoo/basalt/components/skeleton";
 import { StatCard, StatGrid } from "@nocoo/basalt/components/stat-card";
 import {
 	BookOpen,
@@ -152,9 +152,7 @@ export function TokensPage() {
 								onChange={(event) => setQuery(event.target.value)}
 							/>
 						</InputGroup>
-						<Badge variant="secondary" className="tabular-nums">
-							{state.tokens.length} active tokens
-						</Badge>
+						<Badge className="tabular-nums">{state.tokens.length} active tokens</Badge>
 					</div>
 				}
 			/>
@@ -167,12 +165,12 @@ export function TokensPage() {
 						icon={<section.icon aria-hidden="true" strokeWidth={1.5} />}
 						iconColor={`hidden xl:block ${section.tone}`}
 						className="bg-basalt-bright! max-sm:p-3 max-sm:[&_[data-slot=stat-card-heading]]:min-h-basalt-control-lg max-sm:[&_[data-slot=stat-card-heading]_p]:text-xs max-sm:[&_[data-slot=stat-card-value]]:text-2xl"
-						status={state.loading && !state.tokens.length ? <SkeletonLine /> : undefined}
+						status={state.loading && !state.tokens.length ? <Skeleton /> : undefined}
 					/>
 				))}
 			</StatGrid>
 			{state.error && !creating && !editing && !revoking && (
-				<Banner role="alert" variant="error" size="sm" description={state.error} />
+				<Banner role="alert" tone="danger" size="sm" description={state.error} />
 			)}
 			{sections.map((section) => {
 				const filtered = filterTokens(state.tokens, query, section.kind);
@@ -189,9 +187,7 @@ export function TokensPage() {
 											strokeWidth={1.5}
 										/>
 										<h2 className="text-sm font-medium">{section.title}</h2>
-										<Badge variant="secondary" className="tabular-nums">
-											{filtered.length}
-										</Badge>
+										<Badge className="tabular-nums">{filtered.length}</Badge>
 									</div>
 									<div className="flex flex-wrap items-center gap-basalt-content-gap">
 										<CollapsibleTrigger asChild>

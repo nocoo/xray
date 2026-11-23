@@ -8,7 +8,7 @@ import {
 	Field,
 	Input,
 } from "@nocoo/basalt";
-import { InputArea } from "@nocoo/basalt/components/input-area";
+import { Textarea } from "@nocoo/basalt/components/textarea";
 import { Users } from "@nocoo/basalt/icons";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
@@ -100,7 +100,7 @@ export function CreateGroupDialog({
 							/>
 						</Field>
 						<Field label="Description">
-							<InputArea
+							<Textarea
 								placeholder="Optional"
 								value={description}
 								onChange={(e) => setDescription(e.target.value)}

@@ -595,10 +595,7 @@ export function ChannelsPage() {
 									<RefreshCw className="h-4 w-4" aria-hidden="true" />
 								</Button>
 							</HeaderTooltip>
-							<Badge
-								variant="secondary"
-								className="h-6 min-w-7 justify-center border-basalt-border/40 px-2 py-0 tabular-nums text-basalt-muted-foreground"
-							>
+							<Badge className="h-6 min-w-7 justify-center border-basalt-border/40 px-2 py-0 tabular-nums text-basalt-muted-foreground">
 								{matchingList ? state.items.length : 0}
 								{matchingList && state.nextCursor !== null ? "+" : ""}
 								<span className="sr-only"> reports loaded</span>
@@ -815,7 +812,7 @@ export function ChannelsPage() {
 							{state.error && (
 								<Banner
 									role="alert"
-									variant="error"
+									tone="danger"
 									size="sm"
 									className="mt-4"
 									description={state.error}

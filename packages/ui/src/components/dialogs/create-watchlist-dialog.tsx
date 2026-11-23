@@ -8,7 +8,7 @@ import {
 	Field,
 	Input,
 } from "@nocoo/basalt";
-import { InputArea } from "@nocoo/basalt/components/input-area";
+import { Textarea } from "@nocoo/basalt/components/textarea";
 import { Eye } from "@nocoo/basalt/icons";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
@@ -100,7 +100,7 @@ export function CreateWatchlistDialog({
 							/>
 						</Field>
 						<Field label="Description">
-							<InputArea
+							<Textarea
 								placeholder="Optional note about this list"
 								value={description}
 								onChange={(e) => setDescription(e.target.value)}

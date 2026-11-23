@@ -10,7 +10,6 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@nocoo/basalt/components/dialog";
-import { InputArea } from "@nocoo/basalt/components/input-area";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { SectionRule } from "@nocoo/basalt/components/section-rule";
 import { StatCard, StatGrid } from "@nocoo/basalt/components/stat-card";
@@ -22,6 +21,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@nocoo/basalt/components/table";
+import { Textarea } from "@nocoo/basalt/components/textarea";
 import {
 	ArrowLeft,
 	BookOpen,
@@ -86,7 +86,7 @@ export function ChannelSettingsPage() {
 						</Button>
 					}
 				/>
-				{state.error && <Banner role="alert" variant="error" size="sm" description={state.error} />}
+				{state.error && <Banner role="alert" tone="danger" size="sm" description={state.error} />}
 				<LayerCard>
 					{state.catalogLoading ? (
 						<FormSkeleton label="Loading channel settings" paragraphs={1} />
@@ -155,7 +155,7 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 				}
 			/>
 			{!creatingToken && !revoking && !deleting && state.error && (
-				<Banner role="alert" variant="error" size="sm" description={state.error} />
+				<Banner role="alert" tone="danger" size="sm" description={state.error} />
 			)}
 			<StatGrid columns={4} className="grid-cols-2">
 				{[
@@ -210,7 +210,7 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 									/>
 								</Field>
 								<Field label="Description" htmlFor="channel-description" required={false}>
-									<InputArea
+									<Textarea
 										id="channel-description"
 										value={description}
 										rows={2}
@@ -337,7 +337,7 @@ function ChannelSettings({ channel }: { channel: Channel }) {
 										/>
 									</Field>
 									{state.error && (
-										<Banner role="alert" variant="error" size="sm" description={state.error} />
+										<Banner role="alert" tone="danger" size="sm" description={state.error} />
 									)}
 									<DialogFooter>
 										<Button

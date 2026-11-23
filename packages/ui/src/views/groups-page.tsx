@@ -1,7 +1,6 @@
 import { Button, ConfirmDialog, LayerCard } from "@nocoo/basalt";
 import { Banner } from "@nocoo/basalt/components/banner";
 import { Empty } from "@nocoo/basalt/components/empty";
-import { InputArea } from "@nocoo/basalt/components/input-area";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import {
 	Select,
@@ -10,6 +9,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@nocoo/basalt/components/select";
+import { Textarea } from "@nocoo/basalt/components/textarea";
 import { Check, Copy, Pencil, Plus, Trash2, Upload, Users } from "@nocoo/basalt/icons";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
@@ -144,7 +144,7 @@ export function GroupsPage() {
 					className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
 				/>
 			)}
-			{s.error && <Banner variant="error" size="sm" description={s.error} />}
+			{s.error && <Banner tone="danger" size="sm" description={s.error} />}
 			{!s.loading && s.groups.length === 0 && !s.error && (
 				<LayerCard>
 					<Empty
@@ -293,7 +293,7 @@ export function GroupsPage() {
 							<p className="text-xs font-medium text-basalt-muted-foreground">
 								Bulk import (@handles / export with screen_name)
 							</p>
-							<InputArea
+							<Textarea
 								value={s.importText}
 								onChange={(e) => vm.setImportText(e.target.value)}
 								placeholder={"Paste Twitter export following.js, or one @handle per line"}

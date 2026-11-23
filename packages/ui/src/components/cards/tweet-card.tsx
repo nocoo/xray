@@ -348,13 +348,13 @@ export const TweetCard = memo(function TweetCard({
 				(tweet.entities.hashtags.length > 0 || tweet.entities.mentioned_users.length > 0) && (
 					<div className="flex flex-wrap gap-1.5">
 						{tweet.entities.hashtags.map((tag) => (
-							<Badge key={tag} variant="secondary" className="h-5 text-[10px]">
+							<Badge key={tag} className="h-5 text-[10px]">
 								<Hash className="mr-0.5 h-2.5 w-2.5" />
 								{tag}
 							</Badge>
 						))}
 						{tweet.entities.mentioned_users.map((user) => (
-							<Badge key={user} variant="secondary" className="h-5 text-[10px]">
+							<Badge key={user} className="h-5 text-[10px]">
 								<AtSign className="mr-0.5 h-2.5 w-2.5" />
 								{user}
 							</Badge>

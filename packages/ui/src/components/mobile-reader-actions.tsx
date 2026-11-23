@@ -152,7 +152,7 @@ export function MobileReaderActions({
 							label="Copy full article"
 							disabled={disabled}
 							variant="ghost"
-							size="default"
+							size="md"
 							className={actionClassName}
 						/>
 						<Button

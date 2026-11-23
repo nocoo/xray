@@ -3,7 +3,7 @@ import { Banner } from "@nocoo/basalt/components/banner";
 import { Dock, DockBody } from "@nocoo/basalt/components/dock";
 import { Empty } from "@nocoo/basalt/components/empty";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
-import { SkeletonLine } from "@nocoo/basalt/components/skeleton-line";
+import { Skeleton } from "@nocoo/basalt/components/skeleton";
 import {
 	Eye,
 	Languages,
@@ -176,7 +176,7 @@ export function WatchlistDetailPage() {
 			{panel === "settings" ? (
 				<DockBody>
 					<div className="space-y-6" data-testid="settings-panel">
-						{s.settingsError && <Banner variant="error" size="sm" description={s.settingsError} />}
+						{s.settingsError && <Banner tone="danger" size="sm" description={s.settingsError} />}
 						<div className="space-y-2">
 							<p className="flex items-center gap-2 text-sm font-medium">
 								<Languages className="h-4 w-4 text-basalt-muted-foreground" />
@@ -212,7 +212,7 @@ export function WatchlistDetailPage() {
 					</div>
 					<DockBody className="gap-0 p-0">
 						<div data-testid="ingest-logs">
-							{s.logsError && <Banner variant="error" size="sm" description={s.logsError} />}
+							{s.logsError && <Banner tone="danger" size="sm" description={s.logsError} />}
 							{s.logsLoading && s.logs.length === 0 ? (
 								<RowsSkeleton label="Loading activity" count={3} />
 							) : s.logs.length === 0 ? (
@@ -343,7 +343,7 @@ export function WatchlistDetailPage() {
 						}
 					/>
 
-					{s.error && <Banner variant="error" size="sm" description={s.error} />}
+					{s.error && <Banner tone="danger" size="sm" description={s.error} />}
 
 					<TabsContent value="members">
 						{s.loading && !s.wl ? (
@@ -482,7 +482,7 @@ export function WatchlistDetailPage() {
 										aria-hidden
 									>
 										{s.loadingMore ? (
-											<SkeletonLine
+											<Skeleton
 												className="h-3 dark:bg-basalt-muted-foreground/15"
 												style={{ width: "calc(var(--spacing) * 32)" }}
 											/>

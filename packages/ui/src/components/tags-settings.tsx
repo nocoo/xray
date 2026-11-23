@@ -16,7 +16,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@nocoo/basalt/components/select";
-import { SkeletonLine } from "@nocoo/basalt/components/skeleton-line";
+import { Skeleton } from "@nocoo/basalt/components/skeleton";
 import { TAG_COLORS, TagBadge, tagColorFor } from "@nocoo/basalt/components/tag-badge";
 import {
 	ArrowDownAZ,
@@ -120,7 +120,7 @@ export function TagsSettings() {
 			{!editor && !deleting && state.error && (
 				<Banner
 					role="alert"
-					variant="error"
+					tone="danger"
 					description={state.error}
 					action={
 						<Button size="sm" variant="outline" onClick={() => void vm.load()}>
@@ -179,7 +179,7 @@ export function TagsSettings() {
 									<TagBadge name={TAG_COLORS[item].label} color={item} size="sm" />
 									<div className="text-sm font-semibold tabular-nums text-basalt-foreground">
 										{initialLoading ? (
-											<SkeletonLine
+											<Skeleton
 												className="h-4 dark:bg-basalt-muted-foreground/15"
 												style={{ width: "calc(var(--spacing) * 4)" }}
 											/>
@@ -195,7 +195,7 @@ export function TagsSettings() {
 					<div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2">
 						<div role="status" className="text-sm text-basalt-muted-foreground">
 							{initialLoading ? (
-								<SkeletonLine
+								<Skeleton
 									className="h-4 dark:bg-basalt-muted-foreground/15"
 									style={{ width: "calc(var(--spacing) * 24)" }}
 								/>
@@ -226,13 +226,13 @@ export function TagsSettings() {
 								key={id}
 								className="flex items-center justify-between gap-3 rounded-basalt-md p-3"
 							>
-								<SkeletonLine className="h-6 rounded-full" minWidth={25} maxWidth={45} />
+								<Skeleton className="h-6 rounded-full" width="35%" />
 								<div className="flex shrink-0 gap-1">
-									<SkeletonLine
+									<Skeleton
 										className="h-basalt-control-sm rounded-basalt-md max-sm:min-h-basalt-touch max-sm:min-w-basalt-touch"
 										style={{ width: "var(--basalt-size-control-sm)" }}
 									/>
-									<SkeletonLine
+									<Skeleton
 										className="h-basalt-control-sm rounded-basalt-md max-sm:min-h-basalt-touch max-sm:min-w-basalt-touch"
 										style={{ width: "var(--basalt-size-control-sm)" }}
 									/>
@@ -387,7 +387,7 @@ export function TagsSettings() {
 							</div>
 						)}
 						{state.error && (
-							<Banner role="alert" variant="error" size="sm" description={state.error} />
+							<Banner role="alert" tone="danger" size="sm" description={state.error} />
 						)}
 						<DialogFooter>
 							<Button

@@ -8,9 +8,8 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@nocoo/basalt/components/dialog";
-import { InputArea } from "@nocoo/basalt/components/input-area";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
-import { SkeletonLine } from "@nocoo/basalt/components/skeleton-line";
+import { Skeleton } from "@nocoo/basalt/components/skeleton";
 import { StatCard, StatGrid } from "@nocoo/basalt/components/stat-card";
 import {
 	Table,
@@ -20,6 +19,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@nocoo/basalt/components/table";
+import { Textarea } from "@nocoo/basalt/components/textarea";
 import {
 	ArrowDown,
 	ArrowUp,
@@ -103,7 +103,7 @@ export function ChannelsManagePage() {
 						</>
 					}
 				/>
-				{!creating && state.error && <Banner variant="error" size="sm" description={state.error} />}
+				{!creating && state.error && <Banner tone="danger" size="sm" description={state.error} />}
 				<StatGrid columns={3} className="grid-cols-3 gap-2 sm:gap-3">
 					{[
 						{ label: "Channels", value: state.channels.length, icon: Radio },
@@ -128,7 +128,7 @@ export function ChannelsManagePage() {
 							status={
 								state.catalogLoading && !state.channels.length ? (
 									<span role="status" aria-label={`Loading ${stat.label.toLowerCase()}`}>
-										<SkeletonLine className="h-6 w-10" />
+										<Skeleton className="h-6 w-10" />
 									</span>
 								) : undefined
 							}
@@ -159,7 +159,7 @@ export function ChannelsManagePage() {
 								/>
 							</Field>
 							<Field label="Description" htmlFor="new-channel-description" required={false}>
-								<InputArea
+								<Textarea
 									id="new-channel-description"
 									value={description}
 									onChange={(event) => setDescription(event.target.value)}
@@ -170,7 +170,7 @@ export function ChannelsManagePage() {
 							</Field>
 						</div>
 						{state.error && (
-							<Banner role="alert" variant="error" size="sm" description={state.error} />
+							<Banner role="alert" tone="danger" size="sm" description={state.error} />
 						)}
 						<DialogFooter>
 							<Button

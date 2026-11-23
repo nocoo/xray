@@ -9,8 +9,8 @@ import {
 	Field,
 } from "@nocoo/basalt";
 import { Banner } from "@nocoo/basalt/components/banner";
-import { InputArea } from "@nocoo/basalt/components/input-area";
 import { TagBadge } from "@nocoo/basalt/components/tag-badge";
+import { Textarea } from "@nocoo/basalt/components/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@nocoo/basalt/components/toggle-group";
 import { Pencil } from "@nocoo/basalt/icons";
 import { useEffect, useId, useState } from "react";
@@ -103,7 +103,7 @@ export function EditMemberDialog({
 
 					<div className="grid gap-4">
 						{tagsError && (
-							<Banner variant="error" size="sm" description={`Failed to load tags: ${tagsError}`} />
+							<Banner tone="danger" size="sm" description={`Failed to load tags: ${tagsError}`} />
 						)}
 						{tags.length > 0 && (
 							<Field label="Tags">
@@ -122,7 +122,7 @@ export function EditMemberDialog({
 							</Field>
 						)}
 						<Field label="Note">
-							<InputArea
+							<Textarea
 								id={noteId}
 								placeholder="Optional private note"
 								value={note}
@@ -131,7 +131,7 @@ export function EditMemberDialog({
 								maxLength={200}
 							/>
 						</Field>
-						{error && <Banner variant="error" size="sm" description={error} />}
+						{error && <Banner tone="danger" size="sm" description={error} />}
 					</div>
 
 					<DialogFooter>

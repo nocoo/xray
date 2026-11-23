@@ -92,7 +92,7 @@ export function TagAssignment({
 					</div>
 					{state.error && (
 						<div className="px-4 pt-3">
-							<Banner role="alert" variant="error" size="sm" description={state.error} />
+							<Banner role="alert" tone="danger" size="sm" description={state.error} />
 						</div>
 					)}
 					<div className="max-h-56 overflow-y-auto p-2">

@@ -185,9 +185,7 @@ export function TokensTable({
 									{token.label}
 								</p>
 								<div className="mt-basalt-space-sm flex flex-wrap items-center gap-x-basalt-content-gap gap-y-basalt-space-sm">
-									<Badge variant={null} className={tone}>
-										{query ? "Read only" : "Write"}
-									</Badge>
+									<Badge className={tone}>{query ? "Read only" : "Write"}</Badge>
 									<code className="text-basalt-sm text-basalt-muted-foreground">
 										{token.tokenPrefix}...
 									</code>

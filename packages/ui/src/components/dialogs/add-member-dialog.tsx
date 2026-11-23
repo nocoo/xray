@@ -11,8 +11,8 @@ import {
 	SegmentControl,
 } from "@nocoo/basalt";
 import { Banner } from "@nocoo/basalt/components/banner";
-import { InputArea } from "@nocoo/basalt/components/input-area";
 import { TagBadge } from "@nocoo/basalt/components/tag-badge";
+import { Textarea } from "@nocoo/basalt/components/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@nocoo/basalt/components/toggle-group";
 import { UserPlus } from "@nocoo/basalt/icons";
 import type { SourceType } from "@xray/shared";
@@ -161,7 +161,7 @@ export function AddMemberDialog({
 							</div>
 						</div>
 						{target?.kind === "watchlist" && tagsError && (
-							<Banner variant="error" size="sm" description={`Failed to load tags: ${tagsError}`} />
+							<Banner tone="danger" size="sm" description={`Failed to load tags: ${tagsError}`} />
 						)}
 						{target?.kind === "watchlist" && tags.length > 0 && (
 							<Field label="Tags">
@@ -181,7 +181,7 @@ export function AddMemberDialog({
 						)}
 						{target?.kind === "watchlist" && (
 							<Field label="Note">
-								<InputArea
+								<Textarea
 									id={noteId}
 									placeholder="Optional private note"
 									value={note}
@@ -191,7 +191,7 @@ export function AddMemberDialog({
 								/>
 							</Field>
 						)}
-						{error && <Banner variant="error" size="sm" description={error} />}
+						{error && <Banner tone="danger" size="sm" description={error} />}
 					</div>
 
 					<DialogFooter>

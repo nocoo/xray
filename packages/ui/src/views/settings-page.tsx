@@ -1,9 +1,9 @@
 import { Button, Field, Input, LayerCard } from "@nocoo/basalt";
 import { Banner } from "@nocoo/basalt/components/banner";
-import { InputArea } from "@nocoo/basalt/components/input-area";
 import { PageHeader } from "@nocoo/basalt/components/page-header";
 import { SectionRule } from "@nocoo/basalt/components/section-rule";
 import { SensitiveInput } from "@nocoo/basalt/components/sensitive-input";
+import { Textarea } from "@nocoo/basalt/components/textarea";
 import { Bot, PlugZap, Save, Settings2, UserRound } from "@nocoo/basalt/icons";
 import { useEffect, useMemo } from "react";
 import * as aiApi from "@/api/ai";
@@ -46,8 +46,8 @@ export function SettingsPage() {
 			/>
 
 			<SectionRule id="account" title={<SectionLabel icon={UserRound}>Account</SectionLabel>}>
-				{account.error && <Banner variant="error" size="sm" description={account.error} />}
-				{account.saved && <Banner variant="default" size="sm" description="Saved." />}
+				{account.error && <Banner tone="danger" size="sm" description={account.error} />}
+				{account.saved && <Banner tone="neutral" size="sm" description="Saved." />}
 				<LayerCard padding="none">
 					<LayerCard.Body className="space-y-basalt-layout">
 						{account.loading ? (
@@ -141,14 +141,14 @@ export function SettingsPage() {
 									/>
 								</Field>
 								<Field label="Translation prompt" className="min-w-0 sm:col-span-2">
-									<InputArea
+									<Textarea
 										rows={3}
 										value={ai.translationPrompt}
 										onChange={(e) => aiVm.patchForm({ translationPrompt: e.target.value })}
 									/>
 								</Field>
 								<Field label="Summary prompt (optional)" className="min-w-0 sm:col-span-2">
-									<InputArea
+									<Textarea
 										rows={2}
 										value={ai.summaryPrompt}
 										onChange={(e) => aiVm.patchForm({ summaryPrompt: e.target.value })}
@@ -176,20 +176,14 @@ export function SettingsPage() {
 									<div className="space-y-1.5 sm:col-span-2" role="status" aria-live="polite">
 										{ai.testMsg && (
 											<Banner
-												variant={
-													ai.testOk === true
-														? "default"
-														: ai.testOk === false
-															? "error"
-															: "secondary"
-												}
+												tone={ai.testOk === false ? "danger" : "neutral"}
 												size="sm"
 												description={ai.testMsg}
 											/>
 										)}
-										{ai.error && <Banner variant="error" size="sm" description={ai.error} />}
+										{ai.error && <Banner tone="danger" size="sm" description={ai.error} />}
 										{ai.saved && !ai.error && (
-											<Banner variant="default" size="sm" description="Saved." />
+											<Banner tone="neutral" size="sm" description="Saved." />
 										)}
 									</div>
 								)}

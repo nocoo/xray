@@ -193,7 +193,7 @@ export function TokenEditorDialog({
 							/>
 						)}
 						{state.error && (
-							<Banner role="alert" variant="error" size="sm" description={state.error} />
+							<Banner role="alert" tone="danger" size="sm" description={state.error} />
 						)}
 						<DialogFooter>
 							<Button type="button" variant="outline" disabled={state.busy} onClick={close}>
