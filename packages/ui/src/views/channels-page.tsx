@@ -698,7 +698,7 @@ export function ChannelsPage() {
 					padding="none"
 					className="channel-reading-panel rounded-none ring-0 md:rounded-basalt-lg md:ring-1"
 				>
-					<LayerCard.Well className="channel-detail p-0">
+					<LayerCard.Well className="channel-detail bg-basalt-bright! p-0">
 						<div
 							ref={documentRef}
 							role="document"

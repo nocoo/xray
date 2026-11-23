@@ -163,6 +163,7 @@
 	min-width: 0;
 	min-height: 0;
 	flex-direction: column;
+	--basalt-surface-current: var(--basalt-bright);
 }
 .channel-links-region {
 	width: 0;
