@@ -97,7 +97,6 @@ packages/worker/    Hono API、D1 仓储与迁移
 packages/shared/    内容协议、采集适配器与共享类型
 scripts/           本地采集和数据迁移工具
 e2e/               浏览器端到端测试
-legacy/v1/         旧版 vinext 应用
 ```
 
 ## 测试

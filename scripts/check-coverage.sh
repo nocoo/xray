@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# L1 coverage gate — enforce lines/functions/branches floors from CLI args.
-# Usage: bash scripts/check-coverage.sh [LINES] [FUNCS] [BRANCHES]
-# Default: 95 95 95
+# L1 coverage gate — enforce lines/functions/branches/statements floors from CLI args.
+# Usage: bash scripts/check-coverage.sh [LINES] [FUNCS] [BRANCHES] [STATEMENTS]
+# Default: 95 95 95 95
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -9,8 +9,9 @@ cd "$ROOT"
 LINES_MIN="${1:-95}"
 FUNCS_MIN="${2:-95}"
 BRANCHES_MIN="${3:-95}"
+STATEMENTS_MIN="${4:-$LINES_MIN}"
 
-echo "L1 coverage floors: lines>=${LINES_MIN} functions>=${FUNCS_MIN} branches>=${BRANCHES_MIN}"
+echo "L1 coverage floors: lines>=${LINES_MIN} functions>=${FUNCS_MIN} branches>=${BRANCHES_MIN} statements>=${STATEMENTS_MIN}"
 
 fail=0
 
@@ -40,7 +41,7 @@ run_pkg() {
     return
   fi
   if SUMMARY_PATH="$summary" FILTER="$filter" \
-    LINES_MIN="$LINES_MIN" FUNCS_MIN="$FUNCS_MIN" BRANCHES_MIN="$BRANCHES_MIN" \
+    LINES_MIN="$LINES_MIN" FUNCS_MIN="$FUNCS_MIN" BRANCHES_MIN="$BRANCHES_MIN" STATEMENTS_MIN="$STATEMENTS_MIN" \
     node <<'NODE'
 const s = require(process.env.SUMMARY_PATH);
 const t = s.total;
@@ -48,6 +49,7 @@ const filter = process.env.FILTER;
 const LINES_MIN = Number(process.env.LINES_MIN);
 const FUNCS_MIN = Number(process.env.FUNCS_MIN);
 const BRANCHES_MIN = Number(process.env.BRANCHES_MIN);
+const STATEMENTS_MIN = Number(process.env.STATEMENTS_MIN);
 if (!t) {
   console.error(`❌ ${filter}: no total in summary`);
   process.exit(1);
@@ -72,9 +74,13 @@ if (branches < BRANCHES_MIN) {
   console.error(`❌ ${filter} branches ${branches} < ${BRANCHES_MIN}`);
   bad = true;
 }
+if (stmts < STATEMENTS_MIN) {
+  console.error(`❌ ${filter} statements ${stmts} < ${STATEMENTS_MIN}`);
+  bad = true;
+}
 if (bad) process.exit(1);
 console.log(
-  `✔ ${filter} meets floors lines/funcs/branches >= ${LINES_MIN}/${FUNCS_MIN}/${BRANCHES_MIN}`,
+  `✔ ${filter} meets floors lines/funcs/branches/statements >= ${LINES_MIN}/${FUNCS_MIN}/${BRANCHES_MIN}/${STATEMENTS_MIN}`,
 );
 NODE
   then

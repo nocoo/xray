@@ -48,7 +48,7 @@ Route inventory alone: `bun run gate:routes`. `test:l3` runs `scripts/test-l3.ts
 
 Follows `system1-quality`; CI slots live in `.github/workflows/quality-slots.yml` (`quality / Z1: Gate` on `main`). Status: `enforced`, `planned`, `manual`, `N/A`.
 
-- **Slots**: `test:coverage` enforces `L1` (`>=95%` non-View scopes in package Vitest configs); `test:l2` backs `L3: Integration`; `test:l3` backs `L4: E2E`.
+- **Slots**: `test:coverage` enforces `L1` (`>=95%` all 4 metrics via `scripts/check-coverage.sh`, non-View scopes in package Vitest configs; `packages/ui/dev/**` excluded as local dev helper); `test:l2` backs `L3: Integration`; `test:l3` backs `L4: E2E`.
 - **Exceptions**: `B1 Build` (`N/A`, in L3/L4), `L2 Runtime` (`N/A`, Worker in L3/L4), `P1 Package` (`N/A`, not on npm); physical iPhone Safari checks are `manual`.
 - **Hook gaps (`planned`)**: Pre-commit `G1` skips if `gitleaks` is absent; pre-push runs `L3` + `G1`/`G2` serially on history instead of parallel pushed-ref scans.
 - **Local hooks**: `bun run prepare` (`.husky/`), check-only. `pre-commit`: staged index snapshot (`S1/S2/L1` + optional `G1`); `pre-push`: `L3` + required `G1/G2`.

@@ -97,7 +97,6 @@ packages/worker/    Hono API, D1 repositories, and migrations
 packages/shared/    Content protocol, collector adapters, and shared types
 scripts/           Local collection and data migration tools
 e2e/               Browser end-to-end tests
-legacy/v1/         Previous vinext application
 ```
 
 ## Tests

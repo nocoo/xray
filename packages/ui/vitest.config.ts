@@ -9,19 +9,21 @@ export default defineConfig({
 	},
 	test: {
 		environment: "happy-dom",
-		include: ["src/**/*.test.ts", "src/**/*.test.tsx", "dev/**/*.test.ts"],
+		allowOnly: false,
+		passWithNoTests: false,
+		include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
 		coverage: {
 			provider: "v8",
 			// Non-View only: VMs, pure lib, API clients, hooks. Views/components = View shells.
 			include: [
-				"dev/**/*.ts",
 				"src/viewmodels/**/*.ts",
 				"src/lib/**/*.ts",
 				"src/api/**/*.ts",
 				"src/hooks/**/*.ts",
 			],
 			exclude: [
-				"dev/**/*.test.ts",
+				// Local dev/E2E server helper
+				"dev/**",
 				"src/**/*.test.ts",
 				"src/**/*.test.tsx",
 				// React binder (useSyncExternalStore glue)
