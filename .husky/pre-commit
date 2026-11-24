@@ -29,12 +29,12 @@ trap "exit 129" HUP
 repo=$(git rev-parse --show-toplevel)
 snapshot=$(mktemp -d "${TMPDIR:-/tmp}/xray-index-XXXXXX")
 
-if command -v gitleaks >/dev/null 2>&1; then
-	echo "━━━ gitleaks (staged) ━━━"
-	gitleaks protect --staged --no-banner
-else
-	echo "⚠ gitleaks not installed — skip"
-fi
+command -v gitleaks >/dev/null 2>&1 || {
+	echo "pre-commit: gitleaks is required" >&2
+	exit 1
+}
+echo "━━━ gitleaks (staged) ━━━"
+gitleaks protect --staged --no-banner --redact
 
 git checkout-index --all --prefix="$snapshot/"
 
