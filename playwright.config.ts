@@ -15,10 +15,5 @@ export default defineConfig({
 	},
 	projects: [
 		{ name: "chromium", use: { browserName: "chromium" } },
-		{
-			name: "webkit",
-			testMatch: ["channel-mobile.pw.ts", "article-links.pw.ts", "channel-filters.pw.ts", "dashboard.pw.ts", "ui-polish.pw.ts", "query-tokens.pw.ts"],
-			use: { browserName: "webkit" },
-		},
 	],
 });

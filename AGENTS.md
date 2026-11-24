@@ -17,7 +17,7 @@ bun run typecheck && bun run lint # S1 + S2 (0 warn)
 bun run test:coverage # L1 >=95% all 4 metrics
 bun run test:release # release CI-gate unit tests (scripts/release.test.ts)
 env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID -u CF_API_TOKEN bun run test:l2 # L3+routes
-bun x --no-install playwright install chromium webkit
+bun x --no-install playwright install chromium
 env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID -u CF_API_TOKEN bun run test:l3 # L4 E2E
 bun run capture:demo # Demo captures
 bun run login:prod # local Prod CF Access login

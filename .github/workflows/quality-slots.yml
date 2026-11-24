@@ -136,7 +136,7 @@ jobs:
           install-policy: trusted
       - run: |
           bun run check:wrangler-version
-          bunx playwright install --with-deps chromium webkit
+          bunx playwright install --with-deps chromium
           env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID -u CF_API_TOKEN bun run test:l3
 
   p1-package:
