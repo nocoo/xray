@@ -66,10 +66,15 @@ jobs:
 
   b1-build:
     name: "B1: Build"
-    if: ${{ vars.ENABLE_B1_BUILD == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - run: echo "N/A - build covered inside L3/L4 lanes"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: nocoo/base-ci/.github/actions/setup-js@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
+        with:
+          package-manager: bun
+          runtime-version: ${{ env.BUN_VERSION }}
+          install-policy: trusted
+      - run: bun run build
 
   l1-unit:
     name: "L1: Unit"
@@ -81,7 +86,7 @@ jobs:
           package-manager: bun
           runtime-version: ${{ env.BUN_VERSION }}
           install-policy: trusted
-      - run: bun run test && bun run test:coverage && bun run test:release
+      - run: bun run test:coverage && bun run test:release
 
   l2-runtime:
     name: "L2: Runtime"
@@ -165,6 +170,7 @@ jobs:
             "${{ needs.s3-workflow.result }}" \
             "${{ needs.g1-secrets.result }}" \
             "${{ needs.g2-dependencies.result }}" \
+            "${{ needs.b1-build.result }}" \
             "${{ needs.l1-unit.result }}" \
             "${{ needs.l3-integration.result }}" \
             "${{ needs.l4-e2e.result }}"; do
@@ -174,7 +180,6 @@ jobs:
             fi
           done
           for r in \
-            "${{ needs.b1-build.result }}" \
             "${{ needs.l2-runtime.result }}" \
             "${{ needs.p1-package.result }}"; do
             if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then

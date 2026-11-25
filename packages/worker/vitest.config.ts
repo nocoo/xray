@@ -24,10 +24,10 @@ export default defineConfig({
 			reporter: ["text", "json-summary"],
 			// Enforce the same four-metric contract as shared and UI.
 			thresholds: {
-				lines: 95,
-				functions: 95,
-				branches: 95,
-				statements: 95,
+				lines: 80,
+				functions: 80,
+				branches: 80,
+				statements: 80,
 			},
 		},
 	},

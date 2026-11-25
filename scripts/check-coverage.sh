@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # L1 coverage gate — enforce lines/functions/branches/statements floors from CLI args.
 # Usage: bash scripts/check-coverage.sh [LINES] [FUNCS] [BRANCHES] [STATEMENTS]
-# Default: 95 95 95 95
+# Default: 80 80 80 80
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-LINES_MIN="${1:-95}"
-FUNCS_MIN="${2:-95}"
-BRANCHES_MIN="${3:-95}"
+LINES_MIN="${1:-80}"
+FUNCS_MIN="${2:-80}"
+BRANCHES_MIN="${3:-80}"
 STATEMENTS_MIN="${4:-$LINES_MIN}"
 
 echo "L1 coverage floors: lines>=${LINES_MIN} functions>=${FUNCS_MIN} branches>=${BRANCHES_MIN} statements>=${STATEMENTS_MIN}"

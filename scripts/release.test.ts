@@ -45,8 +45,8 @@ const WORKFLOW_DIR = pathResolve(import.meta.dirname as string, "..", ".github/w
 /** Audited `nocoo/base-ci` revision; bumping it requires re-auditing the release contract. */
 const BASE_CI_SHA = "dc858360aa7812db61fd9d825943e4efd4dcd0e7";
 const BASE_CI_VERSION = "v2026.17";
-/** 1 deploy workflow reference plus 8 quality-slot action references. */
-const BASE_CI_REFERENCE_COUNT = 9;
+/** 1 deploy workflow reference plus 9 quality-slot action references. */
+const BASE_CI_REFERENCE_COUNT = 10;
 
 function workflow(name: string): string {
 	return readFileSync(pathResolve(WORKFLOW_DIR, name), "utf8");
@@ -126,7 +126,7 @@ describe("release workflow contract", () => {
 
 		expect(mentions.length).toBe(BASE_CI_REFERENCE_COUNT);
 		expect(mentions.filter(({ file }) => file === "release.yml").length).toBe(1);
-		expect(mentions.filter(({ file }) => file === "quality-slots.yml").length).toBe(8);
+		expect(mentions.filter(({ file }) => file === "quality-slots.yml").length).toBe(9);
 		expect(
 			mentions.filter(({ file }) => file !== "release.yml" && file !== "quality-slots.yml"),
 		).toEqual([]);
