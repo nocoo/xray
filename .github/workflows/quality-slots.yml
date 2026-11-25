@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nocoo/base-ci/.github/actions/setup-js@6424d395d36a815d931f10e557762eb635d511c0 # v2026.16
+      - uses: nocoo/base-ci/.github/actions/setup-js@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
         with:
           package-manager: bun
           runtime-version: ${{ env.BUN_VERSION }}
@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nocoo/base-ci/.github/actions/setup-js@6424d395d36a815d931f10e557762eb635d511c0 # v2026.16
+      - uses: nocoo/base-ci/.github/actions/setup-js@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
         with:
           package-manager: bun
           runtime-version: ${{ env.BUN_VERSION }}
@@ -42,28 +42,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Verify all external actions are pinned to full SHA
-        run: |
-          node -e '
-            const fs = require("fs");
-            const path = require("path");
-            const dir = ".github/workflows";
-            let failed = false;
-            for (const f of fs.readdirSync(dir)) {
-              if (!f.endsWith(".yml") && !f.endsWith(".yaml")) continue;
-              const content = fs.readFileSync(path.join(dir, f), "utf8");
-              for (const m of content.matchAll(/^\s*-?\s*uses:\s*([^\s#]+)/gm)) {
-                const ref = m[1];
-                if (ref.startsWith("./")) continue;
-                const [, sha] = ref.split("@");
-                if (!sha || !/^[a-f0-9]{40}$/.test(sha)) {
-                  console.error(`Unpinned action in ${f}: ${ref}`);
-                  failed = true;
-                }
-              }
-            }
-            if (failed) process.exit(1);
-          '
+        with:
+          persist-credentials: false
+      - uses: nocoo/base-ci/.github/actions/lint-workflows@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
 
   g1-secrets:
     name: "G1: Secrets"
@@ -71,17 +52,17 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
-      - uses: nocoo/base-ci/.github/actions/setup-security-scanners@6424d395d36a815d931f10e557762eb635d511c0 # v2026.16
-      - run: gitleaks detect --no-banner --source . --config .gitleaks.toml --verbose
+          fetch-depth: 1
+      - uses: nocoo/base-ci/.github/actions/scan-secrets@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
 
   g2-dependencies:
     name: "G2: Dependencies"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nocoo/base-ci/.github/actions/setup-security-scanners@6424d395d36a815d931f10e557762eb635d511c0 # v2026.16
-      - run: osv-scanner scan --lockfile=bun.lock
+      - uses: nocoo/base-ci/.github/actions/scan-dependencies@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
+        with:
+          lockfiles: "bun.lock"
 
   b1-build:
     name: "B1: Build"
@@ -95,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nocoo/base-ci/.github/actions/setup-js@6424d395d36a815d931f10e557762eb635d511c0 # v2026.16
+      - uses: nocoo/base-ci/.github/actions/setup-js@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
         with:
           package-manager: bun
           runtime-version: ${{ env.BUN_VERSION }}
@@ -114,7 +95,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nocoo/base-ci/.github/actions/setup-js@6424d395d36a815d931f10e557762eb635d511c0 # v2026.16
+      - uses: nocoo/base-ci/.github/actions/setup-js@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
         with:
           package-manager: bun
           runtime-version: ${{ env.BUN_VERSION }}
@@ -129,7 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nocoo/base-ci/.github/actions/setup-js@6424d395d36a815d931f10e557762eb635d511c0 # v2026.16
+      - uses: nocoo/base-ci/.github/actions/setup-js@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
         with:
           package-manager: bun
           runtime-version: ${{ env.BUN_VERSION }}
