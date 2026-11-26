@@ -48,7 +48,7 @@ Route inventory alone: `bun run gate:routes`. `test:l3` runs `scripts/test-l3.ts
 
 Follows `system1-quality`; CI slots live in `.github/workflows/quality-slots.yml` (`quality / Z1: Gate` on `main`). Status: `enforced`, `planned`, `manual`, `N/A`.
 
-- **Slots**: `B1: Build` (`bun run build`, uploading `xray-build` artifact) is `enforced`; `test:coverage` enforces `L1` (`>=80%` all 4 metrics via `scripts/check-coverage.sh`, non-View scopes in package Vitest configs; `packages/ui/dev/**` excluded as local dev helper); `test:l2` backs `L3: Integration` (reusing `B1` artifact); `scripts/test-l3.ts` backs `L4: E2E` (reusing `B1` artifact + `setup-playwright`); `z1-gate` uses checkout-free `nocoo/base-ci` `v2026.19` (`98fc023423f82b010f17e0ebbc9dd580fe68736a`).
+- **Slots**: `B1: Build` (`bun run build`, uploading `xray-build` artifact) is `enforced`; `test:coverage` enforces `L1` (`>=80%` all 4 metrics via `scripts/check-coverage.sh`, non-View scopes in package Vitest configs; `packages/ui/dev/**` excluded as local dev helper); `test:l2` backs `L3: Integration` (reusing `B1` artifact); `scripts/test-l3.ts` backs `L4: E2E` (reusing `B1` artifact + `setup-playwright`); `z1-gate` uses checkout-free `nocoo/base-ci` `v2026.20` (`e5876a604547b1ddb0916f16dd841a4f832609a0`).
 - **Exceptions**: `L2 Runtime` (`N/A`, Worker in L3/L4), `P1 Package` (`N/A`, not on npm); physical iPhone Safari checks are `manual`.
 - **Hook gaps (`planned`)**: Pre-commit `G1` skips if `gitleaks` is absent; pre-push runs `L3` + `G1`/`G2` serially on history instead of parallel pushed-ref scans.
 - **Local hooks**: `bun run prepare` (`.husky/`), check-only. `pre-commit`: staged index snapshot (`S1/S2/L1` + optional `G1`); `pre-push`: `L3` + required `G1/G2`.

@@ -43,8 +43,8 @@ describe("release CI gate constants", () => {
 
 const WORKFLOW_DIR = pathResolve(import.meta.dirname as string, "..", ".github/workflows");
 /** Audited `nocoo/base-ci` revision; bumping it requires re-auditing the release contract. */
-const BASE_CI_SHA = "98fc023423f82b010f17e0ebbc9dd580fe68736a";
-const BASE_CI_VERSION = "v2026.19";
+const BASE_CI_SHA = "e5876a604547b1ddb0916f16dd841a4f832609a0";
+const BASE_CI_VERSION = "v2026.20";
 /** 1 deploy workflow reference plus 11 quality-slot action references. */
 const BASE_CI_REFERENCE_COUNT = 12;
 

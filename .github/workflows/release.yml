@@ -27,7 +27,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success')
-    uses: nocoo/base-ci/.github/workflows/deploy-worker.yml@98fc023423f82b010f17e0ebbc9dd580fe68736a # v2026.19
+    uses: nocoo/base-ci/.github/workflows/deploy-worker.yml@e5876a604547b1ddb0916f16dd841a4f832609a0 # v2026.20
     with:
       required-quality-check: "quality / Z1: Gate"
       expected-workflow-path: ".github/workflows/ci.yml"
