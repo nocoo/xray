@@ -43,10 +43,10 @@ describe("release CI gate constants", () => {
 
 const WORKFLOW_DIR = pathResolve(import.meta.dirname as string, "..", ".github/workflows");
 /** Audited `nocoo/base-ci` revision; bumping it requires re-auditing the release contract. */
-const BASE_CI_SHA = "dc858360aa7812db61fd9d825943e4efd4dcd0e7";
-const BASE_CI_VERSION = "v2026.17";
-/** 1 deploy workflow reference plus 9 quality-slot action references. */
-const BASE_CI_REFERENCE_COUNT = 10;
+const BASE_CI_SHA = "bfaac83b5a4d5c7ed26320bb5b09f3ca0a01932c";
+const BASE_CI_VERSION = "v2026.18";
+/** 1 deploy workflow reference plus 11 quality-slot action references. */
+const BASE_CI_REFERENCE_COUNT = 12;
 
 function workflow(name: string): string {
 	return readFileSync(pathResolve(WORKFLOW_DIR, name), "utf8");
@@ -126,7 +126,7 @@ describe("release workflow contract", () => {
 
 		expect(mentions.length).toBe(BASE_CI_REFERENCE_COUNT);
 		expect(mentions.filter(({ file }) => file === "release.yml").length).toBe(1);
-		expect(mentions.filter(({ file }) => file === "quality-slots.yml").length).toBe(9);
+		expect(mentions.filter(({ file }) => file === "quality-slots.yml").length).toBe(11);
 		expect(
 			mentions.filter(({ file }) => file !== "release.yml" && file !== "quality-slots.yml"),
 		).toEqual([]);
@@ -162,7 +162,7 @@ describe("release workflow contract", () => {
 
 	test("requires the quality gate check that CI produces", () => {
 		const caller = workflowJobs(workflow("ci.yml")).find((job) => job.key === "quality");
-		const gate = workflowJobs(workflow("quality-slots.yml")).find((job) => job.key === "gate");
+		const gate = workflowJobs(workflow("quality-slots.yml")).find((job) => job.key === "z1-gate");
 
 		expect(caller).toBeDefined();
 		expect(gate).toBeDefined();
