@@ -5,8 +5,8 @@ export default defineConfig({
 	testDir: "./e2e",
 	testMatch: "*.pw.ts",
 	timeout: 60_000,
-	fullyParallel: false,
-	workers: 2,
+	fullyParallel: true,
+	workers: 3,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 1 : 0,
 	use: {
