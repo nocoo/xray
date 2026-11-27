@@ -6,7 +6,7 @@ export default defineConfig({
 	testMatch: "*.pw.ts",
 	timeout: 60_000,
 	fullyParallel: false,
-	workers: 1,
+	workers: 2,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 1 : 0,
 	use: {
