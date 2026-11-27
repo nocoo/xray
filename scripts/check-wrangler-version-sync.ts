@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dirname, "..");
-const RELEASE_WORKFLOW = resolve(ROOT, ".github/workflows/release.yml");
+const RELEASE_WORKFLOW = resolve(ROOT, ".github/workflows/pipeline.yml");
 const WORKER_PACKAGE = resolve(ROOT, "packages/worker/package.json");
 const LOCKFILE = resolve(ROOT, "bun.lock");
 

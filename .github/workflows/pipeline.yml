@@ -1,43 +1,36 @@
-name: Release
+name: Pipeline
 
 on:
   push:
-    tags:
-      - "v*.*.*"
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
     branches: [main]
+  pull_request: {}
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Tag to deploy (e.g. v2.2.0)"
-        required: true
-        type: string
+      deploy:
+        description: Deploy after quality gate passes
+        type: boolean
+        default: false
 
 permissions:
   contents: read
   actions: read
 
 jobs:
+  quality:
+    uses: ./.github/workflows/quality-slots.yml
+
   deploy:
     name: Deploy Worker
+    needs: [quality]
     if: >-
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.conclusion == 'success')
-    uses: nocoo/base-ci/.github/workflows/deploy-worker.yml@e5876a604547b1ddb0916f16dd841a4f832609a0 # v2026.20
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deploy == true)
+    uses: nocoo/base-ci/.github/workflows/deploy-worker.yml@3703a073693d598159e87f77f99587e586c14cfe # v2026.24
     with:
-      required-quality-check: "quality / Z1: Gate"
-      expected-workflow-path: ".github/workflows/ci.yml"
-      expected-workflow-name: "CI"
-      source-run-id: ${{ github.event_name == 'workflow_run' && format('{0}', github.event.workflow_run.id) || '' }}
-      tag: ${{ github.event_name == 'push' && github.ref_name || inputs.tag || '' }}
-      package-version-match: ${{ github.event_name != 'workflow_run' }}
       runtime-version: "1.3.14"
       install-policy: "blocked"
-      build-command: "bun run build"
+      artifact-name: xray-build
+      artifact-path: packages
       wrangler-working-directory: "packages/worker"
       d1-migrations: true
       d1-command: "d1 migrations apply xray-db --remote --env production"

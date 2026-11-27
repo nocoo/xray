@@ -24,9 +24,9 @@ import {
 } from "./release.ts";
 
 describe("release CI gate constants", () => {
-	test("targets the CI workflow on main", () => {
-		expect(CI_WORKFLOW).toBe(".github/workflows/ci.yml");
-		expect(CI_WORKFLOW_NAME).toBe("CI");
+	test("targets the Pipeline workflow on main", () => {
+		expect(CI_WORKFLOW).toBe(".github/workflows/pipeline.yml");
+		expect(CI_WORKFLOW_NAME).toBe("Pipeline");
 		expect(CI_BRANCH).toBe("main");
 		expect(CI_RUN_FIELDS).toBe(
 			"databaseId,headSha,headBranch,event,workflowName,status,conclusion",
@@ -43,8 +43,8 @@ describe("release CI gate constants", () => {
 
 const WORKFLOW_DIR = pathResolve(import.meta.dirname as string, "..", ".github/workflows");
 /** Audited `nocoo/base-ci` revision; bumping it requires re-auditing the release contract. */
-const BASE_CI_SHA = "e5876a604547b1ddb0916f16dd841a4f832609a0";
-const BASE_CI_VERSION = "v2026.20";
+const BASE_CI_SHA = "3703a073693d598159e87f77f99587e586c14cfe";
+const BASE_CI_VERSION = "v2026.24";
 /** 1 deploy workflow reference plus 13 quality-slot action references. */
 const BASE_CI_REFERENCE_COUNT = 14;
 
@@ -116,19 +116,19 @@ function baseCiMentions(): BaseCiMention[] {
 
 describe("release workflow contract", () => {
 	test("pins the deploy workflow to the audited base-ci revision", () => {
-		const release = workflow("release.yml");
+		const pipeline = workflow("pipeline.yml");
 
-		expect(release).toContain(`nocoo/base-ci/.github/workflows/deploy-worker.yml@${BASE_CI_SHA}`);
+		expect(pipeline).toContain(`nocoo/base-ci/.github/workflows/deploy-worker.yml@${BASE_CI_SHA}`);
 	});
 
 	test("pins every base-ci reference in the workflows to the audited revision", () => {
 		const mentions = baseCiMentions();
 
 		expect(mentions.length).toBe(BASE_CI_REFERENCE_COUNT);
-		expect(mentions.filter(({ file }) => file === "release.yml").length).toBe(1);
+		expect(mentions.filter(({ file }) => file === "pipeline.yml").length).toBe(1);
 		expect(mentions.filter(({ file }) => file === "quality-slots.yml").length).toBe(13);
 		expect(
-			mentions.filter(({ file }) => file !== "release.yml" && file !== "quality-slots.yml"),
+			mentions.filter(({ file }) => file !== "pipeline.yml" && file !== "quality-slots.yml"),
 		).toEqual([]);
 		expect(
 			mentions.filter(({ ref }) => !/^nocoo\/base-ci\/[^@\s]+@[0-9a-f]{40}$/.test(ref)),
@@ -153,27 +153,26 @@ describe("release workflow contract", () => {
 		expect(offenders).toEqual([]);
 	});
 
-	test("passes the CI workflow identity the release script waits for", () => {
-		const release = workflow("release.yml");
+	test("wires unified pipeline quality -> deploy on main", () => {
+		const pipeline = workflow("pipeline.yml");
 
-		expect(release).toContain(`expected-workflow-path: "${CI_WORKFLOW}"`);
-		expect(release).toContain(`expected-workflow-name: "${CI_WORKFLOW_NAME}"`);
+		expect(pipeline).toContain("name: Pipeline");
+		expect(pipeline).toContain("needs: [quality]");
+		expect(pipeline).not.toContain("tags:");
 	});
 
-	test("requires the quality gate check that CI produces", () => {
-		const caller = workflowJobs(workflow("ci.yml")).find((job) => job.key === "quality");
+	test("preserves the quality / Z1: Gate check name", () => {
+		const caller = workflowJobs(workflow("pipeline.yml")).find((job) => job.key === "quality");
 		const gate = workflowJobs(workflow("quality-slots.yml")).find((job) => job.key === "z1-gate");
 
 		expect(caller).toBeDefined();
 		expect(gate).toBeDefined();
 		// The caller job must not rename itself: the check prefix is its display name.
 		expect(caller?.name ?? "quality").toBe("quality");
+		expect(caller?.uses).toBe("./.github/workflows/quality-slots.yml");
 		expect(gate?.name).toBe("Z1: Gate");
 		const checkName = `${caller?.name ?? caller?.key} / ${gate?.name}`;
 		expect(checkName).toBe("quality / Z1: Gate");
-		const match = workflow("release.yml").match(/required-quality-check:\s*["']?([^"'\n#]+)/);
-		const configuredCheck = match ? match[1].trim() : "";
-		expect(configuredCheck).toBe(checkName);
 	});
 
 	test("pins every base-ci action in the quality slots to the same revision", () => {
@@ -239,7 +238,7 @@ describe("assertCiRunIdentity", () => {
 			headSha: SHA,
 			headBranch: "main",
 			event: "push",
-			workflowName: "CI",
+			workflowName: "Pipeline",
 			status: "in_progress",
 			conclusion: "",
 			...overrides,
@@ -355,7 +354,7 @@ describe("waitForCiSuccess", () => {
 			headSha: SHA,
 			headBranch: "main",
 			event: "push",
-			workflowName: "CI",
+			workflowName: "Pipeline",
 			status: "in_progress",
 			conclusion: "",
 			...overrides,
@@ -423,7 +422,7 @@ describe("waitForCiSuccess", () => {
 		expect(final.conclusion).toBe("success");
 		expect(calls.filter((call) => call[1] === "list")).toHaveLength(2);
 		const listCall = calls[0] ?? [];
-		expect(listCall).toContain(".github/workflows/ci.yml");
+		expect(listCall).toContain(".github/workflows/pipeline.yml");
 		expect(listCall).toContain(SHA);
 		expect(listCall).toContain("push");
 		expect(listCall).toContain("main");

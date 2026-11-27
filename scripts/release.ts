@@ -350,8 +350,8 @@ export function classifyStaleVersionScan(result: RunResult): StaleVersionScan {
 // CI gate before tagging
 // ---------------------------------------------------------------------------
 
-export const CI_WORKFLOW = ".github/workflows/ci.yml";
-export const CI_WORKFLOW_NAME = "CI";
+export const CI_WORKFLOW = ".github/workflows/pipeline.yml";
+export const CI_WORKFLOW_NAME = "Pipeline";
 export const CI_BRANCH = "main";
 export const CI_RUN_FIELDS = "databaseId,headSha,headBranch,event,workflowName,status,conclusion";
 export const CI_REGISTRATION_TIMEOUT_MS = 5 * 60_000;
