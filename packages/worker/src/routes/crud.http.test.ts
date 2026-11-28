@@ -3,6 +3,8 @@ import { describe, expect, test } from "vitest";
 import type { AppEnv, AuthUser } from "../types.js";
 import {
 	addGroupMemberRoute,
+	bulkImportGroupMembersRoute,
+	copyGroupToWatchlistRoute,
 	createGroupRoute,
 	deleteGroupMemberRoute,
 	deleteGroupRoute,
@@ -11,6 +13,7 @@ import {
 	listGroupsRoute,
 	patchGroupRoute,
 } from "./groups.js";
+import { listWatchlistIngestLogsRoute } from "./ingest-logs.js";
 import { deleteItemRoute, listItemsRoute } from "./items.js";
 import { getSettingsRoute, patchSettingsRoute } from "./settings.js";
 import {
@@ -45,6 +48,7 @@ function makeDb() {
 		groups: [],
 		group_members: [],
 		items: [],
+		ingest_logs: [],
 		settings: [],
 		push_tokens: [],
 	};
@@ -60,7 +64,17 @@ function makeDb() {
 				},
 				async first<T>() {
 					const up = sql.toUpperCase();
-					if (up.includes("FROM WATCHLISTS") && up.includes("W.ID")) {
+					if (up.includes("COUNT(*) AS C") && up.includes("FROM GROUP_MEMBERS")) {
+						const [userId, gid] = binds as [string, number];
+						const c = tables.group_members.filter(
+							(m) => m.user_id === userId && m.group_id === gid,
+						).length;
+						return { c } as T;
+					}
+					if (
+						up.includes("FROM WATCHLISTS") &&
+						(up.includes("W.ID") || up.includes("AND ID = ?"))
+					) {
 						const [userId, id] = binds as [string, number];
 						const hit = tables.watchlists.find((r) => r.user_id === userId && r.id === id);
 						return hit
@@ -182,6 +196,14 @@ function makeDb() {
 							) as T[],
 						};
 					}
+					if (up.includes("FROM INGEST_LOGS") && up.includes("WATCHLIST_ID")) {
+						const [userId, wl, lim] = binds as [string, number, number];
+						return {
+							results: tables.ingest_logs
+								.filter((l) => l.user_id === userId && l.watchlist_id === wl)
+								.slice(0, lim) as T[],
+						};
+					}
 					if (up.includes("FROM PUSH_TOKENS")) {
 						const [userId] = binds as [string];
 						return {
@@ -205,6 +227,37 @@ function makeDb() {
 							created_at_ms,
 						});
 						return { meta: { changes: 1, last_row_id: id } };
+					}
+					if (up.includes("INTO WATCHLIST_MEMBERS") && up.includes("SELECT")) {
+						const [watchlist_id, now, userId, group_id] = binds as [number, number, string, number];
+						let changes = 0;
+						for (const gm of tables.group_members.filter(
+							(m) => m.user_id === userId && m.group_id === group_id,
+						)) {
+							if (
+								tables.watchlist_members.some(
+									(m) =>
+										m.watchlist_id === watchlist_id &&
+										m.handle === gm.handle &&
+										m.source_type === gm.source_type,
+								)
+							) {
+								continue;
+							}
+							changes += 1;
+							tables.watchlist_members.push({
+								id: seq++,
+								user_id: userId,
+								watchlist_id,
+								source_type: gm.source_type,
+								external_author_id: gm.external_author_id,
+								handle: gm.handle,
+								display_name: gm.display_name,
+								note: null,
+								added_at_ms: now,
+							});
+						}
+						return { meta: { changes, last_row_id: 0 } };
 					}
 					if (up.startsWith("INSERT INTO WATCHLIST_MEMBERS")) {
 						const id = seq++;
@@ -249,6 +302,35 @@ function makeDb() {
 							created_at_ms,
 						});
 						return { meta: { changes: 1, last_row_id: id } };
+					}
+					if (up.includes("INTO GROUP_MEMBERS") && up.includes("OR IGNORE")) {
+						let changes = 0;
+						const stride = 6;
+						for (let r = 0; r < Math.floor(binds.length / stride); r++) {
+							const i = r * stride;
+							const group_id = Number(binds[i + 1]);
+							const handle = String(binds[i + 3] ?? "");
+							if (
+								tables.group_members.some(
+									(m) =>
+										m.group_id === group_id && m.handle === handle && m.source_type === "x.com",
+								)
+							) {
+								continue;
+							}
+							changes += 1;
+							tables.group_members.push({
+								id: seq++,
+								user_id: binds[i],
+								group_id,
+								source_type: "x.com",
+								external_author_id: binds[i + 2],
+								handle,
+								display_name: binds[i + 4],
+								added_at_ms: binds[i + 5],
+							});
+						}
+						return { meta: { changes, last_row_id: 0 } };
 					}
 					if (up.startsWith("INSERT INTO GROUP_MEMBERS")) {
 						const id = seq++;
@@ -407,7 +489,7 @@ function makeDb() {
 			return out;
 		},
 	};
-	return api as unknown as D1Database;
+	return Object.assign(api, { tables }) as unknown as D1Database & { tables: typeof tables };
 }
 
 function appWithUser(user: AuthUser, db: D1Database) {
@@ -428,6 +510,7 @@ function appWithUser(user: AuthUser, db: D1Database) {
 	app.patch("/api/watchlists/:id/members/:memberId", patchMemberRoute);
 	app.delete("/api/watchlists/:id/members/:memberId", deleteMemberRoute);
 	app.get("/api/watchlists/:id/items", listItemsRoute);
+	app.get("/api/watchlists/:id/ingest-logs", listWatchlistIngestLogsRoute);
 	app.delete("/api/items/:itemId", deleteItemRoute);
 	app.get("/api/tags", listTagsRoute);
 	app.post("/api/tags", createTagRoute);
@@ -438,6 +521,8 @@ function appWithUser(user: AuthUser, db: D1Database) {
 	app.delete("/api/groups/:id", deleteGroupRoute);
 	app.get("/api/groups/:id/members", listGroupMembersRoute);
 	app.post("/api/groups/:id/members", addGroupMemberRoute);
+	app.post("/api/groups/:id/members/import", bulkImportGroupMembersRoute);
+	app.post("/api/groups/:id/copy-to-watchlist", copyGroupToWatchlistRoute);
 	app.delete("/api/groups/:id/members/:memberId", deleteGroupMemberRoute);
 	app.get("/api/settings", getSettingsRoute);
 	app.patch("/api/settings", patchSettingsRoute);
@@ -670,11 +755,21 @@ describe("CRUD HTTP routes", () => {
 		app.get("/api/watchlists", listWatchlistsRoute);
 		app.get("/api/settings", getSettingsRoute);
 		app.get("/api/groups", listGroupsRoute);
+		app.post("/api/groups/:id/members/import", bulkImportGroupMembersRoute);
+		app.post("/api/groups/:id/copy-to-watchlist", copyGroupToWatchlistRoute);
+		app.get("/api/watchlists/:id/ingest-logs", listWatchlistIngestLogsRoute);
 		app.get("/api/tokens", listManagedTokensRoute);
 		app.get("/api/push-tokens", listTokensRoute);
 		expect((await app.request("/api/watchlists")).status).toBe(401);
 		expect((await app.request("/api/settings")).status).toBe(401);
 		expect((await app.request("/api/groups")).status).toBe(401);
+		expect(
+			(await app.request("/api/groups/1/members/import", { method: "POST", body: "{}" })).status,
+		).toBe(401);
+		expect(
+			(await app.request("/api/groups/1/copy-to-watchlist", { method: "POST", body: "{}" })).status,
+		).toBe(401);
+		expect((await app.request("/api/watchlists/1/ingest-logs")).status).toBe(401);
 		expect((await app.request("/api/push-tokens")).status).toBe(401);
 		expect((await app.request("/api/tokens")).status).toBe(401);
 	});
@@ -757,5 +852,125 @@ describe("CRUD HTTP routes", () => {
 				})
 			).status,
 		).toBe(400);
+	});
+
+	test("group bulk import, copy-to-watchlist, and watchlist ingest-logs", async () => {
+		const db = makeDb();
+		const app = appWithUser(user, db);
+		const wlId = (
+			(await (
+				await app.request("/api/watchlists", {
+					method: "POST",
+					body: JSON.stringify({ name: "WL" }),
+					headers: { "content-type": "application/json" },
+				})
+			).json()) as { data: { id: number } }
+		).data.id;
+		const gId = (
+			(await (
+				await app.request("/api/groups", {
+					method: "POST",
+					body: JSON.stringify({ name: "G" }),
+					headers: { "content-type": "application/json" },
+				})
+			).json()) as { data: { id: number } }
+		).data.id;
+		db.tables.groups.push({ id: 901, user_id: "other", name: "Foreign" });
+		db.tables.watchlists.push({ id: 902, user_id: "other", name: "ForeignWL" });
+		db.tables.ingest_logs.push({
+			id: 1,
+			user_id: "u1",
+			watchlist_id: wlId,
+			attempted: 3,
+			accepted: 2,
+			deduped: 1,
+			rejected: 0,
+			errors_json: null,
+			created_at_ms: 1000,
+		});
+
+		const badImport = await app.request(`/api/groups/${gId}/members/import`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({}),
+		});
+		expect(badImport.status).toBe(400);
+
+		const noHandles = await app.request(`/api/groups/${gId}/members/import`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				text: `window.YTD.following.part0 = [{"following":{"accountId":"1"}}];`,
+			}),
+		});
+		expect(noHandles.status).toBe(400);
+
+		expect(
+			(
+				await app.request("/api/groups/901/members/import", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ text: "@alice" }),
+				})
+			).status,
+		).toBe(404);
+
+		const imp = await app.request(`/api/groups/${gId}/members/import`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ text: "@alice\nbob\n@alice\n" }),
+		});
+		expect(imp.status).toBe(200);
+		expect(((await imp.json()) as { data: { added: number; total: number } }).data).toMatchObject({
+			added: 2,
+			total: 2,
+		});
+
+		expect(
+			(
+				await app.request(`/api/groups/${gId}/copy-to-watchlist`, {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({}),
+				})
+			).status,
+		).toBe(400);
+		expect(
+			(
+				await app.request(`/api/groups/${gId}/copy-to-watchlist`, {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ watchlistId: 902 }),
+				})
+			).status,
+		).toBe(404);
+
+		const emptyCopy = await app.request(`/api/groups/${gId}/copy-to-watchlist`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ watchlistId: wlId, memberIds: [] }),
+		});
+		expect(emptyCopy.status).toBe(200);
+		expect(
+			((await emptyCopy.json()) as { data: { added: number; total: number } }).data,
+		).toMatchObject({ added: 0, total: 0 });
+
+		const copied = await app.request(`/api/groups/${gId}/copy-to-watchlist`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ watchlistId: wlId }),
+		});
+		expect(copied.status).toBe(200);
+		expect(
+			((await copied.json()) as { data: { added: number; total: number } }).data,
+		).toMatchObject({ added: 2, total: 2 });
+
+		const logs = await app.request(`/api/watchlists/${wlId}/ingest-logs?limit=10`);
+		expect(logs.status).toBe(200);
+		expect(
+			((await logs.json()) as { data: Array<{ watchlistId: number; accepted: number }> }).data[0],
+		).toMatchObject({ watchlistId: wlId, accepted: 2 });
+		expect((await app.request(`/api/watchlists/${wlId}/ingest-logs?limit=1.5`)).status).toBe(400);
+		expect((await app.request("/api/watchlists/902/ingest-logs")).status).toBe(404);
 	});
 });

@@ -12,15 +12,16 @@ export default defineConfig({
 				"src/**/*.test.ts",
 				// Barrel re-exports only
 				"src/index.ts",
-				// Type-only boundary (no runtime)
+				// Type-only boundary / DTOs (no runtime)
+				"src/dashboard.ts",
 				"src/x-timeline-source.ts",
 			],
 			reporter: ["text", "json-summary"],
 			thresholds: {
-				lines: 80,
-				functions: 80,
-				branches: 80,
-				statements: 80,
+				lines: 90,
+				functions: 90,
+				branches: 85,
+				statements: 90,
 			},
 		},
 	},

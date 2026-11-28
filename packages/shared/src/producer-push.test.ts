@@ -86,4 +86,43 @@ describe("pushIngestBatch", () => {
 		);
 		expect(r.ok).toBe(false);
 	});
+
+	test("sets ingest host header on localhost and returns error after exhausting retries", async () => {
+		let seenHost: string | undefined;
+		let sleeps = 0;
+		const netFail = await pushIngestBatch(
+			{
+				fetch: async (_url, init) => {
+					seenHost = init.headers.host;
+					throw new Error("socket closed");
+				},
+				sleep: async () => {
+					sleeps += 1;
+				},
+				ingestBase: "http://127.0.0.1:8787/",
+				pushToken: "tok",
+				maxAttempts: 2,
+			},
+			body(),
+		);
+		expect(seenHost).toBe("xray-ingest.worker.hexly.ai");
+		expect(sleeps).toBe(1);
+		expect(netFail).toEqual({ ok: false, status: 0, error: "socket closed" });
+
+		const serverFail = await pushIngestBatch(
+			{
+				fetch: async () => ({
+					status: 503,
+					ok: false,
+					text: async () => JSON.stringify({ error: "overloaded" }),
+				}),
+				sleep: async () => {},
+				ingestBase: "https://xray-ingest.worker.hexly.ai",
+				pushToken: "tok",
+				maxAttempts: 2,
+			},
+			body(),
+		);
+		expect(serverFail).toEqual({ ok: false, status: 503, error: "overloaded" });
+	});
 });
